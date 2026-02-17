@@ -28,8 +28,8 @@ jobs:
       - name: Run tests
         run: make test
 
-  lint:
-    name: Lint (clang-tidy)
+  build-and-lint:
+    name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v5.5.2
@@ -39,7 +39,7 @@ jobs:
       - name: Install clang-tidy
         run: apt-get update && apt-get install -y clang-tidy
 
-      - name: Build (generate compile_commands.json)
+      - name: Build firmware
         shell: bash
         run: |
           . $IDF_PATH/export.sh
@@ -50,17 +50,3 @@ jobs:
         run: |
           . $IDF_PATH/export.sh
           make lint
-
-  build:
-    name: ESP-IDF Build
-    runs-on: ubuntu-latest
-    container:
-      image: espressif/idf:v5.5.2
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build firmware
-        shell: bash
-        run: |
-          . $IDF_PATH/export.sh
-          make build

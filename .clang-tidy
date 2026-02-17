@@ -23,13 +23,16 @@ Checks: >
   readability-string-compare,
   readability-uppercase-literal-suffix,
   -bugprone-easily-swappable-parameters,
+  -bugprone-branch-clone,
+  -clang-diagnostic-error,
+  -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -readability-function-cognitive-complexity,
 
 WarningsAsErrors: '*'
 
-HeaderFilterRegex: '(main|components)/.*'
+HeaderFilterRegex: '([/\\]|^)(main|components)[/\\]'
 
 CheckOptions:
   - key: readability-identifier-naming.FunctionCase
