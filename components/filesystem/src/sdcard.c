@@ -69,7 +69,7 @@ esp_err_t sdcard_mount(void)
     esp_vfs_fat_sdmmc_mount_config_t mount_cfg = {
         .format_if_mount_failed = false,
         .max_files = 5,
-        .allocation_unit_size = 16 * 1024,
+        .allocation_unit_size = (size_t)(16 * 1024),
     };
 
     sdspi_device_config_t slot_cfg = SDSPI_DEVICE_CONFIG_DEFAULT();

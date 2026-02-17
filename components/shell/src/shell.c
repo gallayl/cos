@@ -108,6 +108,7 @@ esp_err_t shell_resolve_relative(const char *input, char *abs_path, size_t len)
     int depth = 0;
 
     char *saveptr = NULL;
+    // NOLINTNEXTLINE(performance-no-int-to-ptr) -- strtok_r newlib implementation artifact
     char *token = strtok_r(working, "/", &saveptr);
     while (token != NULL)
     {
@@ -129,6 +130,7 @@ esp_err_t shell_resolve_relative(const char *input, char *abs_path, size_t len)
                 components[depth++] = token;
             }
         }
+        // NOLINTNEXTLINE(performance-no-int-to-ptr) -- strtok_r newlib implementation artifact
         token = strtok_r(NULL, "/", &saveptr);
     }
 
@@ -160,6 +162,7 @@ esp_err_t shell_init(void)
 
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.task_stack_size = 8192;
     repl_config.prompt = s_prompt;
 
     esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();

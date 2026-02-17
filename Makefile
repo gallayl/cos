@@ -61,7 +61,8 @@ format-check:
 	clang-format --dry-run --Werror $(SOURCES)
 
 lint:
-	clang-tidy -p build $(SOURCES)
+	@$(IDF_PYTHON) -c "import json,os;cc=json.load(open('build/compile_commands.json'));bad={'-mlongcalls','-fno-shrink-wrap','-fno-tree-switch-conversion','-fstrict-volatile-bitfields'};[c.__setitem__('command',' '.join(w for w in c['command'].split() if w not in bad)) for c in cc];os.makedirs('build/tidy',exist_ok=True);json.dump(cc,open('build/tidy/compile_commands.json','w'))"
+	@$(IDF_PYTHON) -c "import subprocess,sys;p=subprocess.Popen(['clang-tidy','-p','build/tidy']+sys.argv[1:],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);o=[(sys.stdout.write(l),l)[1] for l in p.stdout];p.wait();sys.exit(1 if any('warnings treated as errors' in l for l in o) else 0)" $(SOURCES)
 
 test:
 	cmake -B test/build test

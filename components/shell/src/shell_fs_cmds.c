@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "shell_fs";
@@ -68,17 +69,25 @@ static int cmd_ls(int argc, char **argv)
         return 1;
     }
 
-    vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    if (entries == NULL)
+    {
+        printf("ls: out of memory\n");
+        return 1;
+    }
+
     size_t count = 0;
     err = vfs_list_dir(abs_path, entries, VFS_ENTRIES_MAX, &count);
     if (err != ESP_OK)
     {
+        free(entries);
         printf("ls: cannot open '%s'\n", abs_path);
         return 1;
     }
 
     if (count == 0)
     {
+        free(entries);
         printf("(empty)\n");
         return 0;
     }
@@ -102,6 +111,7 @@ static int cmd_ls(int argc, char **argv)
         }
     }
 
+    free(entries);
     printf("%u file(s), %u dir(s), %u bytes\n", (unsigned)file_count, (unsigned)dir_count, (unsigned)total_bytes);
     return 0;
 }

@@ -160,6 +160,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
     return ESP_OK;
 }
 
+// NOLINTNEXTLINE(readability-non-const-parameter) -- buf is an output buffer filled by fread()
 esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *bytes_read)
 {
     if (path == NULL || buf == NULL || bytes_read == NULL)
