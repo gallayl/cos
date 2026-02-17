@@ -1,0 +1,51 @@
+---
+description: COS project coding standards, ESP-IDF patterns, and architecture conventions
+alwaysApply: true
+---
+
+# COS Project Conventions
+
+## Target
+- ESP32 (esp-idf 5.5.2), CYD board (ESP32-2432S028R)
+- Resource-constrained: minimize RAM/flash usage at all times
+
+## Language
+- C++ with `extern "C"` public APIs for cross-component compatibility
+- No exceptions (`-fno-exceptions`), no RTTI (`-fno-rtti`)
+- Prefer stack allocation over heap; avoid `std::string` in hot paths
+- Use fixed-size buffers where the upper bound is known
+
+## ESP-IDF Patterns
+- Structure code as ESP-IDF components under `components/`
+- Each component: `CMakeLists.txt`, `include/` (public headers), `src/` (implementation)
+- Return `esp_err_t` from fallible functions; use `ESP_RETURN_ON_ERROR` macros
+- Log with `ESP_LOGx(TAG, ...)` using a `static const char *const TAG` per file
+- Use `esp_console` for CLI commands (not custom UART parsing)
+- Use NVS for small config data, LittleFS/SPIFFS for larger files
+
+## Naming
+- Functions/variables: `snake_case`
+- Macros/constants: `UPPER_CASE`
+- Types/structs: `snake_case_t` (C), `CamelCase` (C++ classes)
+- Component prefixes: e.g. `display_init()`, `calibration_load()`
+
+## SOLID for Embedded
+- Hide implementation behind C-compatible function APIs (Dependency Inversion)
+- Isolate board-specific config in dedicated headers (Open/Closed)
+- One responsibility per component (Single Responsibility)
+
+## Testing
+- Host-based unit tests in `test/` using CMake + Unity
+- Mock hardware dependencies via fake implementations
+- Target ~100% coverage on logic modules; hardware-init modules are 0% by design
+
+## Build & Tooling
+- Always use the `Makefile` targets for building, testing, formatting, and linting
+- Available targets: `build`, `flash`, `monitor`, `clean`, `fullclean`, `format`, `format-check`, `lint`, `test`, `menuconfig`
+- Never invoke `cmake`, `idf.py`, `clang-format`, `clang-tidy`, or `ctest` directly; use the Makefile wrappers instead
+- The Makefile auto-detects ESP-IDF tools via `IDF_TOOLS_PATH` and `IDF_PYTHON_ENV_PATH`
+
+## Code Quality
+- All code must pass `clang-format` and `clang-tidy` (see project root configs)
+- Zero compiler warnings (`-Werror`)
+- No obvious inline comments; keep existing meaningful comments

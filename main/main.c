@@ -1,7 +1,8 @@
 #include "calibration.h"
 #include "display.h"
+#include "filesystem.h"
+#include "shell.h"
 
-#include "esp_console.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 
@@ -26,14 +27,8 @@ void app_main(void)
     ESP_ERROR_CHECK(init_nvs());
     ESP_ERROR_CHECK(display_init());
     ESP_ERROR_CHECK(calibration_init());
-
-    esp_console_repl_t *repl = NULL;
-    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_config.prompt = "cos> ";
-
-    esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
-    ESP_ERROR_CHECK(esp_console_start_repl(repl));
+    ESP_ERROR_CHECK(filesystem_init());
+    ESP_ERROR_CHECK(shell_init());
 
     ESP_LOGI(TAG, "COS ready");
 }

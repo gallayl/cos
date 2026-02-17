@@ -117,6 +117,7 @@ extern "C" esp_err_t display_set_rotation(uint8_t rotation)
     return ESP_OK;
 }
 
+// NOLINTNEXTLINE(readability-non-const-parameter) -- cal_data is an output buffer filled by calibrateTouch()
 extern "C" esp_err_t display_calibrate_touch(uint16_t cal_data[DISPLAY_CAL_DATA_LEN])
 {
     if (cal_data == NULL)

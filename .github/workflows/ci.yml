@@ -14,14 +14,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
 
       - name: Check formatting
-        run: |
-          SOURCES=$(find main components -name '*.c' -o -name '*.cpp' -o -name '*.h' | sort)
-          clang-format --dry-run --Werror $SOURCES
+        run: make format-check
 
   test:
     name: Unit Tests
@@ -29,25 +25,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure tests
-        run: cmake -B test/build test
-
-      - name: Build tests
-        run: cmake --build test/build
-
       - name: Run tests
-        run: ctest --test-dir test/build --output-on-failure
+        run: make test
 
-  build:
-    name: ESP-IDF Build
+  build-and-lint:
+    name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v5.5.2
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install clang-tidy
+        run: apt-get update && apt-get install -y clang-tidy
+
       - name: Build firmware
         shell: bash
         run: |
           . $IDF_PATH/export.sh
-          idf.py build
+          make build
+
+      - name: Run clang-tidy
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          make lint

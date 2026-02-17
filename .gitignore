@@ -73,8 +73,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Cursor IDE
-.cursor/
+# Cursor IDE (track rules, ignore the rest)
+.cursor/*
+!.cursor/rules/
 
 # User-specific configuration files
 *.user

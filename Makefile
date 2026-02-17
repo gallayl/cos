@@ -30,7 +30,11 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/display/include/*.h) \
            $(wildcard components/display/src/*.cpp components/display/src/*.h) \
            $(wildcard components/calibration/include/*.h) \
-           $(wildcard components/calibration/src/*.c components/calibration/src/*.h)
+           $(wildcard components/calibration/src/*.c components/calibration/src/*.h) \
+           $(wildcard components/filesystem/include/*.h) \
+           $(wildcard components/filesystem/src/*.c components/filesystem/src/*.h) \
+           $(wildcard components/shell/include/*.h) \
+           $(wildcard components/shell/src/*.c components/shell/src/*.h)
 
 build:
 	$(IDF_PY) build
@@ -57,9 +61,9 @@ format-check:
 	clang-format --dry-run --Werror $(SOURCES)
 
 lint:
-	clang-tidy -p build $(SOURCES)
+	@$(IDF_PYTHON) scripts/run_tidy.py $(SOURCES)
 
 test:
-	cmake -B test/build test
+	cmake -G Ninja -DCMAKE_C_COMPILER=gcc -B test/build test
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
