@@ -4,6 +4,5 @@ idf_component_register(
          "src/vfs.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES esp_vfs_fat fatfs sdmmc driver
-    PRIV_REQUIRES spi_common
+    REQUIRES fatfs sdmmc driver
 )

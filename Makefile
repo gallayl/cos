@@ -63,9 +63,7 @@ format-check:
 lint:
 	clang-tidy -p build $(SOURCES)
 
-HOST_CC ?= "C:/Program Files/LLVM/bin/clang.exe"
-
 test:
-	cmake -G Ninja -B test/build test -DCMAKE_C_COMPILER=$(HOST_CC)
+	cmake -B test/build test
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
