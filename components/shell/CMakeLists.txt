@@ -7,3 +7,6 @@ idf_component_register(
     PRIV_INCLUDE_DIRS "src"
     REQUIRES filesystem console
 )
+
+idf_component_get_property(console_dir console COMPONENT_DIR)
+target_include_directories(${COMPONENT_LIB} PRIVATE "${console_dir}/private_include")

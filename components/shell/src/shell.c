@@ -1,11 +1,13 @@
 #include "shell.h"
 #include "filesystem.h"
 
+#include "console_private.h"
 #include "esp_console.h"
 #include "esp_log.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/cdefs.h>
 
 static const char *const TAG = "shell";
 
@@ -14,6 +16,7 @@ static const char *const TAG = "shell";
 
 static char s_cwd[SHELL_CWD_MAX] = "/flash";
 static char s_prompt[SHELL_PROMPT_MAX] = "COS/flash> ";
+static esp_console_repl_t *s_repl = NULL;
 
 /* Defined in shell_fs_cmds.c */
 void shell_register_fs_commands(void);
@@ -21,6 +24,36 @@ void shell_register_fs_commands(void);
 void shell_register_sd_commands(void);
 /* Defined in shell_info_cmds.c */
 void shell_register_info_commands(void);
+
+static void sync_repl_prompt(void)
+{
+    if (s_repl == NULL)
+    {
+        return;
+    }
+
+    esp_console_repl_com_t *repl_com = __containerof(s_repl, esp_console_repl_com_t, repl_core);
+
+    if (strlen(s_prompt) < CONSOLE_PROMPT_MAX_LEN)
+    {
+        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "%s", s_prompt);
+        return;
+    }
+
+    /* Path too long for REPL buffer – elide middle segments: COS/<first>/.../<last> > */
+    const char *second_slash = strchr(s_cwd + 1, '/');
+    const char *last_slash = strrchr(s_cwd, '/');
+
+    if (second_slash != NULL && last_slash != NULL && second_slash < last_slash)
+    {
+        int first_len = (int)(second_slash - s_cwd);
+        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "COS%.*s/...%s> ", first_len, s_cwd, last_slash);
+    }
+    else
+    {
+        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "%s", s_prompt);
+    }
+}
 
 static void update_prompt(void)
 {
@@ -30,9 +63,10 @@ static void update_prompt(void)
     }
     else
     {
-        /* s_cwd starts with '/', so "COS" + s_cwd gives "COS/flash" etc. */
         snprintf(s_prompt, sizeof(s_prompt), "COS%s> ", s_cwd);
     }
+
+    sync_repl_prompt();
 }
 
 const char *shell_get_cwd(void)
@@ -172,6 +206,8 @@ esp_err_t shell_init(void)
         ESP_LOGE(TAG, "Failed to create REPL: %s", esp_err_to_name(err));
         return err;
     }
+
+    s_repl = repl;
 
     err = esp_console_start_repl(repl);
     if (err != ESP_OK)

@@ -65,6 +65,6 @@ lint:
 	@$(IDF_PYTHON) -c "import subprocess,sys;p=subprocess.Popen(['clang-tidy','-p','build/tidy']+sys.argv[1:],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True);o=[(sys.stdout.write(l),l)[1] for l in p.stdout];p.wait();sys.exit(1 if any('warnings treated as errors' in l for l in o) else 0)" $(SOURCES)
 
 test:
-	cmake -B test/build test
+	cmake -G Ninja -DCMAKE_C_COMPILER=gcc -B test/build test
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure

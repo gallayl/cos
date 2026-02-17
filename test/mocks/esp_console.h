@@ -31,6 +31,7 @@ typedef struct
 {
     const char *prompt;
     size_t max_cmdline_length;
+    size_t task_stack_size;
 } esp_console_repl_config_t;
 
 typedef struct
