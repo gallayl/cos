@@ -16,12 +16,15 @@ set(COMPONENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 add_library(mock_esp STATIC
     mocks/mock_nvs.c
     mocks/mock_display.c
+    mocks/mock_filesystem.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
     ${COMPONENT_DIR}/components/display/include
     ${COMPONENT_DIR}/components/calibration/include
     ${COMPONENT_DIR}/components/calibration/src
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/shell/include
 )
 
 add_library(calibration_storage STATIC
@@ -46,6 +49,20 @@ target_include_directories(calibration_logic PUBLIC
 )
 target_link_libraries(calibration_logic PRIVATE mock_esp calibration_storage)
 
+add_library(shell_logic STATIC
+    ${COMPONENT_DIR}/components/shell/src/shell.c
+    ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
+    ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
+    ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
+)
+target_include_directories(shell_logic PUBLIC
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/shell/src
+    ${COMPONENT_DIR}/components/filesystem/include
+    mocks
+)
+target_link_libraries(shell_logic PRIVATE mock_esp)
+
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
 target_include_directories(test_calibration_storage PRIVATE
@@ -66,3 +83,22 @@ target_include_directories(test_calibration PRIVATE
 )
 target_link_libraries(test_calibration PRIVATE unity calibration_logic calibration_storage mock_esp)
 add_test(NAME test_calibration COMMAND test_calibration)
+
+# --- Test: vfs_path ---
+add_executable(test_vfs_path test_vfs_path.c)
+target_include_directories(test_vfs_path PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/filesystem/include
+)
+target_link_libraries(test_vfs_path PRIVATE unity mock_esp)
+add_test(NAME test_vfs_path COMMAND test_vfs_path)
+
+# --- Test: shell ---
+add_executable(test_shell test_shell.c)
+target_include_directories(test_shell PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/shell/include
+)
+target_link_libraries(test_shell PRIVATE unity shell_logic mock_esp)
+add_test(NAME test_shell COMMAND test_shell)
