@@ -132,13 +132,12 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].name[VFS_NAME_MAX - 1] = '\0';
 
         char entry_path[VFS_PATH_MAX];
-        int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
-
-        /* Remove double slash if real_path ends with '/' */
-        if (written > 0 && real_path[strlen(real_path) - 1] == '/')
-        {
-            snprintf(entry_path, sizeof(entry_path), "%s%s", real_path, entry->d_name);
-        }
+        size_t rp_len = strlen(real_path);
+        const char *sep = (rp_len > 0 && real_path[rp_len - 1] == '/') ? "" : "/";
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+        snprintf(entry_path, sizeof(entry_path), "%s%s%s", real_path, sep, entry->d_name);
+#pragma GCC diagnostic pop
 
         struct stat st;
         if (stat(entry_path, &st) == 0)

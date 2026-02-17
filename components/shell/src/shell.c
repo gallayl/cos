@@ -8,9 +8,10 @@
 
 static const char *const TAG = "shell";
 
+#define SHELL_CWD_MAX 64
 #define SHELL_PROMPT_MAX 80
 
-static char s_cwd[VFS_PATH_MAX] = "/flash";
+static char s_cwd[SHELL_CWD_MAX] = "/flash";
 static char s_prompt[SHELL_PROMPT_MAX] = "COS/flash> ";
 
 /* Defined in shell_fs_cmds.c */
@@ -55,6 +56,10 @@ esp_err_t shell_set_cwd(const char *path)
         return ESP_ERR_NOT_FOUND;
     }
 
+    if (strlen(path) >= sizeof(s_cwd))
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
     strncpy(s_cwd, path, sizeof(s_cwd) - 1);
     s_cwd[sizeof(s_cwd) - 1] = '\0';
 
