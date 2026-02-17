@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 #include "esp_err.h"
 
 typedef int (*esp_console_cmd_func_t)(int argc, char **argv);
