@@ -4,6 +4,7 @@
 #include "esp_console.h"
 #include "esp_log.h"
 
+#include <stdio.h>
 #include <string.h>
 
 static const char *const TAG = "shell";
