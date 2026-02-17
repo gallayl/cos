@@ -36,7 +36,8 @@ static void sync_repl_prompt(void)
 
     if (strlen(s_prompt) < CONSOLE_PROMPT_MAX_LEN)
     {
-        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "%s", s_prompt);
+        strncpy(repl_com->prompt, s_prompt, CONSOLE_PROMPT_MAX_LEN - 1);
+        repl_com->prompt[CONSOLE_PROMPT_MAX_LEN - 1] = '\0';
         return;
     }
 
@@ -51,7 +52,8 @@ static void sync_repl_prompt(void)
     }
     else
     {
-        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "%s", s_prompt);
+        strncpy(repl_com->prompt, s_prompt, CONSOLE_PROMPT_MAX_LEN - 1);
+        repl_com->prompt[CONSOLE_PROMPT_MAX_LEN - 1] = '\0';
     }
 }
 
