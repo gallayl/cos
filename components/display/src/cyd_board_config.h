@@ -1,0 +1,46 @@
+#pragma once
+
+// CYD Board: ESP32-2432S028R
+// ILI9341 display (240x320) + XPT2046 resistive touch
+
+// --- Display SPI bus (SPI2_HOST / HSPI) ---
+#define CYD_DISP_SPI_HOST SPI2_HOST
+#define CYD_DISP_PIN_SCLK 14
+#define CYD_DISP_PIN_MOSI 13
+#define CYD_DISP_PIN_MISO 12
+#define CYD_DISP_PIN_DC 2
+#define CYD_DISP_PIN_CS 15
+#define CYD_DISP_PIN_RST (-1)
+#define CYD_DISP_SPI_FREQ_WRITE 55000000
+#define CYD_DISP_SPI_FREQ_READ 16000000
+
+// --- Panel ---
+#define CYD_PANEL_WIDTH 240
+#define CYD_PANEL_HEIGHT 320
+#define CYD_PANEL_OFFSET_ROTATION 6
+#define CYD_PANEL_INVERT true
+#define CYD_PANEL_RGB_ORDER false
+#define CYD_PANEL_READABLE true
+#define CYD_PANEL_BUS_SHARED true
+
+// --- Backlight (PWM) ---
+#define CYD_BL_PIN 21
+#define CYD_BL_PWM_CHANNEL 7
+#define CYD_BL_FREQ 44100
+#define CYD_BL_INVERT false
+#define CYD_BL_DEFAULT_BRIGHTNESS 128
+
+// --- Touch SPI bus (SPI3_HOST / VSPI) ---
+#define CYD_TOUCH_SPI_HOST SPI3_HOST
+#define CYD_TOUCH_PIN_SCLK 25
+#define CYD_TOUCH_PIN_MOSI 32
+#define CYD_TOUCH_PIN_MISO 39
+#define CYD_TOUCH_PIN_CS 33
+#define CYD_TOUCH_PIN_INT (-1)
+#define CYD_TOUCH_SPI_FREQ 2500000
+#define CYD_TOUCH_X_MIN 0
+#define CYD_TOUCH_X_MAX 239
+#define CYD_TOUCH_Y_MIN 0
+#define CYD_TOUCH_Y_MAX 319
+#define CYD_TOUCH_BUS_SHARED true
+#define CYD_TOUCH_OFFSET_ROTATION 0
