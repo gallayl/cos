@@ -14,11 +14,7 @@ typedef struct
     esp_console_cmd_func_t func;
 } esp_console_cmd_t;
 
-static inline esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd)
-{
-    (void)cmd;
-    return ESP_OK;
-}
+esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd);
 
 /* REPL stubs for host tests */
 

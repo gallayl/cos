@@ -1,5 +1,6 @@
 #include "shell.h"
 #include "filesystem.h"
+#include "shell_cmds.h"
 
 #include "console_private.h"
 #include "esp_console.h"
@@ -18,13 +19,6 @@ static char s_cwd[SHELL_CWD_MAX] = "/flash";
 static char s_prompt[SHELL_PROMPT_MAX] = "COS/flash> ";
 static esp_console_repl_t *s_repl = NULL;
 
-/* Defined in shell_fs_cmds.c */
-void shell_register_fs_commands(void);
-/* Defined in shell_sd_cmds.c */
-void shell_register_sd_commands(void);
-/* Defined in shell_info_cmds.c */
-void shell_register_info_commands(void);
-
 static void sync_repl_prompt(void)
 {
     if (s_repl == NULL)
@@ -32,6 +26,12 @@ static void sync_repl_prompt(void)
         return;
     }
 
+    /*
+     * HACK: ESP-IDF does not expose a public API to update the REPL prompt
+     * at runtime. We reach into the private esp_console_repl_com_t struct
+     * via __containerof. This may break across ESP-IDF versions -- revisit
+     * when a public API becomes available (tracked: ESP-IDF #12345-like).
+     */
     esp_console_repl_com_t *repl_com = __containerof(s_repl, esp_console_repl_com_t, repl_core);
 
     if (strlen(s_prompt) < CONSOLE_PROMPT_MAX_LEN)

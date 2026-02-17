@@ -102,46 +102,6 @@ uint64_t sdcard_get_used_bytes(void)
     return 0;
 }
 
-esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len)
-{
-    if (virtual_path == NULL || real_path == NULL || len == 0)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (strncmp(virtual_path, "/flash", 6) == 0)
-    {
-        const char *rest = virtual_path + 6;
-        if (rest[0] == '\0')
-        {
-            rest = "/";
-        }
-        int written = snprintf(real_path, len, "/littlefs%s", rest);
-        if (written < 0 || (size_t)written >= len)
-        {
-            return ESP_ERR_INVALID_SIZE;
-        }
-        return ESP_OK;
-    }
-
-    if (strncmp(virtual_path, "/sdcard", 7) == 0)
-    {
-        const char *rest = virtual_path + 7;
-        if (rest[0] == '\0')
-        {
-            rest = "/";
-        }
-        int written = snprintf(real_path, len, "/sdcard%s", rest);
-        if (written < 0 || (size_t)written >= len)
-        {
-            return ESP_ERR_INVALID_SIZE;
-        }
-        return ESP_OK;
-    }
-
-    return ESP_ERR_NOT_FOUND;
-}
-
 esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_entries, size_t *count)
 {
     (void)path;

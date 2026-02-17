@@ -17,6 +17,7 @@ add_library(mock_esp STATIC
     mocks/mock_nvs.c
     mocks/mock_display.c
     mocks/mock_filesystem.c
+    mocks/mock_console.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -25,6 +26,15 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/calibration/src
     ${COMPONENT_DIR}/components/filesystem/include
     ${COMPONENT_DIR}/components/shell/include
+)
+
+add_library(vfs_path STATIC
+    ${COMPONENT_DIR}/components/filesystem/src/vfs_path.c
+)
+target_include_directories(vfs_path PUBLIC
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/filesystem/src
+    mocks
 )
 
 add_library(calibration_storage STATIC
@@ -90,7 +100,7 @@ target_include_directories(test_vfs_path PRIVATE
     mocks
     ${COMPONENT_DIR}/components/filesystem/include
 )
-target_link_libraries(test_vfs_path PRIVATE unity mock_esp)
+target_link_libraries(test_vfs_path PRIVATE unity vfs_path mock_esp)
 add_test(NAME test_vfs_path COMMAND test_vfs_path)
 
 # --- Test: shell ---

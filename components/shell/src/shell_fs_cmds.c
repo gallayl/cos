@@ -206,7 +206,11 @@ static int cmd_cat(int argc, char **argv)
     buf[bytes_read] = '\0';
     printf("%s", buf);
 
-    if (bytes_read > 0 && buf[bytes_read - 1] != '\n')
+    if (bytes_read == sizeof(buf) - 1)
+    {
+        printf("\n(truncated, showing first %u bytes)\n", (unsigned)bytes_read);
+    }
+    else if (bytes_read > 0 && buf[bytes_read - 1] != '\n')
     {
         printf("\n");
     }
@@ -299,7 +303,12 @@ static int cmd_hexdump(int argc, char **argv)
         printf("|\n");
     }
 
-    printf("%u bytes\n", (unsigned)bytes_read);
+    printf("%u bytes", (unsigned)bytes_read);
+    if (bytes_read == sizeof(buf))
+    {
+        printf(" (truncated, max %u)", (unsigned)sizeof(buf));
+    }
+    printf("\n");
     return 0;
 }
 

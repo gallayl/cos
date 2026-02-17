@@ -10,6 +10,8 @@
 
 static const char *const TAG = "sdcard";
 
+#define SD_OCR_SDHC_BIT (1U << 30)
+
 static sdmmc_card_t *s_card = NULL;
 static bool s_spi_initialized = false;
 static bool s_mounted = false;
@@ -30,7 +32,7 @@ static esp_err_t ensure_spi_bus(void)
         .max_transfer_sz = 4000,
     };
 
-    esp_err_t err = spi_bus_initialize(SDCARD_SPI_HOST, &bus_cfg, SDSPI_DEFAULT_DMA);
+    esp_err_t err = spi_bus_initialize(SDCARD_SPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
     if (err == ESP_ERR_INVALID_STATE)
     {
         /* Bus already initialized (e.g. by display driver) -- that's fine */
@@ -121,7 +123,7 @@ const char *sdcard_get_type_name(void)
     {
         return "MMC";
     }
-    if (s_card->ocr & (1 << 30))
+    if (s_card->ocr & SD_OCR_SDHC_BIT)
     {
         return "SDHC";
     }
