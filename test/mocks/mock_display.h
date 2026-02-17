@@ -33,3 +33,6 @@ int mock_display_set_cal_call_count(void);
 
 /** Get number of times display_fill_screen was called. */
 int mock_display_fill_screen_call_count(void);
+
+/** Get the last brightness value passed to display_set_brightness. */
+uint8_t mock_display_get_brightness(void);

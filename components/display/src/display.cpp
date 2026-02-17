@@ -85,6 +85,7 @@ class CydDisplay : public lgfx::LGFX_Device
 
 static CydDisplay lcd;
 static bool initialized = false;
+static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
 
 extern "C" esp_err_t display_init(void)
 {
@@ -158,7 +159,13 @@ extern "C" esp_err_t display_set_touch_calibration(const uint16_t cal_data[DISPL
 extern "C" esp_err_t display_set_brightness(uint8_t brightness)
 {
     lcd.setBrightness(brightness);
+    current_brightness = brightness;
     return ESP_OK;
+}
+
+extern "C" uint8_t display_get_brightness(void)
+{
+    return current_brightness;
 }
 
 extern "C" void display_fill_screen(uint16_t color)

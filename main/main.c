@@ -1,6 +1,9 @@
+#include "brightness.h"
 #include "calibration.h"
 #include "display.h"
 #include "filesystem.h"
+#include "light_sensor.h"
+#include "rgb_led.h"
 #include "shell.h"
 
 #include "esp_log.h"
@@ -27,6 +30,9 @@ void app_main(void)
     ESP_ERROR_CHECK(init_nvs());
     ESP_ERROR_CHECK(display_init());
     ESP_ERROR_CHECK(calibration_init());
+    ESP_ERROR_CHECK(light_sensor_init());
+    ESP_ERROR_CHECK(rgb_led_init());
+    ESP_ERROR_CHECK(brightness_init());
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(shell_init());
 

@@ -3,6 +3,7 @@
 #include <string.h>
 
 static uint8_t mock_rotation = 0;
+static uint8_t mock_brightness = 128;
 static uint16_t mock_cal_result[DISPLAY_CAL_DATA_LEN];
 static uint16_t mock_applied_cal[DISPLAY_CAL_DATA_LEN];
 static int cal_count = 0;
@@ -12,6 +13,7 @@ static int fill_count = 0;
 void mock_display_reset(void)
 {
     mock_rotation = 0;
+    mock_brightness = 128;
     memset(mock_cal_result, 0, sizeof(mock_cal_result));
     memset(mock_applied_cal, 0, sizeof(mock_applied_cal));
     cal_count = 0;
@@ -47,6 +49,11 @@ int mock_display_set_cal_call_count(void)
 int mock_display_fill_screen_call_count(void)
 {
     return fill_count;
+}
+
+uint8_t mock_display_get_brightness(void)
+{
+    return mock_brightness;
 }
 
 /* --- Display API mock implementations --- */
@@ -95,8 +102,13 @@ esp_err_t display_set_touch_calibration(const uint16_t cal_data[DISPLAY_CAL_DATA
 
 esp_err_t display_set_brightness(uint8_t brightness)
 {
-    (void)brightness;
+    mock_brightness = brightness;
     return ESP_OK;
+}
+
+uint8_t display_get_brightness(void)
+{
+    return mock_brightness;
 }
 
 void display_fill_screen(uint16_t color)
