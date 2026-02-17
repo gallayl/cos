@@ -1,5 +1,6 @@
 #include "mock_filesystem.h"
 #include "filesystem.h"
+#include "esp_err.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -37,6 +38,14 @@ void mock_filesystem_add_directory(const char *path)
         strncpy(s_directories[s_dir_count], path, VFS_PATH_MAX - 1);
         s_dir_count++;
     }
+}
+
+/* --- ESP-IDF utility stubs --- */
+
+const char *esp_err_to_name(esp_err_t code)
+{
+    (void)code;
+    return "MOCK_ERR";
 }
 
 /* --- Filesystem API stubs --- */
