@@ -16,12 +16,13 @@ extern "C"
 #define VFS_NAME_MAX 64
 #define VFS_ENTRIES_MAX 64
 
+    /** Single directory entry returned by vfs_list_dir(). */
     typedef struct
     {
-        char name[VFS_NAME_MAX];
-        size_t size;
-        bool is_dir;
-        time_t mtime;
+        char name[VFS_NAME_MAX]; /**< Entry name (filename or subdirectory). */
+        size_t size;             /**< File size in bytes (0 for directories). */
+        bool is_dir;             /**< True if the entry is a directory. */
+        time_t mtime;            /**< Last modification time (epoch seconds). */
     } vfs_dir_entry_t;
 
     /**
