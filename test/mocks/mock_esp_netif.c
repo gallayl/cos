@@ -3,13 +3,13 @@
 
 #include <string.h>
 
-static struct esp_netif_obj s_sta_netif;
-static struct esp_netif_obj s_ap_netif;
-
 struct esp_netif_obj
 {
     int dummy;
 };
+
+static struct esp_netif_obj s_sta_netif;
+static struct esp_netif_obj s_ap_netif;
 
 void mock_esp_netif_reset(void)
 {

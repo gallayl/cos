@@ -93,12 +93,13 @@ static int cmd_wifi(int argc, char **argv)
 
     if (strcmp(subcmd, "connect") == 0)
     {
-        if (argc < 4)
+        if (argc < 3)
         {
-            printf("Usage: wifi connect <ssid> <password>\n");
+            printf("Usage: wifi connect <ssid> [password]\n");
             return 1;
         }
-        esp_err_t err = wifi_connect(argv[2], argv[3]);
+        const char *password = (argc >= 4) ? argv[3] : NULL;
+        esp_err_t err = wifi_connect(argv[2], password);
         if (err != ESP_OK)
         {
             printf("wifi: connect failed (%s)\n", esp_err_to_name(err));
@@ -154,7 +155,7 @@ static int cmd_wifi(int argc, char **argv)
         return 0;
     }
 
-    printf("Usage: wifi [connect <ssid> <pw> | disconnect | scan | restart]\n");
+    printf("Usage: wifi [connect <ssid> [pw] | disconnect | scan | restart]\n");
     return 1;
 }
 
@@ -163,7 +164,7 @@ void wifi_register_commands(void)
     const esp_console_cmd_t cmd = {
         .command = "wifi",
         .help = "WiFi management (info, connect, disconnect, scan, restart)",
-        .hint = "[connect <ssid> <pw> | disconnect | scan | restart]",
+        .hint = "[connect <ssid> [pw] | disconnect | scan | restart]",
         .func = &cmd_wifi,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));

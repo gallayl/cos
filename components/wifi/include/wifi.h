@@ -19,6 +19,12 @@ extern "C"
     esp_err_t wifi_init(void);
 
     /**
+     * Tear down the WiFi subsystem: disconnect, stop, and release resources.
+     * After this call, wifi_init() may be called again.
+     */
+    esp_err_t wifi_deinit(void);
+
+    /**
      * Connect to a WiFi network. Saves credentials to NVS (via esp_wifi)
      * and begins connection. Returns immediately; check wifi_is_connected()
      * or monitor logs for connection result.

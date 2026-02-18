@@ -18,6 +18,7 @@ void setUp(void)
 
 void tearDown(void)
 {
+    wifi_deinit();
 }
 
 /* --- wifi_signal_strength_str --- */
@@ -254,16 +255,128 @@ void test_event_handler_clears_bits_on_disconnect(void)
     TEST_ASSERT_EQUAL(0, mock_freertos_get_bits());
 }
 
+/* --- wifi_connect with NULL password (open network) --- */
+
+void test_connect_null_password_for_open_network(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_connect("OpenNet", NULL));
+
+    const wifi_config_t *sta_cfg = mock_wifi_get_sta_config();
+    TEST_ASSERT_EQUAL_STRING("OpenNet", (const char *)sta_cfg->sta.ssid);
+    TEST_ASSERT_EQUAL_STRING("", (const char *)sta_cfg->sta.password);
+}
+
+/* --- wifi_init double-init guard --- */
+
+void test_init_double_init_returns_error(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_init());
+}
+
+/* --- wifi_deinit --- */
+
+void test_deinit_allows_reinit(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_deinit());
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+}
+
+void test_deinit_without_init_returns_error(void)
+{
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_deinit());
+}
+
 /* --- Shell command registration --- */
 
 void test_wifi_command_registered(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
 
-    /* "wifi" with no args should print info and return 0 */
     char *argv[] = {"wifi"};
     int ret = mock_console_run_cmd("wifi", 1, argv);
     TEST_ASSERT_EQUAL(0, ret);
+}
+
+void test_cmd_wifi_connect(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    char *argv[] = {"wifi", "connect", "TestSSID", "TestPass"};
+    int ret = mock_console_run_cmd("wifi", 4, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+
+    const wifi_config_t *sta_cfg = mock_wifi_get_sta_config();
+    TEST_ASSERT_EQUAL_STRING("TestSSID", (const char *)sta_cfg->sta.ssid);
+    TEST_ASSERT_EQUAL_STRING("TestPass", (const char *)sta_cfg->sta.password);
+}
+
+void test_cmd_wifi_connect_open_network(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    char *argv[] = {"wifi", "connect", "OpenNet"};
+    int ret = mock_console_run_cmd("wifi", 3, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+
+    const wifi_config_t *sta_cfg = mock_wifi_get_sta_config();
+    TEST_ASSERT_EQUAL_STRING("OpenNet", (const char *)sta_cfg->sta.ssid);
+}
+
+void test_cmd_wifi_connect_missing_args(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    char *argv[] = {"wifi", "connect"};
+    int ret = mock_console_run_cmd("wifi", 2, argv);
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
+void test_cmd_wifi_disconnect(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    int before = mock_wifi_get_disconnect_count();
+
+    char *argv[] = {"wifi", "disconnect"};
+    int ret = mock_console_run_cmd("wifi", 2, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_EQUAL(before + 1, mock_wifi_get_disconnect_count());
+}
+
+void test_cmd_wifi_scan(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    wifi_ap_record_t mock_aps[1] = {
+        {.ssid = "ScanNet", .rssi = -55, .authmode = WIFI_AUTH_WPA2_PSK},
+    };
+    mock_wifi_set_scan_results(mock_aps, 1);
+
+    char *argv[] = {"wifi", "scan"};
+    int ret = mock_console_run_cmd("wifi", 2, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+}
+
+void test_cmd_wifi_restart(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    int before = mock_wifi_get_connect_count();
+
+    char *argv[] = {"wifi", "restart"};
+    int ret = mock_console_run_cmd("wifi", 2, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_EQUAL(before + 1, mock_wifi_get_connect_count());
+}
+
+void test_cmd_wifi_unknown_subcommand(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    char *argv[] = {"wifi", "bogus"};
+    int ret = mock_console_run_cmd("wifi", 2, argv);
+    TEST_ASSERT_EQUAL(1, ret);
 }
 
 int main(void)
@@ -304,6 +417,7 @@ int main(void)
     RUN_TEST(test_connect_switches_ap_to_apsta);
     RUN_TEST(test_connect_null_ssid_returns_error);
     RUN_TEST(test_connect_empty_ssid_returns_error);
+    RUN_TEST(test_connect_null_password_for_open_network);
 
     /* Scan */
     RUN_TEST(test_scan_returns_results);
@@ -312,13 +426,25 @@ int main(void)
     /* Disconnect */
     RUN_TEST(test_disconnect_calls_esp_wifi_disconnect);
 
+    /* Double-init / deinit */
+    RUN_TEST(test_init_double_init_returns_error);
+    RUN_TEST(test_deinit_allows_reinit);
+    RUN_TEST(test_deinit_without_init_returns_error);
+
     /* Event handling */
     RUN_TEST(test_event_handler_sets_bits_on_connect);
     RUN_TEST(test_event_handler_sets_bits_on_got_ip);
     RUN_TEST(test_event_handler_clears_bits_on_disconnect);
 
-    /* Shell command */
+    /* Shell commands */
     RUN_TEST(test_wifi_command_registered);
+    RUN_TEST(test_cmd_wifi_connect);
+    RUN_TEST(test_cmd_wifi_connect_open_network);
+    RUN_TEST(test_cmd_wifi_connect_missing_args);
+    RUN_TEST(test_cmd_wifi_disconnect);
+    RUN_TEST(test_cmd_wifi_scan);
+    RUN_TEST(test_cmd_wifi_restart);
+    RUN_TEST(test_cmd_wifi_unknown_subcommand);
 
     return UNITY_END();
 }

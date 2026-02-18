@@ -56,6 +56,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
 esp_err_t wifi_init(void)
 {
+    if (s_event_group != NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     s_event_group = xEventGroupCreate();
     if (s_event_group == NULL)
     {
@@ -114,6 +119,23 @@ esp_err_t wifi_init(void)
     ESP_RETURN_ON_ERROR(esp_wifi_connect(), TAG, "wifi connect failed");
 
     ESP_LOGI(TAG, "WiFi initialized, connecting...");
+    return ESP_OK;
+}
+
+esp_err_t wifi_deinit(void)
+{
+    if (s_event_group == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_wifi_disconnect();
+    esp_wifi_stop();
+
+    s_event_group = NULL;
+    s_sta_netif = NULL;
+    s_ap_netif = NULL;
+
     return ESP_OK;
 }
 
