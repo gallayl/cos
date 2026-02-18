@@ -1,0 +1,45 @@
+# COS – Doxygen configuration
+# Validates that public API headers are fully documented.
+
+PROJECT_NAME           = "COS"
+PROJECT_BRIEF          = "CYD Operating System"
+
+# Only document explicitly documented symbols (not everything)
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = NO
+
+# Public API headers + main application headers
+INPUT                  = components/display/include      \
+                         components/calibration/include   \
+                         components/rgb_led/include       \
+                         components/light_sensor/include  \
+                         components/brightness/include    \
+                         components/filesystem/include    \
+                         components/shell/include         \
+                         components/wifi/include          \
+                         main
+FILE_PATTERNS          = *.h
+RECURSIVE              = NO
+
+# Warnings
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_FORMAT            = "$file:$line: warning: $text"
+
+# Output
+OUTPUT_DIRECTORY       = build/docs
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+# Preprocessing – resolve ESP-IDF macros without a full build
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+PREDEFINED             = __cplusplus \
+                         ESP_OK=0
+
+# Disable Graphviz dot graphs (not needed for validation, avoids CI dependency)
+HAVE_DOT               = NO
+
+QUIET                  = YES

@@ -28,6 +28,18 @@ jobs:
       - name: Run tests
         run: make test
 
+  docs-check:
+    name: Doxygen Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Check documentation
+        run: make docs-check
+
   build-and-lint:
     name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest

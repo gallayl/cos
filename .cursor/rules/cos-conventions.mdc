@@ -39,13 +39,55 @@ alwaysApply: true
 - Mock hardware dependencies via fake implementations
 - Target ~100% coverage on logic modules; hardware-init modules are 0% by design
 
+## Documentation
+- All public API functions, structs, enums, and typedefs in `include/` headers must have Doxygen comments
+- Use `/** */` style (not `//!` or `/*!`)
+- Functions need at least a `@brief`; add `@param`, `@return` when non-obvious
+- Struct members use inline `/**< description */` comments
+- Internal/static helpers in `src/` files do not require Doxygen docs
+- Run `make docs-check` to validate; it must pass with zero warnings
+
+```c
+// Function documentation
+/** Brief one-liner for simple functions. */
+esp_err_t wifi_disconnect(void);
+
+/**
+ * @brief Scan for available WiFi networks (blocking).
+ *
+ * @param results     Caller-provided buffer for scan results.
+ * @param count       On return, number of APs found (up to max_results).
+ * @param max_results Maximum entries to store in results[].
+ * @return ESP_OK on success, or an error code.
+ */
+esp_err_t wifi_scan(wifi_ap_record_t *results, uint16_t *count, uint16_t max_results);
+
+// Struct documentation
+/** Single directory entry returned by vfs_list_dir(). */
+typedef struct {
+    char name[VFS_NAME_MAX]; /**< Entry name (filename or subdirectory). */
+    size_t size;             /**< File size in bytes (0 for directories). */
+} vfs_dir_entry_t;
+```
+
 ## Build & Tooling
 - Always use the `Makefile` targets for building, testing, formatting, and linting
-- Available targets: `build`, `flash`, `monitor`, `clean`, `fullclean`, `format`, `format-check`, `lint`, `test`, `menuconfig`
-- Never invoke `cmake`, `idf.py`, `clang-format`, `clang-tidy`, or `ctest` directly; use the Makefile wrappers instead
+- Available targets: `build`, `flash`, `monitor`, `clean`, `fullclean`, `format`, `format-check`, `lint`, `test`, `menuconfig`, `docs`, `docs-check`
+- Never invoke `cmake`, `idf.py`, `clang-format`, `clang-tidy`, `doxygen`, or `ctest` directly; use the Makefile wrappers instead
 - The Makefile auto-detects ESP-IDF tools via `IDF_TOOLS_PATH` and `IDF_PYTHON_ENV_PATH`
 
 ## Code Quality
-- All code must pass `clang-format` and `clang-tidy` (see project root configs)
+- All code must pass `clang-format`, `clang-tidy`, and `doxygen` checks (see project root configs)
 - Zero compiler warnings (`-Werror`)
 - No obvious inline comments; keep existing meaningful comments
+
+## Code Review Checklist
+When asked to review code (branch, PR, or set of changes), run all of the following checks and report the results:
+1. `make format-check` — formatting
+2. `make test` — unit tests
+3. `make docs-check` — documentation coverage
+4. `make build` — ESP-IDF build (requires IDF environment)
+5. `make lint` — clang-tidy static analysis (requires IDF build)
+
+Steps 4 and 5 require an ESP-IDF environment; skip them if unavailable but note it in the review.
+Flag any change that lacks adequate test coverage.

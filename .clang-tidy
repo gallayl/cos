@@ -22,6 +22,8 @@ Checks: >
   readability-static-accessed-through-instance,
   readability-string-compare,
   readability-uppercase-literal-suffix,
+  clang-diagnostic-documentation,
+  clang-diagnostic-documentation-unknown-command,
   -bugprone-easily-swappable-parameters,
   -bugprone-branch-clone,
   -clang-diagnostic-error,
@@ -31,6 +33,10 @@ Checks: >
   -readability-function-cognitive-complexity,
 
 WarningsAsErrors: '*'
+
+ExtraArgs:
+  - '-Wdocumentation'
+  - '-Wdocumentation-unknown-command'
 
 HeaderFilterRegex: '[/\\](main|components[/\\](display|calibration|filesystem|shell))[/\\]'
 
