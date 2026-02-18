@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean format format-check lint test menuconfig
+.PHONY: build flash monitor clean fullclean format format-check lint test menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -75,3 +75,9 @@ test:
 	cmake -G Ninja -DCMAKE_C_COMPILER=gcc -B test/build test
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
+
+docs:
+	( cat Doxyfile ; echo "WARN_AS_ERROR = NO" ) | doxygen -
+
+docs-check:
+	doxygen
