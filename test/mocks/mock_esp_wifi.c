@@ -1,6 +1,7 @@
 #include "mock_esp_wifi.h"
 #include "esp_wifi.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 #define MOCK_SCAN_MAX 32

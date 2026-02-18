@@ -77,7 +77,9 @@ test:
 	ctest --test-dir test/build --output-on-failure
 
 docs:
+	@cmake -E make_directory build/docs
 	( cat Doxyfile ; echo "WARN_AS_ERROR = NO" ) | doxygen -
 
 docs-check:
+	@cmake -E make_directory build/docs
 	doxygen
