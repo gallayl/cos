@@ -1,5 +1,6 @@
 #include "http_mime.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 static bool ends_with(const char *str, const char *suffix)

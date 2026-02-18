@@ -1,12 +1,8 @@
 #include "http_multipart.h"
 
-#include "esp_log.h"
-
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-
-static const char *const TAG = "multipart";
 
 #define READ_BUF_SIZE 2048
 

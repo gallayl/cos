@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean format format-check lint test integration-test menuconfig docs docs-check
+.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -70,6 +70,9 @@ clean:
 
 fullclean:
 	$(IDF_PY) fullclean
+
+erase-flash:
+	$(IDF_PY) erase-flash
 
 menuconfig:
 	$(IDF_PY) menuconfig
