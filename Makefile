@@ -93,7 +93,7 @@ integration-test:
 	$(IDF_PY) -C integration_test/test_nvs_calibration build
 	$(IDF_PY) -C integration_test/test_shell_fs build
 	$(IDF_PY) -C integration_test/test_init_sequence build
-	pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
+	$(IDF_PYTHON) -m pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
 
 docs:
 	@cmake -E make_directory build/docs
