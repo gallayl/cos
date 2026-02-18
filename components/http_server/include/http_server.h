@@ -24,24 +24,6 @@ extern "C"
      */
     httpd_handle_t http_server_get_handle(void);
 
-    /* --- Upload handler registration --- */
-
-    /** Callback for streaming upload chunks (used by OTA). */
-    typedef esp_err_t (*http_upload_chunk_cb)(const uint8_t *data, size_t len, bool is_first, bool is_final, void *ctx);
-
-    /**
-     * @brief Register a multipart upload endpoint on the HTTP server.
-     *
-     * The internal multipart parser extracts the file field and streams its
-     * data to the provided callback. Used by OTA to register /update.
-     *
-     * @param uri       URI path (e.g. "/update").
-     * @param on_chunk  Callback invoked for each data chunk.
-     * @param ctx       User context passed to the callback.
-     * @return ESP_OK on success.
-     */
-    esp_err_t http_register_upload_handler(const char *uri, http_upload_chunk_cb on_chunk, void *ctx);
-
     /* --- Pure utility functions (testable on host) --- */
 
     /**

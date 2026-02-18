@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "main.c"
     INCLUDE_DIRS "."
-    REQUIRES display calibration rgb_led light_sensor brightness i2c_bus filesystem wifi time_sync http_server ota websocket system shell nvs_flash console
+    REQUIRES display calibration rgb_led light_sensor brightness i2c_bus filesystem wifi time_sync http_server websocket system shell nvs_flash console
 )

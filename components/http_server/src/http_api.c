@@ -8,6 +8,26 @@
 
 static const char *const TAG = "http_api";
 
+static size_t json_escape(const char *src, char *dst, size_t dst_len)
+{
+    size_t j = 0;
+    for (size_t i = 0; src[i] != '\0' && j < dst_len - 1; i++)
+    {
+        char c = src[i];
+        if (c == '"' || c == '\\')
+        {
+            if (j + 2 >= dst_len)
+            {
+                break;
+            }
+            dst[j++] = '\\';
+        }
+        dst[j++] = c;
+    }
+    dst[j] = '\0';
+    return j;
+}
+
 static esp_err_t handler_files(httpd_req_t *req)
 {
     if (http_auth_check(req) != ESP_OK)
@@ -40,9 +60,11 @@ static esp_err_t handler_files(httpd_req_t *req)
 
     for (size_t i = 0; i < count; i++)
     {
+        char escaped_name[128];
+        json_escape(entries[i].name, escaped_name, sizeof(escaped_name));
         char item[256];
         snprintf(item, sizeof(item), "%s{\"name\":\"%s\",\"size\":%u,\"is_dir\":%s}", (i > 0) ? "," : "",
-                 entries[i].name, (unsigned)entries[i].size, entries[i].is_dir ? "true" : "false");
+                 escaped_name, (unsigned)entries[i].size, entries[i].is_dir ? "true" : "false");
         httpd_resp_sendstr_chunk(req, item);
     }
 

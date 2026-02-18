@@ -51,8 +51,6 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/system/src/*.c components/system/src/*.h) \
            $(wildcard components/http_server/include/*.h) \
            $(wildcard components/http_server/src/*.c components/http_server/src/*.h) \
-           $(wildcard components/ota/include/*.h) \
-           $(wildcard components/ota/src/*.c components/ota/src/*.h) \
            $(wildcard components/websocket/include/*.h) \
            $(wildcard components/websocket/src/*.c components/websocket/src/*.h)
 

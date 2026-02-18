@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define READ_BUF_SIZE 2048
+#define ACCUM_BUF_SIZE (READ_BUF_SIZE * 4)
 
 static char *extract_boundary(httpd_req_t *req, char *buf, size_t buf_len)
 {
@@ -108,7 +109,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
         return ESP_ERR_NO_MEM;
     }
 
-    char *accum = malloc(READ_BUF_SIZE * 4);
+    char *accum = malloc(ACCUM_BUF_SIZE);
     if (!accum)
     {
         free(buf);
@@ -270,6 +271,11 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
         }
         remaining -= recvd;
 
+        if (accum_len + (size_t)recvd >= ACCUM_BUF_SIZE)
+        {
+            result = ESP_ERR_NO_MEM;
+            goto cleanup;
+        }
         memcpy(accum + accum_len, buf, (size_t)recvd);
         accum_len += (size_t)recvd;
         accum[accum_len] = '\0';

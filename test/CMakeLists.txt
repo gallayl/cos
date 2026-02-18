@@ -46,7 +46,6 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/time_sync/include
     ${COMPONENT_DIR}/components/system/include
     ${COMPONENT_DIR}/components/http_server/include
-    ${COMPONENT_DIR}/components/ota/include
     ${COMPONENT_DIR}/components/websocket/include
 )
 

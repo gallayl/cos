@@ -128,12 +128,12 @@ bool http_static_is_spa(void)
 
 static bool is_api_route(const char *uri)
 {
-    return (strncmp(uri, "/api/", 5) == 0 || strncmp(uri, "/update", 7) == 0 || strncmp(uri, "/ws", 3) == 0);
+    return (strncmp(uri, "/api/", 5) == 0 || strncmp(uri, "/ws", 3) == 0);
 }
 
 static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
 {
-    FILE *f = fopen(real_path, "r");
+    FILE *f = fopen(real_path, "rb");
     if (!f)
     {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Read failed");
