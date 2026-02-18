@@ -102,8 +102,6 @@ TEST_CASE("invalid rotation rejected", "[nvs_cal]")
 
 TEST_CASE("null pointer rejected", "[nvs_cal]")
 {
-    uint16_t data[DISPLAY_CAL_DATA_LEN];
-
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, calibration_storage_save(0, NULL));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, calibration_storage_load(0, NULL));
 }
