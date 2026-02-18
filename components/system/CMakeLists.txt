@@ -3,5 +3,5 @@ idf_component_register(
          "src/system_cmd.c"
     INCLUDE_DIRS "include"
     REQUIRES esp_timer console
-    PRIV_REQUIRES filesystem
+    PRIV_REQUIRES filesystem spi_flash
 )
