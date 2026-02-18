@@ -76,7 +76,15 @@ test:
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
 
+INTEGRATION_APPS := integration_test/test_nvs_calibration \
+                    integration_test/test_shell_fs \
+                    integration_test/test_init_sequence
+
 integration-test:
+	@for app in $(INTEGRATION_APPS); do \
+		echo "Building $$app ..."; \
+		$(IDF_PY) -C $$app build || exit 1; \
+	done
 	pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
 
 docs:
