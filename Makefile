@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean format format-check lint test integration-test menuconfig docs docs-check
+.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -48,7 +48,11 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/time_sync/include/*.h) \
            $(wildcard components/time_sync/src/*.c components/time_sync/src/*.h) \
            $(wildcard components/system/include/*.h) \
-           $(wildcard components/system/src/*.c components/system/src/*.h)
+           $(wildcard components/system/src/*.c components/system/src/*.h) \
+           $(wildcard components/http_server/include/*.h) \
+           $(wildcard components/http_server/src/*.c components/http_server/src/*.h) \
+           $(wildcard components/websocket/include/*.h) \
+           $(wildcard components/websocket/src/*.c components/websocket/src/*.h)
 
 build:
 	$(IDF_PY) build
@@ -64,6 +68,9 @@ clean:
 
 fullclean:
 	$(IDF_PY) fullclean
+
+erase-flash:
+	$(IDF_PY) erase-flash
 
 menuconfig:
 	$(IDF_PY) menuconfig
@@ -86,7 +93,7 @@ integration-test:
 	$(IDF_PY) -C integration_test/test_nvs_calibration build
 	$(IDF_PY) -C integration_test/test_shell_fs build
 	$(IDF_PY) -C integration_test/test_init_sequence build
-	pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
+	$(IDF_PYTHON) -m pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
 
 docs:
 	@cmake -E make_directory build/docs

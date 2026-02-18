@@ -11,15 +11,15 @@ esp_err_t flash_init(void)
     esp_vfs_littlefs_conf_t conf = {
         .base_path = FLASH_MOUNT_POINT,
         .partition_label = FLASH_PARTITION_LABEL,
-        .format_if_mount_failed = true,
+        .format_if_mount_failed = false,
         .dont_mount = false,
     };
 
     esp_err_t ret = esp_vfs_littlefs_register(&conf);
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to mount LittleFS: %s", esp_err_to_name(ret));
-        return ret;
+        ESP_LOGW(TAG, "LittleFS mount failed (%s) -- run 'format' command to initialize", esp_err_to_name(ret));
+        return ESP_OK;
     }
 
     size_t total = 0;
