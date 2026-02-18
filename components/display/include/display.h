@@ -36,6 +36,9 @@ extern "C"
     /** Set backlight brightness (0 = off, 255 = max). */
     esp_err_t display_set_brightness(uint8_t brightness);
 
+    /** Get current backlight brightness (0-255). */
+    uint8_t display_get_brightness(void);
+
     /** Fill entire screen with a 16-bit RGB565 color. */
     void display_fill_screen(uint16_t color);
 

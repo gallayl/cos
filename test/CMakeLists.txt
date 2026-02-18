@@ -18,6 +18,9 @@ add_library(mock_esp STATIC
     mocks/mock_display.c
     mocks/mock_filesystem.c
     mocks/mock_console.c
+    mocks/mock_ledc.c
+    mocks/mock_light_sensor.c
+    mocks/mock_esp_timer.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -26,6 +29,9 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/calibration/src
     ${COMPONENT_DIR}/components/filesystem/include
     ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/rgb_led/include
+    ${COMPONENT_DIR}/components/light_sensor/include
+    ${COMPONENT_DIR}/components/brightness/include
 )
 
 add_library(vfs_path STATIC
@@ -112,3 +118,51 @@ target_include_directories(test_shell PRIVATE
 )
 target_link_libraries(test_shell PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell COMMAND test_shell)
+
+# --- Library: rgb_led_logic ---
+add_library(rgb_led_logic STATIC
+    ${COMPONENT_DIR}/components/rgb_led/src/rgb_led.c
+    ${COMPONENT_DIR}/components/rgb_led/src/rgb_led_cmd.c
+)
+target_include_directories(rgb_led_logic PUBLIC
+    ${COMPONENT_DIR}/components/rgb_led/include
+    ${COMPONENT_DIR}/components/rgb_led/src
+    mocks
+)
+target_link_libraries(rgb_led_logic PRIVATE mock_esp)
+
+# --- Test: rgb_led ---
+add_executable(test_rgb_led test_rgb_led.c)
+target_include_directories(test_rgb_led PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/rgb_led/include
+)
+target_link_libraries(test_rgb_led PRIVATE unity rgb_led_logic mock_esp)
+add_test(NAME test_rgb_led COMMAND test_rgb_led)
+
+# --- Library: brightness_logic ---
+add_library(brightness_logic STATIC
+    ${COMPONENT_DIR}/components/brightness/src/brightness.c
+    ${COMPONENT_DIR}/components/brightness/src/brightness_cmd.c
+)
+target_include_directories(brightness_logic PUBLIC
+    ${COMPONENT_DIR}/components/brightness/include
+    ${COMPONENT_DIR}/components/brightness/src
+    ${COMPONENT_DIR}/components/display/include
+    ${COMPONENT_DIR}/components/light_sensor/include
+    ${COMPONENT_DIR}/components/calibration/include
+    mocks
+)
+target_link_libraries(brightness_logic PRIVATE mock_esp)
+
+# --- Test: brightness ---
+add_executable(test_brightness test_brightness.c)
+target_include_directories(test_brightness PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/brightness/include
+    ${COMPONENT_DIR}/components/display/include
+    ${COMPONENT_DIR}/components/light_sensor/include
+    ${COMPONENT_DIR}/components/calibration/include
+)
+target_link_libraries(test_brightness PRIVATE unity brightness_logic calibration_logic calibration_storage mock_esp)
+add_test(NAME test_brightness COMMAND test_brightness)

@@ -31,6 +31,12 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/display/src/*.cpp components/display/src/*.h) \
            $(wildcard components/calibration/include/*.h) \
            $(wildcard components/calibration/src/*.c components/calibration/src/*.h) \
+           $(wildcard components/rgb_led/include/*.h) \
+           $(wildcard components/rgb_led/src/*.c components/rgb_led/src/*.h) \
+           $(wildcard components/light_sensor/include/*.h) \
+           $(wildcard components/light_sensor/src/*.c components/light_sensor/src/*.h) \
+           $(wildcard components/brightness/include/*.h) \
+           $(wildcard components/brightness/src/*.c components/brightness/src/*.h) \
            $(wildcard components/filesystem/include/*.h) \
            $(wildcard components/filesystem/src/*.c components/filesystem/src/*.h) \
            $(wildcard components/shell/include/*.h) \
