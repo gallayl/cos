@@ -29,6 +29,6 @@ CONFIG_SPI_FLASH_ERASE_YIELD_TICKS=1
 # HTTP server WebSocket support
 CONFIG_HTTPD_WS_SUPPORT=y
 
-# Partition table (custom: dual-OTA + LittleFS)
+# Partition table (custom: factory + LittleFS)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
