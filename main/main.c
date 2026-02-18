@@ -2,12 +2,15 @@
 #include "calibration.h"
 #include "display.h"
 #include "filesystem.h"
+#include "http_server.h"
 #include "i2c_bus.h"
 #include "light_sensor.h"
+#include "ota.h"
 #include "rgb_led.h"
 #include "shell.h"
 #include "system.h"
 #include "time_sync.h"
+#include "websocket.h"
 #include "wifi.h"
 
 #include "esp_log.h"
@@ -41,6 +44,9 @@ void app_main(void)
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(wifi_init());
     ESP_ERROR_CHECK(time_sync_init());
+    ESP_ERROR_CHECK(http_server_init());
+    ESP_ERROR_CHECK(ota_init());
+    ESP_ERROR_CHECK(websocket_init());
     ESP_ERROR_CHECK(system_init());
     ESP_ERROR_CHECK(shell_init());
 

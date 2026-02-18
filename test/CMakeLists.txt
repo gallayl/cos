@@ -28,6 +28,8 @@ add_library(mock_esp STATIC
     mocks/mock_i2c.c
     mocks/mock_sntp.c
     mocks/mock_system.c
+    mocks/mock_httpd.c
+    mocks/mock_mbedtls.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -43,6 +45,9 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/i2c_bus/include
     ${COMPONENT_DIR}/components/time_sync/include
     ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/ota/include
+    ${COMPONENT_DIR}/components/websocket/include
 )
 
 add_library(vfs_path STATIC
@@ -260,3 +265,60 @@ target_include_directories(test_system PRIVATE
 )
 target_link_libraries(test_system PRIVATE unity system_logic mock_esp)
 add_test(NAME test_system COMMAND test_system)
+
+# --- Library: http_mime ---
+add_library(http_mime STATIC
+    ${COMPONENT_DIR}/components/http_server/src/http_mime.c
+)
+target_include_directories(http_mime PUBLIC
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/http_server/src
+    mocks
+)
+
+# --- Library: http_path (sanitize path only) ---
+add_library(http_path STATIC
+    ${COMPONENT_DIR}/components/http_server/src/http_path.c
+)
+target_include_directories(http_path PUBLIC
+    ${COMPONENT_DIR}/components/http_server/include
+    mocks
+)
+
+# --- Library: http_auth_logic ---
+add_library(http_auth_logic STATIC
+    ${COMPONENT_DIR}/components/http_server/src/http_auth.c
+)
+target_include_directories(http_auth_logic PUBLIC
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/http_server/src
+    mocks
+)
+target_link_libraries(http_auth_logic PRIVATE mock_esp)
+
+# --- Test: http_mime ---
+add_executable(test_http_mime test_http_mime.c)
+target_include_directories(test_http_mime PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/http_server/include
+)
+target_link_libraries(test_http_mime PRIVATE unity http_mime mock_esp)
+add_test(NAME test_http_mime COMMAND test_http_mime)
+
+# --- Test: http_upload ---
+add_executable(test_http_upload test_http_upload.c)
+target_include_directories(test_http_upload PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/http_server/include
+)
+target_link_libraries(test_http_upload PRIVATE unity http_path mock_esp)
+add_test(NAME test_http_upload COMMAND test_http_upload)
+
+# --- Test: http_auth ---
+add_executable(test_http_auth test_http_auth.c)
+target_include_directories(test_http_auth PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/http_server/include
+)
+target_link_libraries(test_http_auth PRIVATE unity http_auth_logic mock_esp)
+add_test(NAME test_http_auth COMMAND test_http_auth)
