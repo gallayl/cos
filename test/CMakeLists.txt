@@ -21,6 +21,10 @@ add_library(mock_esp STATIC
     mocks/mock_ledc.c
     mocks/mock_light_sensor.c
     mocks/mock_esp_timer.c
+    mocks/mock_esp_wifi.c
+    mocks/mock_esp_event.c
+    mocks/mock_esp_netif.c
+    mocks/mock_freertos.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -32,6 +36,7 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/rgb_led/include
     ${COMPONENT_DIR}/components/light_sensor/include
     ${COMPONENT_DIR}/components/brightness/include
+    ${COMPONENT_DIR}/components/wifi/include
 )
 
 add_library(vfs_path STATIC
@@ -166,3 +171,24 @@ target_include_directories(test_brightness PRIVATE
 )
 target_link_libraries(test_brightness PRIVATE unity brightness_logic calibration_logic calibration_storage mock_esp)
 add_test(NAME test_brightness COMMAND test_brightness)
+
+# --- Library: wifi_logic ---
+add_library(wifi_logic STATIC
+    ${COMPONENT_DIR}/components/wifi/src/wifi.c
+    ${COMPONENT_DIR}/components/wifi/src/wifi_cmd.c
+)
+target_include_directories(wifi_logic PUBLIC
+    ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/wifi/src
+    mocks
+)
+target_link_libraries(wifi_logic PRIVATE mock_esp)
+
+# --- Test: wifi ---
+add_executable(test_wifi test_wifi.c)
+target_include_directories(test_wifi PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/wifi/include
+)
+target_link_libraries(test_wifi PRIVATE unity wifi_logic mock_esp)
+add_test(NAME test_wifi COMMAND test_wifi)

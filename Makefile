@@ -40,7 +40,9 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/filesystem/include/*.h) \
            $(wildcard components/filesystem/src/*.c components/filesystem/src/*.h) \
            $(wildcard components/shell/include/*.h) \
-           $(wildcard components/shell/src/*.c components/shell/src/*.h)
+           $(wildcard components/shell/src/*.c components/shell/src/*.h) \
+           $(wildcard components/wifi/include/*.h) \
+           $(wildcard components/wifi/src/*.c components/wifi/src/*.h)
 
 build:
 	$(IDF_PY) build

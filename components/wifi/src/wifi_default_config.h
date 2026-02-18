@@ -1,0 +1,5 @@
+#pragma once
+
+#define WIFI_AP_DEFAULT_SSID "COS"
+#define WIFI_AP_DEFAULT_PASSWORD "cos12345"
+#define WIFI_AP_MAX_CONNECTIONS 4

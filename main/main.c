@@ -5,6 +5,7 @@
 #include "light_sensor.h"
 #include "rgb_led.h"
 #include "shell.h"
+#include "wifi.h"
 
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -34,6 +35,7 @@ void app_main(void)
     ESP_ERROR_CHECK(rgb_led_init());
     ESP_ERROR_CHECK(brightness_init());
     ESP_ERROR_CHECK(filesystem_init());
+    ESP_ERROR_CHECK(wifi_init());
     ESP_ERROR_CHECK(shell_init());
 
     ESP_LOGI(TAG, "COS ready");
