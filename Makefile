@@ -42,7 +42,13 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/shell/include/*.h) \
            $(wildcard components/shell/src/*.c components/shell/src/*.h) \
            $(wildcard components/wifi/include/*.h) \
-           $(wildcard components/wifi/src/*.c components/wifi/src/*.h)
+           $(wildcard components/wifi/src/*.c components/wifi/src/*.h) \
+           $(wildcard components/i2c_bus/include/*.h) \
+           $(wildcard components/i2c_bus/src/*.c components/i2c_bus/src/*.h) \
+           $(wildcard components/time_sync/include/*.h) \
+           $(wildcard components/time_sync/src/*.c components/time_sync/src/*.h) \
+           $(wildcard components/system/include/*.h) \
+           $(wildcard components/system/src/*.c components/system/src/*.h)
 
 build:
 	$(IDF_PY) build

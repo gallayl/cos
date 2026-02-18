@@ -25,6 +25,9 @@ add_library(mock_esp STATIC
     mocks/mock_esp_event.c
     mocks/mock_esp_netif.c
     mocks/mock_freertos.c
+    mocks/mock_i2c.c
+    mocks/mock_sntp.c
+    mocks/mock_system.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -37,6 +40,9 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/light_sensor/include
     ${COMPONENT_DIR}/components/brightness/include
     ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/i2c_bus/include
+    ${COMPONENT_DIR}/components/time_sync/include
+    ${COMPONENT_DIR}/components/system/include
 )
 
 add_library(vfs_path STATIC
@@ -192,3 +198,65 @@ target_include_directories(test_wifi PRIVATE
 )
 target_link_libraries(test_wifi PRIVATE unity wifi_logic mock_esp)
 add_test(NAME test_wifi COMMAND test_wifi)
+
+# --- Library: i2c_bus_logic ---
+add_library(i2c_bus_logic STATIC
+    ${COMPONENT_DIR}/components/i2c_bus/src/i2c_bus.c
+    ${COMPONENT_DIR}/components/i2c_bus/src/i2c_bus_cmd.c
+)
+target_include_directories(i2c_bus_logic PUBLIC
+    ${COMPONENT_DIR}/components/i2c_bus/include
+    ${COMPONENT_DIR}/components/i2c_bus/src
+    mocks
+)
+target_link_libraries(i2c_bus_logic PRIVATE mock_esp)
+
+# --- Test: i2c_bus ---
+add_executable(test_i2c_bus test_i2c_bus.c)
+target_include_directories(test_i2c_bus PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/i2c_bus/include
+)
+target_link_libraries(test_i2c_bus PRIVATE unity i2c_bus_logic mock_esp)
+add_test(NAME test_i2c_bus COMMAND test_i2c_bus)
+
+# --- Library: time_sync_logic ---
+add_library(time_sync_logic STATIC
+    ${COMPONENT_DIR}/components/time_sync/src/time_sync.c
+    ${COMPONENT_DIR}/components/time_sync/src/time_sync_cmd.c
+)
+target_include_directories(time_sync_logic PUBLIC
+    ${COMPONENT_DIR}/components/time_sync/include
+    mocks
+)
+target_link_libraries(time_sync_logic PRIVATE mock_esp)
+
+# --- Test: time_sync ---
+add_executable(test_time_sync test_time_sync.c)
+target_include_directories(test_time_sync PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/time_sync/include
+)
+target_link_libraries(test_time_sync PRIVATE unity time_sync_logic mock_esp)
+add_test(NAME test_time_sync COMMAND test_time_sync)
+
+# --- Library: system_logic ---
+add_library(system_logic STATIC
+    ${COMPONENT_DIR}/components/system/src/system.c
+    ${COMPONENT_DIR}/components/system/src/system_cmd.c
+)
+target_include_directories(system_logic PUBLIC
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/filesystem/include
+    mocks
+)
+target_link_libraries(system_logic PRIVATE mock_esp)
+
+# --- Test: system ---
+add_executable(test_system test_system.c)
+target_include_directories(test_system PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/system/include
+)
+target_link_libraries(test_system PRIVATE unity system_logic mock_esp)
+add_test(NAME test_system COMMAND test_system)

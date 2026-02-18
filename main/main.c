@@ -2,9 +2,12 @@
 #include "calibration.h"
 #include "display.h"
 #include "filesystem.h"
+#include "i2c_bus.h"
 #include "light_sensor.h"
 #include "rgb_led.h"
 #include "shell.h"
+#include "system.h"
+#include "time_sync.h"
 #include "wifi.h"
 
 #include "esp_log.h"
@@ -34,8 +37,11 @@ void app_main(void)
     ESP_ERROR_CHECK(light_sensor_init());
     ESP_ERROR_CHECK(rgb_led_init());
     ESP_ERROR_CHECK(brightness_init());
+    ESP_ERROR_CHECK(i2c_bus_init());
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(wifi_init());
+    ESP_ERROR_CHECK(time_sync_init());
+    ESP_ERROR_CHECK(system_init());
     ESP_ERROR_CHECK(shell_init());
 
     ESP_LOGI(TAG, "COS ready");
