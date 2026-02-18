@@ -18,39 +18,42 @@ void tearDown(void)
 {
 }
 
-/* --- brightness_map_adc --- */
+/* --- brightness_map_adc (sensor inverted: 0 = sunshine, 4095 = dark) --- */
 
-void test_map_adc_zero_returns_minimum(void)
+void test_map_adc_zero_returns_max_brightness(void)
 {
-    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(0));
+    /* Full sunshine -> max screen brightness */
+    TEST_ASSERT_EQUAL_UINT8(255, brightness_map_adc(0));
 }
 
-void test_map_adc_max_returns_255(void)
+void test_map_adc_max_returns_minimum_brightness(void)
 {
-    TEST_ASSERT_EQUAL_UINT8(255, brightness_map_adc(4095));
+    /* Full darkness -> minimum screen brightness */
+    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(4095));
 }
 
 void test_map_adc_midpoint(void)
 {
     uint8_t val = brightness_map_adc(2048);
-    /* (2048 * 255) / 4095 = ~127 */
+    /* (4095-2048)*255/4095 = ~127 */
     TEST_ASSERT_TRUE(val >= 126 && val <= 128);
 }
 
-void test_map_adc_negative_returns_minimum(void)
+void test_map_adc_negative_returns_max_brightness(void)
 {
-    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(-1));
+    TEST_ASSERT_EQUAL_UINT8(255, brightness_map_adc(-1));
 }
 
-void test_map_adc_above_max_returns_255(void)
+void test_map_adc_above_max_returns_minimum(void)
 {
-    TEST_ASSERT_EQUAL_UINT8(255, brightness_map_adc(5000));
+    /* Beyond max darkness -> minimum brightness */
+    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(5000));
 }
 
-void test_map_adc_low_value_clamped_to_minimum(void)
+void test_map_adc_high_value_clamped_to_minimum(void)
 {
-    /* Very low ADC -> mapped < 10 -> clamped to 10 */
-    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(1));
+    /* Near-max ADC (very dark) -> near-minimum brightness, clamped to floor */
+    TEST_ASSERT_EQUAL_UINT8(10, brightness_map_adc(4094));
 }
 
 /* --- brightness_set / brightness_get --- */
@@ -176,12 +179,12 @@ int main(void)
 {
     UNITY_BEGIN();
 
-    RUN_TEST(test_map_adc_zero_returns_minimum);
-    RUN_TEST(test_map_adc_max_returns_255);
+    RUN_TEST(test_map_adc_zero_returns_max_brightness);
+    RUN_TEST(test_map_adc_max_returns_minimum_brightness);
     RUN_TEST(test_map_adc_midpoint);
-    RUN_TEST(test_map_adc_negative_returns_minimum);
-    RUN_TEST(test_map_adc_above_max_returns_255);
-    RUN_TEST(test_map_adc_low_value_clamped_to_minimum);
+    RUN_TEST(test_map_adc_negative_returns_max_brightness);
+    RUN_TEST(test_map_adc_above_max_returns_minimum);
+    RUN_TEST(test_map_adc_high_value_clamped_to_minimum);
 
     RUN_TEST(test_set_and_get);
     RUN_TEST(test_set_updates_display);

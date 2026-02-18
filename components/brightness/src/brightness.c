@@ -72,14 +72,15 @@ uint8_t brightness_map_adc(int adc_value)
 {
     if (adc_value <= 0)
     {
-        return BRIGHTNESS_AUTO_MIN;
+        return 255;
     }
     if (adc_value >= BRIGHTNESS_ADC_MAX)
     {
-        return 255;
+        return BRIGHTNESS_AUTO_MIN;
     }
 
-    int mapped = (adc_value * 255) / BRIGHTNESS_ADC_MAX;
+    /* Sensor is inverted: 0 = bright sunlight, 4095 = darkness */
+    int mapped = ((BRIGHTNESS_ADC_MAX - adc_value) * 255) / BRIGHTNESS_ADC_MAX;
     if (mapped < BRIGHTNESS_AUTO_MIN)
     {
         mapped = BRIGHTNESS_AUTO_MIN;
