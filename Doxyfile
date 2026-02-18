@@ -39,4 +39,7 @@ MACRO_EXPANSION        = YES
 PREDEFINED             = __cplusplus \
                          ESP_OK=0
 
+# Disable Graphviz dot graphs (not needed for validation, avoids CI dependency)
+HAVE_DOT               = NO
+
 QUIET                  = YES
