@@ -40,6 +40,29 @@ jobs:
       - name: Check documentation
         run: make docs-check
 
+  integration-test:
+    name: Integration Tests (QEMU)
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.5.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install QEMU and test tools
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          python $IDF_PATH/tools/idf_tools.py install qemu-xtensa
+          eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          pip install pytest-embedded pytest-embedded-idf pytest-embedded-qemu
+
+      - name: Run integration tests
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          make integration-test
+
   build-and-lint:
     name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean format format-check lint test menuconfig docs docs-check
+.PHONY: build flash monitor clean fullclean format format-check lint test integration-test menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -75,6 +75,9 @@ test:
 	cmake -G Ninja -DCMAKE_C_COMPILER=gcc -B test/build test
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
+
+integration-test:
+	pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
 
 docs:
 	@cmake -E make_directory build/docs
