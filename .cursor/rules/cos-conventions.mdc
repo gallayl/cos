@@ -35,8 +35,10 @@ alwaysApply: true
 - One responsibility per component (Single Responsibility)
 
 ## Testing
-- Host-based unit tests in `test/` using CMake + Unity
-- Mock hardware dependencies via fake implementations
+- **L1 — Unit tests** (`test/`): host-based, CMake + Unity, mock hardware via fakes
+- **L2 — Integration tests** (`integration_test/`): ESP-IDF apps built for ESP32 and run in QEMU via `pytest-embedded-qemu`
+- L2 tests exercise real NVS, LittleFS, FreeRTOS, and esp_console on emulated hardware
+- Peripherals without QEMU support (display, WiFi, ADC, LEDC) stay at L1 or L3 (real hardware)
 - Target ~100% coverage on logic modules; hardware-init modules are 0% by design
 
 ## Documentation
@@ -72,7 +74,7 @@ typedef struct {
 
 ## Build & Tooling
 - Always use the `Makefile` targets for building, testing, formatting, and linting
-- Available targets: `build`, `flash`, `monitor`, `clean`, `fullclean`, `format`, `format-check`, `lint`, `test`, `menuconfig`, `docs`, `docs-check`
+- Available targets: `build`, `flash`, `monitor`, `clean`, `fullclean`, `format`, `format-check`, `lint`, `test`, `integration-test`, `menuconfig`, `docs`, `docs-check`
 - Never invoke `cmake`, `idf.py`, `clang-format`, `clang-tidy`, `doxygen`, or `ctest` directly; use the Makefile wrappers instead
 - The Makefile auto-detects ESP-IDF tools via `IDF_TOOLS_PATH` and `IDF_PYTHON_ENV_PATH`
 
@@ -85,9 +87,10 @@ typedef struct {
 When asked to review code (branch, PR, or set of changes), run all of the following checks and report the results:
 1. `make format-check` — formatting
 2. `make test` — unit tests
-3. `make docs-check` — documentation coverage
-4. `make build` — ESP-IDF build (requires IDF environment)
-5. `make lint` — clang-tidy static analysis (requires IDF build)
+3. `make integration-test` — QEMU integration tests (requires IDF + QEMU)
+4. `make docs-check` — documentation coverage
+5. `make build` — ESP-IDF build (requires IDF environment)
+6. `make lint` — clang-tidy static analysis (requires IDF build)
 
-Steps 4 and 5 require an ESP-IDF environment; skip them if unavailable but note it in the review.
+Steps 3, 5, and 6 require an ESP-IDF environment; skip them if unavailable but note it in the review.
 Flag any change that lacks adequate test coverage.
