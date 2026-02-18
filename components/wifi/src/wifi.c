@@ -122,7 +122,7 @@ esp_err_t wifi_init(void)
     return ESP_OK;
 }
 
-esp_err_t wifi_deinit(void)
+esp_err_t wifi_shutdown(void)
 {
     if (s_event_group == NULL)
     {

@@ -18,7 +18,7 @@ void setUp(void)
 
 void tearDown(void)
 {
-    wifi_deinit();
+    wifi_shutdown();
 }
 
 /* --- wifi_signal_strength_str --- */
@@ -275,18 +275,18 @@ void test_init_double_init_returns_error(void)
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_init());
 }
 
-/* --- wifi_deinit --- */
+/* --- wifi_shutdown --- */
 
 void test_deinit_allows_reinit(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_EQUAL(ESP_OK, wifi_deinit());
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_shutdown());
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
 }
 
 void test_deinit_without_init_returns_error(void)
 {
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_deinit());
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_shutdown());
 }
 
 /* --- Shell command registration --- */
