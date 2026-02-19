@@ -43,6 +43,8 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/shell/src/*.c components/shell/src/*.h) \
            $(wildcard components/wifi/include/*.h) \
            $(wildcard components/wifi/src/*.c components/wifi/src/*.h) \
+           $(wildcard components/bluetooth/include/*.h) \
+           $(wildcard components/bluetooth/src/*.c components/bluetooth/src/*.h) \
            $(wildcard components/i2c_bus/include/*.h) \
            $(wildcard components/i2c_bus/src/*.c components/i2c_bus/src/*.h) \
            $(wildcard components/time_sync/include/*.h) \
