@@ -84,7 +84,9 @@ class CydDisplay : public lgfx::LGFX_Device
 };
 
 static CydDisplay lcd;
+static lgfx::LGFX_Sprite row_sprite(&lcd);
 static bool initialized = false;
+static bool row_sprite_ready = false;
 static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
 
 extern "C" esp_err_t display_init(void)
@@ -217,6 +219,29 @@ extern "C" void display_start_write(void)
 extern "C" void display_end_write(void)
 {
     lcd.endWrite();
+}
+
+extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg)
+{
+    if (!row_sprite_ready)
+    {
+        row_sprite.setColorDepth(16);
+        row_sprite.setFont(&lgfx::fonts::Font0);
+        row_sprite.setTextSize(1);
+        int font_h = row_sprite.fontHeight();
+        row_sprite.createSprite(lcd.width(), font_h);
+        row_sprite_ready = true;
+    }
+
+    int font_w = row_sprite.fontWidth();
+    row_sprite.fillSprite(bg);
+    for (int i = 0; i < count; i++)
+    {
+        row_sprite.setTextColor(fg[i]);
+        row_sprite.setCursor(i * font_w, 0);
+        row_sprite.write(static_cast<uint8_t>(chars[i]));
+    }
+    row_sprite.pushSprite(0, y);
 }
 
 extern "C" void display_wait(void)

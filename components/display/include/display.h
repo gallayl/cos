@@ -79,6 +79,21 @@ extern "C"
     /** End a batched draw transaction (release SPI bus). */
     void display_end_write(void);
 
+    /**
+     * @brief Render a row of characters and push to the display in one DMA transfer.
+     *
+     * Uses an internal row-sized sprite to batch all characters, avoiding
+     * per-character SPI overhead. Much faster than individual display_draw_char()
+     * calls for full-row updates.
+     *
+     * @param y      Pixel y-coordinate of the row's top edge.
+     * @param chars  Array of characters to draw (count elements).
+     * @param fg     Array of per-character foreground colors (RGB565, count elements).
+     * @param count  Number of characters in the row.
+     * @param bg     Background color (RGB565).
+     */
+    void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
+
     /** Wait for all pending display DMA transfers to complete. */
     void display_wait(void);
 

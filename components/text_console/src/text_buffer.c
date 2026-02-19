@@ -19,6 +19,7 @@ static void clear_row(text_buffer_t *buf, int row)
     {
         clear_cell(&buf->cells[row][c], TEXT_BUF_DEFAULT_FG);
     }
+    buf->dirty_rows |= (1ULL << row);
 }
 
 static void scroll_up(text_buffer_t *buf)
@@ -32,6 +33,7 @@ static void scroll_up(text_buffer_t *buf)
         }
     }
     clear_row(buf, buf->rows - 1);
+    buf->dirty_rows = (1ULL << buf->rows) - 1;
 }
 
 static void next_line(text_buffer_t *buf)
@@ -62,6 +64,7 @@ static void put_char(text_buffer_t *buf, char ch)
     cell->ch = ch;
     cell->fg = buf->current_fg;
     cell->dirty = true;
+    buf->dirty_rows |= (1ULL << buf->cursor_row);
 
     buf->cursor_col++;
     if (buf->cursor_col >= buf->cols)
@@ -195,6 +198,7 @@ static void dispatch_csi(text_buffer_t *buf, char final_byte)
             {
                 clear_cell(&buf->cells[buf->cursor_row][c], TEXT_BUF_DEFAULT_FG);
             }
+            buf->dirty_rows |= (1ULL << buf->cursor_row);
         }
         break;
     case 'm': /* SGR - select graphic rendition */
@@ -307,6 +311,7 @@ void text_buffer_init(text_buffer_t *buf, int cols, int rows)
             buf->cells[r][c].dirty = true;
         }
     }
+    buf->dirty_rows = (1ULL << buf->rows) - 1;
 }
 
 void text_buffer_write(text_buffer_t *buf, const char *data, size_t len)
@@ -332,15 +337,14 @@ void text_buffer_clear(text_buffer_t *buf)
 
 bool text_buffer_has_dirty(const text_buffer_t *buf)
 {
-    for (int r = 0; r < buf->rows; r++)
+    return buf->dirty_rows != 0;
+}
+
+void text_buffer_clear_row_dirty(text_buffer_t *buf, int row)
+{
+    for (int c = 0; c < buf->cols; c++)
     {
-        for (int c = 0; c < buf->cols; c++)
-        {
-            if (buf->cells[r][c].dirty)
-            {
-                return true;
-            }
-        }
+        buf->cells[row][c].dirty = false;
     }
-    return false;
+    buf->dirty_rows &= ~(1ULL << row);
 }

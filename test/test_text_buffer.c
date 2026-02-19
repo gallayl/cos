@@ -389,10 +389,7 @@ static void test_dirty_cleared_after_init(void)
 
     for (int r = 0; r < buf.rows; r++)
     {
-        for (int c = 0; c < buf.cols; c++)
-        {
-            buf.cells[r][c].dirty = false;
-        }
+        text_buffer_clear_row_dirty(&buf, r);
     }
     TEST_ASSERT_FALSE(text_buffer_has_dirty(&buf));
 }
@@ -401,14 +398,46 @@ static void test_write_sets_dirty(void)
 {
     for (int r = 0; r < buf.rows; r++)
     {
-        for (int c = 0; c < buf.cols; c++)
-        {
-            buf.cells[r][c].dirty = false;
-        }
+        text_buffer_clear_row_dirty(&buf, r);
     }
 
     text_buffer_write(&buf, "A", 1);
     TEST_ASSERT_TRUE(buf.cells[0][0].dirty);
+    TEST_ASSERT_TRUE(text_buffer_has_dirty(&buf));
+}
+
+static void test_dirty_rows_bitmask(void)
+{
+    for (int r = 0; r < buf.rows; r++)
+    {
+        text_buffer_clear_row_dirty(&buf, r);
+    }
+    TEST_ASSERT_EQUAL_UINT64(0, buf.dirty_rows);
+
+    text_buffer_write(&buf, "A", 1);
+    TEST_ASSERT_EQUAL_UINT64(1ULL << 0, buf.dirty_rows);
+
+    text_buffer_write(&buf, "\nB", 2);
+    TEST_ASSERT_EQUAL_UINT64((1ULL << 0) | (1ULL << 1), buf.dirty_rows);
+
+    text_buffer_clear_row_dirty(&buf, 0);
+    TEST_ASSERT_EQUAL_UINT64(1ULL << 1, buf.dirty_rows);
+    TEST_ASSERT_FALSE(buf.cells[0][0].dirty);
+
+    text_buffer_clear_row_dirty(&buf, 1);
+    TEST_ASSERT_FALSE(text_buffer_has_dirty(&buf));
+}
+
+static void test_dirty_rows_scroll_marks_all(void)
+{
+    text_buffer_init(&buf, 5, 3);
+    for (int r = 0; r < buf.rows; r++)
+    {
+        text_buffer_clear_row_dirty(&buf, r);
+    }
+
+    text_buffer_write(&buf, "AAAAA\nBBBBB\nCCCCC\n", 18);
+    TEST_ASSERT_EQUAL_UINT64((1ULL << 3) - 1, buf.dirty_rows);
 }
 
 /* ── Combined sequences (realistic ESP-IDF log line) ───────── */
@@ -525,6 +554,8 @@ int main(void)
     /* Dirty tracking */
     RUN_TEST(test_dirty_cleared_after_init);
     RUN_TEST(test_write_sets_dirty);
+    RUN_TEST(test_dirty_rows_bitmask);
+    RUN_TEST(test_dirty_rows_scroll_marks_all);
 
     /* Combined sequences */
     RUN_TEST(test_esp_log_info_line);

@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -15,9 +16,13 @@ static const char *const TAG = "text_console";
 #define FONT_WIDTH 6
 #define FONT_HEIGHT 8
 #define BG_COLOR TEXT_BUF_COLOR_BLACK
+#define RENDER_TASK_STACK 3072
+#define RENDER_TASK_PRIO 1
+#define RENDER_PERIOD_MS 30
 
 static text_buffer_t s_buf;
 static SemaphoreHandle_t s_mutex;
+static TaskHandle_t s_render_task;
 static bool s_initialized = false;
 
 static FILE *s_original_stdout;
@@ -31,23 +36,42 @@ static void render_dirty(void)
         return;
     }
 
-    display_start_write();
-    for (int r = 0; r < s_buf.rows; r++)
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    uint64_t dirty = s_buf.dirty_rows;
+
+    while (dirty)
     {
+        int r = __builtin_ctzll(dirty);
         for (int c = 0; c < s_buf.cols; c++)
         {
-            text_cell_t *cell = &s_buf.cells[r][c];
-            if (!cell->dirty)
-            {
-                continue;
-            }
-            int px = c * FONT_WIDTH;
-            int py = r * FONT_HEIGHT;
-            display_draw_char(px, py, cell->ch, cell->fg, BG_COLOR);
-            cell->dirty = false;
+            chars[c] = s_buf.cells[r][c].ch;
+            fg[c] = s_buf.cells[r][c].fg;
+        }
+        display_draw_text_row(r * FONT_HEIGHT, chars, fg, s_buf.cols, BG_COLOR);
+        text_buffer_clear_row_dirty(&s_buf, r);
+        dirty &= dirty - 1;
+    }
+}
+
+static void render_task(void *arg)
+{
+    (void)arg;
+    for (;;)
+    {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RENDER_PERIOD_MS));
+
+        if (!s_initialized)
+        {
+            continue;
+        }
+
+        if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        {
+            render_dirty();
+            xSemaphoreGive(s_mutex);
         }
     }
-    display_end_write();
 }
 
 /* ── stdout hook ───────────────────────────────────────────── */
@@ -63,8 +87,8 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     if (s_initialized && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         text_buffer_write(&s_buf, buf, size);
-        render_dirty();
         xSemaphoreGive(s_mutex);
+        xTaskNotifyGive(s_render_task);
     }
 
     return (ssize_t)written;
@@ -94,6 +118,15 @@ extern "C" esp_err_t text_console_init(void)
     text_buffer_init(&s_buf, cols, rows);
 
     display_fill_screen(BG_COLOR);
+
+    BaseType_t rc = xTaskCreate(render_task, "tc_render", RENDER_TASK_STACK, NULL, RENDER_TASK_PRIO, &s_render_task);
+    if (rc != pdPASS)
+    {
+        ESP_LOGE(TAG, "Failed to create render task");
+        vSemaphoreDelete(s_mutex);
+        s_mutex = NULL;
+        return ESP_ERR_NO_MEM;
+    }
 
     /* Hook stdout via fopencookie -- captures both printf() and ESP_LOG output
        since ESP_LOG's default vprintf handler writes to stdout. */
@@ -136,6 +169,12 @@ extern "C" void text_console_deinit(void)
         fclose(tee);
     }
 
+    if (s_render_task != NULL)
+    {
+        vTaskDelete(s_render_task);
+        s_render_task = NULL;
+    }
+
     if (s_mutex != NULL)
     {
         vSemaphoreDelete(s_mutex);
@@ -155,8 +194,8 @@ extern "C" void text_console_write(const char *data, size_t len)
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         text_buffer_write(&s_buf, data, len);
-        render_dirty();
         xSemaphoreGive(s_mutex);
+        xTaskNotifyGive(s_render_task);
     }
 }
 
@@ -171,7 +210,7 @@ extern "C" void text_console_clear(void)
     {
         text_buffer_clear(&s_buf);
         display_fill_screen(BG_COLOR);
-        render_dirty();
         xSemaphoreGive(s_mutex);
+        xTaskNotifyGive(s_render_task);
     }
 }

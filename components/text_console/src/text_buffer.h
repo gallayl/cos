@@ -50,6 +50,7 @@ extern "C"
         int cursor_col;                          /**< Current cursor column. */
         bool pending_wrap;                       /**< Deferred wrap: cursor at EOL, wrap on next printable char. */
         uint16_t current_fg;                     /**< Current foreground color for new chars. */
+        uint64_t dirty_rows;                     /**< Bitmask of rows containing dirty cells. */
         tb_parse_state_t state;                  /**< VT100 parser state. */
         int csi_params[TEXT_BUF_CSI_MAX_PARAMS]; /**< CSI parameter accumulator. */
         int csi_param_count;                     /**< Number of CSI params parsed so far. */
@@ -76,8 +77,19 @@ extern "C"
     /** Clear the entire buffer and reset cursor to (0, 0). */
     void text_buffer_clear(text_buffer_t *buf);
 
-    /** Check if any cell is marked dirty. */
+    /** Check if any row is marked dirty (O(1) via bitmask). */
     bool text_buffer_has_dirty(const text_buffer_t *buf);
+
+    /**
+     * @brief Clear dirty flags for a single row.
+     *
+     * Clears per-cell dirty flags and the corresponding bit in dirty_rows.
+     * Called by the renderer after drawing a row.
+     *
+     * @param buf Buffer to update.
+     * @param row Row index to mark clean.
+     */
+    void text_buffer_clear_row_dirty(text_buffer_t *buf, int row);
 
 #ifdef __cplusplus
 }
