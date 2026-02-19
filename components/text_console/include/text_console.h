@@ -35,6 +35,18 @@ extern "C"
      */
     void text_console_write(const char *data, size_t len);
 
+    /**
+     * @brief Feed keyboard input to the text console line editor.
+     *
+     * Characters are echoed on screen.  When Enter is received the
+     * accumulated line is executed via esp_console_run() and the
+     * prompt is reprinted.  Suitable as a bt_keyboard_cb_t callback.
+     *
+     * @param data  Translated characters (ASCII / VT100 sequences).
+     * @param len   Number of bytes.
+     */
+    void text_console_input(const char *data, size_t len);
+
     /** Clear the text console screen and reset cursor to top-left. */
     void text_console_clear(void);
 

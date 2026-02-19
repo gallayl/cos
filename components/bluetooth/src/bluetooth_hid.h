@@ -1,5 +1,7 @@
 #pragma once
 
+#include "bluetooth.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -10,7 +12,7 @@ extern "C"
 
     /**
      * Process a raw HID keyboard input report and forward the resulting
-     * characters to the console (UART0).
+     * characters to the registered callback.
      *
      * @param data   Pointer to the HID report bytes
      * @param len    Length of the report in bytes

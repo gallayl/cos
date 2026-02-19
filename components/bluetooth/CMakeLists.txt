@@ -6,5 +6,4 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES bt console esp_hid nvs_flash freertos
-    PRIV_REQUIRES esp_driver_uart
 )

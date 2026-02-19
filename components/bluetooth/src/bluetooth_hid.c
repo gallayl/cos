@@ -1,7 +1,5 @@
 #include "bluetooth_hid.h"
 
-#include "driver/uart.h"
-
 #include <stdbool.h>
 #include <string.h>
 
@@ -25,6 +23,13 @@
 #define MOD_CTRL (MOD_LCTRL | MOD_RCTRL)
 
 #define MAX_KEYS 6
+
+static bt_keyboard_cb_t s_keyboard_cb;
+
+void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb)
+{
+    s_keyboard_cb = cb;
+}
 
 /* USB HID keycode → ASCII (US layout, lowercase) */
 static const char KEYCODE_TO_ASCII[128] = {
@@ -231,7 +236,10 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
             }
             if (seq != NULL)
             {
-                uart_write_bytes(UART_NUM_0, seq, seq_len);
+                if (s_keyboard_cb != NULL)
+                {
+                    s_keyboard_cb(seq, seq_len);
+                }
                 continue;
             }
         }
@@ -243,9 +251,9 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
         }
     }
 
-    if (buf_len > 0)
+    if (buf_len > 0 && s_keyboard_cb != NULL)
     {
-        uart_write_bytes(UART_NUM_0, buf, buf_len);
+        s_keyboard_cb(buf, buf_len);
     }
 
     memcpy(s_prev_keys, keys, MAX_KEYS);

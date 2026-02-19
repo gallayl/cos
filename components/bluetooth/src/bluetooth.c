@@ -13,6 +13,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "nvs.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -50,6 +51,59 @@ static volatile bool s_enable_in_progress;
 static volatile bool s_hidh_inited;
 static esp_hidh_dev_t *volatile s_hid_dev;
 static SemaphoreHandle_t s_close_done;
+
+/* ── NVS persistence ─────────────────────────────────────────────────── */
+
+#define NVS_NAMESPACE "bluetooth"
+#define NVS_KEY_ENABLED "enabled"
+#define NVS_KEY_AUTO_BDA "auto_bda"
+
+static void nvs_save_enabled(bool enabled)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK)
+    {
+        nvs_set_u8(h, NVS_KEY_ENABLED, enabled ? 1 : 0);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+static bool nvs_load_enabled(void)
+{
+    nvs_handle_t h;
+    uint8_t val = 0;
+    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK)
+    {
+        nvs_get_u8(h, NVS_KEY_ENABLED, &val);
+        nvs_close(h);
+    }
+    return val != 0;
+}
+
+static void nvs_save_auto_bda(const uint8_t *bda)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK)
+    {
+        nvs_set_blob(h, NVS_KEY_AUTO_BDA, bda, sizeof(esp_bd_addr_t));
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+static bool nvs_load_auto_bda(esp_bd_addr_t bda_out)
+{
+    nvs_handle_t h;
+    size_t len = sizeof(esp_bd_addr_t);
+    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK)
+    {
+        esp_err_t err = nvs_get_blob(h, NVS_KEY_AUTO_BDA, bda_out, &len);
+        nvs_close(h);
+        return err == ESP_OK && len == sizeof(esp_bd_addr_t);
+    }
+    return false;
+}
 
 /* ── GAP callback ────────────────────────────────────────────────────── */
 
@@ -180,6 +234,10 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
             const uint8_t *bda = esp_hidh_dev_bda_get(p->open.dev);
             ESP_LOGI(TAG, "HID device opened: %s (" ESP_BD_ADDR_STR ")", name ? name : "???", ESP_BD_ADDR_HEX(bda));
             s_hid_dev = p->open.dev;
+            if (bda != NULL)
+            {
+                nvs_save_auto_bda(bda);
+            }
         }
         else
         {
@@ -310,7 +368,21 @@ static esp_err_t do_bt_enable_sequence(void)
 
     s_enabled = true;
     s_enable_in_progress = false;
+    nvs_save_enabled(true);
     ESP_LOGI(TAG, "Bluetooth enabled");
+
+    /* Auto-reconnect to the last paired device if stored */
+    esp_bd_addr_t auto_bda;
+    if (nvs_load_auto_bda(auto_bda))
+    {
+        ESP_LOGI(TAG, "Auto-connecting to " ESP_BD_ADDR_STR, ESP_BD_ADDR_HEX(auto_bda));
+        esp_err_t ac_err = bluetooth_connect(auto_bda);
+        if (ac_err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Auto-connect failed: %s (device may be off)", esp_err_to_name(ac_err));
+        }
+    }
+
     return ESP_OK;
 }
 
@@ -338,6 +410,13 @@ esp_err_t bluetooth_init(void)
     }
 
     bluetooth_register_commands();
+
+    if (nvs_load_enabled())
+    {
+        ESP_LOGI(TAG, "NVS: Bluetooth was enabled, auto-starting...");
+        bluetooth_enable();
+    }
+
     return ESP_OK;
 }
 
@@ -398,6 +477,7 @@ esp_err_t bluetooth_disable(void)
     esp_bt_controller_deinit();
 
     s_enabled = false;
+    nvs_save_enabled(false);
     ESP_LOGI(TAG, "Bluetooth disabled");
     return ESP_OK;
 }

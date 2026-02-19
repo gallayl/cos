@@ -3,12 +3,25 @@
 #include "esp_err.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+    /**
+     * Callback invoked with translated keyboard characters (ASCII or VT100
+     * escape sequences).  The data is NOT null-terminated.
+     */
+    typedef void (*bt_keyboard_cb_t)(const char *data, size_t len);
+
+    /**
+     * Register a callback to receive translated keyboard input from a
+     * connected BT HID keyboard.  Pass NULL to clear.
+     */
+    void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb);
 
     /**
      * Initialize the Bluetooth component: register shell commands.

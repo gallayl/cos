@@ -46,6 +46,7 @@ void app_main(void)
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(wifi_init());
     ESP_ERROR_CHECK(bluetooth_init());
+    bluetooth_hid_set_keyboard_callback(text_console_input);
     ESP_ERROR_CHECK(time_sync_init());
     ESP_ERROR_CHECK(http_server_init());
     ESP_ERROR_CHECK(websocket_init());
