@@ -6,7 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,13 +20,18 @@ static text_buffer_t s_buf;
 static SemaphoreHandle_t s_mutex;
 static bool s_initialized = false;
 
-static vprintf_like_t s_original_log_vprintf;
 static FILE *s_original_stdout;
 
 /* ── Rendering ─────────────────────────────────────────────── */
 
 static void render_dirty(void)
 {
+    if (!text_buffer_has_dirty(&s_buf))
+    {
+        return;
+    }
+
+    display_start_write();
     for (int r = 0; r < s_buf.rows; r++)
     {
         for (int c = 0; c < s_buf.cols; c++)
@@ -43,29 +47,10 @@ static void render_dirty(void)
             cell->dirty = false;
         }
     }
+    display_end_write();
 }
 
-/* ── stdout / log hooks ────────────────────────────────────── */
-
-static int log_vprintf_hook(const char *fmt, va_list args)
-{
-    char buf[256];
-    int len = vsnprintf(buf, sizeof(buf), fmt, args);
-    if (len < 0)
-    {
-        return len;
-    }
-    size_t write_len = ((size_t)len < sizeof(buf)) ? (size_t)len : sizeof(buf) - 1;
-
-    if (s_initialized && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
-    {
-        text_buffer_write(&s_buf, buf, write_len);
-        render_dirty();
-        xSemaphoreGive(s_mutex);
-    }
-
-    return s_original_log_vprintf(fmt, args);
-}
+/* ── stdout hook ───────────────────────────────────────────── */
 
 static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
 {
@@ -110,10 +95,8 @@ extern "C" esp_err_t text_console_init(void)
 
     display_fill_screen(BG_COLOR);
 
-    /* Hook ESP_LOG output */
-    s_original_log_vprintf = esp_log_set_vprintf(log_vprintf_hook);
-
-    /* Hook stdout via fopencookie */
+    /* Hook stdout via fopencookie -- captures both printf() and ESP_LOG output
+       since ESP_LOG's default vprintf handler writes to stdout. */
     s_original_stdout = stdout;
     cookie_io_functions_t fns = {};
     fns.write = stdout_write_hook;
@@ -152,9 +135,6 @@ extern "C" void text_console_deinit(void)
         stdout = s_original_stdout;
         fclose(tee);
     }
-
-    /* Restore original log handler */
-    esp_log_set_vprintf(s_original_log_vprintf);
 
     if (s_mutex != NULL)
     {

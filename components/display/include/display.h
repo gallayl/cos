@@ -68,6 +68,17 @@ extern "C"
     /** Set the text font by LovyanGFX font ID. */
     void display_set_text_font(uint8_t font_id);
 
+    /**
+     * @brief Begin a batched draw transaction (acquire SPI bus).
+     *
+     * Call before a series of draw operations, paired with display_end_write().
+     * Avoids per-call SPI bus acquire/release overhead.
+     */
+    void display_start_write(void);
+
+    /** End a batched draw transaction (release SPI bus). */
+    void display_end_write(void);
+
     /** Wait for all pending display DMA transfers to complete. */
     void display_wait(void);
 

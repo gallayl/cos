@@ -209,6 +209,16 @@ extern "C" void display_set_text_font(uint8_t font_id)
     lcd.setTextFont(font_id);
 }
 
+extern "C" void display_start_write(void)
+{
+    lcd.startWrite();
+}
+
+extern "C" void display_end_write(void)
+{
+    lcd.endWrite();
+}
+
 extern "C" void display_wait(void)
 {
     lcd.waitDisplay();
