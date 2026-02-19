@@ -89,6 +89,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
+    mocks/mock_shell_input.c
 )
 target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/shell/include

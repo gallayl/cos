@@ -2,15 +2,14 @@
 #include "text_buffer.h"
 
 #include "display.h"
-#include "esp_console.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "shell.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/reent.h>
 
 static const char *const TAG = "text_console";
 
@@ -96,80 +95,6 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     return (ssize_t)written;
 }
 
-/* ── Line editor (keyboard input) ──────────────────────────── */
-
-#define INPUT_LINE_MAX 128
-
-static char s_input_line[INPUT_LINE_MAX];
-static int s_input_pos;
-
-static void input_print_prompt(void)
-{
-    const char *prompt = shell_get_prompt();
-    if (prompt != NULL)
-    {
-        printf("%s", prompt);
-    }
-}
-
-static void input_execute_line(void)
-{
-    s_input_line[s_input_pos] = '\0';
-    printf("\n");
-
-    if (s_input_pos > 0)
-    {
-        int ret = 0;
-        esp_err_t err = esp_console_run(s_input_line, &ret);
-        if (err == ESP_ERR_NOT_FOUND)
-        {
-            printf("Unknown command: %s\n", s_input_line);
-        }
-        else if (err == ESP_ERR_INVALID_ARG)
-        {
-            /* Empty or whitespace-only command */
-        }
-        else if (err != ESP_OK)
-        {
-            printf("Error: %s\n", esp_err_to_name(err));
-        }
-    }
-
-    s_input_pos = 0;
-    input_print_prompt();
-}
-
-static void input_handle_char(char ch)
-{
-    if (ch == '\n' || ch == '\r')
-    {
-        input_execute_line();
-        return;
-    }
-
-    if (ch == '\b' || ch == 0x7F)
-    {
-        if (s_input_pos > 0)
-        {
-            s_input_pos--;
-            printf("\b \b");
-        }
-        return;
-    }
-
-    /* Ignore non-printable control characters */
-    if (ch < 0x20 && ch != '\t')
-    {
-        return;
-    }
-
-    if (s_input_pos < INPUT_LINE_MAX - 1)
-    {
-        s_input_line[s_input_pos++] = ch;
-        printf("%c", ch);
-    }
-}
-
 /* ── Public API ────────────────────────────────────────────── */
 
 extern "C" esp_err_t text_console_init(void)
@@ -214,6 +139,7 @@ extern "C" esp_err_t text_console_init(void)
     {
         setvbuf(tee, NULL, _IOLBF, 0);
         stdout = tee;
+        _GLOBAL_REENT->_stdout = tee;
     }
     else
     {
@@ -242,6 +168,7 @@ extern "C" void text_console_deinit(void)
     {
         FILE *tee = stdout;
         stdout = s_original_stdout;
+        _GLOBAL_REENT->_stdout = s_original_stdout;
         fclose(tee);
     }
 
@@ -291,15 +218,3 @@ extern "C" void text_console_clear(void)
     }
 }
 
-extern "C" void text_console_input(const char *data, size_t len)
-{
-    if (!s_initialized || data == NULL || len == 0)
-    {
-        return;
-    }
-
-    for (size_t i = 0; i < len; i++)
-    {
-        input_handle_char(data[i]);
-    }
-}

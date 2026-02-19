@@ -1,14 +1,14 @@
 #include "shell.h"
+#include "shell_input.h"
+
 #include "filesystem.h"
 #include "shell_cmds.h"
 
-#include "console_private.h"
 #include "esp_console.h"
 #include "esp_log.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/cdefs.h>
 
 static const char *const TAG = "shell";
 
@@ -17,45 +17,6 @@ static const char *const TAG = "shell";
 
 static char s_cwd[SHELL_CWD_MAX] = "/flash";
 static char s_prompt[SHELL_PROMPT_MAX] = "COS/flash> ";
-static esp_console_repl_t *s_repl = NULL;
-
-static void sync_repl_prompt(void)
-{
-    if (s_repl == NULL)
-    {
-        return;
-    }
-
-    /*
-     * HACK: ESP-IDF does not expose a public API to update the REPL prompt
-     * at runtime. We reach into the private esp_console_repl_com_t struct
-     * via __containerof. This may break across ESP-IDF versions -- revisit
-     * when a public API becomes available (tracked: ESP-IDF #12345-like).
-     */
-    esp_console_repl_com_t *repl_com = __containerof(s_repl, esp_console_repl_com_t, repl_core);
-
-    if (strlen(s_prompt) < CONSOLE_PROMPT_MAX_LEN)
-    {
-        strncpy(repl_com->prompt, s_prompt, CONSOLE_PROMPT_MAX_LEN - 1);
-        repl_com->prompt[CONSOLE_PROMPT_MAX_LEN - 1] = '\0';
-        return;
-    }
-
-    /* Path too long for REPL buffer – elide middle segments: COS/<first>/.../<last> > */
-    const char *second_slash = strchr(s_cwd + 1, '/');
-    const char *last_slash = strrchr(s_cwd, '/');
-
-    if (second_slash != NULL && last_slash != NULL && second_slash < last_slash)
-    {
-        int first_len = (int)(second_slash - s_cwd);
-        snprintf(repl_com->prompt, CONSOLE_PROMPT_MAX_LEN, "COS%.*s/...%s> ", first_len, s_cwd, last_slash);
-    }
-    else
-    {
-        strncpy(repl_com->prompt, s_prompt, CONSOLE_PROMPT_MAX_LEN - 1);
-        repl_com->prompt[CONSOLE_PROMPT_MAX_LEN - 1] = '\0';
-    }
-}
 
 static void update_prompt(void)
 {
@@ -67,8 +28,6 @@ static void update_prompt(void)
     {
         snprintf(s_prompt, sizeof(s_prompt), "COS%s> ", s_cwd);
     }
-
-    sync_repl_prompt();
 }
 
 const char *shell_get_cwd(void)
@@ -190,31 +149,23 @@ esp_err_t shell_init(void)
 {
     ESP_LOGI(TAG, "Initializing shell...");
 
+    esp_console_config_t console_config = ESP_CONSOLE_CONFIG_DEFAULT();
+    esp_err_t err = esp_console_init(&console_config);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_console_init failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
 
     update_prompt();
 
-    esp_console_repl_t *repl = NULL;
-    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_config.task_stack_size = 8192;
-    repl_config.prompt = s_prompt;
-
-    esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
-    esp_err_t err = esp_console_new_repl_uart(&uart_config, &repl_config, &repl);
+    err = shell_input_init();
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to create REPL: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    s_repl = repl;
-
-    err = esp_console_start_repl(repl);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to start REPL: %s", esp_err_to_name(err));
         return err;
     }
 
