@@ -1,4 +1,5 @@
 #include "bluetooth.h"
+#include "bluetooth_eir.h"
 #include "bluetooth_hid.h"
 
 #include "esp_bt.h"
@@ -20,16 +21,18 @@
 static const char *const TAG = "bluetooth";
 
 #define BT_SCAN_DURATION_1_28S 8 /* ~10 seconds */
-#define BT_SCAN_MAX_RESULTS    20
-#define BT_SCAN_TIMEOUT_MS     15000
-#define BT_ENABLE_TASK_STACK   12288
-#define BT_ENABLE_TASK_PRIO    1
+#define BT_SCAN_MAX_RESULTS 20
+#define BT_SCAN_TIMEOUT_MS 15000
+#define BT_CLOSE_TIMEOUT_MS 3000
+#define BT_ENABLE_TASK_STACK 12288
+#define BT_ENABLE_TASK_PRIO 1
 
 void bluetooth_register_commands(void);
 
 /* ── Scan result storage ─────────────────────────────────────────────── */
 
-typedef struct {
+typedef struct
+{
     esp_bd_addr_t bda;
     char name[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
     int8_t rssi;
@@ -42,44 +45,11 @@ static SemaphoreHandle_t s_scan_done;
 
 /* ── State ───────────────────────────────────────────────────────────── */
 
-static bool s_enabled;
+static volatile bool s_enabled;
 static volatile bool s_enable_in_progress;
 static volatile bool s_hidh_inited;
-static esp_hidh_dev_t *s_hid_dev;
-
-/* ── Helper: extract name from EIR ───────────────────────────────────── */
-
-static bool get_name_from_eir(const uint8_t *eir, size_t eir_len, char *out, size_t out_size)
-{
-    if (eir == NULL || eir_len == 0)
-    {
-        return false;
-    }
-
-    size_t pos = 0;
-    while (pos < eir_len)
-    {
-        uint8_t len = eir[pos];
-        if (len == 0 || pos + 1 + len > eir_len)
-        {
-            break;
-        }
-        uint8_t type = eir[pos + 1];
-        if (type == 0x09 || type == 0x08)
-        {
-            size_t name_len = len - 1;
-            if (name_len >= out_size)
-            {
-                name_len = out_size - 1;
-            }
-            memcpy(out, &eir[pos + 2], name_len);
-            out[name_len] = '\0';
-            return true;
-        }
-        pos += 1 + len;
-    }
-    return false;
-}
+static esp_hidh_dev_t *volatile s_hid_dev;
+static SemaphoreHandle_t s_close_done;
 
 /* ── GAP callback ────────────────────────────────────────────────────── */
 
@@ -87,7 +57,8 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
     switch (event)
     {
-    case ESP_BT_GAP_DISC_RES_EVT: {
+    case ESP_BT_GAP_DISC_RES_EVT:
+    {
         if (s_scan_count >= BT_SCAN_MAX_RESULTS)
         {
             break;
@@ -125,8 +96,7 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
             case ESP_BT_GAP_DEV_PROP_EIR:
                 if (r->name[0] == '\0')
                 {
-                    get_name_from_eir((uint8_t *)prop->val, (size_t)prop->len,
-                                      r->name, sizeof(r->name));
+                    bluetooth_parse_eir_name((uint8_t *)prop->val, (size_t)prop->len, r->name, sizeof(r->name));
                 }
                 break;
             default:
@@ -153,8 +123,7 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
         break;
 
     case ESP_BT_GAP_PIN_REQ_EVT:
-        ESP_LOGI(TAG, "PIN requested by " ESP_BD_ADDR_STR " -- replying 0000",
-                 ESP_BD_ADDR_HEX(param->pin_req.bda));
+        ESP_LOGI(TAG, "PIN requested by " ESP_BD_ADDR_STR " -- replying 0000", ESP_BD_ADDR_HEX(param->pin_req.bda));
         {
             esp_bt_pin_code_t pin = {'0', '0', '0', '0'};
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin);
@@ -162,8 +131,7 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
         break;
 
     case ESP_BT_GAP_CFM_REQ_EVT:
-        ESP_LOGI(TAG, "SSP confirm request (value: %" PRIu32 ") -- auto-accepting",
-                 param->cfm_req.num_val);
+        ESP_LOGI(TAG, "SSP confirm request (value: %" PRIu32 ") -- auto-accepting", param->cfm_req.num_val);
         esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
         break;
 
@@ -210,8 +178,7 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
         {
             const char *name = esp_hidh_dev_name_get(p->open.dev);
             const uint8_t *bda = esp_hidh_dev_bda_get(p->open.dev);
-            ESP_LOGI(TAG, "HID device opened: %s (" ESP_BD_ADDR_STR ")",
-                     name ? name : "???", ESP_BD_ADDR_HEX(bda));
+            ESP_LOGI(TAG, "HID device opened: %s (" ESP_BD_ADDR_STR ")", name ? name : "???", ESP_BD_ADDR_HEX(bda));
             s_hid_dev = p->open.dev;
         }
         else
@@ -228,6 +195,10 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
             esp_hidh_dev_free(p->close.dev);
         }
         s_hid_dev = NULL;
+        if (s_close_done != NULL)
+        {
+            xSemaphoreGive(s_close_done);
+        }
         break;
 
     case ESP_HIDH_INPUT_EVENT:
@@ -257,6 +228,7 @@ static esp_err_t do_bt_enable_sequence(void)
     esp_err_t err;
 
     ESP_LOGI(TAG, "Bluetooth enable started");
+    /* Brief yield to let the calling task (shell/REPL) finish printing its response */
     vTaskDelay(pdMS_TO_TICKS(100));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
@@ -359,6 +331,12 @@ esp_err_t bluetooth_init(void)
         return ESP_ERR_NO_MEM;
     }
 
+    s_close_done = xSemaphoreCreateBinary();
+    if (s_close_done == NULL)
+    {
+        return ESP_ERR_NO_MEM;
+    }
+
     bluetooth_register_commands();
     return ESP_OK;
 }
@@ -388,6 +366,11 @@ esp_err_t bluetooth_enable(void)
 
 esp_err_t bluetooth_disable(void)
 {
+    if (s_enable_in_progress)
+    {
+        ESP_LOGW(TAG, "Enable still in progress");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (!s_enabled)
     {
         ESP_LOGW(TAG, "Not enabled");
@@ -396,8 +379,13 @@ esp_err_t bluetooth_disable(void)
 
     if (s_hid_dev != NULL)
     {
+        xSemaphoreTake(s_close_done, 0);
         esp_hidh_dev_close(s_hid_dev);
-        s_hid_dev = NULL;
+        if (xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS)) != pdTRUE)
+        {
+            ESP_LOGW(TAG, "Timeout waiting for HID device close");
+            s_hid_dev = NULL;
+        }
     }
     if (s_hidh_inited)
     {
@@ -427,9 +415,8 @@ esp_err_t bluetooth_scan(void)
     /* Reset semaphore in case of leftover signal */
     xSemaphoreTake(s_scan_done, 0);
 
-    ESP_RETURN_ON_ERROR(
-        esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, BT_SCAN_DURATION_1_28S, 0),
-        TAG, "start discovery failed");
+    ESP_RETURN_ON_ERROR(esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, BT_SCAN_DURATION_1_28S, 0), TAG,
+                        "start discovery failed");
 
     printf("Scanning for ~%d seconds...\n", BT_SCAN_DURATION_1_28S * 128 / 100);
 
@@ -443,11 +430,8 @@ esp_err_t bluetooth_scan(void)
     for (int i = 0; i < s_scan_count; i++)
     {
         bt_scan_result_t *r = &s_scan_results[i];
-        printf("%-24s " ESP_BD_ADDR_STR " %5d  0x%06" PRIx32 "\n",
-               r->name[0] ? r->name : "(unknown)",
-               ESP_BD_ADDR_HEX(r->bda),
-               r->rssi,
-               r->cod);
+        printf("%-24s " ESP_BD_ADDR_STR " %5d  0x%06" PRIx32 "\n", r->name[0] ? r->name : "(unknown)",
+               ESP_BD_ADDR_HEX(r->bda), r->rssi, r->cod);
     }
     printf("%d device(s) found\n", s_scan_count);
 

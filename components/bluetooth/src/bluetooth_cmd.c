@@ -44,8 +44,7 @@ static void print_status(void)
         const uint8_t *bda = bluetooth_connected_device_bda();
         if (bda != NULL)
         {
-            printf("Connected: %s (" ESP_BD_ADDR_STR ")\n",
-                   name ? name : "(unknown)", ESP_BD_ADDR_HEX(bda));
+            printf("Connected: %s (" ESP_BD_ADDR_STR ")\n", name ? name : "(unknown)", ESP_BD_ADDR_HEX(bda));
         }
     }
     else if (bluetooth_is_enabled())

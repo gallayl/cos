@@ -30,6 +30,8 @@ add_library(mock_esp STATIC
     mocks/mock_system.c
     mocks/mock_httpd.c
     mocks/mock_mbedtls.c
+    mocks/mock_uart.c
+    mocks/mock_bluetooth.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -42,6 +44,8 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/light_sensor/include
     ${COMPONENT_DIR}/components/brightness/include
     ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/bluetooth/include
+    ${COMPONENT_DIR}/components/bluetooth/src
     ${COMPONENT_DIR}/components/i2c_bus/include
     ${COMPONENT_DIR}/components/time_sync/include
     ${COMPONENT_DIR}/components/system/include
@@ -337,3 +341,56 @@ target_include_directories(test_text_buffer PRIVATE
 )
 target_link_libraries(test_text_buffer PRIVATE unity text_buffer)
 add_test(NAME test_text_buffer COMMAND test_text_buffer)
+
+# --- Library: bluetooth_hid_logic ---
+add_library(bluetooth_hid_logic STATIC
+    ${COMPONENT_DIR}/components/bluetooth/src/bluetooth_hid.c
+)
+target_include_directories(bluetooth_hid_logic PUBLIC
+    ${COMPONENT_DIR}/components/bluetooth/src
+    mocks
+)
+
+# --- Test: bluetooth_hid ---
+add_executable(test_bluetooth_hid test_bluetooth_hid.c)
+target_include_directories(test_bluetooth_hid PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/bluetooth/src
+)
+target_link_libraries(test_bluetooth_hid PRIVATE unity bluetooth_hid_logic mock_esp)
+add_test(NAME test_bluetooth_hid COMMAND test_bluetooth_hid)
+
+# --- Library: bluetooth_cmd_logic ---
+add_library(bluetooth_cmd_logic STATIC
+    ${COMPONENT_DIR}/components/bluetooth/src/bluetooth_cmd.c
+)
+target_include_directories(bluetooth_cmd_logic PUBLIC
+    ${COMPONENT_DIR}/components/bluetooth/include
+    mocks
+)
+target_link_libraries(bluetooth_cmd_logic PRIVATE mock_esp)
+
+# --- Test: bluetooth_cmd ---
+add_executable(test_bluetooth_cmd test_bluetooth_cmd.c)
+target_include_directories(test_bluetooth_cmd PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/bluetooth/include
+)
+target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic mock_esp)
+add_test(NAME test_bluetooth_cmd COMMAND test_bluetooth_cmd)
+
+# --- Library: bluetooth_eir (pure C, no ESP-IDF deps) ---
+add_library(bluetooth_eir STATIC
+    ${COMPONENT_DIR}/components/bluetooth/src/bluetooth_eir.c
+)
+target_include_directories(bluetooth_eir PUBLIC
+    ${COMPONENT_DIR}/components/bluetooth/src
+)
+
+# --- Test: bluetooth_eir ---
+add_executable(test_bluetooth_eir test_bluetooth_eir.c)
+target_include_directories(test_bluetooth_eir PRIVATE
+    ${COMPONENT_DIR}/components/bluetooth/src
+)
+target_link_libraries(test_bluetooth_eir PRIVATE unity bluetooth_eir)
+add_test(NAME test_bluetooth_eir COMMAND test_bluetooth_eir)
