@@ -124,7 +124,11 @@ static esp_err_t ws_handler(httpd_req_t *req)
         if (buf)
         {
             frame.payload = buf;
-            httpd_ws_recv_frame(req, &frame, frame.len);
+            esp_err_t ret2 = httpd_ws_recv_frame(req, &frame, frame.len);
+            if (ret2 != ESP_OK)
+            {
+                ESP_LOGW(TAG, "Failed to receive frame payload: %s", esp_err_to_name(ret2));
+            }
             free(buf);
         }
     }

@@ -52,7 +52,9 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/http_server/include/*.h) \
            $(wildcard components/http_server/src/*.c components/http_server/src/*.h) \
            $(wildcard components/websocket/include/*.h) \
-           $(wildcard components/websocket/src/*.c components/websocket/src/*.h)
+           $(wildcard components/websocket/src/*.c components/websocket/src/*.h) \
+           $(wildcard components/text_console/include/*.h) \
+           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h)
 
 build:
 	$(IDF_PY) build

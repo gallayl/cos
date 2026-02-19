@@ -1,0 +1,31 @@
+name: Build & Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-lint:
+    name: ESP-IDF Build & Lint
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.5.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        run: apt-get update && apt-get install -y clang-tidy
+
+      - name: Build firmware
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          make build
+
+      - name: Run clang-tidy
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          make lint

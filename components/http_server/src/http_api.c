@@ -4,6 +4,7 @@
 #include "esp_log.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "http_api";
@@ -43,11 +44,18 @@ static esp_err_t handler_files(httpd_req_t *req)
         httpd_query_key_value(query, "path", path, sizeof(path));
     }
 
-    vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    if (entries == NULL)
+    {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+        return ESP_OK;
+    }
+
     size_t count = 0;
     esp_err_t err = vfs_list_dir(path, entries, VFS_ENTRIES_MAX, &count);
     if (err != ESP_OK)
     {
+        free(entries);
         httpd_resp_set_type(req, "application/json");
         httpd_resp_set_status(req, "400 Bad Request");
         char errbuf[64];
@@ -68,6 +76,7 @@ static esp_err_t handler_files(httpd_req_t *req)
         httpd_resp_sendstr_chunk(req, item);
     }
 
+    free(entries);
     httpd_resp_sendstr_chunk(req, "]");
     httpd_resp_sendstr_chunk(req, NULL);
     return ESP_OK;

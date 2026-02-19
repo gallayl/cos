@@ -321,3 +321,19 @@ target_include_directories(test_http_auth PRIVATE
 )
 target_link_libraries(test_http_auth PRIVATE unity http_auth_logic mock_esp)
 add_test(NAME test_http_auth COMMAND test_http_auth)
+
+# --- Library: text_buffer (pure C, no ESP-IDF deps) ---
+add_library(text_buffer STATIC
+    ${COMPONENT_DIR}/components/text_console/src/text_buffer.c
+)
+target_include_directories(text_buffer PUBLIC
+    ${COMPONENT_DIR}/components/text_console/src
+)
+
+# --- Test: text_buffer ---
+add_executable(test_text_buffer test_text_buffer.c)
+target_include_directories(test_text_buffer PRIVATE
+    ${COMPONENT_DIR}/components/text_console/src
+)
+target_link_libraries(test_text_buffer PRIVATE unity text_buffer)
+add_test(NAME test_text_buffer COMMAND test_text_buffer)

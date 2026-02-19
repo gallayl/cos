@@ -8,6 +8,7 @@
 #include "rgb_led.h"
 #include "shell.h"
 #include "system.h"
+#include "text_console.h"
 #include "time_sync.h"
 #include "websocket.h"
 #include "wifi.h"
@@ -39,6 +40,7 @@ void app_main(void)
     ESP_ERROR_CHECK(light_sensor_init());
     ESP_ERROR_CHECK(rgb_led_init());
     ESP_ERROR_CHECK(brightness_init());
+    ESP_ERROR_CHECK(text_console_init());
     ESP_ERROR_CHECK(i2c_bus_init());
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(wifi_init());

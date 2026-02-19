@@ -42,8 +42,57 @@ extern "C"
     /** Fill entire screen with a 16-bit RGB565 color. */
     void display_fill_screen(uint16_t color);
 
+    /** Fill a rectangle at (x, y) with dimensions w x h using a 16-bit RGB565 color. */
+    void display_fill_rect(int x, int y, int w, int h, uint16_t color);
+
     /** Draw a null-terminated string at (x, y) with foreground/background colors. */
     void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg);
+
+    /**
+     * @brief Draw a single character at (x, y) with foreground/background colors.
+     *
+     * @param x Pixel x-coordinate.
+     * @param y Pixel y-coordinate.
+     * @param c Character to draw.
+     * @param fg Foreground color (RGB565).
+     * @param bg Background color (RGB565).
+     */
+    void display_draw_char(int x, int y, char c, uint16_t fg, uint16_t bg);
+
+    /** Get the current display width in pixels (accounts for rotation). */
+    int display_get_width(void);
+
+    /** Get the current display height in pixels (accounts for rotation). */
+    int display_get_height(void);
+
+    /** Set the text font by LovyanGFX font ID. */
+    void display_set_text_font(uint8_t font_id);
+
+    /**
+     * @brief Begin a batched draw transaction (acquire SPI bus).
+     *
+     * Call before a series of draw operations, paired with display_end_write().
+     * Avoids per-call SPI bus acquire/release overhead.
+     */
+    void display_start_write(void);
+
+    /** End a batched draw transaction (release SPI bus). */
+    void display_end_write(void);
+
+    /**
+     * @brief Render a row of characters and push to the display in one DMA transfer.
+     *
+     * Uses an internal row-sized sprite to batch all characters, avoiding
+     * per-character SPI overhead. Much faster than individual display_draw_char()
+     * calls for full-row updates.
+     *
+     * @param y      Pixel y-coordinate of the row's top edge.
+     * @param chars  Array of characters to draw (count elements).
+     * @param fg     Array of per-character foreground colors (RGB565, count elements).
+     * @param count  Number of characters in the row.
+     * @param bg     Background color (RGB565).
+     */
+    void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
 
     /** Wait for all pending display DMA transfers to complete. */
     void display_wait(void);
