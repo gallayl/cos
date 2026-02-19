@@ -173,12 +173,40 @@ extern "C" void display_fill_screen(uint16_t color)
     lcd.fillScreen(color);
 }
 
+extern "C" void display_fill_rect(int x, int y, int w, int h, uint16_t color)
+{
+    lcd.fillRect(x, y, w, h, color);
+}
+
 extern "C" void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)
 {
     lcd.setCursor(x, y);
     lcd.setTextColor(fg, bg);
     lcd.setTextSize(1);
     lcd.print(text);
+}
+
+extern "C" void display_draw_char(int x, int y, char c, uint16_t fg, uint16_t bg)
+{
+    lcd.setCursor(x, y);
+    lcd.setTextColor(fg, bg);
+    lcd.setTextSize(1);
+    lcd.write(static_cast<uint8_t>(c));
+}
+
+extern "C" int display_get_width(void)
+{
+    return lcd.width();
+}
+
+extern "C" int display_get_height(void)
+{
+    return lcd.height();
+}
+
+extern "C" void display_set_text_font(uint8_t font_id)
+{
+    lcd.setTextFont(font_id);
 }
 
 extern "C" void display_wait(void)

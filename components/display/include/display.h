@@ -42,8 +42,31 @@ extern "C"
     /** Fill entire screen with a 16-bit RGB565 color. */
     void display_fill_screen(uint16_t color);
 
+    /** Fill a rectangle at (x, y) with dimensions w x h using a 16-bit RGB565 color. */
+    void display_fill_rect(int x, int y, int w, int h, uint16_t color);
+
     /** Draw a null-terminated string at (x, y) with foreground/background colors. */
     void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg);
+
+    /**
+     * @brief Draw a single character at (x, y) with foreground/background colors.
+     *
+     * @param x Pixel x-coordinate.
+     * @param y Pixel y-coordinate.
+     * @param c Character to draw.
+     * @param fg Foreground color (RGB565).
+     * @param bg Background color (RGB565).
+     */
+    void display_draw_char(int x, int y, char c, uint16_t fg, uint16_t bg);
+
+    /** Get the current display width in pixels (accounts for rotation). */
+    int display_get_width(void);
+
+    /** Get the current display height in pixels (accounts for rotation). */
+    int display_get_height(void);
+
+    /** Set the text font by LovyanGFX font ID. */
+    void display_set_text_font(uint8_t font_id);
 
     /** Wait for all pending display DMA transfers to complete. */
     void display_wait(void);
