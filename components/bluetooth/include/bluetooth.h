@@ -57,6 +57,12 @@ extern "C"
     /** Disconnect the currently connected HID device. */
     esp_err_t bluetooth_disconnect(void);
 
+    /**
+     * Clear the saved auto-connect device and remove all BT bonding keys.
+     * Disconnects the current device first if connected.
+     */
+    esp_err_t bluetooth_forget(void);
+
     /** True if the BT stack is enabled and running. */
     bool bluetooth_is_enabled(void);
 

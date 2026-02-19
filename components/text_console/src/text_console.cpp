@@ -218,3 +218,24 @@ extern "C" void text_console_clear(void)
     }
 }
 
+extern "C" void text_console_resize(void)
+{
+    if (!s_initialized)
+    {
+        return;
+    }
+
+    int cols = display_get_width() / FONT_WIDTH;
+    int rows = display_get_height() / FONT_HEIGHT;
+
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        text_buffer_resize(&s_buf, cols, rows);
+        display_fill_screen(BG_COLOR);
+        xSemaphoreGive(s_mutex);
+        xTaskNotifyGive(s_render_task);
+    }
+
+    ESP_LOGI(TAG, "Console resized to %dx%d chars", cols, rows);
+}
+

@@ -10,6 +10,7 @@
 #include "esp_hid_common.h"
 #include "esp_hidh.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -17,6 +18,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "bluetooth";
@@ -25,7 +27,7 @@ static const char *const TAG = "bluetooth";
 #define BT_SCAN_MAX_RESULTS 20
 #define BT_SCAN_TIMEOUT_MS 15000
 #define BT_CLOSE_TIMEOUT_MS 3000
-#define BT_ENABLE_TASK_STACK 12288
+#define BT_ENABLE_TASK_STACK 8192
 #define BT_ENABLE_TASK_PRIO 1
 
 void bluetooth_register_commands(void);
@@ -289,6 +291,12 @@ static esp_err_t do_bt_enable_sequence(void)
     /* Brief yield to let the calling task (shell/REPL) finish printing its response */
     vTaskDelay(pdMS_TO_TICKS(100));
 
+    ESP_LOGI(TAG, "Free heap: %lu, min ever: %lu",
+             (unsigned long)esp_get_free_heap_size(),
+             (unsigned long)esp_get_minimum_free_heap_size());
+
+    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     err = esp_bt_controller_init(&bt_cfg);
     if (err != ESP_OK)
@@ -352,7 +360,7 @@ static esp_err_t do_bt_enable_sequence(void)
 
     esp_hidh_config_t hidh_cfg = {
         .callback = hidh_event_cb,
-        .event_stack_size = 4096,
+        .event_stack_size = 3072,
         .callback_arg = NULL,
     };
     err = esp_hidh_init(&hidh_cfg);
@@ -559,6 +567,49 @@ esp_err_t bluetooth_disconnect(void)
         return ESP_ERR_INVALID_STATE;
     }
     return esp_hidh_dev_close(s_hid_dev);
+}
+
+esp_err_t bluetooth_forget(void)
+{
+    if (s_hid_dev != NULL)
+    {
+        ESP_LOGI(TAG, "Disconnecting before forget...");
+        xSemaphoreTake(s_close_done, 0);
+        esp_hidh_dev_close(s_hid_dev);
+        xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS));
+    }
+
+    nvs_handle_t h;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK)
+    {
+        nvs_erase_key(h, NVS_KEY_AUTO_BDA);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+
+    if (s_enabled)
+    {
+        int dev_num = esp_bt_gap_get_bond_device_num();
+        if (dev_num > 0)
+        {
+            esp_bd_addr_t *devs = malloc(sizeof(esp_bd_addr_t) * dev_num);
+            if (devs != NULL)
+            {
+                if (esp_bt_gap_get_bond_device_list(&dev_num, devs) == ESP_OK)
+                {
+                    for (int i = 0; i < dev_num; i++)
+                    {
+                        esp_bt_gap_remove_bond_device(devs[i]);
+                    }
+                }
+                free(devs);
+            }
+            ESP_LOGI(TAG, "Removed %d bonded device(s)", dev_num);
+        }
+    }
+
+    ESP_LOGI(TAG, "Forgot all paired devices");
+    return ESP_OK;
 }
 
 bool bluetooth_is_enabled(void)

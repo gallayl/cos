@@ -348,3 +348,10 @@ void text_buffer_clear_row_dirty(text_buffer_t *buf, int row)
     }
     buf->dirty_rows &= ~(1ULL << row);
 }
+
+void text_buffer_resize(text_buffer_t *buf, int cols, int rows)
+{
+    buf->cols = clamp(cols, 1, TEXT_BUF_MAX_COLS);
+    buf->rows = clamp(rows, 1, TEXT_BUF_MAX_ROWS);
+    text_buffer_clear(buf);
+}
