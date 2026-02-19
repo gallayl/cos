@@ -29,7 +29,14 @@ static bool parse_bda(const char *str, esp_bd_addr_t bda)
 
 static void print_status(void)
 {
-    printf("Bluetooth: %s\n", bluetooth_is_enabled() ? "ON" : "OFF");
+    if (bluetooth_is_enabling())
+    {
+        printf("Bluetooth: enabling...\n");
+    }
+    else
+    {
+        printf("Bluetooth: %s\n", bluetooth_is_enabled() ? "ON" : "OFF");
+    }
 
     if (bluetooth_is_connected())
     {
@@ -65,7 +72,7 @@ static int cmd_bt(int argc, char **argv)
             printf("bt: enable failed (%s)\n", esp_err_to_name(err));
             return 1;
         }
-        printf("Bluetooth enabled\n");
+        printf("Bluetooth enabling in background...\n");
         return 0;
     }
 
@@ -107,6 +114,11 @@ static int cmd_bt(int argc, char **argv)
         if (!bluetooth_is_enabled())
         {
             printf("bt: not enabled (run 'bt on' first)\n");
+            return 1;
+        }
+        if (!bluetooth_is_hid_ready())
+        {
+            printf("bt: HID host not ready yet (wait a few seconds after 'bt on')\n");
             return 1;
         }
         esp_bd_addr_t bda;

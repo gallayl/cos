@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -21,6 +22,8 @@ static const char *const TAG = "bluetooth";
 #define BT_SCAN_DURATION_1_28S 8 /* ~10 seconds */
 #define BT_SCAN_MAX_RESULTS    20
 #define BT_SCAN_TIMEOUT_MS     15000
+#define BT_ENABLE_TASK_STACK   12288
+#define BT_ENABLE_TASK_PRIO    1
 
 void bluetooth_register_commands(void);
 
@@ -40,6 +43,8 @@ static SemaphoreHandle_t s_scan_done;
 /* ── State ───────────────────────────────────────────────────────────── */
 
 static bool s_enabled;
+static volatile bool s_enable_in_progress;
+static volatile bool s_hidh_inited;
 static esp_hidh_dev_t *s_hid_dev;
 
 /* ── Helper: extract name from EIR ───────────────────────────────────── */
@@ -188,7 +193,7 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
     }
 }
 
-/* ── HIDH callback ───────────────────────────────────────────────────── */
+/* ── HIDH callback (esp_hid event) ───────────────────────────────────── */
 
 static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id, void *event_data)
 {
@@ -245,6 +250,105 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
     }
 }
 
+/* ── Enable sequence ─────────────────────────────────────────────────── */
+
+static esp_err_t do_bt_enable_sequence(void)
+{
+    esp_err_t err;
+
+    ESP_LOGI(TAG, "Bluetooth enable started");
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    err = esp_bt_controller_init(&bt_cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "controller init failed: %s", esp_err_to_name(err));
+        s_enable_in_progress = false;
+        return err;
+    }
+    ESP_LOGI(TAG, "Controller init OK, enabling...");
+
+    err = esp_bt_controller_enable(BTDM_CONTROLLER_MODE_EFF);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "controller enable failed: %s", esp_err_to_name(err));
+        esp_bt_controller_deinit();
+        s_enable_in_progress = false;
+        return err;
+    }
+    ESP_LOGI(TAG, "Controller enabled, starting Bluedroid...");
+
+    err = esp_bluedroid_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "bluedroid init failed: %s", esp_err_to_name(err));
+        esp_bt_controller_disable();
+        esp_bt_controller_deinit();
+        s_enable_in_progress = false;
+        return err;
+    }
+    err = esp_bluedroid_enable();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "bluedroid enable failed: %s", esp_err_to_name(err));
+        esp_bluedroid_deinit();
+        esp_bt_controller_disable();
+        esp_bt_controller_deinit();
+        s_enable_in_progress = false;
+        return err;
+    }
+    ESP_LOGI(TAG, "Bluedroid enabled");
+
+    err = esp_bt_gap_register_callback(gap_cb);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "GAP register failed: %s", esp_err_to_name(err));
+        esp_bluedroid_disable();
+        esp_bluedroid_deinit();
+        esp_bt_controller_disable();
+        esp_bt_controller_deinit();
+        s_enable_in_progress = false;
+        return err;
+    }
+    esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
+    esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
+    esp_bt_gap_set_security_param(param_type, &iocap, sizeof(iocap));
+    esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+    ESP_LOGI(TAG, "GAP OK, initializing HID host...");
+
+    esp_hidh_config_t hidh_cfg = {
+        .callback = hidh_event_cb,
+        .event_stack_size = 4096,
+        .callback_arg = NULL,
+    };
+    err = esp_hidh_init(&hidh_cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "HID host init failed: %s", esp_err_to_name(err));
+        esp_bluedroid_disable();
+        esp_bluedroid_deinit();
+        esp_bt_controller_disable();
+        esp_bt_controller_deinit();
+        s_enable_in_progress = false;
+        return err;
+    }
+    s_hidh_inited = true;
+    ESP_LOGI(TAG, "HID host ready");
+
+    s_enabled = true;
+    s_enable_in_progress = false;
+    ESP_LOGI(TAG, "Bluetooth enabled");
+    return ESP_OK;
+}
+
+static void bt_enable_task(void *arg)
+{
+    (void)arg;
+    do_bt_enable_sequence();
+    vTaskDelete(NULL);
+}
+
 /* ── Public API ──────────────────────────────────────────────────────── */
 
 esp_err_t bluetooth_init(void)
@@ -266,29 +370,19 @@ esp_err_t bluetooth_enable(void)
         ESP_LOGW(TAG, "Already enabled");
         return ESP_ERR_INVALID_STATE;
     }
+    if (s_enable_in_progress)
+    {
+        ESP_LOGW(TAG, "Enable already in progress");
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    ESP_RETURN_ON_ERROR(esp_bt_controller_init(&bt_cfg), TAG, "controller init failed");
-    ESP_RETURN_ON_ERROR(esp_bt_controller_enable(ESP_BT_MODE_BTDM), TAG, "controller enable failed");
-
-    ESP_RETURN_ON_ERROR(esp_bluedroid_init(), TAG, "bluedroid init failed");
-    ESP_RETURN_ON_ERROR(esp_bluedroid_enable(), TAG, "bluedroid enable failed");
-
-    ESP_RETURN_ON_ERROR(esp_bt_gap_register_callback(gap_cb), TAG, "GAP register failed");
-    esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
-    esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
-    esp_bt_gap_set_security_param(param_type, &iocap, sizeof(iocap));
-    esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
-
-    esp_hidh_config_t hidh_cfg = {
-        .callback = hidh_event_cb,
-        .event_stack_size = 4096,
-        .callback_arg = NULL,
-    };
-    ESP_RETURN_ON_ERROR(esp_hidh_init(&hidh_cfg), TAG, "HIDH init failed");
-
-    s_enabled = true;
-    ESP_LOGI(TAG, "Bluetooth enabled");
+    s_enable_in_progress = true;
+    if (xTaskCreate(bt_enable_task, "bt_enable", BT_ENABLE_TASK_STACK, NULL, BT_ENABLE_TASK_PRIO, NULL) != pdPASS)
+    {
+        s_enable_in_progress = false;
+        ESP_LOGE(TAG, "Failed to create enable task");
+        return ESP_ERR_NO_MEM;
+    }
     return ESP_OK;
 }
 
@@ -305,8 +399,11 @@ esp_err_t bluetooth_disable(void)
         esp_hidh_dev_close(s_hid_dev);
         s_hid_dev = NULL;
     }
-
-    esp_hidh_deinit();
+    if (s_hidh_inited)
+    {
+        esp_hidh_deinit();
+        s_hidh_inited = false;
+    }
     esp_bluedroid_disable();
     esp_bluedroid_deinit();
     esp_bt_controller_disable();
@@ -363,6 +460,10 @@ esp_err_t bluetooth_connect(const uint8_t *bda)
     {
         return ESP_ERR_INVALID_STATE;
     }
+    if (!s_hidh_inited)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
     if (bda == NULL)
     {
         return ESP_ERR_INVALID_ARG;
@@ -380,7 +481,6 @@ esp_err_t bluetooth_connect(const uint8_t *bda)
         ESP_LOGE(TAG, "esp_hidh_dev_open returned NULL");
         return ESP_FAIL;
     }
-
     return ESP_OK;
 }
 
@@ -391,13 +491,22 @@ esp_err_t bluetooth_disconnect(void)
         ESP_LOGW(TAG, "No device connected");
         return ESP_ERR_INVALID_STATE;
     }
-
     return esp_hidh_dev_close(s_hid_dev);
 }
 
 bool bluetooth_is_enabled(void)
 {
     return s_enabled;
+}
+
+bool bluetooth_is_enabling(void)
+{
+    return s_enable_in_progress;
+}
+
+bool bluetooth_is_hid_ready(void)
+{
+    return s_hidh_inited;
 }
 
 bool bluetooth_is_connected(void)

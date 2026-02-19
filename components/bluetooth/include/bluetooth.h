@@ -47,6 +47,12 @@ extern "C"
     /** True if the BT stack is enabled and running. */
     bool bluetooth_is_enabled(void);
 
+    /** True if bluetooth_enable() has been called and the stack is still starting. */
+    bool bluetooth_is_enabling(void);
+
+    /** True if HID host is initialized (required for connect; may lag a few seconds after enable). */
+    bool bluetooth_is_hid_ready(void);
+
     /** True if a HID device is currently connected. */
     bool bluetooth_is_connected(void);
 
