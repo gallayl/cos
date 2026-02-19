@@ -330,6 +330,9 @@ static esp_err_t do_bt_enable_sequence(void)
     }
     ESP_LOGI(TAG, "Bluedroid enabled");
 
+    esp_log_level_set("BT_HCI", ESP_LOG_ERROR);
+    esp_log_level_set("BT_APPL", ESP_LOG_ERROR);
+
     err = esp_bt_gap_register_callback(gap_cb);
     if (err != ESP_OK)
     {
