@@ -2,6 +2,7 @@
 
 #include "driver/uart.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 /* Standard 8-byte boot-protocol keyboard report:
