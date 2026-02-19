@@ -347,6 +347,7 @@ add_library(bluetooth_hid_logic STATIC
     ${COMPONENT_DIR}/components/bluetooth/src/bluetooth_hid.c
 )
 target_include_directories(bluetooth_hid_logic PUBLIC
+    ${COMPONENT_DIR}/components/bluetooth/include
     ${COMPONENT_DIR}/components/bluetooth/src
     mocks
 )
@@ -355,6 +356,7 @@ target_include_directories(bluetooth_hid_logic PUBLIC
 add_executable(test_bluetooth_hid test_bluetooth_hid.c)
 target_include_directories(test_bluetooth_hid PRIVATE
     mocks
+    ${COMPONENT_DIR}/components/bluetooth/include
     ${COMPONENT_DIR}/components/bluetooth/src
 )
 target_link_libraries(test_bluetooth_hid PRIVATE unity bluetooth_hid_logic mock_esp)
