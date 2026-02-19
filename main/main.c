@@ -1,3 +1,4 @@
+#include "bluetooth.h"
 #include "brightness.h"
 #include "calibration.h"
 #include "display.h"
@@ -44,6 +45,7 @@ void app_main(void)
     ESP_ERROR_CHECK(i2c_bus_init());
     ESP_ERROR_CHECK(filesystem_init());
     ESP_ERROR_CHECK(wifi_init());
+    ESP_ERROR_CHECK(bluetooth_init());
     ESP_ERROR_CHECK(time_sync_init());
     ESP_ERROR_CHECK(http_server_init());
     ESP_ERROR_CHECK(websocket_init());
