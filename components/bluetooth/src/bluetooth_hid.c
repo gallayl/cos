@@ -24,7 +24,7 @@
 
 #define MAX_KEYS 6
 
-static bt_keyboard_cb_t s_keyboard_cb;
+static volatile bt_keyboard_cb_t s_keyboard_cb;
 
 void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb)
 {

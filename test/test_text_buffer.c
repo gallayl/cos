@@ -440,6 +440,50 @@ static void test_dirty_rows_scroll_marks_all(void)
     TEST_ASSERT_EQUAL_UINT64((1ULL << 3) - 1, buf.dirty_rows);
 }
 
+/* ── Resize ─────────────────────────────────────────────────── */
+
+static void test_resize_updates_dimensions(void)
+{
+    text_buffer_resize(&buf, 10, 3);
+    TEST_ASSERT_EQUAL(10, buf.cols);
+    TEST_ASSERT_EQUAL(3, buf.rows);
+}
+
+static void test_resize_clamps_to_max(void)
+{
+    text_buffer_resize(&buf, 999, 999);
+    TEST_ASSERT_EQUAL(TEXT_BUF_MAX_COLS, buf.cols);
+    TEST_ASSERT_EQUAL(TEXT_BUF_MAX_ROWS, buf.rows);
+}
+
+static void test_resize_clears_content(void)
+{
+    text_buffer_write(&buf, "Hello", 5);
+    text_buffer_resize(&buf, 10, 3);
+
+    TEST_ASSERT_EQUAL(0, buf.cursor_row);
+    TEST_ASSERT_EQUAL(0, buf.cursor_col);
+    TEST_ASSERT_EQUAL(' ', buf.cells[0][0].ch);
+}
+
+static void test_resize_marks_all_dirty(void)
+{
+    for (int r = 0; r < buf.rows; r++)
+    {
+        text_buffer_clear_row_dirty(&buf, r);
+    }
+
+    text_buffer_resize(&buf, 10, 3);
+    TEST_ASSERT_TRUE(text_buffer_has_dirty(&buf));
+}
+
+static void test_resize_clamps_min_to_one(void)
+{
+    text_buffer_resize(&buf, 0, 0);
+    TEST_ASSERT_EQUAL(1, buf.cols);
+    TEST_ASSERT_EQUAL(1, buf.rows);
+}
+
 /* ── Combined sequences (realistic ESP-IDF log line) ───────── */
 
 static void test_esp_log_info_line(void)
@@ -556,6 +600,13 @@ int main(void)
     RUN_TEST(test_write_sets_dirty);
     RUN_TEST(test_dirty_rows_bitmask);
     RUN_TEST(test_dirty_rows_scroll_marks_all);
+
+    /* Resize */
+    RUN_TEST(test_resize_updates_dimensions);
+    RUN_TEST(test_resize_clamps_to_max);
+    RUN_TEST(test_resize_clears_content);
+    RUN_TEST(test_resize_marks_all_dirty);
+    RUN_TEST(test_resize_clamps_min_to_one);
 
     /* Combined sequences */
     RUN_TEST(test_esp_log_info_line);

@@ -316,9 +316,10 @@ esp_err_t shell_input_init(void)
     s_history_browse = -1;
     s_parse_state = ST_NORMAL;
 
+    static TaskHandle_t s_uart_rx_task;
     BaseType_t rc;
 
-    rc = xTaskCreate(uart_rx_task, "uart_rx", RX_TASK_STACK, NULL, RX_TASK_PRIO, NULL);
+    rc = xTaskCreate(uart_rx_task, "uart_rx", RX_TASK_STACK, NULL, RX_TASK_PRIO, &s_uart_rx_task);
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create UART RX task");
@@ -329,6 +330,7 @@ esp_err_t shell_input_init(void)
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create input task");
+        vTaskDelete(s_uart_rx_task);
         return ESP_ERR_NO_MEM;
     }
 

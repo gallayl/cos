@@ -138,6 +138,9 @@ extern "C" esp_err_t text_console_init(void)
     if (tee != NULL)
     {
         setvbuf(tee, NULL, _IOLBF, 0);
+        /* Both must be updated: `stdout` is the C global, but newlib's
+           per-task _reent struct caches its own _stdout pointer. Tasks
+           created before this point still reference the original fd. */
         stdout = tee;
         _GLOBAL_REENT->_stdout = tee;
     }
@@ -167,6 +170,8 @@ extern "C" void text_console_deinit(void)
     if (stdout != s_original_stdout)
     {
         FILE *tee = stdout;
+        /* Mirror the init path: restore both the C global and newlib's
+           per-task _reent cache so all tasks pick up the change. */
         stdout = s_original_stdout;
         _GLOBAL_REENT->_stdout = s_original_stdout;
         fclose(tee);

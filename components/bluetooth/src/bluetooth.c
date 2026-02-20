@@ -20,7 +20,6 @@
 
 #include <inttypes.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "bluetooth";
@@ -32,6 +31,7 @@ static const char *const TAG = "bluetooth";
 #define BT_ENABLE_TASK_STACK 8192
 #define BT_ENABLE_TASK_PRIO 1
 #define BT_MAX_DEV_NAME_LEN 64
+#define BT_MAX_BONDED 16
 
 void bluetooth_register_commands(void);
 
@@ -697,17 +697,17 @@ esp_err_t bluetooth_forget(void)
         int dev_num = esp_ble_get_bond_device_num();
         if (dev_num > 0)
         {
-            esp_ble_bond_dev_t *devs = malloc(sizeof(esp_ble_bond_dev_t) * (size_t)dev_num);
-            if (devs != NULL)
+            if (dev_num > BT_MAX_BONDED)
             {
-                if (esp_ble_get_bond_device_list(&dev_num, devs) == ESP_OK)
+                dev_num = BT_MAX_BONDED;
+            }
+            esp_ble_bond_dev_t devs[BT_MAX_BONDED];
+            if (esp_ble_get_bond_device_list(&dev_num, devs) == ESP_OK)
+            {
+                for (int i = 0; i < dev_num; i++)
                 {
-                    for (int i = 0; i < dev_num; i++)
-                    {
-                        esp_ble_remove_bond_device(devs[i].bd_addr);
-                    }
+                    esp_ble_remove_bond_device(devs[i].bd_addr);
                 }
-                free(devs);
             }
             ESP_LOGI(TAG, "Removed %d BLE bonded device(s)", dev_num);
         }
