@@ -8,4 +8,4 @@ set(EXTRA_COMPONENT_DIRS
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(test_init_sequence)
+project(test_system)

@@ -17,10 +17,18 @@ static void init_nvs(void)
     ESP_ERROR_CHECK(err);
 }
 
+static void seed_test_files(void)
+{
+    flash_format();
+    vfs_write_file("/flash/hello.txt", "Hello, COS!\n", 12);
+    vfs_write_file("/flash/binary.bin", "\x00\x01\x02\x41\x42\x43", 6);
+}
+
 void app_main(void)
 {
     init_nvs();
     ESP_ERROR_CHECK(filesystem_init());
+    seed_test_files();
     ESP_ERROR_CHECK(shell_init());
     ESP_LOGI(TAG, "SHELL_READY");
 }
