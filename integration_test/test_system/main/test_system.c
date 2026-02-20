@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
-static const char *const TAG = "test_init";
+static const char *const TAG = "test_system";
 
 static void init_nvs(void)
 {
@@ -20,19 +20,9 @@ static void init_nvs(void)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Init sequence test starting...");
-
     init_nvs();
-    ESP_LOGI(TAG, "NVS initialized");
-
     ESP_ERROR_CHECK(filesystem_init());
-    ESP_LOGI(TAG, "Filesystem initialized");
-
     ESP_ERROR_CHECK(system_init());
-    ESP_LOGI(TAG, "System initialized");
-
     ESP_ERROR_CHECK(shell_init());
-    ESP_LOGI(TAG, "Shell initialized");
-
-    ESP_LOGI(TAG, "INIT_OK");
+    ESP_LOGI(TAG, "SYSTEM_READY");
 }

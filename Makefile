@@ -97,6 +97,9 @@ integration-test:
 	$(IDF_PY) -C integration_test/test_nvs_calibration build
 	$(IDF_PY) -C integration_test/test_shell_fs build
 	$(IDF_PY) -C integration_test/test_init_sequence build
+	$(IDF_PY) -C integration_test/test_vfs_ops build
+	$(IDF_PY) -C integration_test/test_system build
+	$(IDF_PY) -C integration_test/test_stability build
 	$(IDF_PYTHON) -m pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
 
 docs:
