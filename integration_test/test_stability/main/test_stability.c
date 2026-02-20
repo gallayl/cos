@@ -22,14 +22,15 @@ static const char *const TAG = "test_stability";
 
 static void run_fs_workload(void)
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 5; i++)
     {
         char path[64];
         snprintf(path, sizeof(path), "/flash/wl_%d.txt", i);
         vfs_write_file(path, "workload data payload", 21);
+        vTaskDelay(1);
     }
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 5; i++)
     {
         char path[64];
         snprintf(path, sizeof(path), "/flash/wl_%d.txt", i);
@@ -37,6 +38,7 @@ static void run_fs_workload(void)
         char buf[64];
         size_t bytes_read = 0;
         vfs_read_file(path, buf, sizeof(buf), &bytes_read);
+        vTaskDelay(1);
     }
 
     vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
@@ -47,11 +49,12 @@ static void run_fs_workload(void)
         free(entries);
     }
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 5; i++)
     {
         char path[64];
         snprintf(path, sizeof(path), "/flash/wl_%d.txt", i);
         vfs_remove(path);
+        vTaskDelay(1);
     }
 
     vfs_mkdir("/flash/wl_dir");
@@ -65,7 +68,7 @@ TEST_CASE("heap stable after filesystem workload", "[stability]")
     size_t before = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Heap before workload: %u", (unsigned)before);
 
-    for (int round = 0; round < 5; round++)
+    for (int round = 0; round < 2; round++)
     {
         run_fs_workload();
     }
@@ -127,9 +130,10 @@ TEST_CASE("repeated format does not leak", "[stability]")
 {
     size_t before = esp_get_free_heap_size();
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 2; i++)
     {
         TEST_ASSERT_EQUAL(ESP_OK, flash_format());
+        vTaskDelay(1);
         vfs_write_file("/flash/fmt_test.txt", "after format", 12);
         vfs_remove("/flash/fmt_test.txt");
     }

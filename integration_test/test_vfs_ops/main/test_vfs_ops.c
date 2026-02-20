@@ -180,9 +180,11 @@ TEST_CASE("flash total bytes is nonzero", "[vfs]")
 TEST_CASE("flash used bytes grows after write", "[vfs]")
 {
     size_t before = flash_get_used_bytes();
-    char big[512];
-    memset(big, 'X', sizeof(big));
-    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/grow.bin", big, sizeof(big)));
+    char *big = malloc(4096);
+    TEST_ASSERT_NOT_NULL(big);
+    memset(big, 'X', 4096);
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/grow.bin", big, 4096));
+    free(big);
     size_t after = flash_get_used_bytes();
     TEST_ASSERT_GREATER_THAN(before, after);
 }
