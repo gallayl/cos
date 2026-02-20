@@ -212,6 +212,19 @@ static void gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
         }
         break;
 
+    case ESP_BT_GAP_REMOVE_BOND_DEV_COMPLETE_EVT:
+        if (param->remove_bond_dev_cmpl.status == ESP_BT_STATUS_SUCCESS)
+        {
+            ESP_LOGI(TAG, "Removed bond for " ESP_BD_ADDR_STR,
+                     ESP_BD_ADDR_HEX(param->remove_bond_dev_cmpl.bda));
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Failed to remove bond for " ESP_BD_ADDR_STR " (status %d)",
+                     ESP_BD_ADDR_HEX(param->remove_bond_dev_cmpl.bda), param->remove_bond_dev_cmpl.status);
+        }
+        break;
+
     default:
         break;
     }
@@ -244,6 +257,10 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
         else
         {
             ESP_LOGW(TAG, "HID open failed (0x%x)", p->open.status);
+            if (p->open.dev != NULL)
+            {
+                esp_hidh_dev_free(p->open.dev);
+            }
             s_hid_dev = NULL;
         }
         break;
@@ -467,6 +484,9 @@ esp_err_t bluetooth_disable(void)
         return ESP_ERR_INVALID_STATE;
     }
 
+    /* Stop accepting incoming connections so the BT stack quiesces. */
+    esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
+
     if (s_hid_dev != NULL)
     {
         xSemaphoreTake(s_close_done, 0);
@@ -477,6 +497,10 @@ esp_err_t bluetooth_disable(void)
             s_hid_dev = NULL;
         }
     }
+
+    /* Let any in-flight BTC callbacks drain before tearing down HID. */
+    vTaskDelay(pdMS_TO_TICKS(200));
+
     if (s_hidh_inited)
     {
         esp_hidh_deinit();
