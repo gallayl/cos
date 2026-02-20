@@ -3,6 +3,7 @@
 #include "filesystem.h"
 #include "nvs_flash.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static void init_nvs(void)
@@ -96,7 +97,9 @@ TEST_CASE("list_dir returns created entries", "[vfs]")
     TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/list_b.txt", "bb", 2));
     TEST_ASSERT_EQUAL(ESP_OK, vfs_mkdir("/flash/list_sub"));
 
-    vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    TEST_ASSERT_NOT_NULL(entries);
+
     size_t count = 0;
     TEST_ASSERT_EQUAL(ESP_OK, vfs_list_dir("/flash", entries, VFS_ENTRIES_MAX, &count));
     TEST_ASSERT_GREATER_OR_EQUAL(3, count);
@@ -120,6 +123,7 @@ TEST_CASE("list_dir returns created entries", "[vfs]")
             TEST_ASSERT_TRUE(entries[i].is_dir);
         }
     }
+    free(entries);
     TEST_ASSERT_TRUE(found_a);
     TEST_ASSERT_TRUE(found_b);
     TEST_ASSERT_TRUE(found_sub);
@@ -127,12 +131,15 @@ TEST_CASE("list_dir returns created entries", "[vfs]")
 
 TEST_CASE("list_dir virtual root shows flash", "[vfs]")
 {
-    vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    TEST_ASSERT_NOT_NULL(entries);
+
     size_t count = 0;
     TEST_ASSERT_EQUAL(ESP_OK, vfs_list_dir("/", entries, VFS_ENTRIES_MAX, &count));
     TEST_ASSERT_GREATER_OR_EQUAL(1, count);
     TEST_ASSERT_EQUAL_STRING("flash", entries[0].name);
     TEST_ASSERT_TRUE(entries[0].is_dir);
+    free(entries);
 }
 
 /* ── vfs_mkdir ────────────────────────────────────────────────────────── */
