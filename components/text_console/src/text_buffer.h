@@ -91,6 +91,18 @@ extern "C"
      */
     void text_buffer_clear_row_dirty(text_buffer_t *buf, int row);
 
+    /**
+     * @brief Resize the buffer to new dimensions, clearing all content.
+     *
+     * Updates active cols/rows (clamped to maximums), clears all cells,
+     * and resets cursor to (0, 0). Existing screen content is discarded.
+     *
+     * @param buf Buffer to resize.
+     * @param cols New column count (clamped to TEXT_BUF_MAX_COLS).
+     * @param rows New row count (clamped to TEXT_BUF_MAX_ROWS).
+     */
+    void text_buffer_resize(text_buffer_t *buf, int cols, int rows);
+
 #ifdef __cplusplus
 }
 #endif

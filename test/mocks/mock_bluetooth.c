@@ -16,12 +16,14 @@ static esp_err_t s_disable_result;
 static esp_err_t s_scan_result;
 static esp_err_t s_connect_result;
 static esp_err_t s_disconnect_result;
+static esp_err_t s_forget_result;
 
 static int s_enable_count;
 static int s_disable_count;
 static int s_scan_count;
 static int s_connect_count;
 static int s_disconnect_count;
+static int s_forget_count;
 static uint8_t s_last_connect_bda[6];
 
 void mock_bluetooth_reset(void)
@@ -39,12 +41,14 @@ void mock_bluetooth_reset(void)
     s_scan_result = ESP_OK;
     s_connect_result = ESP_OK;
     s_disconnect_result = ESP_OK;
+    s_forget_result = ESP_OK;
 
     s_enable_count = 0;
     s_disable_count = 0;
     s_scan_count = 0;
     s_connect_count = 0;
     s_disconnect_count = 0;
+    s_forget_count = 0;
     memset(s_last_connect_bda, 0, sizeof(s_last_connect_bda));
 }
 
@@ -73,6 +77,7 @@ void mock_bluetooth_set_disable_result(esp_err_t err) { s_disable_result = err; 
 void mock_bluetooth_set_scan_result(esp_err_t err) { s_scan_result = err; }
 void mock_bluetooth_set_connect_result(esp_err_t err) { s_connect_result = err; }
 void mock_bluetooth_set_disconnect_result(esp_err_t err) { s_disconnect_result = err; }
+void mock_bluetooth_set_forget_result(esp_err_t err) { s_forget_result = err; }
 
 int mock_bluetooth_get_enable_count(void) { return s_enable_count; }
 int mock_bluetooth_get_disable_count(void) { return s_disable_count; }
@@ -80,6 +85,7 @@ int mock_bluetooth_get_scan_count(void) { return s_scan_count; }
 int mock_bluetooth_get_connect_count(void) { return s_connect_count; }
 const uint8_t *mock_bluetooth_get_last_connect_bda(void) { return s_last_connect_bda; }
 int mock_bluetooth_get_disconnect_count(void) { return s_disconnect_count; }
+int mock_bluetooth_get_forget_count(void) { return s_forget_count; }
 
 /* --- bluetooth.h implementation (mocked) --- */
 
@@ -120,6 +126,17 @@ esp_err_t bluetooth_disconnect(void)
 {
     s_disconnect_count++;
     return s_disconnect_result;
+}
+
+esp_err_t bluetooth_forget(void)
+{
+    s_forget_count++;
+    return s_forget_result;
+}
+
+void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb)
+{
+    (void)cb;
 }
 
 bool bluetooth_is_enabled(void) { return s_enabled; }

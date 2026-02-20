@@ -38,6 +38,14 @@ extern "C"
     /** Clear the text console screen and reset cursor to top-left. */
     void text_console_clear(void);
 
+    /**
+     * @brief Resize the console to match the current display dimensions.
+     *
+     * Recalculates cols/rows from display width/height, clears the screen,
+     * and resets the cursor. Call after changing display rotation.
+     */
+    void text_console_resize(void);
+
     /** Register the display_mode shell command. */
     void text_console_register_commands(void);
 

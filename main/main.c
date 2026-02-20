@@ -51,6 +51,7 @@ void app_main(void)
     ESP_ERROR_CHECK(websocket_init());
     ESP_ERROR_CHECK(system_init());
     ESP_ERROR_CHECK(shell_init());
+    bluetooth_hid_set_keyboard_callback(shell_feed_input);
 
     ESP_LOGI(TAG, "COS ready");
 }
