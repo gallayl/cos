@@ -169,14 +169,12 @@ static void ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             }
 
             uint8_t uuid_len = 0;
-            uint8_t *uuid_d = esp_ble_resolve_adv_data_by_type(
-                sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
-                ESP_BLE_AD_TYPE_16SRV_CMPL, &uuid_len);
+            uint8_t *uuid_d = esp_ble_resolve_adv_data_by_type(sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
+                                                               ESP_BLE_AD_TYPE_16SRV_CMPL, &uuid_len);
             if (uuid_d == NULL || uuid_len < 2)
             {
-                uuid_d = esp_ble_resolve_adv_data_by_type(
-                    sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
-                    ESP_BLE_AD_TYPE_16SRV_PART, &uuid_len);
+                uuid_d = esp_ble_resolve_adv_data_by_type(sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
+                                                          ESP_BLE_AD_TYPE_16SRV_PART, &uuid_len);
             }
 
             uint16_t uuid = 0;
@@ -205,20 +203,17 @@ static void ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             r->rssi = (int8_t)sr->rssi;
 
             uint8_t app_len = 0;
-            uint8_t *app_d = esp_ble_resolve_adv_data_by_type(
-                sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
-                ESP_BLE_AD_TYPE_APPEARANCE, &app_len);
+            uint8_t *app_d = esp_ble_resolve_adv_data_by_type(sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
+                                                              ESP_BLE_AD_TYPE_APPEARANCE, &app_len);
             r->appearance = (app_d != NULL && app_len >= 2) ? (app_d[0] | ((uint16_t)app_d[1] << 8)) : 0;
 
             uint8_t name_len = 0;
-            uint8_t *name_d = esp_ble_resolve_adv_data_by_type(
-                sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
-                ESP_BLE_AD_TYPE_NAME_CMPL, &name_len);
+            uint8_t *name_d = esp_ble_resolve_adv_data_by_type(sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
+                                                               ESP_BLE_AD_TYPE_NAME_CMPL, &name_len);
             if (name_d == NULL)
             {
-                name_d = esp_ble_resolve_adv_data_by_type(
-                    sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
-                    ESP_BLE_AD_TYPE_NAME_SHORT, &name_len);
+                name_d = esp_ble_resolve_adv_data_by_type(sr->ble_adv, sr->adv_data_len + sr->scan_rsp_len,
+                                                          ESP_BLE_AD_TYPE_NAME_SHORT, &name_len);
             }
             if (name_d != NULL && name_len > 0)
             {
@@ -349,8 +344,7 @@ static esp_err_t do_bt_enable_sequence(void)
     ESP_LOGI(TAG, "Bluetooth enable started");
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    ESP_LOGI(TAG, "Free heap: %lu, min ever: %lu",
-             (unsigned long)esp_get_free_heap_size(),
+    ESP_LOGI(TAG, "Free heap: %lu, min ever: %lu", (unsigned long)esp_get_free_heap_size(),
              (unsigned long)esp_get_minimum_free_heap_size());
 
     esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
@@ -454,8 +448,7 @@ static esp_err_t do_bt_enable_sequence(void)
     uint8_t auto_addr_type = 0;
     if (nvs_load_auto_device(auto_bda, &auto_addr_type))
     {
-        ESP_LOGI(TAG, "Auto-connecting to " ESP_BD_ADDR_STR " (type=%d)",
-                 ESP_BD_ADDR_HEX(auto_bda), auto_addr_type);
+        ESP_LOGI(TAG, "Auto-connecting to " ESP_BD_ADDR_STR " (type=%d)", ESP_BD_ADDR_HEX(auto_bda), auto_addr_type);
         /* Inject into scan results so bluetooth_connect can look it up */
         if (s_scan_count < BT_SCAN_MAX_RESULTS)
         {
@@ -626,9 +619,8 @@ esp_err_t bluetooth_scan(void)
     for (int i = 0; i < s_scan_count; i++)
     {
         bt_scan_result_t *r = &s_scan_results[i];
-        printf("%-24s " ESP_BD_ADDR_STR " %5d  0x%04x\n",
-               r->name[0] ? r->name : "(unknown)",
-               ESP_BD_ADDR_HEX(r->bda), r->rssi, r->appearance);
+        printf("%-24s " ESP_BD_ADDR_STR " %5d  0x%04x\n", r->name[0] ? r->name : "(unknown)", ESP_BD_ADDR_HEX(r->bda),
+               r->rssi, r->appearance);
     }
     printf("%d HID device(s) found\n", s_scan_count);
 

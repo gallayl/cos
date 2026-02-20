@@ -238,4 +238,3 @@ extern "C" void text_console_resize(void)
 
     ESP_LOGI(TAG, "Console resized to %dx%d chars", cols, rows);
 }
-

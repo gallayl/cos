@@ -36,8 +36,8 @@ static int s_line_pos;
 
 static char s_history[HISTORY_SIZE][INPUT_LINE_MAX];
 static int s_history_count;
-static int s_history_write;   /* next slot to write */
-static int s_history_browse;  /* browse offset, -1 = live line */
+static int s_history_write;  /* next slot to write */
+static int s_history_browse; /* browse offset, -1 = live line */
 static char s_saved_line[INPUT_LINE_MAX];
 static int s_saved_pos;
 
