@@ -209,6 +209,24 @@ void test_bt_disconnect_failure(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+/* --- bt forget --- */
+
+void test_bt_forget(void)
+{
+    char *argv[] = {"bt", "forget"};
+    int ret = mock_console_run_cmd("bt", 2, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_EQUAL(1, mock_bluetooth_get_forget_count());
+}
+
+void test_bt_forget_failure(void)
+{
+    mock_bluetooth_set_forget_result(ESP_FAIL);
+    char *argv[] = {"bt", "forget"};
+    int ret = mock_console_run_cmd("bt", 2, argv);
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
 /* --- Unknown subcommand --- */
 
 void test_bt_unknown_subcommand(void)
@@ -255,6 +273,10 @@ int main(void)
     /* Disconnect */
     RUN_TEST(test_bt_disconnect);
     RUN_TEST(test_bt_disconnect_failure);
+
+    /* Forget */
+    RUN_TEST(test_bt_forget);
+    RUN_TEST(test_bt_forget_failure);
 
     /* Unknown */
     RUN_TEST(test_bt_unknown_subcommand);

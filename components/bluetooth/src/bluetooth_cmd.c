@@ -148,7 +148,19 @@ static int cmd_bt(int argc, char **argv)
         return 0;
     }
 
-    printf("Usage: bt [on | off | scan | connect <addr> | disconnect]\n");
+    if (strcmp(subcmd, "forget") == 0)
+    {
+        esp_err_t err = bluetooth_forget();
+        if (err != ESP_OK)
+        {
+            printf("bt: forget failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        printf("Cleared saved device and bonding keys\n");
+        return 0;
+    }
+
+    printf("Usage: bt [on | off | scan | connect <addr> | disconnect | forget]\n");
     return 1;
 }
 
@@ -156,8 +168,8 @@ void bluetooth_register_commands(void)
 {
     const esp_console_cmd_t cmd = {
         .command = "bt",
-        .help = "Bluetooth management (on, off, scan, connect, disconnect)",
-        .hint = "[on | off | scan | connect <addr> | disconnect]",
+        .help = "Bluetooth management (on, off, scan, connect, disconnect, forget)",
+        .hint = "[on | off | scan | connect <addr> | disconnect | forget]",
         .func = &cmd_bt,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));

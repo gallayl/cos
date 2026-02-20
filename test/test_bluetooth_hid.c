@@ -1,12 +1,26 @@
 #include "unity.h"
 #include "bluetooth_hid.h"
-#include "mock_uart.h"
 
 #include <string.h>
 
+#define CAPTURE_BUF_SIZE 64
+
+static uint8_t s_capture_buf[CAPTURE_BUF_SIZE];
+static size_t s_capture_len;
+
+static void test_keyboard_cb(const char *data, size_t len)
+{
+    for (size_t i = 0; i < len && s_capture_len < CAPTURE_BUF_SIZE; i++)
+    {
+        s_capture_buf[s_capture_len++] = (uint8_t)data[i];
+    }
+}
+
 void setUp(void)
 {
-    mock_uart_reset();
+    s_capture_len = 0;
+    memset(s_capture_buf, 0, sizeof(s_capture_buf));
+    bluetooth_hid_set_keyboard_callback(test_keyboard_cb);
 }
 
 void tearDown(void) {}
@@ -45,8 +59,8 @@ static void send_key(uint8_t modifiers, uint8_t keycode)
 void test_key_a(void)
 {
     send_key(0, 0x04);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('a', data[0]);
 }
@@ -54,8 +68,8 @@ void test_key_a(void)
 void test_key_z(void)
 {
     send_key(0, 0x1D);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('z', data[0]);
 }
@@ -65,8 +79,8 @@ void test_key_z(void)
 void test_shift_a(void)
 {
     send_key(0x02, 0x04); /* LShift + a */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('A', data[0]);
 }
@@ -74,8 +88,8 @@ void test_shift_a(void)
 void test_rshift_a(void)
 {
     send_key(0x20, 0x04); /* RShift + a */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('A', data[0]);
 }
@@ -85,8 +99,8 @@ void test_rshift_a(void)
 void test_key_1(void)
 {
     send_key(0, 0x1E);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('1', data[0]);
 }
@@ -94,8 +108,8 @@ void test_key_1(void)
 void test_key_0(void)
 {
     send_key(0, 0x27);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('0', data[0]);
 }
@@ -105,8 +119,8 @@ void test_key_0(void)
 void test_shift_1_is_exclamation(void)
 {
     send_key(0x02, 0x1E);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('!', data[0]);
 }
@@ -114,8 +128,8 @@ void test_shift_1_is_exclamation(void)
 void test_shift_2_is_at(void)
 {
     send_key(0x02, 0x1F);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('@', data[0]);
 }
@@ -125,8 +139,8 @@ void test_shift_2_is_at(void)
 void test_enter(void)
 {
     send_key(0, 0x28);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('\n', data[0]);
 }
@@ -134,8 +148,8 @@ void test_enter(void)
 void test_space(void)
 {
     send_key(0, 0x2C);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(' ', data[0]);
 }
@@ -143,8 +157,8 @@ void test_space(void)
 void test_backspace(void)
 {
     send_key(0, 0x2A);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('\b', data[0]);
 }
@@ -152,8 +166,8 @@ void test_backspace(void)
 void test_tab(void)
 {
     send_key(0, 0x2B);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('\t', data[0]);
 }
@@ -161,8 +175,8 @@ void test_tab(void)
 void test_escape(void)
 {
     send_key(0, 0x29);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x1B, data[0]);
 }
@@ -172,8 +186,8 @@ void test_escape(void)
 void test_minus(void)
 {
     send_key(0, 0x2D);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('-', data[0]);
 }
@@ -181,8 +195,8 @@ void test_minus(void)
 void test_shift_minus_is_underscore(void)
 {
     send_key(0x02, 0x2D);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL('_', data[0]);
 }
@@ -190,8 +204,8 @@ void test_shift_minus_is_underscore(void)
 void test_semicolon(void)
 {
     send_key(0, 0x33);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(';', data[0]);
 }
@@ -199,8 +213,8 @@ void test_semicolon(void)
 void test_shift_semicolon_is_colon(void)
 {
     send_key(0x02, 0x33);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(':', data[0]);
 }
@@ -210,8 +224,8 @@ void test_shift_semicolon_is_colon(void)
 void test_ctrl_a(void)
 {
     send_key(0x01, 0x04); /* LCtrl + a → 0x01 (SOH) */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x01, data[0]);
 }
@@ -219,8 +233,8 @@ void test_ctrl_a(void)
 void test_ctrl_c(void)
 {
     send_key(0x01, 0x06); /* LCtrl + c → 0x03 (ETX) */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x03, data[0]);
 }
@@ -228,8 +242,8 @@ void test_ctrl_c(void)
 void test_ctrl_z(void)
 {
     send_key(0x01, 0x1D); /* LCtrl + z → 0x1A (SUB) */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x1A, data[0]);
 }
@@ -237,8 +251,8 @@ void test_ctrl_z(void)
 void test_rctrl_a(void)
 {
     send_key(0x10, 0x04); /* RCtrl + a → 0x01 */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x01, data[0]);
 }
@@ -246,8 +260,8 @@ void test_rctrl_a(void)
 void test_ctrl_shift_a(void)
 {
     send_key(0x01 | 0x02, 0x04); /* LCtrl + LShift + a → 0x01 (capital 'A' → ctrl) */
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(1, len);
     TEST_ASSERT_EQUAL(0x01, data[0]);
 }
@@ -257,8 +271,8 @@ void test_ctrl_shift_a(void)
 void test_arrow_up(void)
 {
     send_key(0, 0x52);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[A", data, 3);
 }
@@ -266,8 +280,8 @@ void test_arrow_up(void)
 void test_arrow_down(void)
 {
     send_key(0, 0x51);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[B", data, 3);
 }
@@ -275,8 +289,8 @@ void test_arrow_down(void)
 void test_arrow_right(void)
 {
     send_key(0, 0x4F);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[C", data, 3);
 }
@@ -284,8 +298,8 @@ void test_arrow_right(void)
 void test_arrow_left(void)
 {
     send_key(0, 0x50);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[D", data, 3);
 }
@@ -295,8 +309,8 @@ void test_arrow_left(void)
 void test_delete(void)
 {
     send_key(0, 0x4C);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(4, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[3~", data, 4);
 }
@@ -304,8 +318,8 @@ void test_delete(void)
 void test_home(void)
 {
     send_key(0, 0x4A);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[H", data, 3);
 }
@@ -313,8 +327,8 @@ void test_home(void)
 void test_end(void)
 {
     send_key(0, 0x4D);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[F", data, 3);
 }
@@ -322,8 +336,8 @@ void test_end(void)
 void test_page_up(void)
 {
     send_key(0, 0x4B);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(4, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[5~", data, 4);
 }
@@ -331,8 +345,8 @@ void test_page_up(void)
 void test_page_down(void)
 {
     send_key(0, 0x4E);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(4, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[6~", data, 4);
 }
@@ -340,8 +354,8 @@ void test_page_down(void)
 void test_insert(void)
 {
     send_key(0, 0x49);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(4, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[2~", data, 4);
 }
@@ -351,8 +365,8 @@ void test_insert(void)
 void test_f1(void)
 {
     send_key(0, 0x3A);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1bOP", data, 3);
 }
@@ -360,8 +374,8 @@ void test_f1(void)
 void test_f4(void)
 {
     send_key(0, 0x3D);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(3, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1bOS", data, 3);
 }
@@ -369,8 +383,8 @@ void test_f4(void)
 void test_f5(void)
 {
     send_key(0, 0x3E);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(5, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[15~", data, 5);
 }
@@ -378,8 +392,8 @@ void test_f5(void)
 void test_f12(void)
 {
     send_key(0, 0x45);
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(5, len);
     TEST_ASSERT_EQUAL_MEMORY("\x1b[24~", data, 5);
 }
@@ -394,11 +408,10 @@ void test_held_key_does_not_repeat(void)
     bluetooth_hid_keyboard_input(report, sizeof(report));
 
     /* Same report again (key still held) -- should not produce more output */
-    mock_uart_reset();
+    s_capture_len = 0;
     bluetooth_hid_keyboard_input(report, sizeof(report));
 
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 
     /* Release */
@@ -415,8 +428,8 @@ void test_two_keys_at_once(void)
     make_report(report, 0, 0x04, 0x05, 0, 0, 0, 0); /* a + b */
     bluetooth_hid_keyboard_input(report, sizeof(report));
 
-    size_t len;
-    const uint8_t *data = mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
+    const uint8_t *data = s_capture_buf;
     TEST_ASSERT_EQUAL(2, len);
     TEST_ASSERT_EQUAL('a', data[0]);
     TEST_ASSERT_EQUAL('b', data[1]);
@@ -436,8 +449,7 @@ void test_rollover_error_ignored(void)
     make_report(report, 0, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01);
     bluetooth_hid_keyboard_input(report, sizeof(report));
 
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 
     /* Release */
@@ -450,8 +462,7 @@ void test_rollover_error_ignored(void)
 void test_null_report_ignored(void)
 {
     bluetooth_hid_keyboard_input(NULL, 8);
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 }
 
@@ -459,8 +470,7 @@ void test_short_report_ignored(void)
 {
     uint8_t report[4] = {0};
     bluetooth_hid_keyboard_input(report, sizeof(report));
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 }
 
@@ -469,8 +479,7 @@ void test_short_report_ignored(void)
 void test_unknown_keycode_ignored(void)
 {
     send_key(0, 0x7F); /* beyond lookup table */
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 }
 
@@ -479,8 +488,7 @@ void test_keycode_zero_ignored(void)
     uint8_t report[8];
     make_report(report, 0, 0x00, 0, 0, 0, 0, 0);
     bluetooth_hid_keyboard_input(report, sizeof(report));
-    size_t len;
-    mock_uart_get_written_data(&len);
+    size_t len = s_capture_len;
     TEST_ASSERT_EQUAL(0, len);
 }
 

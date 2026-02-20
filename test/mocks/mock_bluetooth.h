@@ -24,6 +24,7 @@ void mock_bluetooth_set_disable_result(esp_err_t err);
 void mock_bluetooth_set_scan_result(esp_err_t err);
 void mock_bluetooth_set_connect_result(esp_err_t err);
 void mock_bluetooth_set_disconnect_result(esp_err_t err);
+void mock_bluetooth_set_forget_result(esp_err_t err);
 
 /* --- Verify calls --- */
 
@@ -33,3 +34,4 @@ int mock_bluetooth_get_scan_count(void);
 int mock_bluetooth_get_connect_count(void);
 const uint8_t *mock_bluetooth_get_last_connect_bda(void);
 int mock_bluetooth_get_disconnect_count(void);
+int mock_bluetooth_get_forget_count(void);

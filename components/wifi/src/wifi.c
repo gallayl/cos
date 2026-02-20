@@ -148,6 +148,13 @@ esp_err_t wifi_connect(const char *ssid, const char *password)
 
     esp_wifi_disconnect();
 
+    wifi_mode_t mode;
+    esp_wifi_get_mode(&mode);
+    if (mode == WIFI_MODE_AP)
+    {
+        ESP_RETURN_ON_ERROR(esp_wifi_set_mode(WIFI_MODE_APSTA), TAG, "set APSTA mode failed");
+    }
+
     wifi_config_t sta_cfg = {};
     strncpy((char *)sta_cfg.sta.ssid, ssid, sizeof(sta_cfg.sta.ssid) - 1);
     if (password != NULL)
@@ -155,13 +162,6 @@ esp_err_t wifi_connect(const char *ssid, const char *password)
         strncpy((char *)sta_cfg.sta.password, password, sizeof(sta_cfg.sta.password) - 1);
     }
     ESP_RETURN_ON_ERROR(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg), TAG, "set STA config failed");
-
-    wifi_mode_t mode;
-    esp_wifi_get_mode(&mode);
-    if (mode == WIFI_MODE_AP)
-    {
-        ESP_RETURN_ON_ERROR(esp_wifi_set_mode(WIFI_MODE_APSTA), TAG, "set APSTA mode failed");
-    }
 
     ESP_LOGI(TAG, "Connecting to '%s'...", ssid);
     return esp_wifi_connect();

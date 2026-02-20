@@ -1,6 +1,7 @@
 #include "brightness.h"
 #include "calibration.h"
 #include "display.h"
+#include "text_console.h"
 
 #include "esp_console.h"
 #include "esp_log.h"
@@ -108,6 +109,7 @@ static int cmd_screen(int argc, char **argv)
 
         save_rotation((uint8_t)rot);
         calibration_load();
+        text_console_resize();
 
         printf("Rotation: %d\n", rot);
         return 0;

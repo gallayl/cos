@@ -16,49 +16,29 @@ typedef struct
 
 esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd);
 
-/* REPL stubs for host tests */
+/* Console init stubs */
 
 typedef struct
 {
-    int dummy;
-} esp_console_repl_t;
-
-typedef struct
-{
-    const char *prompt;
     size_t max_cmdline_length;
-    size_t task_stack_size;
-} esp_console_repl_config_t;
+    size_t max_cmdline_args;
+} esp_console_config_t;
 
-typedef struct
-{
-    int channel;
-} esp_console_dev_uart_config_t;
-
-#define ESP_CONSOLE_REPL_CONFIG_DEFAULT() \
-    {                                     \
-        .prompt = "cos> ",                \
-        .max_cmdline_length = 256,        \
+#define ESP_CONSOLE_CONFIG_DEFAULT() \
+    {                                \
+        .max_cmdline_length = 256,   \
+        .max_cmdline_args = 8,       \
     }
 
-#define ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT() \
-    {                                         \
-        .channel = 0,                         \
-    }
-
-static inline esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_config,
-                                                   const esp_console_repl_config_t *repl_config,
-                                                   esp_console_repl_t **ret_repl)
+static inline esp_err_t esp_console_init(const esp_console_config_t *config)
 {
-    (void)dev_config;
-    (void)repl_config;
-    static esp_console_repl_t s_repl;
-    *ret_repl = &s_repl;
+    (void)config;
     return ESP_OK;
 }
 
-static inline esp_err_t esp_console_start_repl(esp_console_repl_t *repl)
+static inline esp_err_t esp_console_run(const char *cmdline, int *cmd_ret)
 {
-    (void)repl;
+    (void)cmdline;
+    (void)cmd_ret;
     return ESP_OK;
 }
