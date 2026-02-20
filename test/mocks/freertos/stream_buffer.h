@@ -2,6 +2,8 @@
 
 #include "freertos/FreeRTOS.h"
 
+#include <stddef.h>
+
 typedef void *StreamBufferHandle_t;
 
 StreamBufferHandle_t xStreamBufferCreate(size_t xBufferSizeBytes, size_t xTriggerLevelBytes);
