@@ -12,45 +12,48 @@ Install [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/e
 
 The Makefile requires two environment variables to locate the ESP-IDF toolchain:
 
-| Variable | Example (Windows) | Example (Linux / devcontainer) |
-|---|---|---|
-| `IDF_PATH` | `C:\esp\v5.5.2\esp-idf` | `/opt/esp/idf` |
-| `IDF_TOOLS_PATH` | `C:\Espressif\tools` | `/opt/esp` |
-| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v5.5.2\venv` | `/opt/esp/python_env/idf5.5_py3.x_env` |
+| Variable              | Example (Windows)                     | Example (Linux / devcontainer)         |
+| --------------------- | ------------------------------------- | -------------------------------------- |
+| `IDF_PATH`            | `c:\esp\v6.1\esp-idf\`                | `/opt/esp/idf`                         |
+| `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                  | `/opt/esp`                             |
+| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv` | `/opt/esp/python_env/idf5.5_py3.x_env` |
 
 **Windows (CMD):**
 
 ```cmd
-set IDF_PATH=C:\esp\v5.5.2\esp-idf
-set IDF_TOOLS_PATH=C:\Espressif\tools
-set IDF_PYTHON_ENV_PATH=C:\Espressif\tools\python\v5.5.2\venv
+set ESP_IDF_VERSION=6.1
+set IDF_PATH=c:/esp/v6.1/esp-idf/
+set IDF_TOOLS_PATH=C:/Espressif/tools
+set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v6.1/venv
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-$env:IDF_PATH = "C:\esp\v5.5.2\esp-idf"
-$env:IDF_TOOLS_PATH = "C:\Espressif\tools"
-$env:IDF_PYTHON_ENV_PATH = "C:\Espressif\tools\python\v5.5.2\venv"
+$env:ESP_IDF_VERSION = "6.1"
+$env:IDF_PATH = "c:/esp/v6.1/esp-idf/"
+$env:IDF_TOOLS_PATH = "C:/Espressif/tools"
+$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v6.1/venv"
 ```
 
 **Linux / macOS:**
 
 ```bash
-export IDF_PATH=/opt/esp/idf
-export IDF_TOOLS_PATH=/opt/esp
-export IDF_PYTHON_ENV_PATH=/opt/esp/python_env/idf5.5_py3.x_env
+export ESP_IDF_VERSION=6.1
+export IDF_PATH=~/.espressif/v6.1/esp-idf
+export IDF_TOOLS_PATH=~/.espressif/tools
+export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.14_env
 ```
 
 ### Host tools
 
-| Tool | Purpose | Install |
-|---|---|---|
-| GNU Make | Build orchestration | Included with MSYS2 / Xcode CLT / apt |
-| CMake | Test build system | Bundled with ESP-IDF (`C:\Espressif\tools\cmake`) |
-| GCC (host) | Compile host-based unit tests | `winget install BrechtSanders.WinLibs.POSIX.UCRT` (Windows) or `apt install gcc` (Linux) |
-| clang-format | Code formatting | Bundled with LLVM or ESP-IDF clang toolchain |
-| clang-tidy | Static analysis | Bundled with LLVM or ESP-IDF clang toolchain |
+| Tool         | Purpose                       | Install                                                                                  |
+| ------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| GNU Make     | Build orchestration           | Included with MSYS2 / Xcode CLT / apt                                                    |
+| CMake        | Test build system             | Bundled with ESP-IDF (`C:\Espressif\tools\cmake`)                                        |
+| GCC (host)   | Compile host-based unit tests | `winget install BrechtSanders.WinLibs.POSIX.UCRT` (Windows) or `apt install gcc` (Linux) |
+| clang-format | Code formatting               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
+| clang-tidy   | Static analysis               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
 
 ## Build and flash
 
@@ -64,10 +67,10 @@ make monitor     # open serial monitor (115200 baud)
 
 Once flashed, the firmware starts an interactive console on UART (`cos>` prompt). Available commands:
 
-| Command | Description |
-|---|---|
+| Command     | Description                              |
+| ----------- | ---------------------------------------- |
 | `calibrate` | Run interactive touch screen calibration |
-| `help` | List all registered commands |
+| `help`      | List all registered commands             |
 
 ## Development
 

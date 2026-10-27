@@ -4,4 +4,5 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES nvs_flash console driver
+    PRIV_REQUIRES esp_driver_ledc
 )

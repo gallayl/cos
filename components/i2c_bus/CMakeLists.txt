@@ -4,4 +4,5 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES driver console
+    PRIV_REQUIRES esp_driver_i2c
 )
