@@ -39,11 +39,18 @@ extern "C"
     /** Get current backlight brightness (0-255). */
     uint8_t display_get_brightness(void);
 
+    /** Read one calibrated touch point; returns false when no point is active. */
+    bool display_get_touch(int *x, int *y);
+
     /** Fill entire screen with a 16-bit RGB565 color. */
     void display_fill_screen(uint16_t color);
 
     /** Fill a rectangle at (x, y) with dimensions w x h using a 16-bit RGB565 color. */
     void display_fill_rect(int x, int y, int w, int h, uint16_t color);
+
+    /** Draw horizontal or vertical RGB565 lines. */
+    void display_draw_hline(int x, int y, int width, uint16_t color);
+    void display_draw_vline(int x, int y, int height, uint16_t color);
 
     /** Draw a null-terminated string at (x, y) with foreground/background colors. */
     void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg);

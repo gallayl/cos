@@ -170,6 +170,25 @@ extern "C" uint8_t display_get_brightness(void)
     return current_brightness;
 }
 
+extern "C" bool display_get_touch(int *x, int *y)
+{
+    if (x == nullptr || y == nullptr)
+    {
+        return false;
+    }
+
+    int32_t touch_x;
+    int32_t touch_y;
+    if (lcd.getTouch(&touch_x, &touch_y) == 0)
+    {
+        return false;
+    }
+
+    *x = touch_x;
+    *y = touch_y;
+    return true;
+}
+
 extern "C" void display_fill_screen(uint16_t color)
 {
     lcd.fillScreen(color);
@@ -178,6 +197,16 @@ extern "C" void display_fill_screen(uint16_t color)
 extern "C" void display_fill_rect(int x, int y, int w, int h, uint16_t color)
 {
     lcd.fillRect(x, y, w, h, color);
+}
+
+extern "C" void display_draw_hline(int x, int y, int width, uint16_t color)
+{
+    lcd.drawFastHLine(x, y, width, color);
+}
+
+extern "C" void display_draw_vline(int x, int y, int height, uint16_t color)
+{
+    lcd.drawFastVLine(x, y, height, color);
 }
 
 extern "C" void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)

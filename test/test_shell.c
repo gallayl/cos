@@ -12,9 +12,7 @@ void setUp(void)
     shell_set_cwd("/flash");
 }
 
-void tearDown(void)
-{
-}
+void tearDown(void) {}
 
 /* --- shell_resolve_relative tests --- */
 
@@ -321,6 +319,7 @@ int main(void)
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
+    shell_register_berry_commands();
 
     UNITY_BEGIN();
 

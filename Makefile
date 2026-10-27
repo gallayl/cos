@@ -56,7 +56,12 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/websocket/include/*.h) \
            $(wildcard components/websocket/src/*.c components/websocket/src/*.h) \
            $(wildcard components/text_console/include/*.h) \
-           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h)
+           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h) \
+           $(wildcard components/berry_lang/include/*.h) \
+           $(wildcard components/berry_lang/src/*.cpp components/berry_lang/src/*.c components/berry_lang/src/*.h) \
+           $(wildcard components/ui/include/*.h) \
+           $(wildcard components/ui/src/*.cpp components/ui/src/*.h) \
+           $(wildcard components/shell/src/shell_berry_cmd.c)
 
 build:
 	$(IDF_PY) build

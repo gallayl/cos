@@ -9,6 +9,9 @@ static uint16_t mock_applied_cal[DISPLAY_CAL_DATA_LEN];
 static int cal_count = 0;
 static int set_cal_count = 0;
 static int fill_count = 0;
+static bool touch_active = false;
+static int touch_x = 0;
+static int touch_y = 0;
 
 void mock_display_reset(void)
 {
@@ -19,11 +22,21 @@ void mock_display_reset(void)
     cal_count = 0;
     set_cal_count = 0;
     fill_count = 0;
+    touch_active = false;
+    touch_x = 0;
+    touch_y = 0;
 }
 
 void mock_display_set_rotation(uint8_t rotation)
 {
     mock_rotation = rotation;
+}
+
+void mock_display_set_touch(bool active, int x, int y)
+{
+    touch_active = active;
+    touch_x = x;
+    touch_y = y;
 }
 
 void mock_display_set_cal_result(const uint16_t cal_data[DISPLAY_CAL_DATA_LEN])
@@ -111,10 +124,57 @@ uint8_t display_get_brightness(void)
     return mock_brightness;
 }
 
+int display_get_width(void)
+{
+    return 320;
+}
+
+int display_get_height(void)
+{
+    return 240;
+}
+
+bool display_get_touch(int *x, int *y)
+{
+    if (x == NULL || y == NULL || !touch_active)
+    {
+        return false;
+    }
+
+    *x = touch_x;
+    *y = touch_y;
+    return true;
+}
+
 void display_fill_screen(uint16_t color)
 {
     (void)color;
     fill_count++;
+}
+
+void display_fill_rect(int x, int y, int w, int h, uint16_t color)
+{
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
+    (void)color;
+}
+
+void display_draw_hline(int x, int y, int width, uint16_t color)
+{
+    (void)x;
+    (void)y;
+    (void)width;
+    (void)color;
+}
+
+void display_draw_vline(int x, int y, int height, uint16_t color)
+{
+    (void)x;
+    (void)y;
+    (void)height;
+    (void)color;
 }
 
 void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)
@@ -126,6 +186,4 @@ void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)
     (void)bg;
 }
 
-void display_wait(void)
-{
-}
+void display_wait(void) {}
