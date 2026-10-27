@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/reent.h>
 
 static const char *const TAG = "text_console";
 
@@ -142,7 +141,6 @@ extern "C" esp_err_t text_console_init(void)
            per-task _reent struct caches its own _stdout pointer. Tasks
            created before this point still reference the original fd. */
         stdout = tee;
-        _GLOBAL_REENT->_stdout = tee;
     }
     else
     {
@@ -173,7 +171,6 @@ extern "C" void text_console_deinit(void)
         /* Mirror the init path: restore both the C global and newlib's
            per-task _reent cache so all tasks pick up the change. */
         stdout = s_original_stdout;
-        _GLOBAL_REENT->_stdout = s_original_stdout;
         fclose(tee);
     }
 
