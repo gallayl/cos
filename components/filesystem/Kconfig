@@ -1,0 +1,10 @@
+menu "COS Filesystem Configuration"
+
+config COS_FILESYSTEM_DISABLE_SDCARD
+    bool "Disable SD card initialization"
+    default n
+    help
+        Skip SD card initialization. Enable this when building for environments
+        without SD card hardware, such as QEMU integration tests.
+
+endmenu
