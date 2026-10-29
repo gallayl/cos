@@ -4,6 +4,8 @@ set(EXTRA_COMPONENT_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../../components/filesystem
     ${CMAKE_CURRENT_LIST_DIR}/../../components/shell
     ${CMAKE_CURRENT_LIST_DIR}/../../components/display
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/ui
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/berry_lang
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
