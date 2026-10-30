@@ -6,6 +6,7 @@ set(EXTRA_COMPONENT_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../../components/system
     ${CMAKE_CURRENT_LIST_DIR}/../../components/display
     ${CMAKE_CURRENT_LIST_DIR}/../../components/ui
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/text_console
     ${CMAKE_CURRENT_LIST_DIR}/../../components/berry_lang
 )
 
