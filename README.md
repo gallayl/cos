@@ -60,8 +60,17 @@ export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.14_env
 ```bash
 make build       # compile the firmware
 make flash       # flash to the connected board
+make flash-game  # build and flash the example Berry game to LittleFS only
 make monitor     # open serial monitor (115200 baud)
 ```
+
+`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start the game from the COS console:
+
+```text
+berry run /flash/apps/tap_dash.be
+```
+
+Tap the moving target as often as possible before the 20-second round ends. Tap **RESTART** to play again.
 
 ## Console
 

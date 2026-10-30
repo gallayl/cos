@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
+.PHONY: build flash flash-game monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -68,6 +68,9 @@ build:
 
 flash:
 	$(IDF_PY) flash
+
+flash-game: build
+	$(IDF_PY) $(if $(PORT),-p $(PORT),) littlefs-flash
 
 monitor:
 	$(IDF_PY) monitor
