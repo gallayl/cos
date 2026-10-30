@@ -2,9 +2,9 @@
 
 #include "berry.h"
 #include "berry_internal.h"
-#include "esp_random.h"
 #include "display.h"
 #include "esp_log.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "ui.h"
 
@@ -501,9 +501,8 @@ int native_draw_text(bvm *vm)
     }
 
     const char *text = be_tostring(vm, 3);
-    display_draw_text(static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 2)),
-                      text != nullptr ? text : "", static_cast<uint16_t>(be_toint(vm, 4)),
-                      static_cast<uint16_t>(be_toint(vm, 5)));
+    display_draw_text(static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 2)), text != nullptr ? text : "",
+                      static_cast<uint16_t>(be_toint(vm, 4)), static_cast<uint16_t>(be_toint(vm, 5)));
     be_return_nil(vm);
 }
 
