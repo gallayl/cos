@@ -25,6 +25,7 @@ void (*tick_callback)() = nullptr;
 void (*exit_callback)() = nullptr;
 std::atomic_bool redraw_requested{false};
 std::atomic_bool clear_background_requested{false};
+std::atomic_bool preserve_display_requested{false};
 std::atomic_bool exit_requested{false};
 
 std::vector<std::function<void()>> &action_queue()
@@ -128,6 +129,11 @@ void invalidate(bool clear_background)
     redraw_requested.store(true);
 }
 
+void preserve_display_on_start()
+{
+    preserve_display_requested.store(true);
+}
+
 void set_exit_callback(void (*callback)())
 {
     exit_callback = callback;
@@ -147,7 +153,7 @@ bool start()
 {
     root.set_bounds({0, 0, display_get_width(), display_get_height()});
     root.mount();
-    clear_background_requested.store(true);
+    clear_background_requested.store(!preserve_display_requested.exchange(false));
     redraw_requested.store(true);
     exit_requested.store(false);
 #ifdef ESP_PLATFORM
@@ -186,6 +192,7 @@ void stop()
     ui_active.store(false);
 #endif
     exit_requested.store(false);
+    preserve_display_requested.store(false);
     root.unmount();
     root.clear();
     touch_dispatcher = TouchDispatcher{};

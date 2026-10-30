@@ -475,6 +475,7 @@ int native_fill_screen(bvm *vm)
         be_return_nil(vm);
     }
 
+    ui::preserve_display_on_start();
     display_fill_screen(static_cast<uint16_t>(be_toint(vm, 1)));
     be_return_nil(vm);
 }
@@ -516,12 +517,13 @@ int native_touch(bvm *vm)
         be_return(vm);
     }
 
-    be_newlist(vm);
+    be_newobject(vm, "list");
     be_pushint(vm, x);
     be_data_push(vm, -2);
     be_pop(vm, 1);
     be_pushint(vm, y);
     be_data_push(vm, -2);
+    be_pop(vm, 1);
     be_pop(vm, 1);
     be_return(vm);
 }
@@ -537,6 +539,7 @@ int native_end_write(bvm *vm)
 {
     (void)vm;
     display_end_write();
+    display_wait();
     be_return_nil(vm);
 }
 
