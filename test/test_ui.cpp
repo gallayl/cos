@@ -180,7 +180,7 @@ void test_groupbox_draws_frame_title_and_children()
 
     group.draw(renderer);
 
-    TEST_ASSERT_EQUAL(1, renderer.fill_count);
+    TEST_ASSERT_EQUAL(2, renderer.fill_count);
     TEST_ASSERT_GREATER_OR_EQUAL(4, renderer.line_count);
     TEST_ASSERT_EQUAL(2, renderer.text_count);
     TEST_ASSERT_EQUAL_STRING("Brightness", renderer.last_text.c_str());
