@@ -27,12 +27,33 @@ jobs:
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
           pip install pytest-embedded pytest-embedded-idf pytest-embedded-qemu
 
+      - name: Build integration test firmware
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          make integration-test-build
+
+      - name: Upload integration test firmware
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-firmware
+          path: |
+            integration_test/test_init_sequence/build/test_init_sequence.elf
+            integration_test/test_shell_fs/build/test_shell_fs.elf
+            integration_test/test_system/build/test_system.elf
+            integration_test/test_stability/build/test_stability.elf
+            integration_test/test_vfs_ops/build/test_vfs_ops.elf
+          if-no-files-found: ignore
+          retention-days: 5
+
       - name: Run integration tests
         shell: bash
         run: |
           . $IDF_PATH/export.sh
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
-          make integration-test
+          make integration-test-run
 
       - name: Collect embedded test logs
         if: always()

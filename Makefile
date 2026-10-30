@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test menuconfig docs docs-check
+.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -98,14 +98,28 @@ test:
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
 
-integration-test:
+integration-test-build:
 	$(IDF_PY) -C integration_test/test_nvs_calibration build
 	$(IDF_PY) -C integration_test/test_shell_fs build
 	$(IDF_PY) -C integration_test/test_init_sequence build
 	$(IDF_PY) -C integration_test/test_vfs_ops build
 	$(IDF_PY) -C integration_test/test_system build
 	$(IDF_PY) -C integration_test/test_stability build
-	$(IDF_PYTHON) -m pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
+
+integration-test-run:
+	@status=0; \
+	for test_dir in \
+		integration_test/test_nvs_calibration \
+		integration_test/test_shell_fs \
+		integration_test/test_init_sequence \
+		integration_test/test_vfs_ops \
+		integration_test/test_system \
+		integration_test/test_stability; do \
+		$(IDF_PYTHON) -m pytest "$$test_dir" --target esp32 --embedded-services idf,qemu -v || status=1; \
+	done; \
+	exit $$status
+
+integration-test: integration-test-build integration-test-run
 
 docs:
 	@cmake -E make_directory build/docs
