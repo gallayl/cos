@@ -1,5 +1,5 @@
 if(CMAKE_BUILD_EARLY_EXPANSION)
-    idf_component_register(REQUIRES console filesystem ui esp_timer)
+    idf_component_register(REQUIRES console filesystem text_console ui esp_timer)
     return()
 endif()
 
@@ -74,7 +74,7 @@ idf_component_register(
         "${COS_BERRY_SOURCE_DIR}/src"
         "${COS_BERRY_SOURCE_DIR}/default"
         "${COS_BERRY_SOURCE_DIR}/generate"
-    REQUIRES console filesystem ui esp_timer
+    REQUIRES console filesystem text_console ui esp_timer
 )
 
 add_dependencies(${COMPONENT_LIB} berry_generate)

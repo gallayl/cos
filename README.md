@@ -64,7 +64,7 @@ make flash-game  # build and flash the example Berry game to LittleFS only
 make monitor     # open serial monitor (115200 baud)
 ```
 
-`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start the game from the COS console:
+`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. It leaves the board in the bootloader after transfer; press the board's reset button to boot COS. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start the game from the COS console:
 
 ```text
 berry run /flash/apps/tap_dash.be
@@ -89,6 +89,8 @@ Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be
 The Berry interpreter is fetched from a fixed upstream commit during CMake configuration. Python 3 is required to generate Berry's constant tables during the build.
 
 Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
+
+While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. Console output continues over UART and is rendered on screen again after `berry close`.
 
 ## Development
 

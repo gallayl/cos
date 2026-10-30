@@ -69,6 +69,7 @@ build:
 flash:
 	$(IDF_PY) flash
 
+flash-game: export SERIAL_TOOL_EXTRA_ARGS += --after=no-reset
 flash-game: build
 	$(IDF_PY) $(if $(PORT),-p $(PORT),) littlefs-flash
 

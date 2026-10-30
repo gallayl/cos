@@ -4,6 +4,7 @@
 #include "berry_internal.h"
 #include "display.h"
 #include "filesystem.h"
+#include "text_console.h"
 #include "ui.h"
 
 #include "esp_console.h"
@@ -132,8 +133,9 @@ bool has_active_app()
 
 esp_err_t close_active_app()
 {
+    const bool had_active_app = has_active_app();
     esp_err_t err = ESP_OK;
-    if (has_active_app())
+    if (had_active_app)
     {
         err = invoke_app_method("teardown", false);
     }
@@ -142,6 +144,10 @@ esp_err_t close_active_app()
     be_pushnil(s_vm);
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
+    if (had_active_app)
+    {
+        text_console_set_visible(true);
+    }
     return err;
 }
 
@@ -198,9 +204,14 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
     esp_err_t err = invoke_app_method("setup", true);
-    if (err == ESP_OK && !ui::start())
+    if (err == ESP_OK)
     {
-        err = ESP_ERR_NO_MEM;
+        text_console_set_visible(false);
+        if (!ui::start())
+        {
+            text_console_set_visible(true);
+            err = ESP_ERR_NO_MEM;
+        }
     }
     if (err != ESP_OK)
     {

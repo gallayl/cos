@@ -24,6 +24,7 @@ static text_buffer_t s_buf;
 static SemaphoreHandle_t s_mutex;
 static TaskHandle_t s_render_task;
 static bool s_initialized = false;
+static bool s_screen_visible = true;
 
 static FILE *s_original_stdout;
 
@@ -68,7 +69,10 @@ static void render_task(void *arg)
 
         if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
-            render_dirty();
+            if (s_screen_visible)
+            {
+                render_dirty();
+            }
             xSemaphoreGive(s_mutex);
         }
     }
@@ -112,6 +116,7 @@ extern "C" esp_err_t text_console_init(void)
     }
 
     display_set_text_font(FONT_ID);
+    s_screen_visible = true;
 
     int cols = display_get_width() / FONT_WIDTH;
     int rows = display_get_height() / FONT_HEIGHT;
@@ -153,6 +158,38 @@ extern "C" esp_err_t text_console_init(void)
 
     ESP_LOGI(TAG, "Text console ready (%dx%d chars)", cols, rows);
     return ESP_OK;
+}
+
+extern "C" void text_console_set_visible(bool visible)
+{
+    if (!s_initialized || s_mutex == NULL)
+    {
+        return;
+    }
+
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGW(TAG, "Could not change console visibility");
+        return;
+    }
+    s_screen_visible = visible;
+    if (visible)
+    {
+        for (int row = 0; row < s_buf.rows; ++row)
+        {
+            for (int col = 0; col < s_buf.cols; ++col)
+            {
+                s_buf.cells[row][col].dirty = true;
+            }
+            s_buf.dirty_rows |= (1ULL << row);
+        }
+    }
+    xSemaphoreGive(s_mutex);
+
+    if (visible && s_render_task != NULL)
+    {
+        xTaskNotifyGive(s_render_task);
+    }
 }
 
 extern "C" void text_console_deinit(void)

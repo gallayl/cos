@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include <stdbool.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -15,6 +16,9 @@ extern "C"
      * and clears the screen. Must be called after display_init().
      */
     esp_err_t text_console_init(void);
+
+    /** Enable or disable rendering the console buffer on the display. */
+    void text_console_set_visible(bool visible);
 
     /**
      * @brief Deinitialize the text console.

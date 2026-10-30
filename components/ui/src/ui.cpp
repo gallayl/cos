@@ -3,6 +3,7 @@
 #include "display.h"
 
 #include <algorithm>
+#include <atomic>
 #include <utility>
 
 #ifdef ESP_PLATFORM
@@ -31,27 +32,34 @@ std::vector<std::function<void()>> &action_queue()
 #ifdef ESP_PLATFORM
 constexpr char TAG[] = "ui";
 TaskHandle_t ui_task_handle = nullptr;
+std::atomic_bool ui_active{false};
 
 void ui_task(void *)
 {
     while (true)
     {
-        if (execution_lock != nullptr)
+        if (ui_active.load())
         {
-            execution_lock();
-        }
-        display_start_write();
-        display_fill_screen(0xFFFF);
-        root.draw(display_renderer);
-        display_end_write();
-        touch_dispatcher.poll(root);
-        if (tick_callback != nullptr)
-        {
-            tick_callback();
-        }
-        if (execution_unlock != nullptr)
-        {
-            execution_unlock();
+            if (execution_lock != nullptr)
+            {
+                execution_lock();
+            }
+            if (ui_active.load())
+            {
+                display_start_write();
+                display_fill_screen(0xFFFF);
+                root.draw(display_renderer);
+                display_end_write();
+                touch_dispatcher.poll(root);
+                if (tick_callback != nullptr)
+                {
+                    tick_callback();
+                }
+            }
+            if (execution_unlock != nullptr)
+            {
+                execution_unlock();
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -109,6 +117,7 @@ bool start()
 #ifdef ESP_PLATFORM
     if (ui_task_handle != nullptr)
     {
+        ui_active.store(true);
         return true;
     }
 
@@ -119,6 +128,7 @@ bool start()
         ESP_LOGE(TAG, "Failed to create UI task");
         return false;
     }
+    ui_active.store(true);
 #endif
     return true;
 }
@@ -136,6 +146,9 @@ void set_tick_callback(void (*tick)())
 
 void stop()
 {
+#ifdef ESP_PLATFORM
+    ui_active.store(false);
+#endif
     root.unmount();
     root.clear();
     touch_dispatcher = TouchDispatcher{};
