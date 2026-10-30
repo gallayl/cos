@@ -70,7 +70,7 @@ make monitor     # open serial monitor (115200 baud)
 berry run /flash/apps/tap_dash.be
 ```
 
-Tap the moving target as often as possible before the 20-second round ends. Tap **RESTART** to play again.
+Tap the randomly positioned target as often as possible before the 20-second round ends. Tap **RESTART** to play again, or **EXIT** to return to the console.
 
 ## Console
 
@@ -88,9 +88,9 @@ Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be
 
 The Berry interpreter is fetched from a fixed upstream commit during CMake configuration. Python 3 is required to generate Berry's constant tables during the build.
 
-Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
+Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
 
-While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. Console output continues over UART and is rendered on screen again after `berry close`.
+While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`.
 
 ## Development
 

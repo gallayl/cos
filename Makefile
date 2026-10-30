@@ -69,9 +69,8 @@ build:
 flash:
 	$(IDF_PY) flash
 
-flash-game: export SERIAL_TOOL_EXTRA_PRE_CMD_ARGS = --after=no-reset
 flash-game: build
-	$(IDF_PY) $(if $(PORT),-p $(PORT),) littlefs-flash
+	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
 
 monitor:
 	$(IDF_PY) monitor

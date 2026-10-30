@@ -18,7 +18,7 @@ extern "C"
     esp_err_t text_console_init(void);
 
     /** Enable or disable rendering the console buffer on the display. */
-    void text_console_set_visible(bool visible);
+    esp_err_t text_console_set_visible(bool visible);
 
     /**
      * @brief Deinitialize the text console.

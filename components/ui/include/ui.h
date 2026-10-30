@@ -40,6 +40,9 @@ class DisplayRenderer final : public Renderer
 
 void queue_action(std::function<void()> action);
 void execute_queued_actions();
+void invalidate(bool clear_background = false);
+void set_exit_callback(void (*callback)());
+void request_exit();
 Container &app_root();
 bool start();
 void stop();

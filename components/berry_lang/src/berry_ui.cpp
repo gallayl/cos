@@ -2,6 +2,7 @@
 
 #include "berry.h"
 #include "berry_internal.h"
+#include "esp_random.h"
 #include "display.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -289,6 +290,11 @@ int native_set_bounds(bvm *vm)
     Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     if (handle != nullptr)
     {
+        const ui::Bounds old_bounds = handle->element->bounds();
+        if (handle->element->is_mounted() && old_bounds.width > 0 && old_bounds.height > 0)
+        {
+            display_fill_rect(old_bounds.x, old_bounds.y, old_bounds.width, old_bounds.height, 0xFFFF);
+        }
         handle->element->set_bounds({static_cast<int>(be_toint(vm, 2)), static_cast<int>(be_toint(vm, 3)),
                                      static_cast<int>(be_toint(vm, 4)), static_cast<int>(be_toint(vm, 5))});
     }
@@ -415,6 +421,7 @@ int native_clear(bvm *vm)
         }
         s_handles.assign(1, {&ui::app_root(), ElementType::Root, -1, -1, -1});
     }
+    ui::invalidate();
     be_return_nil(vm);
 }
 
@@ -433,6 +440,31 @@ int native_color565(bvm *vm)
 int native_mark_dirty(bvm *vm)
 {
     (void)vm;
+    ui::invalidate();
+    be_return_nil(vm);
+}
+
+int native_random(bvm *vm)
+{
+    if (be_top(vm) < 1)
+    {
+        be_return_nil(vm);
+    }
+
+    const int limit = static_cast<int>(be_toint(vm, 1));
+    if (limit <= 0)
+    {
+        be_return_nil(vm);
+    }
+
+    be_pushint(vm, static_cast<int>(esp_random() % static_cast<uint32_t>(limit)));
+    be_return(vm);
+}
+
+int native_exit(bvm *vm)
+{
+    (void)vm;
+    ui::request_exit();
     be_return_nil(vm);
 }
 
@@ -509,6 +541,8 @@ void berry_ui_register(bvm *vm)
     register_function(vm, "clear", native_clear);
     register_function(vm, "color565", native_color565);
     register_function(vm, "mark_dirty", native_mark_dirty);
+    register_function(vm, "random", native_random);
+    register_function(vm, "exit", native_exit);
     register_function(vm, "timer", native_timer);
     register_constant(vm, "LEFT", 1);
     register_constant(vm, "CENTER", 0);

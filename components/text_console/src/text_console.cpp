@@ -160,17 +160,17 @@ extern "C" esp_err_t text_console_init(void)
     return ESP_OK;
 }
 
-extern "C" void text_console_set_visible(bool visible)
+extern "C" esp_err_t text_console_set_visible(bool visible)
 {
     if (!s_initialized || s_mutex == NULL)
     {
-        return;
+        return ESP_OK;
     }
 
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
     {
-        ESP_LOGW(TAG, "Could not change console visibility");
-        return;
+        ESP_LOGE(TAG, "Could not change console visibility");
+        return ESP_ERR_TIMEOUT;
     }
     s_screen_visible = visible;
     if (visible)
@@ -190,6 +190,7 @@ extern "C" void text_console_set_visible(bool visible)
     {
         xTaskNotifyGive(s_render_task);
     }
+    return ESP_OK;
 }
 
 extern "C" void text_console_deinit(void)

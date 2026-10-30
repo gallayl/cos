@@ -22,6 +22,10 @@ TouchDispatcher touch_dispatcher;
 void (*execution_lock)() = nullptr;
 void (*execution_unlock)() = nullptr;
 void (*tick_callback)() = nullptr;
+void (*exit_callback)() = nullptr;
+std::atomic_bool redraw_requested{false};
+std::atomic_bool clear_background_requested{false};
+std::atomic_bool exit_requested{false};
 
 std::vector<std::function<void()>> &action_queue()
 {
@@ -46,19 +50,29 @@ void ui_task(void *)
             }
             if (ui_active.load())
             {
-                display_start_write();
-                display_fill_screen(0xFFFF);
-                root.draw(display_renderer);
-                display_end_write();
                 touch_dispatcher.poll(root);
                 if (tick_callback != nullptr)
                 {
                     tick_callback();
                 }
+                if (redraw_requested.exchange(false))
+                {
+                    display_start_write();
+                    if (clear_background_requested.exchange(false))
+                    {
+                        display_fill_screen(0xFFFF);
+                    }
+                    root.draw(display_renderer);
+                    display_end_write();
+                }
             }
             if (execution_unlock != nullptr)
             {
                 execution_unlock();
+            }
+            if (ui_active.load() && exit_requested.exchange(false) && exit_callback != nullptr)
+            {
+                exit_callback();
             }
         }
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -105,6 +119,25 @@ void execute_queued_actions()
     }
 }
 
+void invalidate(bool clear_background)
+{
+    if (clear_background)
+    {
+        clear_background_requested.store(true);
+    }
+    redraw_requested.store(true);
+}
+
+void set_exit_callback(void (*callback)())
+{
+    exit_callback = callback;
+}
+
+void request_exit()
+{
+    exit_requested.store(true);
+}
+
 Container &app_root()
 {
     return root;
@@ -114,6 +147,9 @@ bool start()
 {
     root.set_bounds({0, 0, display_get_width(), display_get_height()});
     root.mount();
+    clear_background_requested.store(true);
+    redraw_requested.store(true);
+    exit_requested.store(false);
 #ifdef ESP_PLATFORM
     if (ui_task_handle != nullptr)
     {
@@ -149,6 +185,7 @@ void stop()
 #ifdef ESP_PLATFORM
     ui_active.store(false);
 #endif
+    exit_requested.store(false);
     root.unmount();
     root.clear();
     touch_dispatcher = TouchDispatcher{};
@@ -158,6 +195,7 @@ void stop()
 void Element::set_bounds(const Bounds &bounds)
 {
     bounds_ = bounds;
+    invalidate();
 }
 
 const Bounds &Element::bounds() const
@@ -209,6 +247,7 @@ Element *Container::add_child(std::unique_ptr<Element> child)
         element->mount();
     }
     children_.push_back(std::move(child));
+    invalidate();
     return element;
 }
 
@@ -222,6 +261,7 @@ void Container::clear()
         }
     }
     children_.clear();
+    invalidate(true);
 }
 
 void Container::mount()
@@ -302,6 +342,7 @@ GroupBox::GroupBox(std::string title)
 void GroupBox::set_title(std::string title)
 {
     title_ = std::move(title);
+    invalidate();
 }
 
 void GroupBox::set_colors(uint16_t foreground, uint16_t background, uint16_t border)
@@ -309,6 +350,7 @@ void GroupBox::set_colors(uint16_t foreground, uint16_t background, uint16_t bor
     foreground_ = foreground;
     background_ = background;
     border_ = border;
+    invalidate();
 }
 
 void GroupBox::draw(Renderer &renderer)
@@ -351,6 +393,7 @@ Label::Label(std::string text)
 void Label::set_text(std::string text)
 {
     text_ = std::move(text);
+    invalidate();
 }
 
 const std::string &Label::text() const
@@ -362,12 +405,14 @@ void Label::set_colors(uint16_t foreground, uint16_t background)
 {
     foreground_ = foreground;
     background_ = background;
+    invalidate();
 }
 
 void Label::draw(Renderer &renderer)
 {
     if (mounted_)
     {
+        renderer.fill_rect(bounds_, background_);
         renderer.draw_text(bounds_, text_.c_str(), foreground_, background_);
     }
 }
@@ -380,6 +425,7 @@ Checkbox::Checkbox(std::string text)
 void Checkbox::set_text(std::string text)
 {
     text_ = std::move(text);
+    invalidate();
 }
 
 const std::string &Checkbox::text() const
@@ -390,6 +436,7 @@ const std::string &Checkbox::text() const
 void Checkbox::set_checked(bool checked)
 {
     checked_ = checked;
+    invalidate();
 }
 
 bool Checkbox::is_checked() const
@@ -432,6 +479,7 @@ void Checkbox::draw(Renderer &renderer)
 void Checkbox::on_touch(int x, int y)
 {
     pressed_ = mounted_ && contains(x, y);
+    invalidate();
 }
 
 void Checkbox::on_touch_end(int x, int y)
@@ -441,6 +489,7 @@ void Checkbox::on_touch_end(int x, int y)
     if (clicked)
     {
         checked_ = !checked_;
+        invalidate();
         if (on_change_)
         {
             queue_action([callback = on_change_, checked = checked_]() { callback(checked); });
@@ -456,6 +505,7 @@ Button::Button(std::string text)
 void Button::set_text(std::string text)
 {
     text_ = std::move(text);
+    invalidate();
 }
 
 void Button::set_on_click(Callback callback)
@@ -497,12 +547,14 @@ void Button::draw(Renderer &renderer)
 void Button::on_touch(int x, int y)
 {
     pressed_ = mounted_ && contains(x, y);
+    invalidate();
 }
 
 void Button::on_touch_end(int x, int y)
 {
     const bool clicked = pressed_ && mounted_ && contains(x, y);
     pressed_ = false;
+    invalidate();
     if (clicked && on_click_)
     {
         queue_action(on_click_);

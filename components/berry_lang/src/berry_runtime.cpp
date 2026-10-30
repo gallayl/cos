@@ -28,6 +28,15 @@ bvm *s_vm = nullptr;
 constexpr char APP_GLOBAL[] = "_cos_berry_app";
 std::recursive_mutex s_vm_mutex;
 
+void close_app_from_ui()
+{
+    esp_err_t err = berry_runtime_close_app();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not close Berry app from UI: %s", esp_err_to_name(err));
+    }
+}
+
 int native_log(bvm *vm)
 {
     if (be_top(vm) < 1 || !be_isstring(vm, 1))
@@ -146,7 +155,15 @@ esp_err_t close_active_app()
     be_pop(s_vm, 1);
     if (had_active_app)
     {
-        text_console_set_visible(true);
+        esp_err_t visible_err = text_console_set_visible(true);
+        if (visible_err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
+            if (err == ESP_OK)
+            {
+                err = visible_err;
+            }
+        }
     }
     return err;
 }
@@ -206,10 +223,14 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     esp_err_t err = invoke_app_method("setup", true);
     if (err == ESP_OK)
     {
-        text_console_set_visible(false);
-        if (!ui::start())
+        err = text_console_set_visible(false);
+        if (err == ESP_OK && !ui::start())
         {
-            text_console_set_visible(true);
+            esp_err_t visible_err = text_console_set_visible(true);
+            if (visible_err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
+            }
             err = ESP_ERR_NO_MEM;
         }
     }
@@ -290,6 +311,7 @@ extern "C" esp_err_t berry_runtime_init(void)
     berry_ui_register(s_vm);
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
+    ui::set_exit_callback(close_app_from_ui);
     return ESP_OK;
 }
 
