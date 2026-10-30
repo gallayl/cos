@@ -50,11 +50,6 @@ void ui_task(void *)
             }
             if (ui_active.load())
             {
-                touch_dispatcher.poll(root);
-                if (tick_callback != nullptr)
-                {
-                    tick_callback();
-                }
                 if (redraw_requested.exchange(false))
                 {
                     display_start_write();
@@ -64,6 +59,11 @@ void ui_task(void *)
                     }
                     root.draw(display_renderer);
                     display_end_write();
+                }
+                touch_dispatcher.poll(root);
+                if (tick_callback != nullptr)
+                {
+                    tick_callback();
                 }
             }
             if (execution_unlock != nullptr)

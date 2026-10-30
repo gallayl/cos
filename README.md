@@ -64,13 +64,13 @@ make flash-game  # build and flash the example Berry game to LittleFS only
 make monitor     # open serial monitor (115200 baud)
 ```
 
-`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. It leaves the board in the bootloader after transfer; press the board's reset button to boot COS. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start the game from the COS console:
+`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. It leaves the board in the bootloader after transfer; press the board's reset button to boot COS. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start either Berry game from the COS console:
 
 ```text
-berry run /flash/apps/tap_dash.be
+berry run /flash/apps/breakout.be
 ```
 
-Tap the randomly positioned target as often as possible before the 20-second round ends. Tap **RESTART** to play again, or **EXIT** to return to the console.
+Drag your finger across the screen to move the Breakout paddle. Tap **RESET** to restart or **EXIT** to return to the console. The Tap Dash example is also available with `berry run /flash/apps/tap_dash.be`.
 
 ## Console
 
@@ -90,7 +90,7 @@ The Berry interpreter is fetched from a fixed upstream commit during CMake confi
 
 Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
 
-While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`.
+While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position.
 
 ## Development
 

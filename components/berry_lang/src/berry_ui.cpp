@@ -468,6 +468,62 @@ int native_exit(bvm *vm)
     be_return_nil(vm);
 }
 
+int native_fill_screen(bvm *vm)
+{
+    if (be_top(vm) < 1)
+    {
+        be_return_nil(vm);
+    }
+
+    display_fill_screen(static_cast<uint16_t>(be_toint(vm, 1)));
+    be_return_nil(vm);
+}
+
+int native_fill_rect(bvm *vm)
+{
+    if (be_top(vm) < 5)
+    {
+        be_return_nil(vm);
+    }
+
+    display_fill_rect(static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 2)),
+                      static_cast<int>(be_toint(vm, 3)), static_cast<int>(be_toint(vm, 4)),
+                      static_cast<uint16_t>(be_toint(vm, 5)));
+    be_return_nil(vm);
+}
+
+int native_draw_text(bvm *vm)
+{
+    if (be_top(vm) < 5 || !be_isstring(vm, 3))
+    {
+        be_return_nil(vm);
+    }
+
+    const char *text = be_tostring(vm, 3);
+    display_draw_text(static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 2)),
+                      text != nullptr ? text : "", static_cast<uint16_t>(be_toint(vm, 4)),
+                      static_cast<uint16_t>(be_toint(vm, 5)));
+    be_return_nil(vm);
+}
+
+int native_touch(bvm *vm)
+{
+    int x = 0;
+    int y = 0;
+    if (!display_get_touch(&x, &y))
+    {
+        be_pushnil(vm);
+        be_return(vm);
+    }
+
+    be_newlist(vm);
+    be_pushint(vm, x);
+    be_data_push(vm, -2);
+    be_pushint(vm, y);
+    be_data_push(vm, -2);
+    be_return(vm);
+}
+
 int native_timer(bvm *vm)
 {
     if (be_top(vm) < 2 || !be_isfunction(vm, 2))
@@ -543,6 +599,10 @@ void berry_ui_register(bvm *vm)
     register_function(vm, "mark_dirty", native_mark_dirty);
     register_function(vm, "random", native_random);
     register_function(vm, "exit", native_exit);
+    register_function(vm, "fill_screen", native_fill_screen);
+    register_function(vm, "fill_rect", native_fill_rect);
+    register_function(vm, "draw_text", native_draw_text);
+    register_function(vm, "touch", native_touch);
     register_function(vm, "timer", native_timer);
     register_constant(vm, "LEFT", 1);
     register_constant(vm, "CENTER", 0);
