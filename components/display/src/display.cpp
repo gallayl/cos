@@ -83,8 +83,18 @@ class CydDisplay : public lgfx::LGFX_Device
     }
 };
 
-static CydDisplay lcd;
-static lgfx::LGFX_Sprite row_sprite(&lcd);
+static CydDisplay &lcd()
+{
+    static CydDisplay display;
+    return display;
+}
+
+static lgfx::LGFX_Sprite &row_sprite()
+{
+    static lgfx::LGFX_Sprite sprite(&lcd());
+    return sprite;
+}
+
 static bool initialized = false;
 static bool row_sprite_ready = false;
 static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
@@ -97,8 +107,8 @@ extern "C" esp_err_t display_init(void)
         return ESP_OK;
     }
 
-    lcd.init();
-    lcd.setBrightness(CYD_BL_DEFAULT_BRIGHTNESS);
+    lcd().init();
+    lcd().setBrightness(CYD_BL_DEFAULT_BRIGHTNESS);
     initialized = true;
 
     ESP_LOGI(TAG, "Display initialized (%dx%d)", CYD_PANEL_WIDTH, CYD_PANEL_HEIGHT);
@@ -107,7 +117,7 @@ extern "C" esp_err_t display_init(void)
 
 extern "C" uint8_t display_get_rotation(void)
 {
-    return lcd.getRotation();
+    return lcd().getRotation();
 }
 
 extern "C" esp_err_t display_set_rotation(uint8_t rotation)
@@ -116,7 +126,7 @@ extern "C" esp_err_t display_set_rotation(uint8_t rotation)
     {
         return ESP_ERR_INVALID_ARG;
     }
-    lcd.setRotation(rotation);
+    lcd().setRotation(rotation);
     return ESP_OK;
 }
 
@@ -128,23 +138,23 @@ extern "C" esp_err_t display_calibrate_touch(uint16_t cal_data[DISPLAY_CAL_DATA_
         return ESP_ERR_INVALID_ARG;
     }
 
-    lcd.fillScreen(TFT_BLACK);
-    lcd.setCursor(20, 0);
-    lcd.setTextFont(2);
-    lcd.setTextSize(1);
-    lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    lcd.println("Touch corners as indicated");
-    lcd.setTextFont(1);
-    lcd.println();
-    lcd.printf("Calibrating for rotation: %d", lcd.getRotation());
+    lcd().fillScreen(TFT_BLACK);
+    lcd().setCursor(20, 0);
+    lcd().setTextFont(2);
+    lcd().setTextSize(1);
+    lcd().setTextColor(TFT_WHITE, TFT_BLACK);
+    lcd().println("Touch corners as indicated");
+    lcd().setTextFont(1);
+    lcd().println();
+    lcd().printf("Calibrating for rotation: %d", lcd().getRotation());
 
-    lcd.calibrateTouch(cal_data, TFT_MAGENTA, TFT_BLACK, 15);
+    lcd().calibrateTouch(cal_data, TFT_MAGENTA, TFT_BLACK, 15);
 
-    lcd.setTextColor(TFT_GREEN, TFT_BLACK);
-    lcd.println("\nCalibration complete!");
-    lcd.waitDisplay();
+    lcd().setTextColor(TFT_GREEN, TFT_BLACK);
+    lcd().println("\nCalibration complete!");
+    lcd().waitDisplay();
 
-    ESP_LOGI(TAG, "Touch calibration complete (rotation %d)", lcd.getRotation());
+    ESP_LOGI(TAG, "Touch calibration complete (rotation %d)", lcd().getRotation());
     return ESP_OK;
 }
 
@@ -154,13 +164,13 @@ extern "C" esp_err_t display_set_touch_calibration(const uint16_t cal_data[DISPL
     {
         return ESP_ERR_INVALID_ARG;
     }
-    lcd.setTouchCalibrate(const_cast<uint16_t *>(cal_data));
+    lcd().setTouchCalibrate(const_cast<uint16_t *>(cal_data));
     return ESP_OK;
 }
 
 extern "C" esp_err_t display_set_brightness(uint8_t brightness)
 {
-    lcd.setBrightness(brightness);
+    lcd().setBrightness(brightness);
     current_brightness = brightness;
     return ESP_OK;
 }
@@ -179,7 +189,7 @@ extern "C" bool display_get_touch(int *x, int *y)
 
     int32_t touch_x;
     int32_t touch_y;
-    if (lcd.getTouch(&touch_x, &touch_y) == 0)
+    if (lcd().getTouch(&touch_x, &touch_y) == 0)
     {
         return false;
     }
@@ -191,89 +201,89 @@ extern "C" bool display_get_touch(int *x, int *y)
 
 extern "C" void display_fill_screen(uint16_t color)
 {
-    lcd.fillScreen(color);
+    lcd().fillScreen(color);
 }
 
 extern "C" void display_fill_rect(int x, int y, int w, int h, uint16_t color)
 {
-    lcd.fillRect(x, y, w, h, color);
+    lcd().fillRect(x, y, w, h, color);
 }
 
 extern "C" void display_draw_hline(int x, int y, int width, uint16_t color)
 {
-    lcd.drawFastHLine(x, y, width, color);
+    lcd().drawFastHLine(x, y, width, color);
 }
 
 extern "C" void display_draw_vline(int x, int y, int height, uint16_t color)
 {
-    lcd.drawFastVLine(x, y, height, color);
+    lcd().drawFastVLine(x, y, height, color);
 }
 
 extern "C" void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)
 {
-    lcd.setCursor(x, y);
-    lcd.setTextColor(fg, bg);
-    lcd.setTextSize(1);
-    lcd.print(text);
+    lcd().setCursor(x, y);
+    lcd().setTextColor(fg, bg);
+    lcd().setTextSize(1);
+    lcd().print(text);
 }
 
 extern "C" void display_draw_char(int x, int y, char c, uint16_t fg, uint16_t bg)
 {
-    lcd.setCursor(x, y);
-    lcd.setTextColor(fg, bg);
-    lcd.setTextSize(1);
-    lcd.write(static_cast<uint8_t>(c));
+    lcd().setCursor(x, y);
+    lcd().setTextColor(fg, bg);
+    lcd().setTextSize(1);
+    lcd().write(static_cast<uint8_t>(c));
 }
 
 extern "C" int display_get_width(void)
 {
-    return lcd.width();
+    return lcd().width();
 }
 
 extern "C" int display_get_height(void)
 {
-    return lcd.height();
+    return lcd().height();
 }
 
 extern "C" void display_set_text_font(uint8_t font_id)
 {
-    lcd.setTextFont(font_id);
+    lcd().setTextFont(font_id);
 }
 
 extern "C" void display_start_write(void)
 {
-    lcd.startWrite();
+    lcd().startWrite();
 }
 
 extern "C" void display_end_write(void)
 {
-    lcd.endWrite();
+    lcd().endWrite();
 }
 
 extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg)
 {
     if (!row_sprite_ready)
     {
-        row_sprite.setColorDepth(16);
-        row_sprite.setFont(&lgfx::fonts::Font0);
-        row_sprite.setTextSize(1);
-        int font_h = row_sprite.fontHeight();
-        row_sprite.createSprite(lcd.width(), font_h);
+        row_sprite().setColorDepth(16);
+        row_sprite().setFont(&lgfx::fonts::Font0);
+        row_sprite().setTextSize(1);
+        int font_h = row_sprite().fontHeight();
+        row_sprite().createSprite(lcd().width(), font_h);
         row_sprite_ready = true;
     }
 
-    int font_w = row_sprite.fontWidth();
-    row_sprite.fillSprite(bg);
+    int font_w = row_sprite().fontWidth();
+    row_sprite().fillSprite(bg);
     for (int i = 0; i < count; i++)
     {
-        row_sprite.setTextColor(fg[i]);
-        row_sprite.setCursor(i * font_w, 0);
-        row_sprite.write(static_cast<uint8_t>(chars[i]));
+        row_sprite().setTextColor(fg[i]);
+        row_sprite().setCursor(i * font_w, 0);
+        row_sprite().write(static_cast<uint8_t>(chars[i]));
     }
-    row_sprite.pushSprite(0, y);
+    row_sprite().pushSprite(0, y);
 }
 
 extern "C" void display_wait(void)
 {
-    lcd.waitDisplay();
+    lcd().waitDisplay();
 }
