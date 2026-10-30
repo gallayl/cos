@@ -519,9 +519,25 @@ int native_touch(bvm *vm)
     be_newlist(vm);
     be_pushint(vm, x);
     be_data_push(vm, -2);
+    be_pop(vm, 1);
     be_pushint(vm, y);
     be_data_push(vm, -2);
+    be_pop(vm, 1);
     be_return(vm);
+}
+
+int native_start_write(bvm *vm)
+{
+    (void)vm;
+    display_start_write();
+    be_return_nil(vm);
+}
+
+int native_end_write(bvm *vm)
+{
+    (void)vm;
+    display_end_write();
+    be_return_nil(vm);
 }
 
 int native_timer(bvm *vm)
@@ -603,6 +619,8 @@ void berry_ui_register(bvm *vm)
     register_function(vm, "fill_rect", native_fill_rect);
     register_function(vm, "draw_text", native_draw_text);
     register_function(vm, "touch", native_touch);
+    register_function(vm, "start_write", native_start_write);
+    register_function(vm, "end_write", native_end_write);
     register_function(vm, "timer", native_timer);
     register_constant(vm, "LEFT", 1);
     register_constant(vm, "CENTER", 0);

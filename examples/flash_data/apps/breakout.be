@@ -46,6 +46,7 @@ class Breakout
     end
 
     def draw_scene()
+        ui.start_write()
         ui.fill_screen(ui.color565(10, 16, 34))
         ui.fill_rect(0, 0, self.screen_width, 32, ui.color565(24, 35, 62))
         self.draw_hud()
@@ -54,6 +55,7 @@ class Breakout
         ui.fill_rect(self.ball_x, self.ball_y, 6, 6, ui.color565(255, 255, 255))
         ui.draw_text(8, 226, "Drag to move paddle", ui.color565(160, 180, 210),
                      ui.color565(10, 16, 34))
+        ui.end_write()
     end
 
     def draw_hud()
@@ -195,6 +197,7 @@ class Breakout
             self.game_state = 1
         end
 
+        ui.start_write()
         ui.fill_rect(old_ball_x, old_ball_y, 6, 6, ui.color565(10, 16, 34))
         self.restore_bricks(old_ball_x, old_ball_y, 6, 6)
         ui.fill_rect(old_paddle_x, 210, 52, 7, ui.color565(10, 16, 34))
@@ -213,6 +216,7 @@ class Breakout
             ui.draw_text(92, 116, "GAME OVER - RESET", ui.color565(255, 255, 255),
                          ui.color565(24, 35, 62))
         end
+        ui.end_write()
     end
 end
 

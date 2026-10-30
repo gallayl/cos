@@ -90,7 +90,7 @@ The Berry interpreter is fetched from a fixed upstream commit during CMake confi
 
 Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
 
-While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position.
+While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position. Use `ui.start_write()` and `ui.end_write()` to batch related display operations into one write transaction.
 
 ## Development
 
