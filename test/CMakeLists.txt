@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(cos_tests C)
+project(cos_tests C CXX)
 
 enable_testing()
 
@@ -33,6 +33,7 @@ add_library(mock_esp STATIC
     mocks/mock_uart.c
     mocks/mock_bluetooth.c
     mocks/mock_text_console.c
+    mocks/mock_berry.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -53,6 +54,7 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/http_server/include
     ${COMPONENT_DIR}/components/websocket/include
     ${COMPONENT_DIR}/components/text_console/include
+    ${COMPONENT_DIR}/components/berry_lang/include
 )
 
 add_library(vfs_path STATIC
@@ -91,12 +93,14 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
+    ${COMPONENT_DIR}/components/shell/src/shell_berry_cmd.c
     mocks/mock_shell_input.c
 )
 target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/shell/include
     ${COMPONENT_DIR}/components/shell/src
     ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/berry_lang/include
     mocks
 )
 target_link_libraries(shell_logic PRIVATE mock_esp)
@@ -140,6 +144,29 @@ target_include_directories(test_shell PRIVATE
 )
 target_link_libraries(test_shell PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell COMMAND test_shell)
+
+# --- Test: shell Berry command ---
+add_executable(test_shell_berry test_shell_berry.c)
+target_include_directories(test_shell_berry PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/berry_lang/include
+)
+target_link_libraries(test_shell_berry PRIVATE unity shell_logic mock_esp)
+add_test(NAME test_shell_berry COMMAND test_shell_berry)
+
+# --- Test: UI primitives ---
+add_executable(test_ui test_ui.cpp
+    ${COMPONENT_DIR}/components/ui/src/ui.cpp
+)
+target_include_directories(test_ui PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/display/include
+    ${COMPONENT_DIR}/components/ui/include
+)
+target_link_libraries(test_ui PRIVATE unity mock_esp)
+add_test(NAME test_ui COMMAND test_ui)
 
 # --- Library: rgb_led_logic ---
 add_library(rgb_led_logic STATIC
@@ -404,4 +431,3 @@ target_include_directories(test_bluetooth_cmd PRIVATE
 )
 target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic mock_esp)
 add_test(NAME test_bluetooth_cmd COMMAND test_bluetooth_cmd)
-

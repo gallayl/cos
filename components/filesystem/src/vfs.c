@@ -3,6 +3,7 @@
 #include "sdcard.h"
 
 #include "esp_log.h"
+#include "sdkconfig.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -20,11 +21,15 @@ esp_err_t filesystem_init(void)
         return ret;
     }
 
+#if CONFIG_COS_FILESYSTEM_DISABLE_SDCARD
+    ESP_LOGI(TAG, "SD card initialization disabled by configuration");
+#else
     esp_err_t sd_ret = sdcard_init();
     if (sd_ret != ESP_OK)
     {
         ESP_LOGI(TAG, "SD card not available (%s)", esp_err_to_name(sd_ret));
     }
+#endif
 
     return ESP_OK;
 }

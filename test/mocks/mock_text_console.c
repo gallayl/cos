@@ -5,6 +5,12 @@ esp_err_t text_console_init(void)
     return ESP_OK;
 }
 
+esp_err_t text_console_set_visible(bool visible)
+{
+    (void)visible;
+    return ESP_OK;
+}
+
 void text_console_deinit(void) {}
 
 void text_console_write(const char *data, size_t len)

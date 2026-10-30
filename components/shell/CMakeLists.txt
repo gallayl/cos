@@ -4,7 +4,8 @@ idf_component_register(
          "src/shell_fs_cmds.c"
          "src/shell_sd_cmds.c"
          "src/shell_info_cmds.c"
+         "src/shell_berry_cmd.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES filesystem console esp_driver_uart freertos
+    REQUIRES berry_lang filesystem console esp_driver_uart freertos
 )

@@ -15,6 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Mark workspace as a safe Git directory
+        shell: bash
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Install QEMU and test tools
         shell: bash
         run: |
@@ -23,9 +27,113 @@ jobs:
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
           pip install pytest-embedded pytest-embedded-idf pytest-embedded-qemu
 
+      - name: Build integration test firmware
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          make integration-test-build
+
+      - name: Upload integration test firmware
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-firmware
+          path: |
+            integration_test/test_init_sequence/build/test_init_sequence.elf
+            integration_test/test_shell_fs/build/test_shell_fs.elf
+            integration_test/test_system/build/test_system.elf
+            integration_test/test_stability/build/test_stability.elf
+            integration_test/test_vfs_ops/build/test_vfs_ops.elf
+          if-no-files-found: ignore
+          retention-days: 5
+
       - name: Run integration tests
         shell: bash
         run: |
           . $IDF_PATH/export.sh
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
-          make integration-test
+          make integration-test-run
+
+      - name: Collect embedded test logs
+        if: always()
+        shell: bash
+        run: |
+          if [ -d /tmp/pytest-embedded ]; then
+            mkdir -p "$GITHUB_WORKSPACE/pytest-embedded-logs"
+            cp -a /tmp/pytest-embedded/. "$GITHUB_WORKSPACE/pytest-embedded-logs/"
+          fi
+
+      - name: Upload embedded test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-logs
+          path: |
+            pytest-embedded-logs/
+            integration_test/test_init_sequence/build/test_init_sequence.elf
+            integration_test/test_shell_fs/build/test_shell_fs.elf
+            integration_test/test_system/build/test_system.elf
+            integration_test/test_stability/build/test_stability.elf
+            integration_test/test_vfs_ops/build/test_vfs_ops.elf
+          if-no-files-found: ignore
+          retention-days: 5
+
+      - name: Decode QEMU panic backtraces
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"])
+          logs = workspace / "pytest-embedded-logs"
+          tools = Path("/opt/esp/tools/xtensa-esp-elf")
+          addr2line_candidates = list(tools.glob("*/xtensa-esp-elf/bin/xtensa-esp32-elf-addr2line"))
+          if not addr2line_candidates:
+              print("xtensa-esp32-elf-addr2line is not available")
+              raise SystemExit(0)
+          addr2line = str(addr2line_candidates[0])
+
+          seen = set()
+          for log_path in sorted(logs.rglob("dut.log")):
+              project = None
+              traces = []
+              with log_path.open(encoding="utf-8", errors="replace") as log:
+                  for line in log:
+                      if project is None:
+                          project_match = re.search(r"Project name:\s*(\S+)", line)
+                          if project_match is not None:
+                              project = project_match.group(1)
+                      if "Backtrace:" in line:
+                          traces.append(line.partition("Backtrace:")[2])
+
+              if project is None:
+                  continue
+
+              for trace in traces:
+                  elf = workspace / "integration_test" / project / "build" / f"{project}.elf"
+                  if not elf.is_file():
+                      continue
+
+                  addresses = tuple(re.findall(r"(0x[0-9a-fA-F]+):0x[0-9a-fA-F]+", trace))
+                  key = (project, addresses)
+                  if not addresses or key in seen:
+                      continue
+                  seen.add(key)
+
+                  print(f"\n{log_path.relative_to(logs)} ({project})")
+                  result = subprocess.run(
+                      [addr2line, "-pfiaC", "-e", str(elf), *addresses],
+                      check=False,
+                      capture_output=True,
+                      text=True,
+                  )
+                  print(result.stdout, end="")
+                  if result.stderr:
+                      print(result.stderr, end="")
+          PY

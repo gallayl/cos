@@ -1,4 +1,4 @@
-.PHONY: build flash monitor clean fullclean erase-flash format format-check lint test integration-test menuconfig docs docs-check
+.PHONY: build flash flash-game monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -56,13 +56,21 @@ SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/websocket/include/*.h) \
            $(wildcard components/websocket/src/*.c components/websocket/src/*.h) \
            $(wildcard components/text_console/include/*.h) \
-           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h)
+           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h) \
+           $(wildcard components/berry_lang/include/*.h) \
+           $(wildcard components/berry_lang/src/*.cpp components/berry_lang/src/*.c components/berry_lang/src/*.h) \
+           $(wildcard components/ui/include/*.h) \
+           $(wildcard components/ui/src/*.cpp components/ui/src/*.h) \
+           $(wildcard components/shell/src/shell_berry_cmd.c)
 
 build:
 	$(IDF_PY) build
 
 flash:
 	$(IDF_PY) flash
+
+flash-game: build
+	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
 
 monitor:
 	$(IDF_PY) monitor
@@ -93,14 +101,28 @@ test:
 	cmake --build test/build
 	ctest --test-dir test/build --output-on-failure
 
-integration-test:
+integration-test-build:
 	$(IDF_PY) -C integration_test/test_nvs_calibration build
 	$(IDF_PY) -C integration_test/test_shell_fs build
 	$(IDF_PY) -C integration_test/test_init_sequence build
 	$(IDF_PY) -C integration_test/test_vfs_ops build
 	$(IDF_PY) -C integration_test/test_system build
 	$(IDF_PY) -C integration_test/test_stability build
-	$(IDF_PYTHON) -m pytest integration_test/ --target esp32 --embedded-services idf,qemu -v
+
+integration-test-run:
+	@status=0; \
+	for test_dir in \
+		integration_test/test_nvs_calibration \
+		integration_test/test_shell_fs \
+		integration_test/test_init_sequence \
+		integration_test/test_vfs_ops \
+		integration_test/test_system \
+		integration_test/test_stability; do \
+		$(IDF_PYTHON) -m pytest "$$test_dir" --target esp32 --embedded-services idf,qemu -v || status=1; \
+	done; \
+	exit $$status
+
+integration-test: integration-test-build integration-test-run
 
 docs:
 	@cmake -E make_directory build/docs
