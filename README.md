@@ -108,6 +108,9 @@ The Berry runtime also provides:
 | `fs.list(path)` | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected. |
 | `net.ping(host, timeout_ms=1000)` | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
 
+Berry maps are accessed with indexing, for example `listing["ok"]` and
+`listing["entries"][0]["name"]`.
+
 `console.read_line` must be started by code running on the console input task (for example, a script launched with `berry run`, or an app's `setup`). While the prompt is active, it owns keyboard input even if a Berry UI app is visible. UI callbacks can cancel the request, but cannot start a second prompt directly.
 
 Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method and cancels any pending console prompt. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
