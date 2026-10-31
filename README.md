@@ -95,13 +95,26 @@ directories. Press **Tab** at the end of a command or supported path argument
 to complete a unique match or extend an ambiguous match to its common prefix.
 Paths containing whitespace are not completed.
 
-Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status.
+Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
 
 The Berry interpreter is fetched from a fixed upstream commit during CMake configuration. Python 3 is required to generate Berry's constant tables during the build.
 
-Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
+The Berry runtime also provides:
 
-While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position. Use `ui.start_write()` and `ui.end_write()` to batch related display operations into one write transaction.
+| API | Behavior |
+| --- | --- |
+| `console.read_line(prompt, callback)` | Start a non-blocking console prompt. The callback receives the entered string, or `nil` after Ctrl+C. It returns `true` when the request starts or an ESP error name on failure. |
+| `console.cancel_input()` | Cancel the pending prompt; the callback receives `nil`. Returns `true` when cancellation is accepted, `false` if none is pending, or an ESP error name. Cancellation from another task is handed to the console input task. |
+| `fs.list(path)` | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected. |
+| `net.ping(host, timeout_ms=1000)` | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
+
+`console.read_line` must be started by code running on the console input task (for example, a script launched with `berry run`, or an app's `setup`). While the prompt is active, it owns keyboard input even if a Berry UI app is visible. UI callbacks can cancel the request, but cannot start a second prompt directly.
+
+Class-based Berry files returned from `berry run` are instantiated as apps and receive `setup(content, width, height)`; `berry close` invokes the optional `teardown()` method and cancels any pending console prompt. The migrated Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
+
+While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position. `ui.key_down(keycode)` polls held keys from a Bluetooth HID keyboard; keycodes are USB HID usages, with constants including `ui.KEY_LEFT`, `ui.KEY_RIGHT`, `ui.KEY_A`, and `ui.KEY_D`. Use `ui.start_write()` and `ui.end_write()` to batch related display operations into one write transaction.
+
+Breakout supports both touch-drag paddle control and Bluetooth keyboard controls (left/right arrows or A/D); touch remains available and either input method can be used during play.
 
 ## Development
 

@@ -48,6 +48,7 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/wifi/include
     ${COMPONENT_DIR}/components/bluetooth/include
     ${COMPONENT_DIR}/components/bluetooth/src
+    ${COMPONENT_DIR}/components/input/include
     ${COMPONENT_DIR}/components/i2c_bus/include
     ${COMPONENT_DIR}/components/time_sync/include
     ${COMPONENT_DIR}/components/system/include
@@ -401,6 +402,7 @@ add_library(bluetooth_hid_logic STATIC
 target_include_directories(bluetooth_hid_logic PUBLIC
     ${COMPONENT_DIR}/components/bluetooth/include
     ${COMPONENT_DIR}/components/bluetooth/src
+    ${COMPONENT_DIR}/components/input/include
     mocks
 )
 
@@ -413,6 +415,22 @@ target_include_directories(test_bluetooth_hid PRIVATE
 )
 target_link_libraries(test_bluetooth_hid PRIVATE unity bluetooth_hid_logic mock_esp)
 add_test(NAME test_bluetooth_hid COMMAND test_bluetooth_hid)
+
+# --- Library: keyboard_router_logic ---
+add_library(keyboard_router_logic STATIC
+    ${COMPONENT_DIR}/components/input/src/keyboard_router.c
+)
+target_include_directories(keyboard_router_logic PUBLIC
+    ${COMPONENT_DIR}/components/input/include
+)
+
+# --- Test: keyboard_router ---
+add_executable(test_keyboard_router test_keyboard_router.c)
+target_include_directories(test_keyboard_router PRIVATE
+    ${COMPONENT_DIR}/components/input/include
+)
+target_link_libraries(test_keyboard_router PRIVATE unity keyboard_router_logic)
+add_test(NAME test_keyboard_router COMMAND test_keyboard_router)
 
 # --- Library: bluetooth_cmd_logic ---
 add_library(bluetooth_cmd_logic STATIC

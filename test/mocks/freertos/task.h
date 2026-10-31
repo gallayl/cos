@@ -11,4 +11,6 @@ typedef void *TaskHandle_t;
 BaseType_t xTaskCreate(void (*pxTaskCode)(void *), const char *pcName, unsigned int usStackDepth, void *pvParameters,
                        unsigned int uxPriority, TaskHandle_t *pxCreatedTask);
 
+TaskHandle_t xTaskGetCurrentTaskHandle(void);
+
 void vTaskDelete(TaskHandle_t xTask);

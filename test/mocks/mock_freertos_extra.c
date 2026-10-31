@@ -5,6 +5,7 @@
 #include <string.h>
 
 static int s_dummy_stream;
+static int s_dummy_task;
 
 StreamBufferHandle_t xStreamBufferCreate(size_t xBufferSizeBytes, size_t xTriggerLevelBytes)
 {
@@ -42,10 +43,14 @@ BaseType_t xTaskCreate(void (*pxTaskCode)(void *), const char *pcName, unsigned 
     (void)uxPriority;
     if (pxCreatedTask != NULL)
     {
-        static int dummy_task;
-        *pxCreatedTask = (TaskHandle_t)&dummy_task;
+        *pxCreatedTask = (TaskHandle_t)&s_dummy_task;
     }
     return pdPASS;
+}
+
+TaskHandle_t xTaskGetCurrentTaskHandle(void)
+{
+    return (TaskHandle_t)&s_dummy_task;
 }
 
 void vTaskDelete(TaskHandle_t xTask)

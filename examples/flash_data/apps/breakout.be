@@ -2,12 +2,13 @@ class Breakout
     var screen_width, screen_height
     var bricks, brick_count, score, lives, game_state
     var ball_x, ball_y, ball_dx, ball_dy, paddle_x
-    var touch_was_down
+    var touch_was_down, keyboard_enabled
 
     def setup(content, width, height)
         self.screen_width = width
         self.screen_height = height
         self.touch_was_down = false
+        self.keyboard_enabled = true
         self.reset_game()
         ui.timer(20, def () self.update_game() end)
     end
@@ -53,7 +54,7 @@ class Breakout
         self.draw_bricks()
         ui.fill_rect(self.paddle_x, 210, 52, 7, ui.color565(90, 205, 255))
         ui.fill_rect(self.ball_x, self.ball_y, 6, 6, ui.color565(255, 255, 255))
-        ui.draw_text(8, 226, "Drag to move paddle", ui.color565(160, 180, 210),
+        ui.draw_text(8, 226, "Arrows / A,D or drag", ui.color565(160, 180, 210),
                      ui.color565(10, 16, 34))
         ui.end_write()
     end
@@ -121,6 +122,21 @@ class Breakout
                 elif self.paddle_x > self.screen_width - 52
                     self.paddle_x = self.screen_width - 52
                 end
+            end
+        end
+
+        if touch == nil && self.keyboard_enabled
+            var direction = 0
+            if ui.key_down(ui.KEY_LEFT) || ui.key_down(ui.KEY_A)
+                direction = -1
+            elif ui.key_down(ui.KEY_RIGHT) || ui.key_down(ui.KEY_D)
+                direction = 1
+            end
+            self.paddle_x += direction * 5
+            if self.paddle_x < 0
+                self.paddle_x = 0
+            elif self.paddle_x > self.screen_width - 52
+                self.paddle_x = self.screen_width - 52
             end
         end
 
