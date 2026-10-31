@@ -40,6 +40,7 @@ jobs:
         with:
           name: integration-test-firmware
           path: |
+            integration_test/test_nvs_calibration/build/test_nvs_calibration.elf
             integration_test/test_init_sequence/build/test_init_sequence.elf
             integration_test/test_shell_fs/build/test_shell_fs.elf
             integration_test/test_system/build/test_system.elf
@@ -71,6 +72,7 @@ jobs:
           name: integration-test-logs
           path: |
             pytest-embedded-logs/
+            integration_test/test_nvs_calibration/build/test_nvs_calibration.elf
             integration_test/test_init_sequence/build/test_init_sequence.elf
             integration_test/test_shell_fs/build/test_shell_fs.elf
             integration_test/test_system/build/test_system.elf

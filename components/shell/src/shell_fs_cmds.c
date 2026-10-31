@@ -172,6 +172,27 @@ static int cmd_rm(int argc, char **argv)
 
 /* ---- cat / type ---- */
 
+typedef struct
+{
+    bool output_failed;
+    bool has_output;
+    char last_char;
+} cat_output_context_t;
+
+static esp_err_t cat_write_chunk(const void *data, size_t len, void *context)
+{
+    cat_output_context_t *output = context;
+    if (fwrite(data, 1, len, stdout) != len)
+    {
+        output->output_failed = true;
+        return ESP_FAIL;
+    }
+
+    output->has_output = true;
+    output->last_char = ((const char *)data)[len - 1];
+    return ESP_OK;
+}
+
 static int cmd_cat(int argc, char **argv)
 {
     if (argc < 2)
@@ -194,25 +215,27 @@ static int cmd_cat(int argc, char **argv)
         return 1;
     }
 
-    char buf[512];
-    size_t bytes_read = 0;
-    err = vfs_read_file(abs_path, buf, sizeof(buf) - 1, &bytes_read);
+    cat_output_context_t output = {false, false, '\0'};
+    err = vfs_read_file_stream(abs_path, cat_write_chunk, &output);
     if (err != ESP_OK)
     {
-        printf("cat: cannot read '%s'\n", abs_path);
+        if (output.output_failed)
+        {
+            printf("\ncat: failed to write output\n");
+        }
+        else
+        {
+            printf("cat: cannot read '%s'\n", abs_path);
+        }
         return 1;
     }
 
-    buf[bytes_read] = '\0';
-    printf("%s", buf);
-
-    if (bytes_read == sizeof(buf) - 1)
+    if (output.has_output)
     {
-        printf("\n(truncated, showing first %u bytes)\n", (unsigned)bytes_read);
-    }
-    else if (bytes_read > 0 && buf[bytes_read - 1] != '\n')
-    {
-        printf("\n");
+        if (output.last_char != '\n')
+        {
+            printf("\n");
+        }
     }
     return 0;
 }

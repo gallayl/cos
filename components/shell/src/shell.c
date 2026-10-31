@@ -157,6 +157,13 @@ esp_err_t shell_init(void)
         return err;
     }
 
+    err = esp_console_register_help_command();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not register help command: %s", esp_err_to_name(err));
+        return err;
+    }
+
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();

@@ -157,6 +157,56 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
     return ESP_OK;
 }
 
+esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, void *context)
+{
+    if (path == NULL || callback == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char real_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(path, real_path, sizeof(real_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    FILE *f = fopen(real_path, "r");
+    if (f == NULL)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    char buf[512];
+    do
+    {
+        size_t bytes_read = fread(buf, 1, sizeof(buf), f);
+        if (bytes_read > 0)
+        {
+            err = callback(buf, bytes_read, context);
+            if (err != ESP_OK)
+            {
+                break;
+            }
+        }
+
+        if (bytes_read < sizeof(buf))
+        {
+            if (ferror(f))
+            {
+                err = ESP_FAIL;
+            }
+            break;
+        }
+    } while (true);
+
+    if (fclose(f) != 0 && err == ESP_OK)
+    {
+        err = ESP_FAIL;
+    }
+    return err;
+}
+
 esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 {
     if (path == NULL || (data == NULL && len > 0))
