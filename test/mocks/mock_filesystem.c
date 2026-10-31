@@ -126,6 +126,14 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
     return ESP_ERR_NOT_FOUND;
 }
 
+esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, void *context)
+{
+    (void)path;
+    (void)callback;
+    (void)context;
+    return ESP_ERR_NOT_FOUND;
+}
+
 esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 {
     (void)path;
