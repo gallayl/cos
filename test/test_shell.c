@@ -5,6 +5,7 @@
 #include "mock_filesystem.h"
 #include "shell.h"
 #include "shell_cmds.h"
+#include "shell_completion.h"
 
 void setUp(void)
 {
@@ -213,6 +214,7 @@ static void test_cmd_mkdir_no_arg(void)
 
 static void test_cmd_rm(void)
 {
+    mock_filesystem_add_file("/flash/somefile");
     char *argv[] = {"rm", "somefile"};
     int ret = mock_console_run_cmd("rm", 2, argv);
     TEST_ASSERT_EQUAL(0, ret);
@@ -251,6 +253,146 @@ static void test_cmd_hexdump_no_arg(void)
     char *argv[] = {"hexdump"};
     int ret = mock_console_run_cmd("hexdump", 1, argv);
     TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_cmd_cp_file(void)
+{
+    mock_filesystem_add_file("/flash/source.txt");
+    char *argv[] = {"cp", "source.txt", "copy.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("cp", 3, argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/source.txt"));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/copy.txt"));
+}
+
+static void test_cmd_cp_refuses_overwrite(void)
+{
+    mock_filesystem_add_file("/flash/source.txt");
+    mock_filesystem_add_file("/flash/target.txt");
+    char *argv[] = {"cp", "source.txt", "target.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 3, argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/source.txt"));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/target.txt"));
+}
+
+static void test_cmd_cp_rejects_directory(void)
+{
+    mock_filesystem_add_directory("/flash/source-dir");
+    char *argv[] = {"cp", "source-dir", "copy-dir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 3, argv));
+}
+
+static void test_cmd_cp_rejects_missing_source(void)
+{
+    char *argv[] = {"cp", "missing.txt", "copy.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 3, argv));
+    TEST_ASSERT_FALSE(vfs_exists("/flash/copy.txt"));
+}
+
+static void test_cmd_mv_file(void)
+{
+    mock_filesystem_add_file("/flash/source.txt");
+    char *argv[] = {"mv", "source.txt", "moved.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("mv", 3, argv));
+    TEST_ASSERT_FALSE(vfs_exists("/flash/source.txt"));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/moved.txt"));
+}
+
+static void test_cmd_mv_refuses_overwrite(void)
+{
+    mock_filesystem_add_file("/flash/source.txt");
+    mock_filesystem_add_file("/flash/target.txt");
+    char *argv[] = {"mv", "source.txt", "target.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mv", 3, argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/source.txt"));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/target.txt"));
+}
+
+static void test_cmd_mv_cross_filesystem(void)
+{
+    mock_filesystem_set_sd_mounted(true);
+    mock_filesystem_add_file("/flash/source.txt");
+    char *argv[] = {"mv", "/flash/source.txt", "/sdcard/moved.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("mv", 3, argv));
+    TEST_ASSERT_FALSE(vfs_exists("/flash/source.txt"));
+    TEST_ASSERT_TRUE(vfs_exists("/sdcard/moved.txt"));
+}
+
+static void test_cmd_rmdir_only_removes_empty_directories(void)
+{
+    mock_filesystem_add_directory("/flash/empty");
+    mock_filesystem_add_directory("/flash/nonempty");
+    mock_filesystem_add_file("/flash/nonempty/file.txt");
+    char *empty_argv[] = {"rmdir", "empty"};
+    char *nonempty_argv[] = {"rmdir", "nonempty"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("rmdir", 2, empty_argv));
+    TEST_ASSERT_FALSE(vfs_exists("/flash/empty"));
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, nonempty_argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/nonempty"));
+}
+
+static void test_cmd_rmdir_protects_filesystem_roots(void)
+{
+    char *argv[] = {"rmdir", "/flash"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash"));
+}
+
+static void test_cmd_rmdir_protects_current_directory(void)
+{
+    mock_filesystem_add_directory("/flash/working");
+    TEST_ASSERT_EQUAL(ESP_OK, shell_set_cwd("/flash/working"));
+    char *argv[] = {"rmdir", "."};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, argv));
+    TEST_ASSERT_TRUE(vfs_is_directory("/flash/working"));
+}
+
+static void test_complete_registered_command(void)
+{
+    char line[32] = "ber";
+    bool changed = false;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_complete_line(line, sizeof(line), &changed));
+    TEST_ASSERT_TRUE(changed);
+    TEST_ASSERT_EQUAL_STRING("berry ", line);
+}
+
+static void test_complete_path_and_preserve_command(void)
+{
+    mock_filesystem_add_file("/flash/hello.txt");
+    char line[64] = "cat /flash/hel";
+    bool changed = false;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_complete_line(line, sizeof(line), &changed));
+    TEST_ASSERT_TRUE(changed);
+    TEST_ASSERT_EQUAL_STRING("cat /flash/hello.txt ", line);
+}
+
+static void test_complete_ambiguous_path_common_prefix(void)
+{
+    mock_filesystem_add_file("/flash/item-one");
+    mock_filesystem_add_file("/flash/item-two");
+    char line[64] = "cat /flash/it";
+    bool changed = false;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_complete_line(line, sizeof(line), &changed));
+    TEST_ASSERT_TRUE(changed);
+    TEST_ASSERT_EQUAL_STRING("cat /flash/item-", line);
+}
+
+static void test_complete_directory_adds_path_separator(void)
+{
+    mock_filesystem_add_directory("/flash/subdir");
+    char line[64] = "cd /flash/sub";
+    bool changed = false;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_complete_line(line, sizeof(line), &changed));
+    TEST_ASSERT_TRUE(changed);
+    TEST_ASSERT_EQUAL_STRING("cd /flash/subdir/", line);
+}
+
+static void test_completion_ignores_non_path_arguments(void)
+{
+    char line[32] = "sd mou";
+    bool changed = true;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_complete_line(line, sizeof(line), &changed));
+    TEST_ASSERT_FALSE(changed);
+    TEST_ASSERT_EQUAL_STRING("sd mou", line);
 }
 
 static void test_cmd_sd_no_arg(void)
@@ -361,6 +503,21 @@ int main(void)
     RUN_TEST(test_cmd_touch);
     RUN_TEST(test_cmd_touch_no_arg);
     RUN_TEST(test_cmd_hexdump_no_arg);
+    RUN_TEST(test_cmd_cp_file);
+    RUN_TEST(test_cmd_cp_refuses_overwrite);
+    RUN_TEST(test_cmd_cp_rejects_directory);
+    RUN_TEST(test_cmd_cp_rejects_missing_source);
+    RUN_TEST(test_cmd_mv_file);
+    RUN_TEST(test_cmd_mv_refuses_overwrite);
+    RUN_TEST(test_cmd_mv_cross_filesystem);
+    RUN_TEST(test_cmd_rmdir_only_removes_empty_directories);
+    RUN_TEST(test_cmd_rmdir_protects_filesystem_roots);
+    RUN_TEST(test_cmd_rmdir_protects_current_directory);
+    RUN_TEST(test_complete_registered_command);
+    RUN_TEST(test_complete_path_and_preserve_command);
+    RUN_TEST(test_complete_ambiguous_path_common_prefix);
+    RUN_TEST(test_complete_directory_adds_path_separator);
+    RUN_TEST(test_completion_ignores_non_path_arguments);
 
     /* sd commands */
     RUN_TEST(test_cmd_sd_no_arg);

@@ -91,6 +91,7 @@ target_link_libraries(calibration_logic PRIVATE mock_esp calibration_storage)
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
+    ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_berry_cmd.c

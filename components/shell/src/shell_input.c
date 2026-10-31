@@ -1,5 +1,6 @@
 #include "shell_input.h"
 #include "shell.h"
+#include "shell_completion.h"
 
 #include "driver/uart.h"
 #include "driver/uart_vfs.h"
@@ -192,6 +193,26 @@ static void handle_normal_char(uint8_t ch)
         return;
     }
 
+    if (ch == '\t')
+    {
+        s_line[s_line_pos] = '\0';
+        bool changed = false;
+        esp_err_t err = shell_complete_line(s_line, sizeof(s_line), &changed);
+        if (err != ESP_OK)
+        {
+            printf("\nCompletion failed: %s\n", esp_err_to_name(err));
+            print_prompt();
+            printf("%s", s_line);
+        }
+        else if (changed)
+        {
+            erase_line_on_screen();
+            s_line_pos = (int)strlen(s_line);
+            printf("%s", s_line);
+        }
+        return;
+    }
+
     if (ch == 0x03) /* Ctrl+C */
     {
         printf("^C\n");
@@ -208,7 +229,7 @@ static void handle_normal_char(uint8_t ch)
     }
 
     /* Ignore non-printable control characters */
-    if (ch < 0x20 && ch != '\t')
+    if (ch < 0x20)
     {
         return;
     }

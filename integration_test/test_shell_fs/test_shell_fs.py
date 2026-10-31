@@ -56,6 +56,14 @@ def test_cat_streams_large_file(dut):
     dut.expect(re.compile("A{600}B{600}"), timeout=CMD_TIMEOUT)
 
 
+def test_autocomplete_command_and_path(dut):
+    _wait_ready(dut)
+    dut.write("ber\t\n")
+    dut.expect("Usage: berry run", timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/hel\t\n")
+    dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
+
+
 def test_help_lists_registered_commands(dut):
     _wait_ready(dut)
     dut.write("help\n")
@@ -96,6 +104,57 @@ def test_nested_mkdir(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("pwd\n")
     dut.expect("/flash/outer/inner", timeout=CMD_TIMEOUT)
+
+
+def test_cp_copies_without_overwriting(dut):
+    _wait_ready(dut)
+    dut.write("cp /flash/hello.txt /flash/copied.txt\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/copied.txt\n")
+    dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
+    dut.write("cp /flash/large.txt /flash/large-copy.txt\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/large-copy.txt\n")
+    dut.expect(re.compile("A{600}B{600}"), timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cp /flash/hello.txt /flash/copied.txt\n")
+    dut.expect("already exists", timeout=CMD_TIMEOUT)
+
+
+def test_cp_rejects_directory_copy(dut):
+    _wait_ready(dut)
+    dut.write("mkdir /flash/copy-source-dir\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cp /flash/copy-source-dir /flash/copy-destination\n")
+    dut.expect("directory copies are not supported", timeout=CMD_TIMEOUT)
+
+
+def test_mv_moves_file(dut):
+    _wait_ready(dut)
+    dut.write("touch /flash/move-source.txt\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("mv /flash/move-source.txt /flash/move-destination.txt\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("ls /flash\n")
+    dut.expect("move-destination.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/move-source.txt\n")
+    dut.expect("cannot read", timeout=CMD_TIMEOUT)
+
+
+def test_rmdir_only_removes_empty_directories(dut):
+    _wait_ready(dut)
+    dut.write("mkdir /flash/empty-to-remove\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("rmdir /flash/empty-to-remove\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    dut.write("mkdir /flash/nonempty-to-remove\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("touch /flash/nonempty-to-remove/file.txt\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("rmdir /flash/nonempty-to-remove\n")
+    dut.expect("directory must be empty", timeout=CMD_TIMEOUT)
 
 
 # ── Relative path resolution ──────────────────────────────────────────
