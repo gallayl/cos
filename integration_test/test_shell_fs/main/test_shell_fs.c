@@ -38,7 +38,6 @@ static const char s_berry_api_script[] = "class BerryApiApp\n"
                                          "invalid_host[\"error\"] == \"ESP_ERR_INVALID_ARG\"\n"
                                          "            log(\"NET_INVALID_HOST_OK\")\n"
                                          "        end\n"
-                                         "        ui.exit()\n"
                                          "    end\n"
                                          "end\n";
 static const char s_berry_input_script[] = "class InputApp\n"

@@ -85,6 +85,8 @@ def test_berry_filesystem_and_network_apis(dut):
     for marker in markers:
         dut.expect(marker, timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("berry close\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
 def test_berry_console_read_line_async(dut):
