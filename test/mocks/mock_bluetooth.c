@@ -52,12 +52,27 @@ void mock_bluetooth_reset(void)
     memset(s_last_connect_bda, 0, sizeof(s_last_connect_bda));
 }
 
-void mock_bluetooth_set_enabled(bool enabled) { s_enabled = enabled; }
-void mock_bluetooth_set_enabling(bool enabling) { s_enabling = enabling; }
-void mock_bluetooth_set_hid_ready(bool ready) { s_hid_ready = ready; }
-void mock_bluetooth_set_connected(bool connected) { s_connected = connected; }
+void mock_bluetooth_set_enabled(bool enabled)
+{
+    s_enabled = enabled;
+}
+void mock_bluetooth_set_enabling(bool enabling)
+{
+    s_enabling = enabling;
+}
+void mock_bluetooth_set_hid_ready(bool ready)
+{
+    s_hid_ready = ready;
+}
+void mock_bluetooth_set_connected(bool connected)
+{
+    s_connected = connected;
+}
 
-void mock_bluetooth_set_device_name(const char *name) { s_device_name = name; }
+void mock_bluetooth_set_device_name(const char *name)
+{
+    s_device_name = name;
+}
 
 void mock_bluetooth_set_device_bda(const uint8_t *bda)
 {
@@ -72,20 +87,59 @@ void mock_bluetooth_set_device_bda(const uint8_t *bda)
     }
 }
 
-void mock_bluetooth_set_enable_result(esp_err_t err) { s_enable_result = err; }
-void mock_bluetooth_set_disable_result(esp_err_t err) { s_disable_result = err; }
-void mock_bluetooth_set_scan_result(esp_err_t err) { s_scan_result = err; }
-void mock_bluetooth_set_connect_result(esp_err_t err) { s_connect_result = err; }
-void mock_bluetooth_set_disconnect_result(esp_err_t err) { s_disconnect_result = err; }
-void mock_bluetooth_set_forget_result(esp_err_t err) { s_forget_result = err; }
+void mock_bluetooth_set_enable_result(esp_err_t err)
+{
+    s_enable_result = err;
+}
+void mock_bluetooth_set_disable_result(esp_err_t err)
+{
+    s_disable_result = err;
+}
+void mock_bluetooth_set_scan_result(esp_err_t err)
+{
+    s_scan_result = err;
+}
+void mock_bluetooth_set_connect_result(esp_err_t err)
+{
+    s_connect_result = err;
+}
+void mock_bluetooth_set_disconnect_result(esp_err_t err)
+{
+    s_disconnect_result = err;
+}
+void mock_bluetooth_set_forget_result(esp_err_t err)
+{
+    s_forget_result = err;
+}
 
-int mock_bluetooth_get_enable_count(void) { return s_enable_count; }
-int mock_bluetooth_get_disable_count(void) { return s_disable_count; }
-int mock_bluetooth_get_scan_count(void) { return s_scan_count; }
-int mock_bluetooth_get_connect_count(void) { return s_connect_count; }
-const uint8_t *mock_bluetooth_get_last_connect_bda(void) { return s_last_connect_bda; }
-int mock_bluetooth_get_disconnect_count(void) { return s_disconnect_count; }
-int mock_bluetooth_get_forget_count(void) { return s_forget_count; }
+int mock_bluetooth_get_enable_count(void)
+{
+    return s_enable_count;
+}
+int mock_bluetooth_get_disable_count(void)
+{
+    return s_disable_count;
+}
+int mock_bluetooth_get_scan_count(void)
+{
+    return s_scan_count;
+}
+int mock_bluetooth_get_connect_count(void)
+{
+    return s_connect_count;
+}
+const uint8_t *mock_bluetooth_get_last_connect_bda(void)
+{
+    return s_last_connect_bda;
+}
+int mock_bluetooth_get_disconnect_count(void)
+{
+    return s_disconnect_count;
+}
+int mock_bluetooth_get_forget_count(void)
+{
+    return s_forget_count;
+}
 
 /* --- bluetooth.h implementation (mocked) --- */
 
@@ -139,11 +193,31 @@ void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb)
     (void)cb;
 }
 
-bool bluetooth_is_enabled(void) { return s_enabled; }
-bool bluetooth_is_enabling(void) { return s_enabling; }
-bool bluetooth_is_hid_ready(void) { return s_hid_ready; }
-bool bluetooth_is_connected(void) { return s_connected; }
-const char *bluetooth_connected_device_name(void) { return s_device_name; }
+void bluetooth_hid_set_key_event_callback(bt_keyboard_event_cb_t cb)
+{
+    (void)cb;
+}
+
+bool bluetooth_is_enabled(void)
+{
+    return s_enabled;
+}
+bool bluetooth_is_enabling(void)
+{
+    return s_enabling;
+}
+bool bluetooth_is_hid_ready(void)
+{
+    return s_hid_ready;
+}
+bool bluetooth_is_connected(void)
+{
+    return s_connected;
+}
+const char *bluetooth_connected_device_name(void)
+{
+    return s_device_name;
+}
 
 const uint8_t *bluetooth_connected_device_bda(void)
 {

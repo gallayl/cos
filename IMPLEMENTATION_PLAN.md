@@ -106,32 +106,46 @@ L = new behavior with architectural, resource, or integration concerns.
 
 ## Milestone 3 — keyboard and Berry interaction/API
 
-**Status:** Planned
+**Status:** In progress
 
 ### Input contract
 
-- [ ] Define a shared key-event representation (text/key identity and, if
+- [x] Define a shared key-event representation (text/key identity and, if
   supported by the input device, press/release and repeat).
-- [ ] Route input to exactly one active owner: shell in console mode or focused
-  Berry app in GUI mode.
-- [ ] Ensure app close/error restores shell ownership and cannot leave keys
+- [x] Route input to exactly one active owner: shell in console mode or focused
+  Berry app in GUI mode. An active Berry console prompt temporarily owns input.
+- [x] Ensure app close/error restores shell ownership and cannot leave keys
   stuck or a hidden shell line modified.
-- [ ] Keep callbacks/task work bounded; protect VM calls and app teardown using
+- [x] Keep callbacks/task work bounded; protect VM calls and app teardown using
   the existing Berry runtime/UI synchronization patterns.
 
 ### Berry features
 
-- [ ] Add an opt-in keyboard control mapping to Breakout while preserving touch
+- [x] Add an opt-in keyboard control mapping to Breakout while preserving touch
   play; document controls in the example.
-- [ ] Define a non-blocking console script API for prompt/read-line/Enter,
+- [x] Define a non-blocking console script API for prompt/read-line/Enter,
   including callback/result delivery, echo, cancellation, and app ownership.
-- [ ] Add a structured read-only `fs.list(path)` API for Berry apps.
-- [ ] Add a shared ping/DNS service and structured `net.ping(host)` result only
+- [x] Add a structured read-only `fs.list(path)` API for Berry apps.
+- [x] Add a shared ping/DNS service and structured `net.ping(host)` result only
   after timeouts, no-network behavior, and resource limits are specified.
-- [ ] Keep `action(command)` backward-compatible and document that its return
+- [x] Keep `action(command)` backward-compatible and document that its return
   value is status/error, not structured command output.
+- [x] Document keyboard controls and the Berry console, filesystem, and network
+  APIs, including their limits and error behavior.
 - [ ] Test input routing across console/GUI transitions, script cancellation,
   malformed paths, empty directories, and network error/timeout paths.
+
+The line reader is started only from the console input task (including a
+Berry app's `setup` called by `berry run`). It supports one outstanding
+request, echoes bounded printable input, completes with a string on Enter or
+`nil` on Ctrl+C, and queues cancellation so callbacks cannot re-enter the VM.
+A UI callback cannot start a new prompt directly. `fs.list` is read-only and
+capped at 64 entries.
+`net.ping` requires connected Wi-Fi, serializes requests, accepts a 100–3000 ms
+overall caller deadline, and returns a structured success/error map. DNS and
+ICMP run on one worker; a DNS lookup may continue after the caller times out,
+and new requests are rejected until that lookup finishes its configured lwIP
+retries.
 
 ## Milestone 4 — console scrollback and network utilities
 

@@ -15,6 +15,23 @@ const char *shell_get_prompt(void)
 }
 
 static int s_completion_calls;
+static int s_line_callback_calls;
+static esp_err_t s_line_callback_result;
+static char s_line_callback_value[INPUT_LINE_MAX];
+static int s_test_stream;
+static int s_other_task;
+
+static void line_input_callback(esp_err_t result, const char *line, void *context)
+{
+    TEST_ASSERT_EQUAL_PTR(&s_test_stream, context);
+    s_line_callback_calls++;
+    s_line_callback_result = result;
+    if (line != NULL)
+    {
+        strncpy(s_line_callback_value, line, sizeof(s_line_callback_value) - 1);
+        s_line_callback_value[sizeof(s_line_callback_value) - 1] = '\0';
+    }
+}
 
 esp_err_t shell_complete_line(char *line, size_t capacity, bool *changed)
 {
@@ -40,6 +57,15 @@ static void reset_state(void)
     memset(s_saved_line, 0, sizeof(s_saved_line));
     s_saved_pos = 0;
     s_completion_calls = 0;
+    s_line_callback_calls = 0;
+    s_line_callback_result = ESP_OK;
+    memset(s_line_callback_value, 0, sizeof(s_line_callback_value));
+    memset(&s_line_input, 0, sizeof(s_line_input));
+    s_line_escape_state = ST_NORMAL;
+    atomic_store(&s_line_input_owned, false);
+    atomic_store(&s_line_input_owner, NULL);
+    s_input_task = NULL;
+    s_input_stream = &s_test_stream;
 }
 
 void setUp(void)
@@ -240,6 +266,65 @@ static void test_history_down_without_browsing_does_nothing(void)
     TEST_ASSERT_EQUAL_STRING_LEN("live", s_line, 4);
 }
 
+static void test_async_line_input_collects_text_and_completes(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_line("Name: ", line_input_callback, &s_test_stream));
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+    feed("Berry");
+    process_byte('\n');
+
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_EQUAL(ESP_OK, s_line_callback_result);
+    TEST_ASSERT_EQUAL_STRING("Berry", s_line_callback_value);
+}
+
+static void test_async_line_input_backspace_and_cancel(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_line("Value: ", line_input_callback, &s_test_stream));
+    feed("abcd");
+    process_byte('\b');
+    feed("e");
+    process_byte(0x03);
+
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, s_line_callback_result);
+    TEST_ASSERT_EQUAL_STRING("", s_line_callback_value);
+}
+
+static void test_async_line_input_rejects_concurrent_requests(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_line("First: ", line_input_callback, &s_test_stream));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, shell_input_read_line("Second: ", line_input_callback, NULL));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_cancel_line(&s_test_stream));
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+    process_byte(INPUT_CANCEL_REQUEST);
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
+static void test_async_line_input_rejects_other_task_requests(void)
+{
+    s_input_task = &s_other_task;
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, shell_input_read_line("Name: ", line_input_callback, &s_test_stream));
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
+static void test_async_line_input_cross_task_cancel_is_queued(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_line("Name: ", line_input_callback, &s_test_stream));
+    s_input_task = &s_other_task;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_cancel_line(&s_test_stream));
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+
+    process_byte(INPUT_CANCEL_REQUEST);
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, s_line_callback_result);
+}
+
 static void test_history_wraps_around(void)
 {
     for (int i = 0; i < HISTORY_SIZE + 2; i++)
@@ -298,6 +383,11 @@ int main(void)
     RUN_TEST(test_history_down_past_end_restores_live);
     RUN_TEST(test_history_empty_up_does_nothing);
     RUN_TEST(test_history_down_without_browsing_does_nothing);
+    RUN_TEST(test_async_line_input_collects_text_and_completes);
+    RUN_TEST(test_async_line_input_backspace_and_cancel);
+    RUN_TEST(test_async_line_input_rejects_concurrent_requests);
+    RUN_TEST(test_async_line_input_rejects_other_task_requests);
+    RUN_TEST(test_async_line_input_cross_task_cancel_is_queued);
     RUN_TEST(test_history_wraps_around);
 
     return UNITY_END();

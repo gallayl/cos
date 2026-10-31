@@ -19,6 +19,9 @@ extern "C"
      */
     void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len);
 
+    /** Clear held-key state and report releases after a HID disconnect. */
+    void bluetooth_hid_keyboard_reset(void);
+
 #ifdef __cplusplus
 }
 #endif

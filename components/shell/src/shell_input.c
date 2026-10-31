@@ -10,6 +10,7 @@
 #include "freertos/stream_buffer.h"
 #include "freertos/task.h"
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -17,6 +18,7 @@ static const char *const TAG = "shell_input";
 
 #define INPUT_LINE_MAX 128
 #define INPUT_STREAM_SIZE 256
+#define INPUT_CANCEL_REQUEST 0xFF
 #define HISTORY_SIZE 8
 #define UART_RX_BUF_SIZE 256
 #define UART_NUM CONFIG_ESP_CONSOLE_UART_NUM
@@ -27,6 +29,9 @@ static const char *const TAG = "shell_input";
 #define INPUT_TASK_PRIO 4
 
 static StreamBufferHandle_t s_input_stream;
+static TaskHandle_t s_input_task;
+static atomic_bool s_line_input_owned;
+static _Atomic(void *) s_line_input_owner;
 
 /* ── Line buffer ───────────────────────────────────────────── */
 
@@ -52,6 +57,18 @@ typedef enum
 } input_state_t;
 
 static input_state_t s_parse_state;
+
+typedef struct
+{
+    bool active;
+    char buffer[INPUT_LINE_MAX];
+    size_t length;
+    shell_line_input_callback_t callback;
+    void *context;
+} line_input_request_t;
+
+static line_input_request_t s_line_input;
+static input_state_t s_line_escape_state;
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -145,6 +162,90 @@ static void print_prompt(void)
     }
 }
 
+static void finish_line_input(esp_err_t result)
+{
+    shell_line_input_callback_t callback = s_line_input.callback;
+    void *context = s_line_input.context;
+    char line[INPUT_LINE_MAX];
+    if (result == ESP_OK)
+    {
+        memcpy(line, s_line_input.buffer, s_line_input.length);
+        line[s_line_input.length] = '\0';
+    }
+
+    s_line_input.active = false;
+    atomic_store(&s_line_input_owned, false);
+    atomic_store(&s_line_input_owner, NULL);
+    s_line_input.length = 0;
+    s_line_input.callback = NULL;
+    s_line_input.context = NULL;
+    s_line_escape_state = ST_NORMAL;
+
+    if (result == ESP_OK)
+    {
+        printf("\n");
+        callback(result, line, context);
+    }
+    else
+    {
+        printf("^C\n");
+        callback(result, NULL, context);
+    }
+
+    if (!s_line_input.active)
+    {
+        print_prompt();
+    }
+}
+
+static void process_line_input_byte(uint8_t ch)
+{
+    if (s_line_escape_state == ST_ESC)
+    {
+        s_line_escape_state = (ch == '[' || ch == 'O') ? ST_CSI : ST_NORMAL;
+        return;
+    }
+    if (s_line_escape_state == ST_CSI)
+    {
+        if (ch >= 0x40 && ch <= 0x7E)
+        {
+            s_line_escape_state = ST_NORMAL;
+        }
+        return;
+    }
+    if (ch == 0x1B)
+    {
+        s_line_escape_state = ST_ESC;
+        return;
+    }
+    if (ch == '\n' || ch == '\r')
+    {
+        finish_line_input(ESP_OK);
+        return;
+    }
+    if (ch == 0x03)
+    {
+        finish_line_input(ESP_ERR_INVALID_STATE);
+        return;
+    }
+    if (ch == '\b' || ch == 0x7F)
+    {
+        if (s_line_input.length > 0)
+        {
+            s_line_input.length--;
+            s_line_input.buffer[s_line_input.length] = '\0';
+            printf("\b \b");
+        }
+        return;
+    }
+    if (ch >= 0x20 && ch < 0x7F && s_line_input.length < INPUT_LINE_MAX - 1)
+    {
+        s_line_input.buffer[s_line_input.length++] = (char)ch;
+        s_line_input.buffer[s_line_input.length] = '\0';
+        printf("%c", ch);
+    }
+}
+
 static void execute_line(void)
 {
     s_line[s_line_pos] = '\0';
@@ -172,7 +273,10 @@ static void execute_line(void)
 
     s_line_pos = 0;
     s_history_browse = -1;
-    print_prompt();
+    if (!s_line_input.active)
+    {
+        print_prompt();
+    }
 }
 
 static void handle_normal_char(uint8_t ch)
@@ -243,6 +347,21 @@ static void handle_normal_char(uint8_t ch)
 
 static void process_byte(uint8_t ch)
 {
+    if (ch == INPUT_CANCEL_REQUEST)
+    {
+        if (s_line_input.active)
+        {
+            finish_line_input(ESP_ERR_INVALID_STATE);
+        }
+        return;
+    }
+
+    if (s_line_input.active)
+    {
+        process_line_input_byte(ch);
+        return;
+    }
+
     switch (s_parse_state)
     {
     case ST_NORMAL:
@@ -317,6 +436,61 @@ void shell_feed_input(const char *data, size_t len)
     xStreamBufferSend(s_input_stream, data, len, pdMS_TO_TICKS(50));
 }
 
+esp_err_t shell_input_read_line(const char *prompt, shell_line_input_callback_t callback, void *context)
+{
+    if (prompt == NULL || callback == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_input_stream == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_input_task != NULL && xTaskGetCurrentTaskHandle() != s_input_task)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_line_input.active)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    memset(&s_line_input, 0, sizeof(s_line_input));
+    s_line_input.active = true;
+    s_line_input.callback = callback;
+    s_line_input.context = context;
+    atomic_store(&s_line_input_owned, true);
+    atomic_store(&s_line_input_owner, context);
+    s_line_escape_state = ST_NORMAL;
+    printf("%s", prompt);
+    fflush(stdout);
+    return ESP_OK;
+}
+
+esp_err_t shell_input_cancel_line(void *context)
+{
+    if (!atomic_load(&s_line_input_owned))
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (context != NULL && context != atomic_load(&s_line_input_owner))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const uint8_t cancel = INPUT_CANCEL_REQUEST;
+    if (xStreamBufferSend(s_input_stream, &cancel, sizeof(cancel), pdMS_TO_TICKS(50)) != sizeof(cancel))
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
+bool shell_input_is_reading_line(void)
+{
+    return atomic_load(&s_line_input_owned);
+}
+
 esp_err_t shell_input_init(void)
 {
     esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
@@ -336,6 +510,8 @@ esp_err_t shell_input_init(void)
 
     s_history_browse = -1;
     s_parse_state = ST_NORMAL;
+    atomic_init(&s_line_input_owned, false);
+    atomic_init(&s_line_input_owner, NULL);
 
     static TaskHandle_t s_uart_rx_task;
     BaseType_t rc;
@@ -347,7 +523,7 @@ esp_err_t shell_input_init(void)
         return ESP_ERR_NO_MEM;
     }
 
-    rc = xTaskCreate(input_task, "shell_in", INPUT_TASK_STACK, NULL, INPUT_TASK_PRIO, NULL);
+    rc = xTaskCreate(input_task, "shell_in", INPUT_TASK_STACK, NULL, INPUT_TASK_PRIO, &s_input_task);
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create input task");

@@ -312,6 +312,7 @@ static void hidh_event_cb(void *handler_args, esp_event_base_t base, int32_t id,
 
     case ESP_HIDH_CLOSE_EVENT:
         ESP_LOGI(TAG, "HID device closed (reason=%d)", p->close.reason);
+        bluetooth_hid_keyboard_reset();
         if (p->close.dev != NULL)
         {
             esp_hidh_dev_free(p->close.dev);

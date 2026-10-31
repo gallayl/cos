@@ -71,6 +71,42 @@ def test_help_lists_registered_commands(dut):
     dut.expect("berry", timeout=CMD_TIMEOUT)
 
 
+def test_berry_filesystem_and_network_apis(dut):
+    _wait_ready(dut)
+    dut.write("berry run /flash/berry_api.be\n")
+    markers = (
+        "FS_LIST_OK",
+        "FS_EMPTY_OK",
+        "FS_INVALID_PATH_OK",
+        "NET_NO_WIFI_OK",
+        "NET_TIMEOUT_BOUNDS_OK",
+        "NET_INVALID_HOST_OK",
+    )
+    for marker in markers:
+        dut.expect(marker, timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("berry close\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+
+def test_berry_console_read_line_async(dut):
+    _wait_ready(dut)
+    dut.write("berry run /flash/berry_input.be\n")
+    dut.expect("Input: ", timeout=CMD_TIMEOUT)
+    dut.write("Cos user\n")
+    dut.expect("INPUT_VALUE:Cos user", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+
+def test_berry_console_read_line_can_be_cancelled(dut):
+    _wait_ready(dut)
+    dut.write("berry run /flash/berry_input.be\n")
+    dut.expect("Input: ", timeout=CMD_TIMEOUT)
+    dut.write("\x03")
+    dut.expect("INPUT_CANCELLED", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+
 # ── hexdump ────────────────────────────────────────────────────────────
 
 
