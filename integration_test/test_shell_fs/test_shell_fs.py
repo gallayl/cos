@@ -136,10 +136,10 @@ def test_mv_moves_file(dut):
     dut.write("mv /flash/move-source.txt /flash/move-destination.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ls /flash\n")
-    output = dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    listing = output.group().decode("utf-8", errors="replace")
-    assert "move-destination.txt" in listing
-    assert "move-source.txt" not in listing
+    dut.expect("move-destination.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/move-source.txt\n")
+    dut.expect("cannot read", timeout=CMD_TIMEOUT)
 
 
 def test_rmdir_only_removes_empty_directories(dut):
