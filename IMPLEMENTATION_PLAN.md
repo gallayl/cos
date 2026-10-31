@@ -57,7 +57,8 @@ L = new behavior with architectural, resource, or integration concerns.
 | 10 | Add network diagnostics and downloads | M–L | Medium–High | High | Start with `ping`/`nslookup`, then a bounded HTTP(S) download. Define timeouts, TLS validation, memory/storage limits, and cleanup. Share network service with Berry API. |
 | 11 | Improve shell/editor ergonomics | S–M | Medium | Low–Medium | Add a direct `clear` command; assess 128-character input and eight-entry history limits against memory and keyboard behavior. |
 | 12 | Refactor shell input for testability | M | Medium | Medium | UART transport, parser/editor/history, and command execution currently live in one module; its unit test includes the implementation directly. Extract a focused editor seam to enable keyboard routing and Berry input. |
-| 13 | Clarify and reduce CI maintenance | S–M | Medium | Low–Medium | Align/pin tool versions where useful; reduce repeated setup only where workflows share an environment. Add caching/cancellation only when it measurably improves CI. |
+| 13 | Improve CI reliability and maintenance | S–M | High | Low–Medium | Use one integration-test project inventory for build, run, and artifact upload; test that `run_tidy.py` propagates clang-tidy failures; pin or document tool versions. Avoid caching unless it measurably improves CI. |
+| 14 | Document a reproducible developer workflow | S | High | Low | Align the README's ESP-IDF version/examples with CI and document host-test and QEMU integration-test prerequisites and commands. Include formatting, lint, and Doxygen checks. |
 
 ## Milestone 2 — file operations and command completion
 
@@ -131,6 +132,12 @@ L = new behavior with architectural, resource, or integration concerns.
   keyboard routing; retain behavior with focused unit tests.
 - [ ] Review CI tool version pinning, repeated package setup, artifact
   inventories, and failure log retention.
+- [ ] Use one source of truth for integration-test projects across firmware
+  builds, pytest execution, and CI artifact upload lists.
+- [ ] Add tests for `scripts/run_tidy.py` failure propagation and command
+  database handling; ensure clang-tidy errors cannot be reported as success.
+- [ ] Align the README's ESP-IDF version and environment examples with the
+  version used in CI; document unit/integration test prerequisites and commands.
 - [ ] Keep README command/API documentation current with shipped behavior.
 
 ## Berry API risk, complexity, and ROI
