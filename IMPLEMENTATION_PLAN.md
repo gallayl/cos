@@ -11,7 +11,7 @@ L = new behavior with architectural, resource, or integration concerns.
 
 ## Milestone 1 — shell usability and CI correctness
 
-**Status:** In progress
+**Status:** Complete
 
 ### Scope and acceptance criteria
 
@@ -33,9 +33,13 @@ L = new behavior with architectural, resource, or integration concerns.
 - [x] Register the help command and cover its output.
 - [x] Add integration coverage for a file larger than the previous limit.
 - [x] Align integration firmware and log artifact lists with built targets.
-- [ ] Run unit and integration tests.
-- [ ] Run firmware build, formatting check, and clang-tidy.
-- [ ] Record final validation results and mark milestone complete.
+- [x] Build firmware locally with ESP-IDF 6.1.
+- [x] Run `make format-check` locally; CI Format Check also passes.
+- [x] Add host mock declarations/stubs for the new help and VFS stream APIs.
+- [x] Pass host unit tests after the mock fixes (CI run `41186872616`).
+- [x] Pass CI firmware build and clang-tidy (run `41186872518`).
+- [x] Pass QEMU shell integration tests (CI run `41186872503`).
+- [x] Record final validation results and mark milestone complete.
 
 ## Prioritized backlog
 
@@ -144,13 +148,11 @@ ROI considers reuse across GUI apps, console scripts, and shell commands.
 
 ## Milestone 1 validation log
 
-Update this table with exact commands/results before marking Milestone 1
-complete.
-
 | Validation | Status | Result |
 |------------|--------|--------|
-| Host unit tests | Pending | |
-| QEMU shell integration tests | Pending | |
-| ESP-IDF firmware build | Pending | |
-| clang-format check | Pending | |
-| clang-tidy | Pending | |
+| Host unit tests | Pass | Branch CI run `41186872616` passed after adding both missing mock functions. |
+| QEMU shell integration tests | Pass | Branch CI run `41186872503` passed, including long-file `cat` and `help` regression tests. |
+| ESP-IDF firmware build | Pass | Local `espIdfCommands build` passed with ESP-IDF 6.1; CI build passed in run `41186872518`. |
+| clang-format check | Pass | `make format-check` passed locally; branch CI Format Check passed in run `41186872517`. |
+| clang-tidy | Pass | CI clang-tidy passed in run `41186872518`. Local `make lint` is not representative with clang-tidy 21 and ESP-IDF 6.1 compile flags. |
+| Doxygen check | Pass | Branch CI Doxygen Check passed in run `41186872639`. |
