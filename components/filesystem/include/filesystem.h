@@ -25,6 +25,9 @@ extern "C"
         time_t mtime;            /**< Last modification time (epoch seconds). */
     } vfs_dir_entry_t;
 
+    /** Callback invoked with each bounded chunk read by vfs_read_file_stream(). */
+    typedef esp_err_t (*vfs_read_callback_t)(const void *data, size_t len, void *context);
+
     /**
      * Initialize filesystems: mount LittleFS, attempt SD card auto-mount.
      */
@@ -49,6 +52,18 @@ extern "C"
     /* --- VFS file operations (accept virtual paths) --- */
     esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_entries, size_t *count);
     esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *bytes_read);
+    /**
+     * @brief Stream a file in bounded chunks without buffering the whole file.
+     *
+     * The callback runs synchronously; its data is only valid until it returns.
+     * Return ESP_OK to continue or another error to stop and propagate that error.
+     *
+     * @param path Virtual file path.
+     * @param callback Called for each chunk read.
+     * @param context Opaque value passed to each callback invocation.
+     * @return ESP_OK on success or an error from path resolution, reading, or callback.
+     */
+    esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, void *context);
     esp_err_t vfs_write_file(const char *path, const char *data, size_t len);
     esp_err_t vfs_mkdir(const char *path);
     esp_err_t vfs_remove(const char *path);

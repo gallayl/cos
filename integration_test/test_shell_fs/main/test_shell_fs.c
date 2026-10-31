@@ -4,7 +4,10 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include <string.h>
+
 static const char *const TAG = "test_shell_fs";
+static char s_large_file[1200];
 
 static void init_nvs(void)
 {
@@ -19,9 +22,13 @@ static void init_nvs(void)
 
 static void seed_test_files(void)
 {
-    flash_format();
-    vfs_write_file("/flash/hello.txt", "Hello, COS!\n", 12);
-    vfs_write_file("/flash/binary.bin", "\x00\x01\x02\x41\x42\x43", 6);
+    ESP_ERROR_CHECK(flash_format());
+    ESP_ERROR_CHECK(vfs_write_file("/flash/hello.txt", "Hello, COS!\n", 12));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/binary.bin", "\x00\x01\x02\x41\x42\x43", 6));
+
+    memset(s_large_file, 'A', 600);
+    memset(s_large_file + 600, 'B', sizeof(s_large_file) - 600);
+    ESP_ERROR_CHECK(vfs_write_file("/flash/large.txt", s_large_file, sizeof(s_large_file)));
 }
 
 void app_main(void)

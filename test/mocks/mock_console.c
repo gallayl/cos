@@ -31,6 +31,11 @@ esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd)
     return ESP_OK;
 }
 
+esp_err_t esp_console_register_help_command(void)
+{
+    return ESP_OK;
+}
+
 int mock_console_run_cmd(const char *name, int argc, char **argv)
 {
     for (int i = 0; i < s_cmd_count; i++)

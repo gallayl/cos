@@ -50,6 +50,19 @@ def test_cat_with_content(dut):
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
 
 
+def test_cat_streams_large_file(dut):
+    _wait_ready(dut)
+    dut.write("cat /flash/large.txt\n")
+    dut.expect(re.compile("A{600}B{600}"), timeout=CMD_TIMEOUT)
+
+
+def test_help_lists_registered_commands(dut):
+    _wait_ready(dut)
+    dut.write("help\n")
+    dut.expect("cat", timeout=CMD_TIMEOUT)
+    dut.expect("berry", timeout=CMD_TIMEOUT)
+
+
 # ── hexdump ────────────────────────────────────────────────────────────
 
 
