@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "esp_err.h"
+#include "linenoise/linenoise.h"
 
 typedef int (*esp_console_cmd_func_t)(int argc, char **argv);
 
@@ -16,6 +17,7 @@ typedef struct
 
 esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd);
 esp_err_t esp_console_register_help_command(void);
+void esp_console_get_completion(const char *buf, linenoiseCompletions *completions);
 
 /* Console init stubs */
 
@@ -25,10 +27,10 @@ typedef struct
     size_t max_cmdline_args;
 } esp_console_config_t;
 
-#define ESP_CONSOLE_CONFIG_DEFAULT() \
-    {                                \
-        .max_cmdline_length = 256,   \
-        .max_cmdline_args = 8,       \
+#define ESP_CONSOLE_CONFIG_DEFAULT()                                                                                   \
+    {                                                                                                                  \
+        .max_cmdline_length = 256,                                                                                     \
+        .max_cmdline_args = 8,                                                                                         \
     }
 
 static inline esp_err_t esp_console_init(const esp_console_config_t *config)

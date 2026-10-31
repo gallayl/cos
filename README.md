@@ -84,6 +84,17 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `berry close` | Close the active Berry app and run its teardown method |
 | `help`      | List all registered commands             |
 
+File commands accept virtual paths and resolve relative paths from the current
+directory. `cp <source> <destination>` and `mv <source> <destination>` operate
+on regular files and refuse to overwrite an existing destination; directory
+copy and move are not supported. Copies use bounded memory. A move within one
+filesystem uses rename; a move between flash and SD copies the file and removes
+the source only after the copy succeeds. `rmdir <directory>` removes an empty
+directory; `rm` also retains its existing support for removing empty
+directories. Press **Tab** at the end of a command or supported path argument
+to complete a unique match or extend an ambiguous match to its common prefix.
+Paths containing whitespace are not completed.
+
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status.
 
 The Berry interpreter is fetched from a fixed upstream commit during CMake configuration. Python 3 is required to generate Berry's constant tables during the build.

@@ -6,6 +6,8 @@
 #include "sdkconfig.h"
 
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -239,6 +241,172 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 
     fclose(f);
     return ESP_OK;
+}
+
+static bool vfs_paths_share_mount(const char *first, const char *second)
+{
+    const char *first_mount_end = strchr(first + 1, '/');
+    const char *second_mount_end = strchr(second + 1, '/');
+    if (first_mount_end == NULL || second_mount_end == NULL)
+    {
+        return false;
+    }
+
+    size_t first_mount_len = (size_t)(first_mount_end - first);
+    size_t second_mount_len = (size_t)(second_mount_end - second);
+    if (first_mount_len != second_mount_len)
+    {
+        return false;
+    }
+    return strncmp(first, second, first_mount_len) == 0;
+}
+
+esp_err_t vfs_copy_file(const char *source, const char *destination)
+{
+    if (source == NULL || destination == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char source_path[VFS_PATH_MAX];
+    char destination_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(source, source_path, sizeof(source_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    int source_fd = open(source_path, O_RDONLY);
+    if (source_fd < 0)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    struct stat source_stat;
+    if (fstat(source_fd, &source_stat) != 0)
+    {
+        close(source_fd);
+        return ESP_FAIL;
+    }
+    if (!S_ISREG(source_stat.st_mode))
+    {
+        close(source_fd);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    int destination_fd = open(destination_path, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (destination_fd < 0)
+    {
+        int open_error = errno;
+        if (close(source_fd) != 0)
+        {
+            return ESP_FAIL;
+        }
+        return (open_error == EEXIST) ? ESP_ERR_INVALID_STATE : ESP_FAIL;
+    }
+
+    char buffer[512];
+    while (err == ESP_OK)
+    {
+        ssize_t bytes_read = read(source_fd, buffer, sizeof(buffer));
+        if (bytes_read < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            err = ESP_FAIL;
+            break;
+        }
+        if (bytes_read == 0)
+        {
+            break;
+        }
+
+        ssize_t offset = 0;
+        while (offset < bytes_read)
+        {
+            ssize_t bytes_written = write(destination_fd, buffer + offset, (size_t)(bytes_read - offset));
+            if (bytes_written < 0 && errno == EINTR)
+            {
+                continue;
+            }
+            if (bytes_written <= 0)
+            {
+                err = ESP_FAIL;
+                break;
+            }
+            offset += bytes_written;
+        }
+    }
+
+    if (close(source_fd) != 0 && err == ESP_OK)
+    {
+        err = ESP_FAIL;
+    }
+    if (close(destination_fd) != 0 && err == ESP_OK)
+    {
+        err = ESP_FAIL;
+    }
+    if (err != ESP_OK && unlink(destination_path) != 0)
+    {
+        ESP_LOGE(TAG, "Failed to clean up partial copy: %s", destination_path);
+    }
+
+    return err;
+}
+
+esp_err_t vfs_rename_file(const char *source, const char *destination)
+{
+    if (source == NULL || destination == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char source_path[VFS_PATH_MAX];
+    char destination_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(source, source_path, sizeof(source_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    if (!vfs_paths_share_mount(source_path, destination_path))
+    {
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    struct stat source_stat;
+    if (stat(source_path, &source_stat) != 0)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (!S_ISREG(source_stat.st_mode))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    struct stat destination_stat;
+    if (stat(destination_path, &destination_stat) == 0)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (errno != ENOENT)
+    {
+        return ESP_FAIL;
+    }
+
+    return (rename(source_path, destination_path) == 0) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t vfs_mkdir(const char *path)

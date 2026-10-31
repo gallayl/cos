@@ -14,6 +14,20 @@ const char *shell_get_prompt(void)
     return s_mock_prompt;
 }
 
+static int s_completion_calls;
+
+esp_err_t shell_complete_line(char *line, size_t capacity, bool *changed)
+{
+    s_completion_calls++;
+    if (capacity < sizeof("help "))
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    strcpy(line, "help ");
+    *changed = true;
+    return ESP_OK;
+}
+
 static void reset_state(void)
 {
     s_line_pos = 0;
@@ -25,6 +39,7 @@ static void reset_state(void)
     memset(s_history, 0, sizeof(s_history));
     memset(s_saved_line, 0, sizeof(s_saved_line));
     s_saved_pos = 0;
+    s_completion_calls = 0;
 }
 
 void setUp(void)
@@ -117,11 +132,13 @@ static void test_control_chars_ignored(void)
     TEST_ASSERT_EQUAL_STRING_LEN("ab", s_line, 2);
 }
 
-static void test_tab_is_accepted(void)
+static void test_tab_completes_without_becoming_line_input(void)
 {
+    feed("he");
     process_byte('\t');
-    TEST_ASSERT_EQUAL(1, s_line_pos);
-    TEST_ASSERT_EQUAL('\t', s_line[0]);
+    TEST_ASSERT_EQUAL(1, s_completion_calls);
+    TEST_ASSERT_EQUAL_STRING("help ", s_line);
+    TEST_ASSERT_EQUAL(5, s_line_pos);
 }
 
 /* ── ESC sequence parsing ────────────────────────────────── */
@@ -269,7 +286,7 @@ int main(void)
 
     /* Control characters */
     RUN_TEST(test_control_chars_ignored);
-    RUN_TEST(test_tab_is_accepted);
+    RUN_TEST(test_tab_completes_without_becoming_line_input);
 
     /* ESC sequences */
     RUN_TEST(test_esc_bracket_then_unknown_resets_state);

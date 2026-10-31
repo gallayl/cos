@@ -170,6 +170,157 @@ static int cmd_rm(int argc, char **argv)
     return 0;
 }
 
+/* ---- cp ---- */
+
+static int cmd_cp(int argc, char **argv)
+{
+    if (argc < 3)
+    {
+        printf("Usage: cp <source> <destination>\n");
+        return 1;
+    }
+
+    char source[VFS_PATH_MAX];
+    char destination[VFS_PATH_MAX];
+    if (shell_resolve_relative(argv[1], source, sizeof(source)) != ESP_OK ||
+        shell_resolve_relative(argv[2], destination, sizeof(destination)) != ESP_OK)
+    {
+        printf("cp: invalid path\n");
+        return 1;
+    }
+
+    if (vfs_is_directory(source))
+    {
+        printf("cp: '%s' is a directory; directory copies are not supported\n", source);
+        return 1;
+    }
+    if (!vfs_exists(source))
+    {
+        printf("cp: source '%s' does not exist\n", source);
+        return 1;
+    }
+    if (vfs_exists(destination))
+    {
+        printf("cp: destination '%s' already exists\n", destination);
+        return 1;
+    }
+
+    esp_err_t err = vfs_copy_file(source, destination);
+    if (err != ESP_OK)
+    {
+        printf("cp: failed to copy '%s' to '%s'\n", source, destination);
+        return 1;
+    }
+    return 0;
+}
+
+/* ---- mv ---- */
+
+static int cmd_mv(int argc, char **argv)
+{
+    if (argc < 3)
+    {
+        printf("Usage: mv <source> <destination>\n");
+        return 1;
+    }
+
+    char source[VFS_PATH_MAX];
+    char destination[VFS_PATH_MAX];
+    if (shell_resolve_relative(argv[1], source, sizeof(source)) != ESP_OK ||
+        shell_resolve_relative(argv[2], destination, sizeof(destination)) != ESP_OK)
+    {
+        printf("mv: invalid path\n");
+        return 1;
+    }
+
+    if (vfs_is_directory(source))
+    {
+        printf("mv: '%s' is a directory; directory moves are not supported\n", source);
+        return 1;
+    }
+    if (!vfs_exists(source))
+    {
+        printf("mv: source '%s' does not exist\n", source);
+        return 1;
+    }
+    if (vfs_exists(destination))
+    {
+        printf("mv: destination '%s' already exists\n", destination);
+        return 1;
+    }
+
+    esp_err_t err = vfs_rename_file(source, destination);
+    if (err == ESP_ERR_NOT_SUPPORTED)
+    {
+        err = vfs_copy_file(source, destination);
+        if (err == ESP_OK)
+        {
+            err = vfs_remove(source);
+            if (err != ESP_OK)
+            {
+                if (vfs_remove(destination) != ESP_OK)
+                {
+                    printf("mv: failed to remove source '%s' and could not roll back '%s'\n", source, destination);
+                }
+                else
+                {
+                    printf("mv: failed to remove source '%s'; destination was rolled back\n", source);
+                }
+                return 1;
+            }
+        }
+    }
+
+    if (err != ESP_OK)
+    {
+        printf("mv: failed to move '%s' to '%s'\n", source, destination);
+        return 1;
+    }
+    return 0;
+}
+
+/* ---- rmdir ---- */
+
+static int cmd_rmdir(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: rmdir <directory>\n");
+        return 1;
+    }
+
+    char abs_path[VFS_PATH_MAX];
+    if (shell_resolve_relative(argv[1], abs_path, sizeof(abs_path)) != ESP_OK)
+    {
+        printf("rmdir: invalid path\n");
+        return 1;
+    }
+
+    if (strcmp(abs_path, "/") == 0 || strcmp(abs_path, "/flash") == 0 || strcmp(abs_path, "/sdcard") == 0)
+    {
+        printf("rmdir: cannot remove a filesystem root\n");
+        return 1;
+    }
+    if (strcmp(abs_path, shell_get_cwd()) == 0)
+    {
+        printf("rmdir: cannot remove the current working directory\n");
+        return 1;
+    }
+    if (!vfs_is_directory(abs_path))
+    {
+        printf("rmdir: '%s' is not a directory\n", abs_path);
+        return 1;
+    }
+
+    esp_err_t err = vfs_remove(abs_path);
+    if (err != ESP_OK)
+    {
+        printf("rmdir: failed to remove '%s' (directory must be empty)\n", abs_path);
+        return 1;
+    }
+    return 0;
+}
+
 /* ---- cat / type ---- */
 
 typedef struct
@@ -361,6 +512,9 @@ void shell_register_fs_commands(void)
 
     register_cmd("rm", "Remove a file or empty directory", "<path>", &cmd_rm);
     register_cmd("del", "Remove a file or empty directory (alias for rm)", "<path>", &cmd_rm);
+    register_cmd("cp", "Copy a file without overwriting", "<source> <destination>", &cmd_cp);
+    register_cmd("mv", "Move a file without overwriting", "<source> <destination>", &cmd_mv);
+    register_cmd("rmdir", "Remove an empty directory", "<directory>", &cmd_rmdir);
 
     register_cmd("cat", "Display file contents", "<path>", &cmd_cat);
     register_cmd("type", "Display file contents (alias for cat)", "<path>", &cmd_cat);

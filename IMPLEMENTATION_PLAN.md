@@ -62,20 +62,47 @@ L = new behavior with architectural, resource, or integration concerns.
 
 ## Milestone 2 — file operations and command completion
 
-**Status:** Planned
+**Status:** Implementation complete; QEMU and CI clang-tidy validation pending
 
-- [ ] Define `cp`, `mv`, and `rmdir` syntax, aliases, overwrite policy, and
-  same- versus cross-filesystem behavior.
-- [ ] Implement bounded file copying and handle short reads/writes, full media,
-  and destination cleanup on failure.
-- [ ] Implement move semantics with a same-filesystem rename when safe and a
-  documented copy/remove fallback when needed.
-- [ ] Decide whether recursive copy is in scope; if included, guard against
-  copying a directory into itself and bound traversal resources.
-- [ ] Add command completion, then VFS path completion, without losing the
-  current edit buffer or history behavior.
-- [ ] Add unit/integration coverage for success, invalid paths, overwrite,
-  capacity/error conditions, and completion ambiguity.
+### Command contract
+
+- `cp <source> <destination>` and `mv <source> <destination>` operate on regular
+  files only. Directories are not copied or moved, and an existing destination
+  is never intentionally overwritten.
+- `cp` copies in bounded chunks and removes a partial destination if the copy
+  fails. `mv` renames on one filesystem; across flash and SD it copies first,
+  then removes the source, rolling back the destination if source removal fails.
+- `rmdir <directory>` removes only an empty directory and cannot remove a
+  filesystem root. Existing `rm` behavior for empty directories is retained.
+- Tab completion runs at the end of the current line. It completes registered
+  commands and filesystem path arguments, adds a separator after a unique
+  match, and extends ambiguous matches to their common prefix. Paths containing
+  whitespace are not completed.
+
+- [x] Define command syntax, no-overwrite behavior, and cross-filesystem move
+  semantics; keep recursive directory operations out of scope.
+- [x] Implement bounded file copy and partial-destination cleanup.
+- [x] Implement same-filesystem rename and cross-filesystem copy/remove fallback.
+- [x] Add `rmdir` for empty directories while preserving existing `rm` behavior.
+- [x] Add command and VFS path completion to the line editor.
+- [x] Add host unit and QEMU integration coverage for file operations and
+  completion behavior.
+- [x] Pass host unit tests, firmware build, formatting, and Doxygen validation.
+- [ ] Pass clang-tidy in the supported CI environment.
+- [ ] Pass QEMU integration tests; the local integration firmware build is
+  currently blocked because the ESP Component Registry is unreachable.
+- [ ] Record passing CI results before marking the milestone complete.
+
+### Milestone 2 validation log
+
+| Validation | Status | Result |
+|------------|--------|--------|
+| Host unit tests | Pass | `make test`: all 19 test targets passed, including filesystem commands and completion. |
+| ESP-IDF firmware build | Pass | `espIdfCommands build` succeeded with ESP-IDF 6.1. |
+| clang-format check | Pass | `make format-check` passed. |
+| Doxygen check | Pass | `doxygen` completed successfully. |
+| clang-tidy | Pending CI | Local clang-tidy 21 cannot use this ESP-IDF 6.1 compile database (unsupported flags and missing toolchain headers); CI validation remains needed. |
+| Shell filesystem QEMU integration | Blocked locally | Test cases are added, but the integration project could not resolve `joltwallet/littlefs` because the component registry connection failed. |
 
 ## Milestone 3 — keyboard and Berry interaction/API
 

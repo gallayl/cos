@@ -65,6 +65,19 @@ extern "C"
      */
     esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, void *context);
     esp_err_t vfs_write_file(const char *path, const char *data, size_t len);
+    /**
+     * @brief Copy a regular file using bounded memory.
+     *
+     * The destination must not already exist. On failure, a partially written
+     * destination is removed.
+     */
+    esp_err_t vfs_copy_file(const char *source, const char *destination);
+    /**
+     * @brief Rename a regular file without replacing an existing destination.
+     *
+     * Source and destination must be on the same mounted filesystem.
+     */
+    esp_err_t vfs_rename_file(const char *source, const char *destination);
     esp_err_t vfs_mkdir(const char *path);
     esp_err_t vfs_remove(const char *path);
     bool vfs_exists(const char *path);
