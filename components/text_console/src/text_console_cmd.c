@@ -8,6 +8,19 @@
 
 static const char *const TAG = "text_console_cmd";
 
+static int cmd_clear(int argc, char **argv)
+{
+    (void)argv;
+    if (argc != 1)
+    {
+        printf("Usage: clear\n");
+        return 1;
+    }
+
+    text_console_clear();
+    return 0;
+}
+
 static int cmd_display_mode(int argc, char **argv)
 {
     if (argc == 1)
@@ -77,6 +90,15 @@ static int cmd_logging(int argc, char **argv)
 
 void text_console_register_commands(void)
 {
+    const esp_console_cmd_t clear_cmd = {
+        .command = "clear",
+        .help = "Clear the text console",
+        .hint = NULL,
+        .func = &cmd_clear,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&clear_cmd));
+    ESP_LOGI(TAG, "Registered 'clear' command");
+
     const esp_console_cmd_t cmd = {
         .command = "display_mode",
         .help = "Display mode control",

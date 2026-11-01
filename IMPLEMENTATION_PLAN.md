@@ -209,15 +209,26 @@ fails, the command must report the remaining path and error.
 | Doxygen Check             | Pass    | PR #16 CI run `41304683311` passed. |
 | Touch/network hardware    | Pending | Requires a CYD board with touch and Wi-Fi station connectivity. |
 
-## Milestone 5 — usability and maintenance follow-up
+## Milestone 5 — simple startup and console usability
 
 **Status:** Planned
 
-- [ ] Add/document a concise `clear` command.
+- [ ] Add a concise `clear` shell command and document it.
+- [ ] Run `/flash/autoexec.be` once during startup after the filesystem and
+      Berry runtime are ready. A missing script is a no-op; execution errors
+      are logged without preventing the shell from starting.
+- [ ] Add a small Berry clear-screen script that demonstrates `action("clear")`.
+- [ ] Cover command behavior, optional autoexec, and autoexec failure handling
+      with focused tests.
+- [ ] Document startup-script location, timing, missing-file behavior, and
+      examples.
+
+## Milestone 6 — low-risk maintenance and scripting improvements
+
+**Status:** Planned
+
 - [ ] Review shell line/history limits and their static RAM cost before changing
       defaults.
-- [ ] Extract the shell line editor behind a testable interface when needed by
-      keyboard routing; retain behavior with focused unit tests.
 - [ ] Review CI tool version pinning, repeated package setup, artifact
       inventories, and failure log retention.
 - [ ] Use one source of truth for integration-test projects across firmware
@@ -227,6 +238,9 @@ fails, the command must report the remaining path and error.
 - [ ] Align the README's ESP-IDF version and environment examples with the
       version used in CI; document unit/integration test prerequisites and commands.
 - [ ] Keep README command/API documentation current with shipped behavior.
+- [ ] Define and implement a small, configurable shell-alias mechanism.
+- [ ] Review the existing Berry examples and add a focused starter-script set
+      without expanding into full applications.
 
 ## Berry API risk, complexity, and ROI
 
@@ -252,18 +266,13 @@ ROI considers reuse across GUI apps, console scripts, and shell commands.
 | clang-tidy                   | Pass   | CI clang-tidy passed in run `41186872518`. Local `make lint` is not representative with clang-tidy 21 and ESP-IDF 6.1 compile flags. |
 | Doxygen check                | Pass   | Branch CI Doxygen Check passed in run `41186872639`.                                                                                 |
 
-## Follos-ups - To be validated later
+## Deferred follow-ups
 
-- Autoexec script? Some placeholder (e.g.: COS/flash/autoexec.be) should be executed automatically
-- Congigurable aliases? (e.g.: "doSomething" -> "berry exec flash/apps/doSomething.be")
-- Pipes? (e.g.: someOutput > "smth.txt" or someOutputToAppend >> "smth.txt", shell-like)
-- Scripts rewamp? Should add some useful bundle as a starting point?
-  - Consider "interactive" implementation if you don't provide parameter for e.g.: ping?
-  - Consider moving some scripts
-  - New additions:
-    - File manager?
-    - Text editor?
-    - Calendar?
-    - Others?
-    - UI "Showcase" app - Examples for all available components?
-- Image preview? Displaying images? Can it be done? (e.g.: Is there some native lvgl implementation for common ones like PNG or JPG)? (+1: Support in Berry UI apps?)
+- Shell pipes and output redirection (`>` / `>>`) need a separate design for
+  parsing, streaming, and file-failure semantics.
+- Extracting the shell line editor is a broader refactor and should be scoped
+  separately if future work needs that seam.
+- A file manager, text editor, calendar, or broad UI showcase is larger than a
+  focused starter-script set and remains out of scope for Milestones 5–6.
+- Image preview and Berry image support need a separate format, memory, and
+  decoder feasibility assessment.
