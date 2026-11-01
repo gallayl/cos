@@ -250,7 +250,7 @@ int native_fs_list(bvm *vm)
 {
     if (be_top(vm) < 1 || !be_isstring(vm, 1))
     {
-        be_newobject(vm, "map");
+        be_newmap(vm);
         map_set_bool(vm, "ok", false);
         map_set_string(vm, "error", esp_err_to_name(ESP_ERR_INVALID_ARG));
         be_return(vm);
@@ -259,7 +259,7 @@ int native_fs_list(bvm *vm)
     const char *path = be_tostring(vm, 1);
     if (!valid_virtual_path(path))
     {
-        be_newobject(vm, "map");
+        be_newmap(vm);
         map_set_bool(vm, "ok", false);
         map_set_string(vm, "error", esp_err_to_name(ESP_ERR_INVALID_ARG));
         be_return(vm);
@@ -268,7 +268,7 @@ int native_fs_list(bvm *vm)
     static vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
     size_t count = 0;
     const esp_err_t err = vfs_list_dir(path, entries, VFS_ENTRIES_MAX, &count);
-    be_newobject(vm, "map");
+    be_newmap(vm);
     if (err != ESP_OK)
     {
         map_set_bool(vm, "ok", false);
@@ -277,10 +277,10 @@ int native_fs_list(bvm *vm)
     }
 
     map_set_bool(vm, "ok", true);
-    be_newobject(vm, "list");
+    be_newlist(vm);
     for (size_t index = 0; index < count; ++index)
     {
-        be_newobject(vm, "map");
+        be_newmap(vm);
         map_set_string(vm, "name", entries[index].name);
         map_set_number(vm, "size", static_cast<double>(entries[index].size));
         map_set_bool(vm, "is_dir", entries[index].is_dir);
@@ -336,7 +336,7 @@ int native_net_ping(bvm *vm)
         }
     }
 
-    be_newobject(vm, "map");
+    be_newmap(vm);
     map_set_bool(vm, "ok", err == ESP_OK);
     map_set_string(vm, "host", host != nullptr ? host : "");
     map_set_string(vm, "address", result.address);
