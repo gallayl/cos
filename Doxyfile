@@ -17,6 +17,8 @@ INPUT                  = components/display/include      \
                          components/filesystem/include    \
                          components/shell/include         \
                          components/wifi/include          \
+                         components/input/include        \
+                         components/network/include      \
                          main
 FILE_PATTERNS          = *.h
 RECURSIVE              = NO

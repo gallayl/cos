@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "shell_input.h"
 
+#include "berry_runtime.h"
 #include "filesystem.h"
 #include "shell_cmds.h"
 
@@ -38,6 +39,11 @@ const char *shell_get_cwd(void)
 const char *shell_get_prompt(void)
 {
     return s_prompt;
+}
+
+bool shell_is_reading_line_input(void)
+{
+    return shell_input_is_reading_line();
 }
 
 esp_err_t shell_set_cwd(const char *path)
@@ -176,6 +182,8 @@ esp_err_t shell_init(void)
     {
         return err;
     }
+
+    berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line);
 
     ESP_LOGI(TAG, "Shell ready");
     return ESP_OK;

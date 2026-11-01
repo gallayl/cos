@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include "keyboard_event.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -17,11 +18,16 @@ extern "C"
      */
     typedef void (*bt_keyboard_cb_t)(const char *data, size_t len);
 
+    typedef void (*bt_keyboard_event_cb_t)(const keyboard_event_t *event);
+
     /**
      * Register a callback to receive translated keyboard input from a
      * connected BLE HID keyboard.  Pass NULL to clear.
      */
     void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb);
+
+    /** Register a callback for key-down and key-up transitions. */
+    void bluetooth_hid_set_key_event_callback(bt_keyboard_event_cb_t cb);
 
     /**
      * @brief Initialize the Bluetooth component: register shell commands.

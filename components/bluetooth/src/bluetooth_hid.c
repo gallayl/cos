@@ -25,10 +25,16 @@
 #define MAX_KEYS 6
 
 static volatile bt_keyboard_cb_t s_keyboard_cb;
+static volatile bt_keyboard_event_cb_t s_key_event_cb;
 
 void bluetooth_hid_set_keyboard_callback(bt_keyboard_cb_t cb)
 {
     s_keyboard_cb = cb;
+}
+
+void bluetooth_hid_set_key_event_callback(bt_keyboard_event_cb_t cb)
+{
+    s_key_event_cb = cb;
 }
 
 /* USB HID keycode → ASCII (US layout, lowercase) */
@@ -106,6 +112,94 @@ static bool key_in_prev(uint8_t keycode)
     return false;
 }
 
+static bool key_in_current(const uint8_t *keys, uint8_t keycode)
+{
+    for (int i = 0; i < MAX_KEYS; i++)
+    {
+        if (keys[i] == keycode)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const char *keycode_to_sequence(uint8_t keycode, size_t *len)
+{
+    switch (keycode)
+    {
+    case 0x3A:
+        *len = 3;
+        return "\x1bOP"; /* F1 */
+    case 0x3B:
+        *len = 3;
+        return "\x1bOQ"; /* F2 */
+    case 0x3C:
+        *len = 3;
+        return "\x1bOR"; /* F3 */
+    case 0x3D:
+        *len = 3;
+        return "\x1bOS"; /* F4 */
+    case 0x3E:
+        *len = 5;
+        return "\x1b[15~"; /* F5 */
+    case 0x3F:
+        *len = 5;
+        return "\x1b[17~"; /* F6 */
+    case 0x40:
+        *len = 5;
+        return "\x1b[18~"; /* F7 */
+    case 0x41:
+        *len = 5;
+        return "\x1b[19~"; /* F8 */
+    case 0x42:
+        *len = 5;
+        return "\x1b[20~"; /* F9 */
+    case 0x43:
+        *len = 5;
+        return "\x1b[21~"; /* F10 */
+    case 0x44:
+        *len = 5;
+        return "\x1b[23~"; /* F11 */
+    case 0x45:
+        *len = 5;
+        return "\x1b[24~"; /* F12 */
+    case 0x49:
+        *len = 4;
+        return "\x1b[2~"; /* Insert */
+    case 0x4A:
+        *len = 3;
+        return "\x1b[H"; /* Home */
+    case 0x4B:
+        *len = 4;
+        return "\x1b[5~"; /* Page Up */
+    case 0x4C:
+        *len = 4;
+        return "\x1b[3~"; /* Delete */
+    case 0x4D:
+        *len = 3;
+        return "\x1b[F"; /* End */
+    case 0x4E:
+        *len = 4;
+        return "\x1b[6~"; /* Page Down */
+    case 0x4F:
+        *len = 3;
+        return "\x1b[C"; /* Right */
+    case 0x50:
+        *len = 3;
+        return "\x1b[D"; /* Left */
+    case 0x51:
+        *len = 3;
+        return "\x1b[B"; /* Down */
+    case 0x52:
+        *len = 3;
+        return "\x1b[A"; /* Up */
+    default:
+        *len = 0;
+        return NULL;
+    }
+}
+
 void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
 {
     if (data == NULL || len < 8)
@@ -128,126 +222,44 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
     for (int i = 0; i < MAX_KEYS; i++)
     {
         uint8_t kc = keys[i];
-        if (kc == 0)
-        {
-            continue;
-        }
-        if (key_in_prev(kc))
+        if (kc == 0 || key_in_prev(kc))
         {
             continue;
         }
 
-        /* Special keys → VT100 escape sequences */
+        keyboard_event_t event = {
+            .keycode = kc,
+            .modifiers = modifiers,
+            .pressed = true,
+        };
+        size_t seq_len = 0;
+        const char *seq = keycode_to_sequence(kc, &seq_len);
+        if (seq != NULL)
         {
-            const char *seq = NULL;
-            size_t seq_len = 0;
-            switch (kc)
+            memcpy(event.text, seq, seq_len);
+            event.text_len = seq_len;
+        }
+        else
+        {
+            const char ch = keycode_to_char(kc, modifiers);
+            if (ch != 0)
             {
-            case 0x3A:
-                seq = "\x1bOP";
-                seq_len = 3;
-                break; /* F1 */
-            case 0x3B:
-                seq = "\x1bOQ";
-                seq_len = 3;
-                break; /* F2 */
-            case 0x3C:
-                seq = "\x1bOR";
-                seq_len = 3;
-                break; /* F3 */
-            case 0x3D:
-                seq = "\x1bOS";
-                seq_len = 3;
-                break; /* F4 */
-            case 0x3E:
-                seq = "\x1b[15~";
-                seq_len = 5;
-                break; /* F5 */
-            case 0x3F:
-                seq = "\x1b[17~";
-                seq_len = 5;
-                break; /* F6 */
-            case 0x40:
-                seq = "\x1b[18~";
-                seq_len = 5;
-                break; /* F7 */
-            case 0x41:
-                seq = "\x1b[19~";
-                seq_len = 5;
-                break; /* F8 */
-            case 0x42:
-                seq = "\x1b[20~";
-                seq_len = 5;
-                break; /* F9 */
-            case 0x43:
-                seq = "\x1b[21~";
-                seq_len = 5;
-                break; /* F10 */
-            case 0x44:
-                seq = "\x1b[23~";
-                seq_len = 5;
-                break; /* F11 */
-            case 0x45:
-                seq = "\x1b[24~";
-                seq_len = 5;
-                break; /* F12 */
-            case 0x49:
-                seq = "\x1b[2~";
-                seq_len = 4;
-                break; /* Insert */
-            case 0x4A:
-                seq = "\x1b[H";
-                seq_len = 3;
-                break; /* Home */
-            case 0x4B:
-                seq = "\x1b[5~";
-                seq_len = 4;
-                break; /* Page Up */
-            case 0x4C:
-                seq = "\x1b[3~";
-                seq_len = 4;
-                break; /* Delete */
-            case 0x4D:
-                seq = "\x1b[F";
-                seq_len = 3;
-                break; /* End */
-            case 0x4E:
-                seq = "\x1b[6~";
-                seq_len = 4;
-                break; /* Page Down */
-            case 0x4F:
-                seq = "\x1b[C";
-                seq_len = 3;
-                break; /* Right */
-            case 0x50:
-                seq = "\x1b[D";
-                seq_len = 3;
-                break; /* Left */
-            case 0x51:
-                seq = "\x1b[B";
-                seq_len = 3;
-                break; /* Down */
-            case 0x52:
-                seq = "\x1b[A";
-                seq_len = 3;
-                break; /* Up */
-            default:
-                break;
-            }
-            if (seq != NULL)
-            {
-                if (s_keyboard_cb != NULL)
-                {
-                    s_keyboard_cb(seq, seq_len);
-                }
-                continue;
+                event.text[0] = ch;
+                event.text_len = 1;
             }
         }
 
-        char ch = keycode_to_char(kc, modifiers);
-        if (ch != 0)
+        if (s_key_event_cb != NULL)
         {
-            buf[buf_len++] = ch;
+            s_key_event_cb(&event);
+        }
+        if (seq != NULL && s_keyboard_cb != NULL)
+        {
+            s_keyboard_cb(event.text, event.text_len);
+        }
+        if (seq == NULL && event.text_len > 0)
+        {
+            buf[buf_len++] = event.text[0];
         }
     }
 
@@ -256,5 +268,46 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
         s_keyboard_cb(buf, buf_len);
     }
 
+    for (int i = 0; i < MAX_KEYS; i++)
+    {
+        const uint8_t kc = s_prev_keys[i];
+        if (kc == 0 || key_in_current(keys, kc))
+        {
+            continue;
+        }
+
+        const keyboard_event_t event = {
+            .keycode = kc,
+            .modifiers = modifiers,
+            .pressed = false,
+        };
+        if (s_key_event_cb != NULL)
+        {
+            s_key_event_cb(&event);
+        }
+    }
+
     memcpy(s_prev_keys, keys, MAX_KEYS);
+}
+
+void bluetooth_hid_keyboard_reset(void)
+{
+    for (int i = 0; i < MAX_KEYS; i++)
+    {
+        const uint8_t keycode = s_prev_keys[i];
+        if (keycode == 0)
+        {
+            continue;
+        }
+
+        keyboard_event_t event = {
+            .keycode = keycode,
+            .pressed = false,
+        };
+        if (s_key_event_cb != NULL)
+        {
+            s_key_event_cb(&event);
+        }
+    }
+    memset(s_prev_keys, 0, sizeof(s_prev_keys));
 }

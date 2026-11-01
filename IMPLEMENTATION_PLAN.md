@@ -43,26 +43,26 @@ L = new behavior with architectural, resource, or integration concerns.
 
 ## Prioritized backlog
 
-| Priority | Improvement | Effort | ROI | Risk | Dependencies / notes |
-|----------|-------------|--------|-----|------|----------------------|
-| 1 | Stream large files with `cat` | S–M | High | Low | Implemented in Milestone 1; VFS streaming also supports future file-copy work. |
-| 2 | Make `help` and command discovery reliable | S | High | Low | Implemented in Milestone 1; keep help metadata and README in sync as commands are added. |
-| 3 | Repair integration-test artifact coverage | S | High | Low | Implemented in Milestone 1; artifact inventories should follow the Makefile build list. |
-| 4 | Complete everyday file operations | M | High | Medium | Add `cp`, `mv`, and explicit `rmdir`; define overwrite, cross-filesystem, and failure cleanup semantics. Add recursive directory copy only with explicit scope/option. Use bounded streaming. |
-| 5 | Add keyboard routing for shell and Berry apps | M–L | High | High | Bluetooth keyboard currently feeds shell input; Berry GUI uses touch polling/timers. Requires shared input ownership, typed events, app lifecycle behavior, and mode-transition tests. |
-| 6 | Add interactive line input for Berry scripts | M–L | High | High | Support prompt/read-line/Enter workflows without blocking render/timer or shell tasks. Define asynchronous completion, echo, cancellation, and prompt ownership. Depends on shared keyboard routing. |
-| 7 | Expose structured COS services to Berry | M–L | High | Medium–High | Provide APIs such as `fs.list(path)` and `net.ping(host)` that return structured values/errors. Share the underlying service with shell commands. `action(command)` can remain a compatibility bridge, but avoid parsing command output. |
-| 8 | Add command and path autocomplete | M | High | Medium | Tab currently enters a tab character; command history and line editing already exist. Complete command names first, then paths; preserve the current line and handle ambiguity and buffer limits. |
-| 9 | Add display-console scrollback and touch scrolling | M–L | Medium–High | High | Current text buffer discards the top row on scroll. Requires bounded history, viewport rendering, gesture handling, and touch ownership arbitration with Berry UI. |
-| 10 | Add network diagnostics and downloads | M–L | Medium–High | High | Start with `ping`/`nslookup`, then a bounded HTTP(S) download. Define timeouts, TLS validation, memory/storage limits, and cleanup. Share network service with Berry API. |
-| 11 | Improve shell/editor ergonomics | S–M | Medium | Low–Medium | Add a direct `clear` command; assess 128-character input and eight-entry history limits against memory and keyboard behavior. |
-| 12 | Refactor shell input for testability | M | Medium | Medium | UART transport, parser/editor/history, and command execution currently live in one module; its unit test includes the implementation directly. Extract a focused editor seam to enable keyboard routing and Berry input. |
-| 13 | Improve CI reliability and maintenance | S–M | High | Low–Medium | Use one integration-test project inventory for build, run, and artifact upload; test that `run_tidy.py` propagates clang-tidy failures; pin or document tool versions. Avoid caching unless it measurably improves CI. |
-| 14 | Document a reproducible developer workflow | S | High | Low | Align the README's ESP-IDF version/examples with CI and document host-test and QEMU integration-test prerequisites and commands. Include formatting, lint, and Doxygen checks. |
+| Priority | Improvement                                        | Effort | ROI         | Risk        | Dependencies / notes                                                                                                                                                                                                                     |
+| -------- | -------------------------------------------------- | ------ | ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Stream large files with `cat`                      | S–M    | High        | Low         | Implemented in Milestone 1; VFS streaming also supports future file-copy work.                                                                                                                                                           |
+| 2        | Make `help` and command discovery reliable         | S      | High        | Low         | Implemented in Milestone 1; keep help metadata and README in sync as commands are added.                                                                                                                                                 |
+| 3        | Repair integration-test artifact coverage          | S      | High        | Low         | Implemented in Milestone 1; artifact inventories should follow the Makefile build list.                                                                                                                                                  |
+| 4        | Complete everyday file operations                  | M      | High        | Medium      | Add `cp`, `mv`, and explicit `rmdir`; define overwrite, cross-filesystem, and failure cleanup semantics. Add recursive directory copy only with explicit scope/option. Use bounded streaming.                                            |
+| 5        | Add keyboard routing for shell and Berry apps      | M–L    | High        | High        | Bluetooth keyboard currently feeds shell input; Berry GUI uses touch polling/timers. Requires shared input ownership, typed events, app lifecycle behavior, and mode-transition tests.                                                   |
+| 6        | Add interactive line input for Berry scripts       | M–L    | High        | High        | Support prompt/read-line/Enter workflows without blocking render/timer or shell tasks. Define asynchronous completion, echo, cancellation, and prompt ownership. Depends on shared keyboard routing.                                     |
+| 7        | Expose structured COS services to Berry            | M–L    | High        | Medium–High | Provide APIs such as `fs.list(path)` and `net.ping(host)` that return structured values/errors. Share the underlying service with shell commands. `action(command)` can remain a compatibility bridge, but avoid parsing command output. |
+| 8        | Add command and path autocomplete                  | M      | High        | Medium      | Tab currently enters a tab character; command history and line editing already exist. Complete command names first, then paths; preserve the current line and handle ambiguity and buffer limits.                                        |
+| 9        | Add display-console scrollback and touch scrolling | M–L    | Medium–High | High        | Current text buffer discards the top row on scroll. Requires bounded history, viewport rendering, gesture handling, and touch ownership arbitration with Berry UI.                                                                       |
+| 10       | Add network diagnostics and downloads              | M–L    | Medium–High | High        | Start with `ping`/`nslookup`, then a bounded HTTP(S) download. Define timeouts, TLS validation, memory/storage limits, and cleanup. Share network service with Berry API.                                                                |
+| 11       | Improve shell/editor ergonomics                    | S–M    | Medium      | Low–Medium  | Add a direct `clear` command; assess 128-character input and eight-entry history limits against memory and keyboard behavior.                                                                                                            |
+| 12       | Refactor shell input for testability               | M      | Medium      | Medium      | UART transport, parser/editor/history, and command execution currently live in one module; its unit test includes the implementation directly. Extract a focused editor seam to enable keyboard routing and Berry input.                 |
+| 13       | Improve CI reliability and maintenance             | S–M    | High        | Low–Medium  | Use one integration-test project inventory for build, run, and artifact upload; test that `run_tidy.py` propagates clang-tidy failures; pin or document tool versions. Avoid caching unless it measurably improves CI.                   |
+| 14       | Document a reproducible developer workflow         | S      | High        | Low         | Align the README's ESP-IDF version/examples with CI and document host-test and QEMU integration-test prerequisites and commands. Include formatting, lint, and Doxygen checks.                                                           |
 
 ## Milestone 2 — file operations and command completion
 
-**Status:** Implementation complete; QEMU and CI clang-tidy validation pending
+**Status:** Complete; merged in PR #14 after all CI checks passed
 
 ### Command contract
 
@@ -80,58 +80,81 @@ L = new behavior with architectural, resource, or integration concerns.
   whitespace are not completed.
 
 - [x] Define command syntax, no-overwrite behavior, and cross-filesystem move
-  semantics; keep recursive directory operations out of scope.
+      semantics; keep recursive directory operations out of scope.
 - [x] Implement bounded file copy and partial-destination cleanup.
 - [x] Implement same-filesystem rename and cross-filesystem copy/remove fallback.
 - [x] Add `rmdir` for empty directories while preserving existing `rm` behavior.
 - [x] Add command and VFS path completion to the line editor.
 - [x] Add host unit and QEMU integration coverage for file operations and
-  completion behavior.
+      completion behavior.
 - [x] Pass host unit tests, firmware build, formatting, and Doxygen validation.
-- [ ] Pass clang-tidy in the supported CI environment.
-- [ ] Pass QEMU integration tests; the local integration firmware build is
-  currently blocked because the ESP Component Registry is unreachable.
-- [ ] Record passing CI results before marking the milestone complete.
+- [x] Pass clang-tidy in the supported CI environment.
+- [x] Pass QEMU integration tests.
+- [x] Record passing CI results before marking the milestone complete.
 
 ### Milestone 2 validation log
 
-| Validation | Status | Result |
-|------------|--------|--------|
-| Host unit tests | Pass | `make test`: all 19 test targets passed, including filesystem commands and completion. |
-| ESP-IDF firmware build | Pass | `espIdfCommands build` succeeded with ESP-IDF 6.1. |
-| clang-format check | Pass | `make format-check` passed. |
-| Doxygen check | Pass | `doxygen` completed successfully. |
-| clang-tidy | Pending CI | Local clang-tidy 21 cannot use this ESP-IDF 6.1 compile database (unsupported flags and missing toolchain headers); CI validation remains needed. |
-| Shell filesystem QEMU integration | Blocked locally | Test cases are added, but the integration project could not resolve `joltwallet/littlefs` because the component registry connection failed. |
+| Validation                        | Status | Result                                                                                              |
+| --------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| Host unit tests                   | Pass   | PR #14 CI run `41191835116` passed all unit-test targets.                                           |
+| ESP-IDF firmware build            | Pass   | PR #14 CI run `41191835086` passed the firmware build and clang-tidy.                               |
+| clang-format check                | Pass   | PR #14 CI run `41191835095` passed.                                                                 |
+| Doxygen check                     | Pass   | PR #14 CI run `41191835153` passed.                                                                 |
+| clang-tidy                        | Pass   | PR #14 CI run `41191835086` passed.                                                                 |
+| Shell filesystem QEMU integration | Pass   | PR #14 CI run `41191835061` passed all integration tests.                                           |
 
 ## Milestone 3 — keyboard and Berry interaction/API
 
-**Status:** Planned
+**Status:** Complete; PR #15 is open for manual merge
 
 ### Input contract
 
-- [ ] Define a shared key-event representation (text/key identity and, if
-  supported by the input device, press/release and repeat).
-- [ ] Route input to exactly one active owner: shell in console mode or focused
-  Berry app in GUI mode.
-- [ ] Ensure app close/error restores shell ownership and cannot leave keys
-  stuck or a hidden shell line modified.
-- [ ] Keep callbacks/task work bounded; protect VM calls and app teardown using
-  the existing Berry runtime/UI synchronization patterns.
+- [x] Define a shared key-event representation (text/key identity and, if
+      supported by the input device, press/release and repeat).
+- [x] Route input to exactly one active owner: shell in console mode or focused
+      Berry app in GUI mode. An active Berry console prompt temporarily owns input.
+- [x] Ensure app close/error restores shell ownership and cannot leave keys
+      stuck or a hidden shell line modified.
+- [x] Keep callbacks/task work bounded; protect VM calls and app teardown using
+      the existing Berry runtime/UI synchronization patterns.
 
 ### Berry features
 
-- [ ] Add an opt-in keyboard control mapping to Breakout while preserving touch
-  play; document controls in the example.
-- [ ] Define a non-blocking console script API for prompt/read-line/Enter,
-  including callback/result delivery, echo, cancellation, and app ownership.
-- [ ] Add a structured read-only `fs.list(path)` API for Berry apps.
-- [ ] Add a shared ping/DNS service and structured `net.ping(host)` result only
-  after timeouts, no-network behavior, and resource limits are specified.
-- [ ] Keep `action(command)` backward-compatible and document that its return
-  value is status/error, not structured command output.
-- [ ] Test input routing across console/GUI transitions, script cancellation,
-  malformed paths, empty directories, and network error/timeout paths.
+- [x] Add an opt-in keyboard control mapping to Breakout while preserving touch
+      play; document controls in the example.
+- [x] Define a non-blocking console script API for prompt/read-line/Enter,
+      including callback/result delivery, echo, cancellation, and app ownership.
+- [x] Add a structured read-only `fs.list(path)` API for Berry apps.
+- [x] Add a shared ping/DNS service and structured `net.ping(host)` result only
+      after timeouts, no-network behavior, and resource limits are specified.
+- [x] Keep `action(command)` backward-compatible and document that its return
+      value is status/error, not structured command output.
+- [x] Document keyboard controls and the Berry console, filesystem, and network
+      APIs, including their limits and error behavior.
+- [x] Test input routing across console/GUI transitions, script cancellation,
+      malformed paths, empty directories, and network error/timeout paths.
+
+The line reader is started only from the console input task (including a
+Berry app's `setup` called by `berry run`). It supports one outstanding
+request, echoes bounded printable input, completes with a string on Enter or
+`nil` on Ctrl+C, and queues cancellation so callbacks cannot re-enter the VM.
+A UI callback cannot start a new prompt directly. `fs.list` is read-only and
+capped at 64 entries.
+`net.ping` requires connected Wi-Fi, serializes requests, accepts a 100–3000 ms
+overall caller deadline, and returns a structured success/error map. DNS and
+ICMP run on one worker; a DNS lookup may continue after the caller times out,
+and new requests are rejected until that lookup finishes its configured lwIP
+retries.
+
+### Milestone 3 validation log
+
+| Validation               | Status | Result                                                                                                      |
+| ------------------------ | ------ | ----------------------------------------------------------------------------------------------------------- |
+| Host unit tests          | Pass   | PR #15 CI run `41293185660` passed all host unit tests.                                                       |
+| ESP-IDF build/clang-tidy | Pass   | PR #15 CI run `41293185681` passed.                                                                         |
+| clang-format check       | Pass   | PR #15 CI run `41293185657` passed.                                                                         |
+| Doxygen check            | Pass   | PR #15 CI run `41293185694` passed.                                                                         |
+| QEMU integration tests   | Pass   | PR #15 CI run `41293185678` passed all suites (39 tests), including Berry APIs and async input.              |
 
 ## Milestone 4 — console scrollback and network utilities
 
@@ -139,14 +162,14 @@ L = new behavior with architectural, resource, or integration concerns.
 
 - [ ] Add a bounded scrollback ring separate from the visible text grid.
 - [ ] Define viewport behavior while new output arrives and when the user
-  returns to the bottom.
+      returns to the bottom.
 - [ ] Add touch scrolling only while the text console owns the display; preserve
-  Berry UI touch dispatch.
+      Berry UI touch dispatch.
 - [ ] Add ping and DNS lookup shell commands using shared, time-bounded services.
 - [ ] Specify HTTP(S) download size limits, TLS validation, cancellation,
-  destination handling, and partial-file cleanup before implementing.
+      destination handling, and partial-file cleanup before implementing.
 - [ ] Test scrollback/viewport independent of physical gestures, then validate
-  gestures and networking on supported hardware.
+      gestures and networking on supported hardware.
 
 ## Milestone 5 — usability and maintenance follow-up
 
@@ -154,17 +177,17 @@ L = new behavior with architectural, resource, or integration concerns.
 
 - [ ] Add/document a concise `clear` command.
 - [ ] Review shell line/history limits and their static RAM cost before changing
-  defaults.
+      defaults.
 - [ ] Extract the shell line editor behind a testable interface when needed by
-  keyboard routing; retain behavior with focused unit tests.
+      keyboard routing; retain behavior with focused unit tests.
 - [ ] Review CI tool version pinning, repeated package setup, artifact
-  inventories, and failure log retention.
+      inventories, and failure log retention.
 - [ ] Use one source of truth for integration-test projects across firmware
-  builds, pytest execution, and CI artifact upload lists.
+      builds, pytest execution, and CI artifact upload lists.
 - [ ] Add tests for `scripts/run_tidy.py` failure propagation and command
-  database handling; ensure clang-tidy errors cannot be reported as success.
+      database handling; ensure clang-tidy errors cannot be reported as success.
 - [ ] Align the README's ESP-IDF version and environment examples with the
-  version used in CI; document unit/integration test prerequisites and commands.
+      version used in CI; document unit/integration test prerequisites and commands.
 - [ ] Keep README command/API documentation current with shipped behavior.
 
 ## Berry API risk, complexity, and ROI
@@ -172,21 +195,37 @@ L = new behavior with architectural, resource, or integration concerns.
 Ratings are relative. Risk includes integration hazards as well as code size;
 ROI considers reuse across GUI apps, console scripts, and shell commands.
 
-| Capability | Complexity | Risk | ROI | Main risks and controls |
-|------------|------------|------|-----|-------------------------|
-| Keyboard routing in console and GUI modes | Medium–High | High | High | Events may reach both shell and app, keys can get stuck, or callbacks can race teardown. Centralize ownership; test repeat and mode transitions. |
-| Asynchronous line input for Berry scripts | Medium–High | High | High | Blocking input can stall rendering/timers or monopolize shell processing. Use one input owner, asynchronous completion, and explicit cancellation/echo semantics. |
-| `fs.list(path)` and read-only filesystem APIs | Medium | Medium | High | Mount changes, result bounds, path normalization, and Berry heap pressure. Return bounded structured entries and explicit errors; reuse VFS checks. |
-| `net.ping(host)` / name resolution | Medium–High | Medium–High | Medium–High | Network calls can block, time out, or consume task stack. Define bounded/asynchronous behavior, timeout, result shape, and no-network errors; share service with shell. |
-| `action(command)` compatibility bridge | Low | Medium | Medium | Shell output is not structured and scripts couple to command strings. Retain for compatibility, but avoid building GUI behavior around output parsing. |
+| Capability                                    | Complexity  | Risk        | ROI         | Main risks and controls                                                                                                                                                 |
+| --------------------------------------------- | ----------- | ----------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keyboard routing in console and GUI modes     | Medium–High | High        | High        | Events may reach both shell and app, keys can get stuck, or callbacks can race teardown. Centralize ownership; test repeat and mode transitions.                        |
+| Asynchronous line input for Berry scripts     | Medium–High | High        | High        | Blocking input can stall rendering/timers or monopolize shell processing. Use one input owner, asynchronous completion, and explicit cancellation/echo semantics.       |
+| `fs.list(path)` and read-only filesystem APIs | Medium      | Medium      | High        | Mount changes, result bounds, path normalization, and Berry heap pressure. Return bounded structured entries and explicit errors; reuse VFS checks.                     |
+| `net.ping(host)` / name resolution            | Medium–High | Medium–High | Medium–High | Network calls can block, time out, or consume task stack. Define bounded/asynchronous behavior, timeout, result shape, and no-network errors; share service with shell. |
+| `action(command)` compatibility bridge        | Low         | Medium      | Medium      | Shell output is not structured and scripts couple to command strings. Retain for compatibility, but avoid building GUI behavior around output parsing.                  |
 
 ## Milestone 1 validation log
 
-| Validation | Status | Result |
-|------------|--------|--------|
-| Host unit tests | Pass | Branch CI run `41186872616` passed after adding both missing mock functions. |
-| QEMU shell integration tests | Pass | Branch CI run `41186872503` passed, including long-file `cat` and `help` regression tests. |
-| ESP-IDF firmware build | Pass | Local `espIdfCommands build` passed with ESP-IDF 6.1; CI build passed in run `41186872518`. |
-| clang-format check | Pass | `make format-check` passed locally; branch CI Format Check passed in run `41186872517`. |
-| clang-tidy | Pass | CI clang-tidy passed in run `41186872518`. Local `make lint` is not representative with clang-tidy 21 and ESP-IDF 6.1 compile flags. |
-| Doxygen check | Pass | Branch CI Doxygen Check passed in run `41186872639`. |
+| Validation                   | Status | Result                                                                                                                               |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Host unit tests              | Pass   | Branch CI run `41186872616` passed after adding both missing mock functions.                                                         |
+| QEMU shell integration tests | Pass   | Branch CI run `41186872503` passed, including long-file `cat` and `help` regression tests.                                           |
+| ESP-IDF firmware build       | Pass   | Local `espIdfCommands build` passed with ESP-IDF 6.1; CI build passed in run `41186872518`.                                          |
+| clang-format check           | Pass   | `make format-check` passed locally; branch CI Format Check passed in run `41186872517`.                                              |
+| clang-tidy                   | Pass   | CI clang-tidy passed in run `41186872518`. Local `make lint` is not representative with clang-tidy 21 and ESP-IDF 6.1 compile flags. |
+| Doxygen check                | Pass   | Branch CI Doxygen Check passed in run `41186872639`.                                                                                 |
+
+## Follos-ups - To be validated later
+
+- Autoexec script? Some placeholder (e.g.: COS/flash/autoexec.be) should be executed automatically
+- Congigurable aliases? (e.g.: "doSomething" -> "berry exec flash/apps/doSomething.be")
+- Pipes? (e.g.: someOutput > "smth.txt" or someOutputToAppend >> "smth.txt", shell-like)
+- Scripts rewamp? Should add some useful bundle as a starting point?
+  - Consider "interactive" implementation if you don't provide parameter for e.g.: ping?
+  - Consider moving some scripts
+  - New additions:
+    - File manager?
+    - Text editor?
+    - Calendar?
+    - Others?
+    - UI "Showcase" app - Examples for all available components?
+- Image preview? Displaying images? Can it be done? (e.g.: Is there some native lvgl implementation for common ones like PNG or JPG)? (+1: Support in Berry UI apps?)

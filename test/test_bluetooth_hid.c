@@ -1,5 +1,5 @@
-#include "unity.h"
 #include "bluetooth_hid.h"
+#include "unity.h"
 
 #include <string.h>
 
@@ -7,6 +7,8 @@
 
 static uint8_t s_capture_buf[CAPTURE_BUF_SIZE];
 static size_t s_capture_len;
+static keyboard_event_t s_events[16];
+static size_t s_event_count;
 
 static void test_keyboard_cb(const char *data, size_t len)
 {
@@ -16,20 +18,29 @@ static void test_keyboard_cb(const char *data, size_t len)
     }
 }
 
+static void test_key_event_cb(const keyboard_event_t *event)
+{
+    if (s_event_count < sizeof(s_events) / sizeof(s_events[0]))
+    {
+        s_events[s_event_count++] = *event;
+    }
+}
+
 void setUp(void)
 {
     s_capture_len = 0;
+    s_event_count = 0;
     memset(s_capture_buf, 0, sizeof(s_capture_buf));
     bluetooth_hid_set_keyboard_callback(test_keyboard_cb);
+    bluetooth_hid_set_key_event_callback(test_key_event_cb);
 }
 
 void tearDown(void) {}
 
 /* --- Helper to build an 8-byte boot-protocol keyboard report --- */
 
-static void make_report(uint8_t *report, uint8_t modifiers,
-                        uint8_t k0, uint8_t k1, uint8_t k2,
-                        uint8_t k3, uint8_t k4, uint8_t k5)
+static void make_report(uint8_t *report, uint8_t modifiers, uint8_t k0, uint8_t k1, uint8_t k2, uint8_t k3, uint8_t k4,
+                        uint8_t k5)
 {
     report[0] = modifiers;
     report[1] = 0x00;
@@ -492,6 +503,60 @@ void test_keycode_zero_ignored(void)
     TEST_ASSERT_EQUAL(0, len);
 }
 
+void test_key_events_report_press_release_and_text(void)
+{
+    uint8_t report[8];
+    make_report(report, 0, 0x04, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+
+    TEST_ASSERT_EQUAL(1, s_event_count);
+    TEST_ASSERT_EQUAL_UINT8(0x04, s_events[0].keycode);
+    TEST_ASSERT_TRUE(s_events[0].pressed);
+    TEST_ASSERT_EQUAL(1, s_events[0].text_len);
+    TEST_ASSERT_EQUAL_CHAR('a', s_events[0].text[0]);
+
+    make_report(report, 0, 0, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+
+    TEST_ASSERT_EQUAL(2, s_event_count);
+    TEST_ASSERT_EQUAL_UINT8(0x04, s_events[1].keycode);
+    TEST_ASSERT_FALSE(s_events[1].pressed);
+    TEST_ASSERT_EQUAL(0, s_events[1].text_len);
+}
+
+void test_key_event_preserves_arrow_identity_and_terminal_text(void)
+{
+    uint8_t report[8];
+    make_report(report, 0, 0x50, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+
+    TEST_ASSERT_EQUAL(1, s_event_count);
+    TEST_ASSERT_EQUAL_UINT8(0x50, s_events[0].keycode);
+    TEST_ASSERT_TRUE(s_events[0].pressed);
+    TEST_ASSERT_EQUAL(3, s_events[0].text_len);
+    TEST_ASSERT_EQUAL_MEMORY("\x1b[D", s_events[0].text, 3);
+
+    make_report(report, 0, 0, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+}
+
+void test_keyboard_reset_releases_held_keys(void)
+{
+    uint8_t report[8];
+    make_report(report, 0, 0x04, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+    bluetooth_hid_keyboard_reset();
+
+    TEST_ASSERT_EQUAL(2, s_event_count);
+    TEST_ASSERT_TRUE(s_events[0].pressed);
+    TEST_ASSERT_FALSE(s_events[1].pressed);
+    TEST_ASSERT_EQUAL_UINT8(0x04, s_events[1].keycode);
+
+    make_report(report, 0, 0, 0, 0, 0, 0, 0);
+    bluetooth_hid_keyboard_input(report, sizeof(report));
+    TEST_ASSERT_EQUAL(2, s_event_count);
+}
+
 /* --- main --- */
 
 int main(void)
@@ -566,6 +631,9 @@ int main(void)
     RUN_TEST(test_short_report_ignored);
     RUN_TEST(test_unknown_keycode_ignored);
     RUN_TEST(test_keycode_zero_ignored);
+    RUN_TEST(test_key_events_report_press_release_and_text);
+    RUN_TEST(test_key_event_preserves_arrow_identity_and_terminal_text);
+    RUN_TEST(test_keyboard_reset_releases_held_keys);
 
     return UNITY_END();
 }

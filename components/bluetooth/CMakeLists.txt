@@ -4,5 +4,5 @@ idf_component_register(
          "src/bluetooth_hid.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES bt console esp_hid nvs_flash freertos
+    REQUIRES bt console esp_hid input nvs_flash freertos
 )

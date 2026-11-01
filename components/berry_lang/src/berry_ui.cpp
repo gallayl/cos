@@ -36,6 +36,7 @@ struct Handle
 
 bvm *s_vm = nullptr;
 bool s_app_active = false;
+bool s_key_down[128] = {};
 int s_next_callback = 0;
 std::vector<Handle> s_handles;
 std::vector<std::string> s_callback_globals;
@@ -506,6 +507,21 @@ int native_draw_text(bvm *vm)
     be_return_nil(vm);
 }
 
+int native_key_down(bvm *vm)
+{
+    if (be_top(vm) < 1 || !be_isint(vm, 1))
+    {
+        be_pushbool(vm, false);
+        be_return(vm);
+    }
+
+    const int keycode = static_cast<int>(be_toint(vm, 1));
+    const bool down =
+        keycode > 0 && keycode < static_cast<int>(sizeof(s_key_down) / sizeof(s_key_down[0])) && s_key_down[keycode];
+    be_pushbool(vm, down);
+    be_return(vm);
+}
+
 int native_touch(bvm *vm)
 {
     int x = 0;
@@ -621,12 +637,22 @@ void berry_ui_register(bvm *vm)
     register_function(vm, "fill_rect", native_fill_rect);
     register_function(vm, "draw_text", native_draw_text);
     register_function(vm, "touch", native_touch);
+    register_function(vm, "key_down", native_key_down);
     register_function(vm, "start_write", native_start_write);
     register_function(vm, "end_write", native_end_write);
     register_function(vm, "timer", native_timer);
     register_constant(vm, "LEFT", 1);
     register_constant(vm, "CENTER", 0);
     register_constant(vm, "RIGHT", 2);
+    register_constant(vm, "KEY_ENTER", 0x28);
+    register_constant(vm, "KEY_ESCAPE", 0x29);
+    register_constant(vm, "KEY_SPACE", 0x2C);
+    register_constant(vm, "KEY_A", 0x04);
+    register_constant(vm, "KEY_D", 0x07);
+    register_constant(vm, "KEY_LEFT", 0x50);
+    register_constant(vm, "KEY_RIGHT", 0x4F);
+    register_constant(vm, "KEY_DOWN", 0x51);
+    register_constant(vm, "KEY_UP", 0x52);
     register_constant(vm, "TEXT_COLOR", 0x0000);
     register_constant(vm, "WINDOW_BG", 0xFFFF);
     register_constant(vm, "BUTTON_HIGHLIGHT", 0xFFFF);
@@ -639,6 +665,7 @@ void berry_ui_begin_app(bvm *vm)
 {
     s_vm = vm;
     s_app_active = true;
+    std::fill(s_key_down, s_key_down + sizeof(s_key_down) / sizeof(s_key_down[0]), false);
     s_next_callback = 0;
     s_timers.clear();
     s_callback_globals.clear();
@@ -648,6 +675,7 @@ void berry_ui_begin_app(bvm *vm)
 void berry_ui_end_app(void)
 {
     s_app_active = false;
+    std::fill(s_key_down, s_key_down + sizeof(s_key_down) / sizeof(s_key_down[0]), false);
     for (const std::string &name : s_callback_globals)
     {
         be_pushnil(s_vm);
@@ -658,4 +686,12 @@ void berry_ui_end_app(void)
     s_timers.clear();
     s_handles.clear();
     s_next_callback = 0;
+}
+
+void berry_ui_set_key_state(uint8_t keycode, bool pressed)
+{
+    if (s_app_active && keycode > 0 && keycode < sizeof(s_key_down) / sizeof(s_key_down[0]))
+    {
+        s_key_down[keycode] = pressed;
+    }
 }
