@@ -17,20 +17,12 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
             entries = [
                 {
                     "directory": temp_dir,
-                    "command": 'xtensa-esp32-elf-gcc -mlongcalls -DNAME=one -c source.c',
+                    "command": 'cc -mlongcalls -DNAME=one -c source.c',
                     "file": "source.c",
                 },
                 {
                     "directory": temp_dir,
-                    "arguments": [
-                        "xtensa-esp32-elf-gcc",
-                        "-fno-shrink-wrap",
-                        "-I",
-                        "include path",
-                        "-IC:/tools/xtensa/include",
-                        "-c",
-                        "other.c",
-                    ],
+                    "arguments": ["cc", "-fno-shrink-wrap", "-I", "include path", "-IC:/tools/xtensa/include", "-c", "other.c"],
                     "file": "other.c",
                 },
                 {
@@ -47,10 +39,10 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
             with open(destination, encoding="utf-8") as compile_commands:
                 sanitized = json.load(compile_commands)
             self.assertNotIn("-mlongcalls", sanitized[0]["command"])
-            self.assertTrue(sanitized[0]["command"].startswith("clang "))
+            self.assertTrue(sanitized[0]["command"].startswith("cc "))
             self.assertIn("-DNAME=one", sanitized[0]["command"])
             self.assertEqual(
-                ["clang", "-I", "include path", "-IC:/tools/xtensa/include", "-c", "other.c"],
+                ["cc", "-I", "include path", "-IC:/tools/xtensa/include", "-c", "other.c"],
                 sanitized[1]["arguments"],
             )
             expected_command = ["cc", "-c", "C:\\path with spaces\\source.c"]

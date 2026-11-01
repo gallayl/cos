@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Sanitize compile_commands.json and run clang-tidy.
 
-ESP-IDF's Xtensa toolchain emits flags that clang-tidy does not understand and
-targets an architecture unavailable in the host clang build. This script
-rewrites the compiler identity and sanitizes a copy of compile_commands.json,
-then exits non-zero when clang-tidy reports errors or warnings-as-errors.
+ESP-IDF's Xtensa toolchain emits flags that clang-tidy does not understand.
+This script sanitizes a copy of compile_commands.json before invoking
+clang-tidy, and exits non-zero when clang-tidy reports errors or warnings-as-errors.
 """
 
 import json
@@ -24,11 +23,6 @@ SRC_PATH = "build/compile_commands.json"
 DST_PATH = "build/tidy/compile_commands.json"
 
 
-def sanitize_compiler(arguments):
-    if arguments and "xtensa" in os.path.basename(arguments[0]).lower():
-        arguments[0] = "clang"
-
-
 def sanitize_compile_commands(src_path, dst_path):
     with open(src_path, encoding="utf-8") as f:
         commands = json.load(f)
@@ -38,7 +32,6 @@ def sanitize_compile_commands(src_path, dst_path):
             if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
                 raise ValueError("compile database arguments must be a list of strings")
             entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
-            sanitize_compiler(entry["arguments"])
         elif "command" in entry:
             words = shlex.split(entry["command"], posix=os.name != "nt")
             if os.name == "nt":
@@ -46,7 +39,6 @@ def sanitize_compile_commands(src_path, dst_path):
                     word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
                 ]
             words = [word for word in words if word not in UNSUPPORTED_FLAGS]
-            sanitize_compiler(words)
             entry["command"] = subprocess.list2cmdline(words) if os.name == "nt" else shlex.join(words)
         else:
             raise ValueError("compile database entry must contain command or arguments")
