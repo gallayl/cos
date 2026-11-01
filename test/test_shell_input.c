@@ -48,6 +48,7 @@ esp_err_t shell_complete_line(char *line, size_t capacity, bool *changed)
 static void reset_state(void)
 {
     s_line_pos = 0;
+    s_ignore_lf = false;
     memset(s_line, 0, sizeof(s_line));
     s_parse_state = ST_NORMAL;
     s_history_count = 0;
@@ -279,6 +280,22 @@ static void test_async_line_input_collects_text_and_completes(void)
     TEST_ASSERT_EQUAL_STRING("Berry", s_line_callback_value);
 }
 
+static void test_lf_after_command_cr_does_not_finish_pending_prompt(void)
+{
+    s_ignore_lf = true;
+    s_line_input.active = true;
+    s_line_input.callback = line_input_callback;
+    s_line_input.context = &s_test_stream;
+    atomic_store(&s_line_input_owned, true);
+
+    process_byte('\n');
+
+    TEST_ASSERT_TRUE(s_line_input.active);
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+    TEST_ASSERT_EQUAL(0, s_line_callback_calls);
+    TEST_ASSERT_FALSE(s_ignore_lf);
+}
+
 static void test_async_line_input_backspace_and_cancel(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_line("Value: ", line_input_callback, &s_test_stream));
@@ -384,6 +401,7 @@ int main(void)
     RUN_TEST(test_history_empty_up_does_nothing);
     RUN_TEST(test_history_down_without_browsing_does_nothing);
     RUN_TEST(test_async_line_input_collects_text_and_completes);
+    RUN_TEST(test_lf_after_command_cr_does_not_finish_pending_prompt);
     RUN_TEST(test_async_line_input_backspace_and_cancel);
     RUN_TEST(test_async_line_input_rejects_concurrent_requests);
     RUN_TEST(test_async_line_input_rejects_other_task_requests);
