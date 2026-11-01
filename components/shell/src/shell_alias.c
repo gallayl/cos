@@ -3,6 +3,7 @@
 #include "esp_console.h"
 #include "esp_log.h"
 #include "filesystem.h"
+#include "linenoise/linenoise.h"
 
 #include <stdio.h>
 #include <stdlib.h>
