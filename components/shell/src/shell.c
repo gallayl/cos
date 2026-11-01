@@ -3,6 +3,7 @@
 
 #include "berry_runtime.h"
 #include "filesystem.h"
+#include "shell_alias.h"
 #include "shell_cmds.h"
 
 #include "esp_console.h"
@@ -175,6 +176,13 @@ esp_err_t shell_init(void)
     shell_register_info_commands();
     shell_register_network_commands();
     shell_register_berry_commands();
+
+    err = shell_alias_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not initialize shell aliases: %s", esp_err_to_name(err));
+        return err;
+    }
 
     update_prompt();
 

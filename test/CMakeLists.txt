@@ -93,6 +93,7 @@ target_link_libraries(calibration_logic PRIVATE mock_esp calibration_storage)
 
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
+    ${COMPONENT_DIR}/components/shell/src/shell_alias.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -394,6 +395,7 @@ add_test(NAME test_text_buffer COMMAND test_text_buffer)
 # --- Test: shell_input (includes .c directly to test static functions) ---
 add_library(shell_input_deps STATIC
     mocks/mock_freertos_extra.c
+    ${COMPONENT_DIR}/components/shell/src/shell_alias.c
 )
 target_include_directories(shell_input_deps PUBLIC
     mocks

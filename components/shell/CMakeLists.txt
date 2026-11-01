@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS "src/shell.c"
+         "src/shell_alias.c"
          "src/shell_input.c"
          "src/shell_completion.c"
          "src/shell_fs_cmds.c"

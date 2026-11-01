@@ -235,22 +235,31 @@ fails, the command must report the remaining path and error.
 
 ## Milestone 6 — low-risk maintenance and scripting improvements
 
-**Status:** Planned
+**Status:** Implementation complete; CI pending
 
-- [ ] Review shell line/history limits and their static RAM cost before changing
+- [x] Review shell line/history limits and their static RAM cost before changing
       defaults.
-- [ ] Review CI tool version pinning, repeated package setup, artifact
+- [x] Review CI tool version pinning, repeated package setup, artifact
       inventories, and failure log retention.
-- [ ] Use one source of truth for integration-test projects across firmware
+- [x] Use one source of truth for integration-test projects across firmware
       builds, pytest execution, and CI artifact upload lists.
-- [ ] Add tests for `scripts/run_tidy.py` failure propagation and command
+- [x] Add tests for `scripts/run_tidy.py` failure propagation and command
       database handling; ensure clang-tidy errors cannot be reported as success.
-- [ ] Align the README's ESP-IDF version and environment examples with the
+- [x] Align the README's ESP-IDF version and environment examples with the
       version used in CI; document unit/integration test prerequisites and commands.
-- [ ] Keep README command/API documentation current with shipped behavior.
-- [ ] Define and implement a small, configurable shell-alias mechanism.
-- [ ] Review the existing Berry examples and add a focused starter-script set
+- [x] Keep README command/API documentation current with shipped behavior.
+- [x] Define and implement a small, configurable shell-alias mechanism.
+- [x] Review the existing Berry examples and add a focused starter-script set
       without expanding into full applications.
+
+### Milestone 6 local validation
+
+| Validation                | Status | Result |
+| ------------------------- | ------ | ------ |
+| Host unit tests           | Pass   | All 21 C test targets and 3 Python tidy-script tests passed. |
+| clang-format check        | Pass   | Repository format check passed with clang-format 18.1.8. |
+| Doxygen check             | Pass   | `make docs-check` passed. |
+| ESP-IDF build and QEMU CI | Pending | Local ESP-IDF is not configured; PR CI will provide firmware and integration validation. |
 
 ## Berry API risk, complexity, and ROI
 

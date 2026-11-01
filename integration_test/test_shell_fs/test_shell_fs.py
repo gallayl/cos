@@ -71,6 +71,20 @@ def test_help_lists_registered_commands(dut):
     dut.expect("cat", timeout=CMD_TIMEOUT)
     dut.expect("berry", timeout=CMD_TIMEOUT)
 
+
+def test_shell_alias_lifecycle(dut):
+    _wait_ready(dut)
+    dut.write("alias ll ls\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("ll /flash\n")
+    dut.expect("hello.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("unalias ll\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("ll\n")
+    dut.expect("Unknown command: ll", timeout=CMD_TIMEOUT)
+
+
 def test_ping_reports_unavailable_network(dut):
     _wait_ready(dut)
     dut.write("ping example.com\n")

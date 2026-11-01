@@ -25,7 +25,7 @@ jobs:
           . $IDF_PATH/export.sh
           python $IDF_PATH/tools/idf_tools.py install qemu-xtensa
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
-          pip install pytest-embedded pytest-embedded-idf pytest-embedded-qemu
+          python -m pip install -r integration_test/requirements.txt
 
       - name: Build integration test firmware
         shell: bash
@@ -40,14 +40,9 @@ jobs:
         with:
           name: integration-test-firmware
           path: |
-            integration_test/test_nvs_calibration/build/test_nvs_calibration.elf
-            integration_test/test_init_sequence/build/test_init_sequence.elf
-            integration_test/test_shell_fs/build/test_shell_fs.elf
-            integration_test/test_system/build/test_system.elf
-            integration_test/test_stability/build/test_stability.elf
-            integration_test/test_vfs_ops/build/test_vfs_ops.elf
+            integration_test/test_*/build/*.elf
           if-no-files-found: ignore
-          retention-days: 5
+          retention-days: 14
 
       - name: Run integration tests
         shell: bash
@@ -72,14 +67,9 @@ jobs:
           name: integration-test-logs
           path: |
             pytest-embedded-logs/
-            integration_test/test_nvs_calibration/build/test_nvs_calibration.elf
-            integration_test/test_init_sequence/build/test_init_sequence.elf
-            integration_test/test_shell_fs/build/test_shell_fs.elf
-            integration_test/test_system/build/test_system.elf
-            integration_test/test_stability/build/test_stability.elf
-            integration_test/test_vfs_ops/build/test_vfs_ops.elf
+            integration_test/test_*/build/*.elf
           if-no-files-found: ignore
-          retention-days: 5
+          retention-days: 14
 
       - name: Decode QEMU panic backtraces
         if: always()

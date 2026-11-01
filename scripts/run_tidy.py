@@ -8,6 +8,7 @@ invoking clang-tidy, and exits non-zero when warnings-as-errors are found.
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 
@@ -27,8 +28,20 @@ def sanitize_compile_commands(src_path, dst_path):
         commands = json.load(f)
 
     for entry in commands:
-        words = entry["command"].split()
-        entry["command"] = " ".join(w for w in words if w not in UNSUPPORTED_FLAGS)
+        if "arguments" in entry:
+            if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
+                raise ValueError("compile database arguments must be a list of strings")
+            entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
+        elif "command" in entry:
+            words = shlex.split(entry["command"], posix=os.name != "nt")
+            if os.name == "nt":
+                words = [
+                    word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
+                ]
+            words = [word for word in words if word not in UNSUPPORTED_FLAGS]
+            entry["command"] = subprocess.list2cmdline(words) if os.name == "nt" else shlex.join(words)
+        else:
+            raise ValueError("compile database entry must contain command or arguments")
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with open(dst_path, "w", encoding="utf-8") as f:
@@ -50,7 +63,7 @@ def run_clang_tidy(compile_commands_dir, sources):
             has_errors = True
 
     proc.wait()
-    return 1 if has_errors else 0
+    return proc.returncode if proc.returncode != 0 else (1 if has_errors else 0)
 
 
 def main():

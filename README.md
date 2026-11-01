@@ -6,43 +6,45 @@ COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featu
 
 ### ESP-IDF
 
-Install [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32/get-started/index.html) for your platform.
+Install [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32/get-started/index.html), the version used by CI.
 
 ### Environment variables
 
-The Makefile requires two environment variables to locate the ESP-IDF toolchain:
+Set `IDF_PATH` to the ESP-IDF v5.5.2 checkout. `IDF_TOOLS_PATH` and
+`IDF_PYTHON_ENV_PATH` are optional overrides for the tool and Python
+environments:
 
-| Variable              | Example (Windows)                     | Example (Linux / devcontainer)         |
-| --------------------- | ------------------------------------- | -------------------------------------- |
-| `IDF_PATH`            | `c:\esp\v6.1\esp-idf\`                | `/opt/esp/idf`                         |
-| `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                  | `/opt/esp`                             |
-| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv` | `/opt/esp/python_env/idf5.5_py3.x_env` |
+| Variable              | Example (Windows)                       | Example (Linux / devcontainer)          |
+| --------------------- | --------------------------------------- | --------------------------------------- |
+| `IDF_PATH`            | `C:\esp\v5.5.2\esp-idf\`                | `/opt/esp/idf`                          |
+| `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                    | `/opt/esp`                              |
+| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v5.5.2\venv` | `/opt/esp/python_env/idf5.5_py3.12_env` |
 
 **Windows (CMD):**
 
 ```cmd
-set ESP_IDF_VERSION=6.1
-set IDF_PATH=c:/esp/v6.1/esp-idf/
+set ESP_IDF_VERSION=5.5.2
+set IDF_PATH=C:/esp/v5.5.2/esp-idf/
 set IDF_TOOLS_PATH=C:/Espressif/tools
-set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v6.1/venv
+set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v5.5.2/venv
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-$env:ESP_IDF_VERSION = "6.1"
-$env:IDF_PATH = "c:/esp/v6.1/esp-idf/"
+$env:ESP_IDF_VERSION = "5.5.2"
+$env:IDF_PATH = "C:/esp/v5.5.2/esp-idf/"
 $env:IDF_TOOLS_PATH = "C:/Espressif/tools"
-$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v6.1/venv"
+$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v5.5.2/venv"
 ```
 
 **Linux / macOS:**
 
 ```bash
-export ESP_IDF_VERSION=6.1
-export IDF_PATH=~/.espressif/v6.1/esp-idf
+export ESP_IDF_VERSION=5.5.2
+export IDF_PATH=~/.espressif/v5.5.2/esp-idf
 export IDF_TOOLS_PATH=~/.espressif/tools
-export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.14_env
+export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.12_env
 ```
 
 ### Host tools
@@ -52,8 +54,19 @@ export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.14_env
 | GNU Make     | Build orchestration           | Included with MSYS2 / Xcode CLT / apt                                                    |
 | CMake        | Test build system             | Bundled with ESP-IDF (`C:\Espressif\tools\cmake`)                                        |
 | GCC (host)   | Compile host-based unit tests | `winget install BrechtSanders.WinLibs.POSIX.UCRT` (Windows) or `apt install gcc` (Linux) |
+| Python 3     | Tidy-script tests and QEMU integration tests | Bundled with ESP-IDF or `python3` on Linux |
 | clang-format | Code formatting               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
 | clang-tidy   | Static analysis               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
+
+Host unit tests require CMake, Ninja, a host C compiler, and Python 3. QEMU
+integration tests additionally require ESP-IDF v5.5.2, its QEMU tool, and the
+pinned Python test plugins in `integration_test/requirements.txt`. Activate
+the ESP-IDF environment before installing the plugins:
+
+```bash
+python -m pip install -r integration_test/requirements.txt
+python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+```
 
 ## Build and flash
 
@@ -79,7 +92,24 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | Command     | Description                              |
 | ----------- | ---------------------------------------- |
 | `clear`     | Clear the text console                   |
+| `alias` / `unalias` | List, define, or remove persistent single-command aliases |
 | `calibrate` | Run interactive touch screen calibration |
+| `cd`, `pwd` | Change or show the current directory |
+| `ls`, `dir` | List directory contents |
+| `mkdir`, `md` | Create a directory |
+| `rm`, `del` | Remove a file or empty directory |
+| `cp`, `mv`, `rmdir` | Copy, move, or remove files/directories |
+| `cat`, `type`, `touch`, `hexdump` | Read, create, or inspect files |
+| `sd` | Mount, unmount, or inspect the SD card |
+| `info`, `format` | Show filesystem usage or format flash |
+| `display_mode` | Inspect or clear the display |
+| `wifi` | Show Wi-Fi status, scan, and connect or disconnect |
+| `bt` | Show Bluetooth status and manage device connections |
+| `led`, `light`, `screen` | Inspect or control the LED, light sensor, and brightness |
+| `i2c` | Scan the bus and read or write device data |
+| `time` | Show local/UTC time, sync status, or epoch |
+| `server`, `ws` | Inspect and control the HTTP server and WebSocket clients |
+| `restart`, `uptime` | Restart the device or show uptime |
 | `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
 | `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
 | `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
@@ -99,6 +129,17 @@ directory; `rm` also retains its existing support for removing empty
 directories. Press **Tab** at the end of a command or supported path argument
 to complete a unique match or extend an ambiguous match to its common prefix.
 Paths containing whitespace are not completed.
+The line editor accepts up to 127 characters plus its terminator and retains
+eight history entries. Its line, history, saved-line, and Berry prompt buffers
+use 1,408 bytes of static RAM; the existing limits are retained.
+
+Define a persistent alias with `alias <name> <command>`, list aliases with
+`alias`, and remove one with `unalias <name>`. Aliases map one command name to
+another registered command and pass through the arguments supplied at use;
+they do not store arguments, shadow existing commands, or chain to other
+aliases. Up to eight aliases are stored in `/flash/.cos_aliases`.
+Aliases expand on interactive shell command lines; Berry `action()` calls
+continue to invoke registered commands directly.
 
 When the text console owns the display, drag downward to view older output and
 upward to return toward live output. The console lazily allocates scrollback,
@@ -141,6 +182,11 @@ The Berry runtime also provides:
 | `fs.list(path)` | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected. |
 | `net.ping(host, timeout_ms=1000)` | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
 
+Small Berry starter scripts are included in `/flash/scripts`: run
+`berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, or `prompt.be`.
+The prompt example uses asynchronous input and returns control to the shell
+input loop while it waits for a response.
+
 Berry maps are accessed with indexing, for example `listing["ok"]` and
 `listing["entries"][0]["name"]`.
 
@@ -159,6 +205,10 @@ make format       # auto-format all source files
 make format-check # check formatting (CI-friendly, fails on violations)
 make lint         # run clang-tidy static analysis
 make test         # build and run host-based unit tests
+make integration-test       # build and run all discovered QEMU integration tests
+make integration-test-build # build all integration-test firmware projects
+make integration-test-run   # run all integration tests (after building)
+make docs-check   # validate Doxygen documentation
 make menuconfig   # open ESP-IDF configuration menu
 make clean        # remove build artifacts
 make fullclean    # remove build artifacts and sdkconfig

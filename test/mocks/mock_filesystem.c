@@ -7,11 +7,14 @@
 
 #define MOCK_MAX_DIRS 32
 #define MOCK_MAX_FILES 64
+#define MOCK_FILE_CONTENT_MAX 512
 
 static bool s_sd_mounted = false;
 static char s_directories[MOCK_MAX_DIRS][VFS_PATH_MAX];
 static int s_dir_count = 0;
 static char s_files[MOCK_MAX_FILES][VFS_PATH_MAX];
+static char s_file_data[MOCK_MAX_FILES][MOCK_FILE_CONTENT_MAX];
+static size_t s_file_lengths[MOCK_MAX_FILES];
 static int s_file_count = 0;
 
 static bool path_in_list(const char paths[][VFS_PATH_MAX], int count, const char *path)
@@ -28,8 +31,8 @@ static bool path_in_list(const char paths[][VFS_PATH_MAX], int count, const char
 
 static bool path_exists(const char *path)
 {
-    return path_in_list((const char (*)[VFS_PATH_MAX])s_directories, s_dir_count, path) ||
-           path_in_list((const char (*)[VFS_PATH_MAX])s_files, s_file_count, path);
+    return path_in_list((const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, path) ||
+           path_in_list((const char(*)[VFS_PATH_MAX])s_files, s_file_count, path);
 }
 
 static void add_entry(vfs_dir_entry_t *entries, size_t max_entries, size_t *count, const char *name, bool is_dir)
@@ -105,6 +108,8 @@ void mock_filesystem_reset(void)
     s_file_count = 0;
     memset(s_directories, 0, sizeof(s_directories));
     memset(s_files, 0, sizeof(s_files));
+    memset(s_file_data, 0, sizeof(s_file_data));
+    memset(s_file_lengths, 0, sizeof(s_file_lengths));
 
     /* Default directories always present */
     mock_filesystem_add_directory("/");
@@ -122,7 +127,7 @@ void mock_filesystem_set_sd_mounted(bool mounted)
 
 void mock_filesystem_add_directory(const char *path)
 {
-    if (s_dir_count < MOCK_MAX_DIRS && !path_in_list((const char (*)[VFS_PATH_MAX])s_directories, s_dir_count, path))
+    if (s_dir_count < MOCK_MAX_DIRS && !path_in_list((const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, path))
     {
         strncpy(s_directories[s_dir_count], path, VFS_PATH_MAX - 1);
         s_dir_count++;
@@ -131,9 +136,12 @@ void mock_filesystem_add_directory(const char *path)
 
 void mock_filesystem_add_file(const char *path)
 {
-    if (s_file_count < MOCK_MAX_FILES && !path_in_list((const char (*)[VFS_PATH_MAX])s_files, s_file_count, path))
+    if (s_file_count < MOCK_MAX_FILES && !path_in_list((const char(*)[VFS_PATH_MAX])s_files, s_file_count, path))
     {
+        memset(s_file_data[s_file_count], 0, sizeof(s_file_data[s_file_count]));
+        s_file_lengths[s_file_count] = 0;
         strncpy(s_files[s_file_count], path, VFS_PATH_MAX - 1);
+        s_files[s_file_count][VFS_PATH_MAX - 1] = '\0';
         s_file_count++;
     }
 }
@@ -211,19 +219,26 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
     {
         return ESP_ERR_NOT_FOUND;
     }
-    list_children(path, (const char (*)[VFS_PATH_MAX])s_directories, s_dir_count, true, entries, max_entries, count);
-    list_children(path, (const char (*)[VFS_PATH_MAX])s_files, s_file_count, false, entries, max_entries, count);
+    list_children(path, (const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, true, entries, max_entries, count);
+    list_children(path, (const char(*)[VFS_PATH_MAX])s_files, s_file_count, false, entries, max_entries, count);
     return ESP_OK;
 }
 
 esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *bytes_read)
 {
-    (void)path;
-    (void)buf;
-    (void)buf_size;
-    if (bytes_read)
+    if (path == NULL || buf == NULL || bytes_read == NULL)
     {
-        *bytes_read = 0;
+        return ESP_ERR_INVALID_ARG;
+    }
+    for (int i = 0; i < s_file_count; i++)
+    {
+        if (strcmp(s_files[i], path) == 0)
+        {
+            size_t length = s_file_lengths[i] < buf_size ? s_file_lengths[i] : buf_size;
+            memcpy(buf, s_file_data[i], length);
+            *bytes_read = length;
+            return ESP_OK;
+        }
     }
     return ESP_ERR_NOT_FOUND;
 }
@@ -238,23 +253,41 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
 
 esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 {
-    (void)data;
-    (void)len;
-    if (path == NULL)
+    if (path == NULL || (data == NULL && len > 0) || len > MOCK_FILE_CONTENT_MAX)
     {
         return ESP_ERR_INVALID_ARG;
     }
-    if (!path_exists(path))
+    int index = -1;
+    for (int i = 0; i < s_file_count; i++)
     {
+        if (strcmp(s_files[i], path) == 0)
+        {
+            index = i;
+            break;
+        }
+    }
+    if (index < 0)
+    {
+        if (s_file_count >= MOCK_MAX_FILES)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+        index = s_file_count;
         mock_filesystem_add_file(path);
     }
+    memset(s_file_data[index], 0, sizeof(s_file_data[index]));
+    if (len > 0)
+    {
+        memcpy(s_file_data[index], data, len);
+    }
+    s_file_lengths[index] = len;
     return ESP_OK;
 }
 
 esp_err_t vfs_copy_file(const char *source, const char *destination)
 {
     if (source == NULL || destination == NULL ||
-        !path_in_list((const char (*)[VFS_PATH_MAX])s_files, s_file_count, source))
+        !path_in_list((const char(*)[VFS_PATH_MAX])s_files, s_file_count, source))
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -269,7 +302,7 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
 esp_err_t vfs_rename_file(const char *source, const char *destination)
 {
     if (source == NULL || destination == NULL ||
-        !path_in_list((const char (*)[VFS_PATH_MAX])s_files, s_file_count, source))
+        !path_in_list((const char(*)[VFS_PATH_MAX])s_files, s_file_count, source))
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -315,6 +348,9 @@ esp_err_t vfs_remove(const char *path)
         if (strcmp(s_files[i], path) == 0)
         {
             memmove(&s_files[i], &s_files[i + 1], (size_t)(s_file_count - i - 1) * sizeof(s_files[0]));
+            memmove(&s_file_data[i], &s_file_data[i + 1], (size_t)(s_file_count - i - 1) * sizeof(s_file_data[0]));
+            memmove(&s_file_lengths[i], &s_file_lengths[i + 1],
+                    (size_t)(s_file_count - i - 1) * sizeof(s_file_lengths[0]));
             s_file_count--;
             return ESP_OK;
         }
@@ -364,5 +400,5 @@ bool vfs_is_directory(const char *path)
     {
         return false;
     }
-    return path_in_list((const char (*)[VFS_PATH_MAX])s_directories, s_dir_count, path);
+    return path_in_list((const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, path);
 }
