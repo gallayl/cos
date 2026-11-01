@@ -299,6 +299,7 @@ int native_fs_list(bvm *vm)
     be_pop(vm, 2);
     be_pop(vm, 1);
     map_set_number(vm, "count", static_cast<double>(count));
+    be_pop(vm, 1);
     be_return(vm);
 }
 

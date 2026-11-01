@@ -38,7 +38,7 @@ static _Atomic(void *) s_line_input_owner;
 static char s_line[INPUT_LINE_MAX];
 static int s_line_pos;
 static bool s_ignore_lf;
-static bool s_ignore_prompt_cr;
+static bool s_ignore_prompt_eol;
 
 /* ── Command history ───────────────────────────────────────── */
 
@@ -349,24 +349,20 @@ static void handle_normal_char(uint8_t ch)
 
 static void process_byte(uint8_t ch)
 {
-    if (s_line_input.active && (ch == '\r' || ch == '\n' || ch == 0x03))
-    {
-        ESP_LOGI(TAG, "line input byte 0x%02x (ignore_lf=%d prompt_cr=%d)", ch, s_ignore_lf, s_ignore_prompt_cr);
-    }
     if (s_ignore_lf)
     {
         s_ignore_lf = false;
         if (ch == '\n')
         {
+            s_ignore_prompt_eol = false;
             return;
         }
     }
-    if (s_ignore_prompt_cr)
+    if (s_ignore_prompt_eol)
     {
-        s_ignore_prompt_cr = false;
-        if (ch == '\r')
+        s_ignore_prompt_eol = false;
+        if (ch == '\r' || ch == '\n')
         {
-            ESP_LOGI(TAG, "ignored CR after LF-started prompt");
             return;
         }
     }
@@ -394,10 +390,9 @@ static void process_byte(uint8_t ch)
     {
     case ST_NORMAL:
         handle_normal_char(ch);
-        if (ch == '\n' && s_line_input.active)
+        if ((ch == '\r' || ch == '\n') && s_line_input.active)
         {
-            s_ignore_prompt_cr = true;
-            ESP_LOGI(TAG, "suppressing trailing CR after LF-started prompt");
+            s_ignore_prompt_eol = true;
         }
         break;
 
@@ -422,6 +417,15 @@ static void process_byte(uint8_t ch)
         }
         break;
     }
+}
+
+static void process_input_buffer(const uint8_t *buf, size_t length)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        process_byte(buf[i]);
+    }
+    s_ignore_prompt_eol = false;
 }
 
 /* ── Tasks ─────────────────────────────────────────────────── */
@@ -450,10 +454,7 @@ static void input_task(void *arg)
     for (;;)
     {
         size_t n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), portMAX_DELAY);
-        for (size_t i = 0; i < n; i++)
-        {
-            process_byte(buf[i]);
-        }
+        process_input_buffer(buf, n);
         fflush(stdout);
     }
 }
@@ -544,7 +545,7 @@ esp_err_t shell_input_init(void)
     s_history_browse = -1;
     s_parse_state = ST_NORMAL;
     s_ignore_lf = false;
-    s_ignore_prompt_cr = false;
+    s_ignore_prompt_eol = false;
     atomic_init(&s_line_input_owned, false);
     atomic_init(&s_line_input_owner, NULL);
 
