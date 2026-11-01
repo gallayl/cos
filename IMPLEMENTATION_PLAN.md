@@ -158,7 +158,7 @@ retries.
 
 ## Milestone 4 — console scrollback and network utilities
 
-**Status:** Implementation complete; CI and hardware validation pending
+**Status:** Implementation complete; CI passes; hardware validation pending
 
 - [x] Add a bounded scrollback ring separate from the visible text grid.
 - [x] Keep retained rows compact to limit static RAM use and preserve heap for
@@ -202,8 +202,11 @@ fails, the command must report the remaining path and error.
 | Scrollback storage       | Pass    | Packed character/color-index pairs use 13,824 bytes for 128x54 history, half the previous padded representation. |
 | clang-format              | Pass    | Repository format check passed. |
 | Shell integration build   | Pass    | `integration_test/test_shell_fs` firmware builds with the new commands. |
-| Shell QEMU integration    | Pending | Local run unavailable because `qemu-system-xtensa` is not installed; CI validation pending. |
-| clang-tidy                | Pending | Local clang-tidy 21 does not accept several ESP-IDF 6.1 compile flags; CI validation pending. |
+| Shell QEMU integration    | Pass    | PR #16 CI run `41304683352` passed all integration tests. |
+| clang-tidy                | Pass    | PR #16 CI run `41304683356` passed firmware build and clang-tidy. |
+| Format Check              | Pass    | PR #16 CI run `41304683522` passed. |
+| Host unit tests           | Pass    | PR #16 CI run `41304683244` passed all test targets. |
+| Doxygen Check             | Pass    | PR #16 CI run `41304683311` passed. |
 | Touch/network hardware    | Pending | Requires a CYD board with touch and Wi-Fi station connectivity. |
 
 ## Milestone 5 — usability and maintenance follow-up
