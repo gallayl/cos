@@ -29,7 +29,6 @@ jobs:
         run: |
           . $IDF_PATH/export.sh
           mkdir -p build/clang
-          cp build/sdkconfig build/clang/sdkconfig
           IDF_TOOLCHAIN=clang idf.py -B build/clang reconfigure
 
       - name: Run clang-tidy
