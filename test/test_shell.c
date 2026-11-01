@@ -5,6 +5,7 @@
 #include "mock_filesystem.h"
 #include "mock_network.h"
 #include "shell.h"
+#include "shell_alias.h"
 #include "shell_cmds.h"
 #include "shell_completion.h"
 
@@ -501,6 +502,68 @@ static void test_cmd_nslookup_reports_resolution_error(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("nslookup", 2, argv));
 }
 
+static void test_alias_expands_command_and_persists_configuration(void)
+{
+    char *argv[] = {"alias", "ll", "ls"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("alias", 3, argv));
+
+    char *breakout_argv[] = {"alias", "breakout", "berry run apps/breakout.be"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("alias", 3, breakout_argv));
+
+    char expanded[128];
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("  ll -a", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("  ls -a", expanded);
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
+
+    char contents[128];
+    size_t length = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/.cos_aliases", contents, sizeof(contents) - 1, &length));
+    contents[length] = '\0';
+    TEST_ASSERT_EQUAL_STRING("ll=ls\nbreakout=berry run apps/breakout.be\n", contents);
+
+    mock_console_reset();
+    shell_register_fs_commands();
+    shell_register_sd_commands();
+    shell_register_info_commands();
+    shell_register_network_commands();
+    shell_register_berry_commands();
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("ll -a", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("ls -a", expanded);
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
+}
+
+static void test_alias_rejects_unknown_commands_and_builtin_names(void)
+{
+    char *unknown_argv[] = {"alias", "missing", "not_a_command"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, unknown_argv));
+
+    char *builtin_argv[] = {"alias", "ls", "pwd"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, builtin_argv));
+
+    char *chain_argv[] = {"alias", "list", "ll"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, chain_argv));
+
+    char *chain_with_args_argv[] = {"alias", "list", "ll -a"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, chain_with_args_argv));
+
+    char expanded[128];
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("not_alias", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("not_alias", expanded);
+}
+
+static void test_unalias_removes_mapping(void)
+{
+    char *argv[] = {"unalias", "ll"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("unalias", 2, argv));
+
+    char expanded[128];
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("ll", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("ll", expanded);
+}
+
 int main(void)
 {
     mock_console_reset();
@@ -510,6 +573,10 @@ int main(void)
     shell_register_info_commands();
     shell_register_network_commands();
     shell_register_berry_commands();
+    if (shell_alias_init() != ESP_OK)
+    {
+        return 1;
+    }
 
     UNITY_BEGIN();
 
@@ -584,6 +651,9 @@ int main(void)
     RUN_TEST(test_cmd_ping_reports_network_error);
     RUN_TEST(test_cmd_nslookup_uses_shared_resolver);
     RUN_TEST(test_cmd_nslookup_reports_resolution_error);
+    RUN_TEST(test_alias_expands_command_and_persists_configuration);
+    RUN_TEST(test_alias_rejects_unknown_commands_and_builtin_names);
+    RUN_TEST(test_unalias_removes_mapping);
 
     return UNITY_END();
 }

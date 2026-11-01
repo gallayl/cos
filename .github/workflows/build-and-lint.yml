@@ -15,8 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang-tidy
-        run: apt-get update && apt-get install -y clang-tidy
+      - name: Install ESP-IDF clang tools
+        run: python3 "$IDF_PATH/tools/idf_tools.py" install esp-clang
 
       - name: Build firmware
         shell: bash
@@ -24,8 +24,16 @@ jobs:
           . $IDF_PATH/export.sh
           make build
 
+      - name: Generate Clang compile database
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          mkdir -p build/clang
+          IDF_TOOLCHAIN=clang idf.py -B build/clang reconfigure
+
       - name: Run clang-tidy
         shell: bash
         run: |
           . $IDF_PATH/export.sh
+          export TIDY_COMPILE_COMMANDS=build/clang/compile_commands.json
           make lint

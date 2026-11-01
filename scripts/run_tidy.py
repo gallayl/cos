@@ -2,12 +2,13 @@
 """Sanitize compile_commands.json and run clang-tidy.
 
 ESP-IDF's Xtensa toolchain emits flags that clang-tidy does not understand.
-This script strips those flags from a copy of compile_commands.json before
-invoking clang-tidy, and exits non-zero when warnings-as-errors are found.
+This script sanitizes a copy of compile_commands.json before invoking
+clang-tidy, and exits non-zero when clang-tidy reports errors or warnings-as-errors.
 """
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 
@@ -18,7 +19,7 @@ UNSUPPORTED_FLAGS = {
     "-fstrict-volatile-bitfields",
 }
 
-SRC_PATH = "build/compile_commands.json"
+SRC_PATH = os.environ.get("TIDY_COMPILE_COMMANDS", "build/compile_commands.json")
 DST_PATH = "build/tidy/compile_commands.json"
 
 
@@ -27,8 +28,30 @@ def sanitize_compile_commands(src_path, dst_path):
         commands = json.load(f)
 
     for entry in commands:
-        words = entry["command"].split()
-        entry["command"] = " ".join(w for w in words if w not in UNSUPPORTED_FLAGS)
+        if "arguments" in entry:
+            if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
+                raise ValueError("compile database arguments must be a list of strings")
+            entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
+            command_args = entry["arguments"]
+        elif "command" in entry:
+            words = shlex.split(entry["command"], posix=os.name != "nt")
+            if os.name == "nt":
+                words = [
+                    word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
+                ]
+            words = [word for word in words if word not in UNSUPPORTED_FLAGS]
+            command_args = words
+        else:
+            raise ValueError("compile database entry must contain command or arguments")
+
+        if os.path.splitext(entry.get("file", ""))[1].lower() in {".cc", ".cpp", ".cxx", ".c++"}:
+            # clang-tidy cannot parse LovyanGFX's dead throw branch with ESP-IDF's no-exceptions flag.
+            command_args[:] = [arg for arg in command_args if arg != "-fno-exceptions"]
+            if "-fexceptions" not in command_args:
+                command_args.append("-fexceptions")
+
+        if "command" in entry:
+            entry["command"] = subprocess.list2cmdline(command_args) if os.name == "nt" else shlex.join(command_args)
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with open(dst_path, "w", encoding="utf-8") as f:
@@ -50,7 +73,7 @@ def run_clang_tidy(compile_commands_dir, sources):
             has_errors = True
 
     proc.wait()
-    return 1 if has_errors else 0
+    return proc.returncode if proc.returncode != 0 else (1 if has_errors else 0)
 
 
 def main():

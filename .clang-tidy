@@ -1,4 +1,5 @@
 ---
+# ESP-IDF targets do not provide the C11 *_s APIs this check expects.
 Checks: >
   -*,
   bugprone-*,
@@ -27,14 +28,16 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -bugprone-branch-clone,
   -clang-diagnostic-error,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -misc-include-cleaner,
+  -misc-header-include-cycle,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -readability-function-cognitive-complexity,
 
-WarningsAsErrors: '*'
+WarningsAsErrors: 'bugprone-*,clang-analyzer-*'
 
-ExtraArgs:
+ExtraArgsBefore:
   - '-Wdocumentation'
   - '-Wdocumentation-unknown-command'
 

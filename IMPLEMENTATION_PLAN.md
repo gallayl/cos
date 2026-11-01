@@ -235,22 +235,32 @@ fails, the command must report the remaining path and error.
 
 ## Milestone 6 — low-risk maintenance and scripting improvements
 
-**Status:** Planned
+**Status:** Complete; all PR #18 CI checks passed.
 
-- [ ] Review shell line/history limits and their static RAM cost before changing
+- [x] Review shell line/history limits and their static RAM cost before changing
       defaults.
-- [ ] Review CI tool version pinning, repeated package setup, artifact
+- [x] Review CI tool version pinning, repeated package setup, artifact
       inventories, and failure log retention.
-- [ ] Use one source of truth for integration-test projects across firmware
+- [x] Use one source of truth for integration-test projects across firmware
       builds, pytest execution, and CI artifact upload lists.
-- [ ] Add tests for `scripts/run_tidy.py` failure propagation and command
+- [x] Add tests for `scripts/run_tidy.py` failure propagation and command
       database handling; ensure clang-tidy errors cannot be reported as success.
-- [ ] Align the README's ESP-IDF version and environment examples with the
+- [x] Align the README's ESP-IDF version and environment examples with the
       version used in CI; document unit/integration test prerequisites and commands.
-- [ ] Keep README command/API documentation current with shipped behavior.
-- [ ] Define and implement a small, configurable shell-alias mechanism.
-- [ ] Review the existing Berry examples and add a focused starter-script set
+- [x] Keep README command/API documentation current with shipped behavior.
+- [x] Define and implement a small, configurable shell-alias mechanism.
+- [x] Review the existing Berry examples and add a focused starter-script set
       without expanding into full applications.
+
+### Milestone 6 local validation
+
+| Validation                | Status | Result |
+| ------------------------- | ------ | ------ |
+| Host unit tests           | Pass   | All 21 C test targets and 3 Python tidy-script tests passed; PR #18 Unit Tests run `41346372235` passed. |
+| clang-format check        | Pass   | Local repository format check and PR #18 Format Check run `41346372206` passed. |
+| Doxygen check             | Pass   | `make docs-check` and PR #18 Doxygen Check run `41346372212` passed. |
+| ESP-IDF build and clang-tidy | Pass | Local ESP-IDF 6.1 build and PR #18 Build & Lint run `41346372199` passed. |
+| QEMU shell integration    | Pass   | PR #18 Integration Tests run `41346372318` passed. |
 
 ## Berry API risk, complexity, and ROI
 

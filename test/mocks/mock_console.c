@@ -2,6 +2,7 @@
 #include "esp_console.h"
 #include "esp_err.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,11 +10,22 @@
 
 static struct
 {
-    const char *name;
-    esp_console_cmd_func_t func;
+    esp_console_cmd_t command;
 } s_commands[MOCK_MAX_COMMANDS];
 
 static int s_cmd_count = 0;
+
+static bool command_registered(const char *name)
+{
+    for (int i = 0; i < s_cmd_count; i++)
+    {
+        if (strcmp(s_commands[i].command.command, name) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 void mock_console_reset(void)
 {
@@ -26,8 +38,11 @@ esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd)
     {
         return ESP_FAIL;
     }
-    s_commands[s_cmd_count].name = cmd->command;
-    s_commands[s_cmd_count].func = cmd->func;
+    if (command_registered(cmd->command))
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    s_commands[s_cmd_count].command = *cmd;
     s_cmd_count++;
     return ESP_OK;
 }
@@ -61,9 +76,9 @@ void esp_console_get_completion(const char *buf, linenoiseCompletions *completio
     size_t prefix_len = strlen(buf);
     for (int i = 0; i < s_cmd_count; i++)
     {
-        if (strncmp(buf, s_commands[i].name, prefix_len) == 0)
+        if (strncmp(buf, s_commands[i].command.command, prefix_len) == 0)
         {
-            linenoiseAddCompletion(completions, s_commands[i].name);
+            linenoiseAddCompletion(completions, s_commands[i].command.command);
         }
     }
 }
@@ -72,9 +87,9 @@ int mock_console_run_cmd(const char *name, int argc, char **argv)
 {
     for (int i = 0; i < s_cmd_count; i++)
     {
-        if (strcmp(s_commands[i].name, name) == 0)
+        if (strcmp(s_commands[i].command.command, name) == 0)
         {
-            return s_commands[i].func(argc, argv);
+            return s_commands[i].command.func(argc, argv);
         }
     }
     return -1;

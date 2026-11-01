@@ -1,5 +1,6 @@
 #include "shell_input.h"
 #include "shell.h"
+#include "shell_alias.h"
 #include "shell_completion.h"
 
 #include "driver/uart.h"
@@ -259,7 +260,17 @@ static void execute_line(void)
         history_push(s_line);
 
         int ret = 0;
-        esp_err_t err = esp_console_run(s_line, &ret);
+        char expanded_line[INPUT_LINE_MAX];
+        esp_err_t err = shell_alias_expand(s_line, expanded_line, sizeof(expanded_line));
+        if (err == ESP_OK)
+        {
+            err = esp_console_run(expanded_line, &ret);
+        }
+        else if (err == ESP_ERR_INVALID_SIZE)
+        {
+            printf("Alias expansion exceeds the command-line limit\n");
+            err = ESP_OK;
+        }
         if (err == ESP_ERR_NOT_FOUND)
         {
             printf("Unknown command: %s\n", s_line);
