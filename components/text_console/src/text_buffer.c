@@ -6,6 +6,26 @@ static const uint16_t s_ansi_color_table[8] = {
     TEXT_BUF_COLOR_BLUE,  TEXT_BUF_COLOR_MAGENTA, TEXT_BUF_COLOR_CYAN,  TEXT_BUF_COLOR_WHITE,
 };
 
+#define TEXT_HISTORY_DEFAULT_COLOR_INDEX 8
+
+static uint8_t history_color_index(uint16_t foreground)
+{
+    for (uint8_t i = 0; i < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]); i++)
+    {
+        if (s_ansi_color_table[i] == foreground)
+        {
+            return i;
+        }
+    }
+    return TEXT_HISTORY_DEFAULT_COLOR_INDEX;
+}
+
+static uint16_t history_foreground(uint8_t index)
+{
+    return index < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]) ? s_ansi_color_table[index]
+                                                                              : TEXT_BUF_DEFAULT_FG;
+}
+
 static void clear_cell(text_cell_t *cell, uint16_t fg)
 {
     cell->ch = ' ';
@@ -73,7 +93,7 @@ static void retain_scrolled_row(text_buffer_t *buf)
     for (int c = 0; c < buf->cols; c++)
     {
         buf->scrollback[index][c].ch = buf->cells[0][c].ch;
-        buf->scrollback[index][c].fg = buf->cells[0][c].fg;
+        buf->scrollback[index][c].fg_index = history_color_index(buf->cells[0][c].fg);
     }
 
     if (buf->viewport_offset > 0 && buf->viewport_offset < TEXT_BUF_SCROLLBACK_ROWS)
@@ -455,7 +475,7 @@ bool text_buffer_get_visible_row(const text_buffer_t *buf, int row, char *chars,
         for (int c = 0; c < buf->cols; c++)
         {
             chars[c] = buf->scrollback[index][c].ch;
-            fg[c] = buf->scrollback[index][c].fg;
+            fg[c] = history_foreground(buf->scrollback[index][c].fg_index);
         }
     }
     else

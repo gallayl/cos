@@ -45,7 +45,7 @@ extern "C"
     typedef struct
     {
         char ch;
-        uint16_t fg;
+        uint8_t fg_index;
     } text_history_cell_t;
 
     /** Text buffer state. */

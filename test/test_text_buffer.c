@@ -50,6 +50,11 @@ static void test_init_all_dirty(void)
     TEST_ASSERT_TRUE(text_buffer_has_dirty(&buf));
 }
 
+static void test_scrollback_cells_use_compact_color_indices(void)
+{
+    TEST_ASSERT_EQUAL(2, sizeof(text_history_cell_t));
+}
+
 /* ── Basic character writing ───────────────────────────────── */
 
 static void test_write_single_char(void)
@@ -233,6 +238,21 @@ static void test_scrollback_view_stays_put_as_output_arrives(void)
     TEST_ASSERT_EQUAL(0, buf.viewport_offset);
     TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
     TEST_ASSERT_EQUAL_STRING_LEN("four ", chars, 5);
+}
+
+static void test_scrollback_preserves_foreground_color(void)
+{
+    text_buffer_init(&buf, 5, 1);
+    text_buffer_write(&buf, "\033[31mred\n", 9);
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 1));
+
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("red  ", chars, 5);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_RED, fg[0]);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_RED, fg[2]);
+    TEST_ASSERT_EQUAL(TEXT_BUF_DEFAULT_FG, fg[3]);
 }
 
 static void test_scrollback_ring_is_bounded(void)
@@ -615,6 +635,7 @@ int main(void)
     RUN_TEST(test_init_clamps_dimensions);
     RUN_TEST(test_init_cells_are_spaces);
     RUN_TEST(test_init_all_dirty);
+    RUN_TEST(test_scrollback_cells_use_compact_color_indices);
 
     /* Basic character writing */
     RUN_TEST(test_write_single_char);
@@ -638,6 +659,7 @@ int main(void)
     RUN_TEST(test_scroll_multiple_times);
     RUN_TEST(test_scrollback_and_viewport_navigation);
     RUN_TEST(test_scrollback_view_stays_put_as_output_arrives);
+    RUN_TEST(test_scrollback_preserves_foreground_color);
     RUN_TEST(test_scrollback_ring_is_bounded);
 
     /* Clear */

@@ -161,6 +161,8 @@ retries.
 **Status:** Implementation complete; CI and hardware validation pending
 
 - [x] Add a bounded scrollback ring separate from the visible text grid.
+- [x] Keep retained rows compact to limit static RAM use and preserve heap for
+      Berry UI task creation.
 - [x] Define viewport behavior while new output arrives and when the user
       returns to the bottom.
 - [x] Add touch scrolling only while the text console owns the display; preserve
@@ -197,6 +199,7 @@ fails, the command must report the remaining path and error.
 | ------------------------- | ------- | ------ |
 | Host unit tests           | Pass    | All 20 test targets passed, including scrollback and shell network command coverage. |
 | ESP-IDF firmware build    | Pass    | Built with ESP-IDF 6.1; application partition has 15% free. |
+| Scrollback storage       | Pass    | Packed character/color-index pairs use 13,824 bytes for 128x54 history, half the previous padded representation. |
 | clang-format              | Pass    | Repository format check passed. |
 | Shell integration build   | Pass    | `integration_test/test_shell_fs` firmware builds with the new commands. |
 | Shell QEMU integration    | Pending | Local run unavailable because `qemu-system-xtensa` is not installed; CI validation pending. |
