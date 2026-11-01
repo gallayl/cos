@@ -145,23 +145,33 @@ static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
 
     char chunk[CHUNK_SIZE];
     size_t n;
-    do
+    bool read_error = false;
+    while (true)
     {
         n = fread(chunk, 1, sizeof(chunk), f);
         if (n > 0)
         {
-            if (httpd_resp_send_chunk(req, chunk, n) != ESP_OK)
+            if (httpd_resp_send_chunk(req, chunk, (ssize_t)n) != ESP_OK)
             {
                 fclose(f);
                 httpd_resp_send_chunk(req, NULL, 0);
                 return ESP_FAIL;
             }
         }
-    } while (n > 0);
+        if (ferror(f))
+        {
+            read_error = true;
+            break;
+        }
+        if (n < sizeof(chunk))
+        {
+            break;
+        }
+    }
 
-    fclose(f);
+    int close_result = fclose(f);
     httpd_resp_send_chunk(req, NULL, 0);
-    return ESP_OK;
+    return read_error || close_result != 0 ? ESP_FAIL : ESP_OK;
 }
 
 esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)

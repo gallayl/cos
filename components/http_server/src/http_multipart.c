@@ -132,7 +132,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
     char field_value[512] = {0};
     size_t field_value_len = 0;
 
-    int remaining = req->content_len;
+    size_t remaining = req->content_len;
     esp_err_t result = ESP_OK;
 
     while (1)
@@ -254,12 +254,12 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
             }
         }
 
-        if (remaining <= 0)
+        if (remaining == 0)
         {
             break;
         }
 
-        int to_read = remaining < READ_BUF_SIZE ? remaining : READ_BUF_SIZE;
+        int to_read = (int)(remaining < READ_BUF_SIZE ? remaining : READ_BUF_SIZE);
         int recvd = httpd_req_recv(req, buf, to_read);
         if (recvd <= 0)
         {
@@ -269,7 +269,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
             }
             break;
         }
-        remaining -= recvd;
+        remaining -= (size_t)recvd;
 
         if (accum_len + (size_t)recvd >= ACCUM_BUF_SIZE)
         {

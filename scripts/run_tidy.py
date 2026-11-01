@@ -32,6 +32,7 @@ def sanitize_compile_commands(src_path, dst_path):
             if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
                 raise ValueError("compile database arguments must be a list of strings")
             entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
+            command_args = entry["arguments"]
         elif "command" in entry:
             words = shlex.split(entry["command"], posix=os.name != "nt")
             if os.name == "nt":
@@ -39,9 +40,18 @@ def sanitize_compile_commands(src_path, dst_path):
                     word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
                 ]
             words = [word for word in words if word not in UNSUPPORTED_FLAGS]
-            entry["command"] = subprocess.list2cmdline(words) if os.name == "nt" else shlex.join(words)
+            command_args = words
         else:
             raise ValueError("compile database entry must contain command or arguments")
+
+        if os.path.splitext(entry.get("file", ""))[1].lower() in {".cc", ".cpp", ".cxx", ".c++"}:
+            # clang-tidy cannot parse LovyanGFX's dead throw branch with ESP-IDF's no-exceptions flag.
+            command_args[:] = [arg for arg in command_args if arg != "-fno-exceptions"]
+            if "-fexceptions" not in command_args:
+                command_args.append("-fexceptions")
+
+        if "command" in entry:
+            entry["command"] = subprocess.list2cmdline(command_args) if os.name == "nt" else shlex.join(command_args)
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with open(dst_path, "w", encoding="utf-8") as f:

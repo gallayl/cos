@@ -30,6 +30,11 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
                     "command": 'cc -mlongcalls -c "C:\\path with spaces\\source.c"',
                     "file": "C:\\path with spaces\\source.c",
                 },
+                {
+                    "directory": temp_dir,
+                    "arguments": ["c++", "-fno-exceptions", "-c", "source.cpp"],
+                    "file": "source.cpp",
+                },
             ]
             with open(source, "w", encoding="utf-8") as compile_commands:
                 json.dump(entries, compile_commands)
@@ -50,6 +55,7 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
                 subprocess.list2cmdline(expected_command) if os.name == "nt" else shlex.join(expected_command)
             )
             self.assertEqual(expected_command, sanitized[2]["command"])
+            self.assertEqual(["c++", "-c", "source.cpp", "-fexceptions"], sanitized[3]["arguments"])
             self.assertEqual(temp_dir, sanitized[1]["directory"])
 
 
