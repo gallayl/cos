@@ -2,11 +2,14 @@
 
 #include "mock_berry.h"
 #include "mock_console.h"
+#include "mock_filesystem.h"
+#include "shell.h"
 #include "shell_cmds.h"
 
 void setUp(void)
 {
     mock_console_reset();
+    mock_filesystem_reset();
     mock_berry_reset();
     shell_register_berry_commands();
 }
@@ -72,6 +75,35 @@ static void test_close_stops_active_app(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
 }
 
+static void test_autoexec_runs_startup_script(void)
+{
+    mock_filesystem_add_file("/flash/autoexec.be");
+    TEST_ASSERT_EQUAL(ESP_OK, shell_berry_run_autoexec());
+    TEST_ASSERT_EQUAL_STRING("/flash/autoexec.be", mock_berry_last_path());
+}
+
+static void test_autoexec_missing_script_is_not_an_error(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_berry_run_autoexec());
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+}
+
+static void test_autoexec_execution_error_is_reported(void)
+{
+    mock_filesystem_add_file("/flash/autoexec.be");
+    mock_berry_set_run_result(ESP_FAIL);
+    TEST_ASSERT_EQUAL(ESP_FAIL, shell_berry_run_autoexec());
+    TEST_ASSERT_EQUAL_STRING("/flash/autoexec.be", mock_berry_last_path());
+}
+
+static void test_autoexec_initialization_error_is_reported(void)
+{
+    mock_filesystem_add_file("/flash/autoexec.be");
+    mock_berry_set_init_result(ESP_ERR_NO_MEM);
+    TEST_ASSERT_EQUAL(ESP_ERR_NO_MEM, shell_berry_run_autoexec());
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -83,5 +115,9 @@ int main(void)
     RUN_TEST(test_unknown_operation_fails_command);
     RUN_TEST(test_missing_arguments_fails_command);
     RUN_TEST(test_close_stops_active_app);
+    RUN_TEST(test_autoexec_runs_startup_script);
+    RUN_TEST(test_autoexec_missing_script_is_not_an_error);
+    RUN_TEST(test_autoexec_execution_error_is_reported);
+    RUN_TEST(test_autoexec_initialization_error_is_reported);
     return UNITY_END();
 }

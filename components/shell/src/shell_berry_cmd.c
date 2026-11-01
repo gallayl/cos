@@ -3,11 +3,36 @@
 #include "shell.h"
 
 #include "esp_console.h"
+#include "esp_log.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static const char *const TAG = "shell_berry";
+
+esp_err_t shell_berry_run_autoexec(void)
+{
+    if (!vfs_exists("/flash/autoexec.be"))
+    {
+        return ESP_OK;
+    }
+
+    esp_err_t err = berry_runtime_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not initialize Berry for autoexec: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    err = berry_runtime_run_file("/flash/autoexec.be");
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not run /flash/autoexec.be: %s", esp_err_to_name(err));
+    }
+    return err;
+}
 
 static int cmd_berry(int argc, char **argv)
 {

@@ -78,6 +78,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 
 | Command     | Description                              |
 | ----------- | ---------------------------------------- |
+| `clear`     | Clear the text console                   |
 | `calibrate` | Run interactive touch screen calibration |
 | `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
 | `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
@@ -120,6 +121,14 @@ same serialized worker as Berry `net.ping`; if DNS continues after a caller
 times out, another request is rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
+
+If `/flash/autoexec.be` exists, COS runs it once during shell startup after the
+filesystem and Berry runtime are ready. A missing file is ignored; script or
+runtime errors are logged and do not prevent the shell from starting. The
+LittleFS examples include an autoexec that clears the console and
+`/flash/scripts/clear.be`, which demonstrates clearing it from a Berry script
+with `action("clear")`. Autoexec runs during startup, not on the console input
+task, so it should not start `console.read_line()`.
 
 The Berry interpreter is fetched from a fixed upstream commit during CMake configuration. Python 3 is required to generate Berry's constant tables during the build.
 

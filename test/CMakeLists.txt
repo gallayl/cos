@@ -161,6 +161,18 @@ target_include_directories(test_shell_berry PRIVATE
 target_link_libraries(test_shell_berry PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell_berry COMMAND test_shell_berry)
 
+# --- Test: text console commands ---
+add_executable(test_text_console_cmd
+    test_text_console_cmd.c
+    ${COMPONENT_DIR}/components/text_console/src/text_console_cmd.c
+)
+target_include_directories(test_text_console_cmd PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/text_console/include
+)
+target_link_libraries(test_text_console_cmd PRIVATE unity mock_esp)
+add_test(NAME test_text_console_cmd COMMAND test_text_console_cmd)
+
 # --- Test: UI primitives ---
 add_executable(test_ui test_ui.cpp
     ${COMPONENT_DIR}/components/ui/src/ui.cpp

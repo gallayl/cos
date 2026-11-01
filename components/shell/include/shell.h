@@ -17,6 +17,9 @@ extern "C"
      */
     esp_err_t shell_init(void);
 
+    /** Run the optional /flash/autoexec.be script. Errors are returned and logged. */
+    esp_err_t shell_berry_run_autoexec(void);
+
     /**
      * Feed raw input bytes into the shell's shared line editor.
      * Thread-safe -- can be called from any task (e.g. BT keyboard callback).

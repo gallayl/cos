@@ -186,6 +186,8 @@ esp_err_t shell_init(void)
 
     berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line);
 
+    (void)shell_berry_run_autoexec();
+
     ESP_LOGI(TAG, "Shell ready");
     return ESP_OK;
 }

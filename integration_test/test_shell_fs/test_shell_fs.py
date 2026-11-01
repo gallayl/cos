@@ -15,6 +15,7 @@ def _wait_ready(dut):
 
 
 def test_shell_boots(dut):
+    dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
     dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
 
 

@@ -48,6 +48,7 @@ static const char s_berry_input_script[] = "var started = console.read_line(\"In
                                            "else\n"
                                            "    log(\"INPUT_START_ERROR:\" + str(started))\n"
                                            "end\n";
+static const char s_autoexec_script[] = "log(\"AUTOEXEC_OK\")\n";
 
 static void init_nvs(void)
 {
@@ -68,6 +69,7 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_mkdir("/flash/berry-empty"));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_api.be", s_berry_api_script, sizeof(s_berry_api_script) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_input.be", s_berry_input_script, sizeof(s_berry_input_script) - 1));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/autoexec.be", s_autoexec_script, sizeof(s_autoexec_script) - 1));
 
     memset(s_large_file, 'A', 600);
     memset(s_large_file + 600, 'B', sizeof(s_large_file) - 600);

@@ -69,7 +69,7 @@ extern "C"
      */
     void text_console_resize(void);
 
-    /** Register display_mode and logging shell commands. */
+    /** Register clear, display_mode, and logging shell commands. */
     void text_console_register_commands(void);
 
 #ifdef __cplusplus
