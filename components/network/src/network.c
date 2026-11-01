@@ -180,7 +180,7 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
 
     esp_ping_config_t config = ESP_PING_DEFAULT_CONFIG();
     config.count = 1;
-    config.interval_ms = 1000;
+    config.interval_ms = 0;
     config.timeout_ms = timeout_ms;
     config.target_addr = target;
     const esp_ping_callbacks_t callbacks = {
@@ -199,6 +199,8 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
     {
         err = ESP_ERR_TIMEOUT;
         (void)esp_ping_stop(session);
+        /* Stop only clears the run flag; the ping task still invokes on_ping_end. */
+        (void)xSemaphoreTake(context.completed, portMAX_DELAY);
     }
     if (session != NULL)
     {
