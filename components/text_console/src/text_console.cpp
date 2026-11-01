@@ -77,7 +77,7 @@ static void handle_console_touch(void)
         s_touch_remainder = movement - rows * FONT_HEIGHT;
         if (rows != 0)
         {
-            (void)text_buffer_scroll_view(&s_buf, -rows);
+            (void)text_buffer_scroll_view(&s_buf, rows);
         }
     }
     else

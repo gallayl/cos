@@ -97,8 +97,8 @@ directories. Press **Tab** at the end of a command or supported path argument
 to complete a unique match or extend an ambiguous match to its common prefix.
 Paths containing whitespace are not completed.
 
-When the text console owns the display, drag upward to view older output and
-downward to return toward live output. The console retains up to 128 rows in
+When the text console owns the display, drag downward to view older output and
+upward to return toward live output. The console retains up to 128 rows in
 addition to the visible grid; the oldest rows are discarded when full. New
 output continues over UART while viewing history and does not move the
 viewport. Touch is routed to Berry UI apps instead whenever their display is
