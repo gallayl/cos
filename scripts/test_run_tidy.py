@@ -1,5 +1,6 @@
 import json
 import os
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -40,10 +41,11 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
             self.assertNotIn("-mlongcalls", sanitized[0]["command"])
             self.assertIn("-DNAME=one", sanitized[0]["command"])
             self.assertEqual(["cc", "-I", "include path", "-c", "other.c"], sanitized[1]["arguments"])
-            self.assertEqual(
-                subprocess.list2cmdline(["cc", "-c", "C:\\path with spaces\\source.c"]),
-                sanitized[2]["command"],
+            expected_command = ["cc", "-c", "C:\\path with spaces\\source.c"]
+            expected_command = (
+                subprocess.list2cmdline(expected_command) if os.name == "nt" else shlex.join(expected_command)
             )
+            self.assertEqual(expected_command, sanitized[2]["command"])
             self.assertEqual(temp_dir, sanitized[1]["directory"])
 
 
