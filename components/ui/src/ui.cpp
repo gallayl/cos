@@ -7,7 +7,9 @@
 #include <utility>
 
 #ifdef ESP_PLATFORM
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #endif
@@ -163,11 +165,17 @@ bool start()
         return true;
     }
 
+    const size_t free_heap = esp_get_free_heap_size();
+    const size_t largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    ESP_LOGI(TAG, "Starting UI task (free heap: %u, largest block: %u)", static_cast<unsigned>(free_heap),
+             static_cast<unsigned>(largest_block));
     BaseType_t result = xTaskCreate(ui_task, "ui", 4096, nullptr, 5, &ui_task_handle);
     if (result != pdPASS)
     {
         ui_task_handle = nullptr;
-        ESP_LOGE(TAG, "Failed to create UI task");
+        ESP_LOGE(TAG, "Failed to create UI task (free heap: %u, largest block: %u)",
+                 static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         return false;
     }
     ui_active.store(true);

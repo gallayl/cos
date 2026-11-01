@@ -10,7 +10,9 @@
 
 #include "esp_console.h"
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_system.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -34,6 +36,13 @@ berry_console_read_line_fn s_console_read_line = nullptr;
 berry_console_cancel_line_fn s_console_cancel_line = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
+
+void log_heap_snapshot(const char *phase)
+{
+    ESP_LOGI(TAG, "%s: free=%u bytes, minimum=%u bytes, largest block=%u bytes", phase,
+             static_cast<unsigned>(esp_get_free_heap_size()), static_cast<unsigned>(esp_get_minimum_free_heap_size()),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+}
 
 void close_app_from_ui()
 {
@@ -509,6 +518,12 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     {
         return close_err;
     }
+    const esp_err_t history_err = text_console_release_scrollback();
+    if (history_err != ESP_OK)
+    {
+        return history_err;
+    }
+    log_heap_snapshot("Before Berry source execution");
     berry_ui_begin_app(s_vm);
 
     int result = be_loadbuffer(s_vm, source_name, source, length);
@@ -546,7 +561,11 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     esp_err_t err = invoke_app_method("setup", true);
     if (err == ESP_OK)
     {
-        err = text_console_set_visible(false);
+        err = text_console_release_scrollback();
+        if (err == ESP_OK)
+        {
+            err = text_console_set_visible(false);
+        }
         if (err == ESP_OK && !ui::start())
         {
             esp_err_t visible_err = text_console_set_visible(true);
@@ -682,13 +701,27 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char *source = nullptr;
-    size_t length = 0;
-    esp_err_t err = read_virtual_file(virtual_path, &source, &length);
+    esp_err_t err = text_console_release_scrollback();
     if (err != ESP_OK)
     {
         return err;
     }
+    log_heap_snapshot("Before Berry file load");
+    char *source = nullptr;
+    size_t length = 0;
+    err = read_virtual_file(virtual_path, &source, &length);
+    if (err != ESP_OK)
+    {
+        if (err == ESP_ERR_NO_MEM)
+        {
+            ESP_LOGW(TAG, "Could not allocate Berry source buffer (%u bytes); free=%u, largest block=%u",
+                     static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        }
+        return err;
+    }
+    ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
+    log_heap_snapshot("After Berry file load");
     err = execute_app_source(source, length, virtual_path, false);
     std::free(source);
     return err;
@@ -706,13 +739,27 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char *source = nullptr;
-    size_t length = 0;
-    esp_err_t err = read_virtual_file(virtual_path, &source, &length);
+    esp_err_t err = text_console_release_scrollback();
     if (err != ESP_OK)
     {
         return err;
     }
+    log_heap_snapshot("Before Berry app load");
+    char *source = nullptr;
+    size_t length = 0;
+    err = read_virtual_file(virtual_path, &source, &length);
+    if (err != ESP_OK)
+    {
+        if (err == ESP_ERR_NO_MEM)
+        {
+            ESP_LOGW(TAG, "Could not allocate Berry app source buffer (%u bytes); free=%u, largest block=%u",
+                     static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        }
+        return err;
+    }
+    ESP_LOGI(TAG, "Loaded Berry app file (%u bytes)", static_cast<unsigned>(length));
+    log_heap_snapshot("After Berry app load");
 
     err = execute_app_source(source, length, virtual_path, true);
     std::free(source);

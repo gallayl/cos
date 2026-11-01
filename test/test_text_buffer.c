@@ -7,9 +7,15 @@
 
 static text_buffer_t buf;
 
+static void reset_buffer(int cols, int rows)
+{
+    text_buffer_clear(&buf);
+    text_buffer_init(&buf, cols, rows);
+}
+
 void setUp(void)
 {
-    text_buffer_init(&buf, 20, 5);
+    reset_buffer(20, 5);
 }
 
 void tearDown(void) {}
@@ -53,6 +59,35 @@ static void test_init_all_dirty(void)
 static void test_scrollback_cells_use_compact_color_indices(void)
 {
     TEST_ASSERT_EQUAL(2, sizeof(text_history_cell_t));
+}
+
+static void test_scrollback_is_allocated_lazily_and_freed_on_clear(void)
+{
+    TEST_ASSERT_NULL(buf.scrollback);
+    text_buffer_write(&buf, "visible", 7);
+    TEST_ASSERT_NULL(buf.scrollback);
+
+    reset_buffer(5, 1);
+    text_buffer_write(&buf, "old\n", 4);
+    TEST_ASSERT_NOT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL(1, buf.scrollback_count);
+
+    text_buffer_clear(&buf);
+    TEST_ASSERT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL(0, buf.scrollback_count);
+}
+
+static void test_clear_scrollback_preserves_visible_grid(void)
+{
+    reset_buffer(5, 1);
+    text_buffer_write(&buf, "old\nnew", 7);
+    TEST_ASSERT_NOT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL('n', buf.cells[0][0].ch);
+
+    text_buffer_clear_scrollback(&buf);
+    TEST_ASSERT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL('n', buf.cells[0][0].ch);
+    TEST_ASSERT_EQUAL(0, buf.scrollback_count);
 }
 
 /* ── Basic character writing ───────────────────────────────── */
@@ -140,7 +175,7 @@ static void test_bell_ignored(void)
 
 static void test_wrap_at_end_of_line(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "ABCDE", 5);
     TEST_ASSERT_EQUAL('E', buf.cells[0][4].ch);
     TEST_ASSERT_EQUAL(0, buf.cursor_row);
@@ -150,7 +185,7 @@ static void test_wrap_at_end_of_line(void)
 
 static void test_wrap_continues_on_next_row(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "ABCDEF", 6);
     TEST_ASSERT_EQUAL('F', buf.cells[1][0].ch);
     TEST_ASSERT_EQUAL(1, buf.cursor_row);
@@ -164,7 +199,7 @@ static void test_scroll_on_screen_full(void)
     /* 5 cols, 3 rows. With deferred wrap: "AAAAA" fills row 0, pending_wrap set.
        \n clears wrap and moves to row 1. "BBBBB" fills row 1, \n to row 2.
        "CCCCC" fills row 2, \n scrolls: row 0=BBBBB, row 1=CCCCC, row 2=empty. */
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "AAAAA\n", 6);
     text_buffer_write(&buf, "BBBBB\n", 6);
     text_buffer_write(&buf, "CCCCC\n", 6);
@@ -178,7 +213,7 @@ static void test_scroll_on_screen_full(void)
 
 static void test_scroll_multiple_times(void)
 {
-    text_buffer_init(&buf, 5, 2);
+    reset_buffer(5, 2);
     text_buffer_write(&buf, "AA\nBB\nCC\nDD", 11);
 
     TEST_ASSERT_EQUAL('C', buf.cells[0][0].ch);
@@ -189,7 +224,7 @@ static void test_scroll_multiple_times(void)
 
 static void test_scrollback_and_viewport_navigation(void)
 {
-    text_buffer_init(&buf, 5, 2);
+    reset_buffer(5, 2);
     text_buffer_write(&buf, "one\ntwo\nthree\n", 14);
 
     TEST_ASSERT_EQUAL(2, buf.scrollback_count);
@@ -220,7 +255,7 @@ static void test_scrollback_and_viewport_navigation(void)
 
 static void test_scrollback_view_stays_put_as_output_arrives(void)
 {
-    text_buffer_init(&buf, 5, 2);
+    reset_buffer(5, 2);
     text_buffer_write(&buf, "one\ntwo\nthree\n", 14);
     TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 2));
     text_buffer_write(&buf, "four\n", 5);
@@ -242,7 +277,7 @@ static void test_scrollback_view_stays_put_as_output_arrives(void)
 
 static void test_scrollback_preserves_foreground_color(void)
 {
-    text_buffer_init(&buf, 5, 1);
+    reset_buffer(5, 1);
     text_buffer_write(&buf, "\033[31mred\n", 9);
     TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 1));
 
@@ -257,7 +292,7 @@ static void test_scrollback_preserves_foreground_color(void)
 
 static void test_scrollback_ring_is_bounded(void)
 {
-    text_buffer_init(&buf, 1, 1);
+    reset_buffer(1, 1);
     for (int i = 0; i < TEXT_BUF_SCROLLBACK_ROWS + 2; i++)
     {
         const char ch = (char)('A' + (i % 26));
@@ -520,7 +555,7 @@ static void test_dirty_rows_bitmask(void)
 
 static void test_dirty_rows_scroll_marks_all(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     for (int r = 0; r < buf.rows; r++)
     {
         text_buffer_clear_row_dirty(&buf, r);
@@ -636,6 +671,8 @@ int main(void)
     RUN_TEST(test_init_cells_are_spaces);
     RUN_TEST(test_init_all_dirty);
     RUN_TEST(test_scrollback_cells_use_compact_color_indices);
+    RUN_TEST(test_scrollback_is_allocated_lazily_and_freed_on_clear);
+    RUN_TEST(test_clear_scrollback_preserves_visible_grid);
 
     /* Basic character writing */
     RUN_TEST(test_write_single_char);

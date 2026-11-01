@@ -104,6 +104,14 @@ void system_register_commands(void)
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&memory_cmd));
 
+    const esp_console_cmd_t mem_cmd = {
+        .command = "mem",
+        .help = "Show detailed heap memory statistics",
+        .hint = NULL,
+        .func = &cmd_memory,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&mem_cmd));
+
     const esp_console_cmd_t restart_cmd = {
         .command = "restart",
         .help = "Restart the device",

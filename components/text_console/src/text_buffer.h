@@ -52,7 +52,7 @@ extern "C"
     typedef struct
     {
         text_cell_t cells[TEXT_BUF_MAX_ROWS][TEXT_BUF_MAX_COLS];
-        text_history_cell_t scrollback[TEXT_BUF_SCROLLBACK_ROWS][TEXT_BUF_MAX_COLS];
+        text_history_cell_t (*scrollback)[TEXT_BUF_MAX_COLS];
         int rows;                                /**< Active row count (<= MAX_ROWS). */
         int cols;                                /**< Active column count (<= MAX_COLS). */
         int cursor_row;                          /**< Current cursor row. */
@@ -60,6 +60,8 @@ extern "C"
         int scrollback_start;                    /**< Oldest retained row in the ring. */
         int scrollback_count;                    /**< Number of retained rows. */
         int viewport_offset;                     /**< Rows above the live bottom. */
+        bool scrollback_disabled;                /**< History allocation failed until the next clear. */
+        bool scrollback_allocation_failed;       /**< Unreported history allocation failure. */
         bool pending_wrap;                       /**< Deferred wrap: cursor at EOL, wrap on next printable char. */
         uint16_t current_fg;                     /**< Current foreground color for new chars. */
         uint64_t dirty_rows;                     /**< Bitmask of rows containing dirty cells. */
@@ -88,6 +90,12 @@ extern "C"
 
     /** Clear the entire buffer and reset cursor to (0, 0). */
     void text_buffer_clear(text_buffer_t *buf);
+
+    /** Release retained history while preserving the visible grid. */
+    void text_buffer_clear_scrollback(text_buffer_t *buf);
+
+    /** Consume the history-allocation failure notification, if one is pending. */
+    bool text_buffer_take_scrollback_allocation_failure(text_buffer_t *buf);
 
     /** Check if any row is marked dirty (O(1) via bitmask). */
     bool text_buffer_has_dirty(const text_buffer_t *buf);

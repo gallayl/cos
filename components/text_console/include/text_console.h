@@ -9,6 +9,13 @@ extern "C"
 {
 #endif
 
+    typedef enum
+    {
+        TEXT_CONSOLE_LOG_ERROR,
+        TEXT_CONSOLE_LOG_WARN,
+        TEXT_CONSOLE_LOG_INFO,
+    } text_console_log_level_t;
+
     /**
      * @brief Initialize the text console on the display.
      *
@@ -42,6 +49,18 @@ extern "C"
     /** Clear the text console screen and reset cursor to top-left. */
     void text_console_clear(void);
 
+    /** Release retained history without clearing the visible console grid. */
+    esp_err_t text_console_release_scrollback(void);
+
+    /** Set and persist the global ESP log threshold. */
+    esp_err_t text_console_set_log_level(text_console_log_level_t level);
+
+    /** Get the active global ESP log threshold. */
+    text_console_log_level_t text_console_get_log_level(void);
+
+    /** Get the printable name for a supported log threshold. */
+    const char *text_console_log_level_name(text_console_log_level_t level);
+
     /**
      * @brief Resize the console to match the current display dimensions.
      *
@@ -50,7 +69,7 @@ extern "C"
      */
     void text_console_resize(void);
 
-    /** Register the display_mode shell command. */
+    /** Register display_mode and logging shell commands. */
     void text_console_register_commands(void);
 
 #ifdef __cplusplus

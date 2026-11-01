@@ -25,7 +25,7 @@ extern "C"
     /**
      * @brief Initialize the system component and register shell commands.
      *
-     * Registers the info, memory, restart, and uptime commands.
+     * Registers the info, memory (also available as mem), restart, and uptime commands.
      */
     esp_err_t system_init(void);
 

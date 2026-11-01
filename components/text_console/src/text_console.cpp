@@ -6,7 +6,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "nvs.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -20,6 +22,9 @@ static const char *const TAG = "text_console";
 #define RENDER_TASK_PRIO 1
 #define RENDER_PERIOD_MS 30
 
+#define TEXT_CONSOLE_NVS_NAMESPACE "console"
+#define TEXT_CONSOLE_NVS_KEY_LOG_LEVEL "log_level"
+
 static text_buffer_t s_buf;
 static SemaphoreHandle_t s_mutex;
 static TaskHandle_t s_render_task;
@@ -30,6 +35,60 @@ static int s_touch_last_y = 0;
 static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
+static text_console_log_level_t s_log_level = TEXT_CONSOLE_LOG_WARN;
+
+static esp_log_level_t esp_log_level(text_console_log_level_t level)
+{
+    switch (level)
+    {
+    case TEXT_CONSOLE_LOG_ERROR:
+        return ESP_LOG_ERROR;
+    case TEXT_CONSOLE_LOG_INFO:
+        return ESP_LOG_INFO;
+    case TEXT_CONSOLE_LOG_WARN:
+    default:
+        return ESP_LOG_WARN;
+    }
+}
+
+static bool valid_log_level(uint8_t level)
+{
+    return level <= TEXT_CONSOLE_LOG_INFO;
+}
+
+static void restore_log_level(void)
+{
+    s_log_level = TEXT_CONSOLE_LOG_WARN;
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(TEXT_CONSOLE_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if (err == ESP_OK)
+    {
+        uint8_t stored_level = TEXT_CONSOLE_LOG_WARN;
+        err = nvs_get_u8(handle, TEXT_CONSOLE_NVS_KEY_LOG_LEVEL, &stored_level);
+        nvs_close(handle);
+        if (err == ESP_OK)
+        {
+            if (valid_log_level(stored_level))
+            {
+                s_log_level = static_cast<text_console_log_level_t>(stored_level);
+            }
+            else
+            {
+                ESP_LOGW(TAG, "Ignoring invalid stored log level %u", static_cast<unsigned>(stored_level));
+            }
+        }
+        else if (err != ESP_ERR_NVS_NOT_FOUND)
+        {
+            ESP_LOGW(TAG, "Could not read log level from NVS: %s", esp_err_to_name(err));
+        }
+    }
+    else if (err != ESP_ERR_NVS_NOT_FOUND)
+    {
+        ESP_LOGW(TAG, "Could not open console settings: %s", esp_err_to_name(err));
+    }
+
+    esp_log_level_set("*", esp_log_level(s_log_level));
+}
 
 /* ── Rendering ─────────────────────────────────────────────── */
 
@@ -126,11 +185,25 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     size_t written = fwrite(buf, 1, size, s_original_stdout);
     fflush(s_original_stdout);
 
+    bool history_allocation_failed = false;
+    bool should_notify_render = false;
     if (s_initialized && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
-        text_buffer_write(&s_buf, buf, size);
+        if (s_screen_visible)
+        {
+            text_buffer_write(&s_buf, buf, size);
+            history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
+            should_notify_render = true;
+        }
         xSemaphoreGive(s_mutex);
-        xTaskNotifyGive(s_render_task);
+        if (should_notify_render)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
+    }
+    if (history_allocation_failed)
+    {
+        ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
     }
 
     return (ssize_t)written;
@@ -155,6 +228,7 @@ extern "C" esp_err_t text_console_init(void)
 
     display_set_text_font(FONT_ID);
     s_screen_visible = true;
+    restore_log_level();
 
     int cols = display_get_width() / FONT_WIDTH;
     int rows = display_get_height() / FONT_HEIGHT;
@@ -263,6 +337,7 @@ extern "C" void text_console_deinit(void)
 
     if (s_mutex != NULL)
     {
+        text_buffer_clear(&s_buf);
         vSemaphoreDelete(s_mutex);
         s_mutex = NULL;
     }
@@ -279,9 +354,85 @@ extern "C" void text_console_write(const char *data, size_t len)
 
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
-        text_buffer_write(&s_buf, data, len);
+        const bool screen_visible = s_screen_visible;
+        if (screen_visible)
+        {
+            text_buffer_write(&s_buf, data, len);
+        }
+        const bool history_allocation_failed = screen_visible && text_buffer_take_scrollback_allocation_failure(&s_buf);
         xSemaphoreGive(s_mutex);
-        xTaskNotifyGive(s_render_task);
+        if (screen_visible)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
+        if (history_allocation_failed)
+        {
+            ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
+        }
+    }
+}
+
+extern "C" esp_err_t text_console_release_scrollback(void)
+{
+    if (!s_initialized || s_mutex == NULL)
+    {
+        return ESP_OK;
+    }
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+    text_buffer_clear_scrollback(&s_buf);
+    xSemaphoreGive(s_mutex);
+    return ESP_OK;
+}
+
+extern "C" esp_err_t text_console_set_log_level(text_console_log_level_t level)
+{
+    if (level != TEXT_CONSOLE_LOG_ERROR && level != TEXT_CONSOLE_LOG_WARN && level != TEXT_CONSOLE_LOG_INFO)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t handle;
+    esp_err_t err = nvs_open(TEXT_CONSOLE_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    err = nvs_set_u8(handle, TEXT_CONSOLE_NVS_KEY_LOG_LEVEL, static_cast<uint8_t>(level));
+    if (err == ESP_OK)
+    {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    s_log_level = level;
+    esp_log_level_set("*", esp_log_level(level));
+    return ESP_OK;
+}
+
+extern "C" text_console_log_level_t text_console_get_log_level(void)
+{
+    return s_log_level;
+}
+
+extern "C" const char *text_console_log_level_name(text_console_log_level_t level)
+{
+    switch (level)
+    {
+    case TEXT_CONSOLE_LOG_ERROR:
+        return "error";
+    case TEXT_CONSOLE_LOG_INFO:
+        return "info";
+    case TEXT_CONSOLE_LOG_WARN:
+        return "warn";
+    default:
+        return "unknown";
     }
 }
 
