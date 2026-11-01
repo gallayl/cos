@@ -33,6 +33,7 @@ add_library(mock_esp STATIC
     mocks/mock_uart.c
     mocks/mock_bluetooth.c
     mocks/mock_text_console.c
+    mocks/mock_network.c
     mocks/mock_berry.c
 )
 target_include_directories(mock_esp PUBLIC
@@ -46,6 +47,7 @@ target_include_directories(mock_esp PUBLIC
     ${COMPONENT_DIR}/components/light_sensor/include
     ${COMPONENT_DIR}/components/brightness/include
     ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/network/include
     ${COMPONENT_DIR}/components/bluetooth/include
     ${COMPONENT_DIR}/components/bluetooth/src
     ${COMPONENT_DIR}/components/input/include
@@ -95,6 +97,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
+    ${COMPONENT_DIR}/components/shell/src/shell_network_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_berry_cmd.c
     mocks/mock_shell_input.c
 )
@@ -226,6 +229,7 @@ add_library(wifi_logic STATIC
 )
 target_include_directories(wifi_logic PUBLIC
     ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/network/include
     ${COMPONENT_DIR}/components/wifi/src
     mocks
 )

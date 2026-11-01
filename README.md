@@ -79,9 +79,13 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | Command     | Description                              |
 | ----------- | ---------------------------------------- |
 | `calibrate` | Run interactive touch screen calibration |
+| `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
+| `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
 | `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
 | `berry eval <source>` | Evaluate Berry source in the shared VM |
 | `berry close` | Close the active Berry app and run its teardown method |
+| `mem` / `memory` | Show current, minimum, and largest free heap metrics |
+| `logging [error\|warn\|info]` | Set the persistent global ESP log threshold |
 | `help`      | List all registered commands             |
 
 File commands accept virtual paths and resolve relative paths from the current
@@ -94,6 +98,26 @@ directory; `rm` also retains its existing support for removing empty
 directories. Press **Tab** at the end of a command or supported path argument
 to complete a unique match or extend an ambiguous match to its common prefix.
 Paths containing whitespace are not completed.
+
+When the text console owns the display, drag downward to view older output and
+upward to return toward live output. The console lazily allocates scrollback,
+retains up to 128 rows in addition to the visible grid, and discards the oldest
+rows when full. `display_mode clear` releases that history; it is also released
+when a Berry app starts. Output continues over UART while a Berry app owns the
+display, but is not retained in console history.
+
+The global ESP log threshold defaults to `warn`. Use `logging` to show the
+current setting, or `logging error`, `logging warn`, and `logging info` to
+change it; the selection persists across reboots and affects UART and console
+logs. Use `mem` for current free heap, minimum free heap since boot, total
+heap, and largest allocatable block. Berry app startup also logs heap snapshots
+at INFO level; set `logging info` to see them.
+
+`ping` sends one ICMP echo request; `nslookup` performs DNS resolution only.
+Both accept an optional 100–3000 ms overall deadline (default 1000 ms), which
+includes DNS resolution, and require Wi-Fi station connectivity. They use the
+same serialized worker as Berry `net.ping`; if DNS continues after a caller
+times out, another request is rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
 

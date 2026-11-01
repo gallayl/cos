@@ -30,6 +30,7 @@ typedef struct
     uint32_t request_id;
     char host[NETWORK_HOST_MAX + 1];
     int64_t deadline_us;
+    bool resolve_only;
 } ping_request_t;
 
 static QueueHandle_t s_ping_queue;
@@ -113,7 +114,7 @@ static void ping_on_end(esp_ping_handle_t handle, void *argument)
     xSemaphoreGive(context->completed);
 }
 
-static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_ping_result_t *result)
+static esp_err_t resolve_ipv4(const char *host, network_ping_result_t *result, ip_addr_t *target)
 {
     struct addrinfo hints = {0};
     hints.ai_family = AF_INET;
@@ -129,17 +130,32 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
         }
         return ESP_ERR_NOT_FOUND;
     }
-
     const struct sockaddr_in *socket_address = (const struct sockaddr_in *)addresses->ai_addr;
-    ip_addr_t target = {0};
-    target.type = IPADDR_TYPE_V4;
-    target.u_addr.ip4.addr = socket_address->sin_addr.s_addr;
+    target->type = IPADDR_TYPE_V4;
+    target->u_addr.ip4.addr = socket_address->sin_addr.s_addr;
     if (inet_ntop(AF_INET, &socket_address->sin_addr, result->address, sizeof(result->address)) == NULL)
     {
         freeaddrinfo(addresses);
         return ESP_FAIL;
     }
     freeaddrinfo(addresses);
+    return ESP_OK;
+}
+
+static esp_err_t perform_resolve(const char *host, network_ping_result_t *result)
+{
+    ip_addr_t target = {0};
+    return resolve_ipv4(host, result, &target);
+}
+
+static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_ping_result_t *result)
+{
+    ip_addr_t target = {0};
+    esp_err_t err = resolve_ipv4(host, result, &target);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
 
     const int64_t remaining_us = deadline_us - esp_timer_get_time();
     if (remaining_us <= 0)
@@ -164,7 +180,7 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
 
     esp_ping_config_t config = ESP_PING_DEFAULT_CONFIG();
     config.count = 1;
-    config.interval_ms = 1000;
+    config.interval_ms = 0;
     config.timeout_ms = timeout_ms;
     config.target_addr = target;
     const esp_ping_callbacks_t callbacks = {
@@ -174,7 +190,7 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
         .on_ping_end = ping_on_end,
     };
     esp_ping_handle_t session = NULL;
-    esp_err_t err = esp_ping_new_session(&config, &callbacks, &session);
+    err = esp_ping_new_session(&config, &callbacks, &session);
     if (err == ESP_OK)
     {
         err = esp_ping_start(session);
@@ -183,6 +199,8 @@ static esp_err_t perform_ping(const char *host, int64_t deadline_us, network_pin
     {
         err = ESP_ERR_TIMEOUT;
         (void)esp_ping_stop(session);
+        /* Stop only clears the run flag; the ping task still invokes on_ping_end. */
+        (void)xSemaphoreTake(context.completed, portMAX_DELAY);
     }
     if (session != NULL)
     {
@@ -223,7 +241,8 @@ static void ping_worker(void *argument)
         esp_err_t err = ESP_ERR_TIMEOUT;
         if (now_us < request.deadline_us)
         {
-            err = perform_ping(request.host, request.deadline_us, &result);
+            err = request.resolve_only ? perform_resolve(request.host, &result)
+                                       : perform_ping(request.host, request.deadline_us, &result);
             if (esp_timer_get_time() >= request.deadline_us)
             {
                 err = ESP_ERR_TIMEOUT;
@@ -290,7 +309,8 @@ esp_err_t network_init(void)
     return ESP_OK;
 }
 
-esp_err_t network_ping(const char *host, uint32_t timeout_ms, network_ping_result_t *result)
+static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_ping_result_t *result,
+                                 bool resolve_only)
 {
     if (result == NULL)
     {
@@ -327,6 +347,7 @@ esp_err_t network_ping(const char *host, uint32_t timeout_ms, network_ping_resul
     ping_request_t request = {
         .request_id = ++s_next_request_id,
         .deadline_us = deadline_us,
+        .resolve_only = resolve_only,
     };
     memcpy(request.host, host, strlen(host) + 1);
     s_ping_active = true;
@@ -372,4 +393,14 @@ esp_err_t network_ping(const char *host, uint32_t timeout_ms, network_ping_resul
     }
     xSemaphoreGive(s_ping_mutex);
     return err;
+}
+
+esp_err_t network_ping(const char *host, uint32_t timeout_ms, network_ping_result_t *result)
+{
+    return network_request(host, timeout_ms, result, false);
+}
+
+esp_err_t network_resolve(const char *host, uint32_t timeout_ms, network_ping_result_t *result)
+{
+    return network_request(host, timeout_ms, result, true);
 }

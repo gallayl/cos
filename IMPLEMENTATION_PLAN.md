@@ -158,18 +158,56 @@ retries.
 
 ## Milestone 4 — console scrollback and network utilities
 
-**Status:** Planned
+**Status:** Implementation complete; CI passes; hardware validation pending
 
-- [ ] Add a bounded scrollback ring separate from the visible text grid.
-- [ ] Define viewport behavior while new output arrives and when the user
+- [x] Add a bounded scrollback ring separate from the visible text grid.
+- [x] Keep retained rows compact to limit static RAM use and preserve heap for
+      Berry UI task creation.
+- [x] Define viewport behavior while new output arrives and when the user
       returns to the bottom.
-- [ ] Add touch scrolling only while the text console owns the display; preserve
+- [x] Add touch scrolling only while the text console owns the display; preserve
       Berry UI touch dispatch.
-- [ ] Add ping and DNS lookup shell commands using shared, time-bounded services.
-- [ ] Specify HTTP(S) download size limits, TLS validation, cancellation,
+- [x] Add ping and DNS lookup shell commands using shared, time-bounded services.
+- [x] Specify HTTP(S) download size limits, TLS validation, cancellation,
       destination handling, and partial-file cleanup before implementing.
-- [ ] Test scrollback/viewport independent of physical gestures, then validate
-      gestures and networking on supported hardware.
+- [x] Test scrollback/viewport independent of physical gestures and cover
+      shell networking errors in host/QEMU tests.
+- [ ] Validate touch gestures and connected-network commands on supported
+      hardware.
+
+### Deferred HTTP(S) download contract
+
+Downloads are not implemented in this milestone. The eventual command will
+accept HTTP and HTTPS URLs with a 1 MiB maximum response body, enforced while
+streaming even when `Content-Length` is absent or inaccurate. HTTPS must
+validate the server certificate chain against configured trust anchors and
+validate the URL hostname; verification cannot be disabled. HTTP is explicitly
+unencrypted and must be requested with an `http://` URL.
+
+Transfers will run outside the console input task, with `download cancel`
+requesting cooperative cancellation between bounded reads; each network read
+will also have a finite timeout. The destination must be a regular file on a
+mounted filesystem, its parent must already exist, and an existing destination
+will never be overwritten. Data will be written to an exclusive temporary file
+in the destination directory and renamed only after a successful complete
+transfer. Failures and cancellation will remove the temporary file; if cleanup
+fails, the command must report the remaining path and error.
+
+### Milestone 4 local validation
+
+| Validation                | Status  | Result |
+| ------------------------- | ------- | ------ |
+| Host unit tests           | Pass    | All 20 test targets passed, including scrollback and shell network command coverage. |
+| ESP-IDF firmware build    | Pass    | Built with ESP-IDF 6.1; application partition has 15% free. |
+| Scrollback storage       | Pass    | Packed character/color-index pairs use 13,824 bytes for 128x54 history, half the previous padded representation. |
+| clang-format              | Pass    | Repository format check passed. |
+| Shell integration build   | Pass    | `integration_test/test_shell_fs` firmware builds with the new commands. |
+| Shell QEMU integration    | Pass    | PR #16 CI run `41304683352` passed all integration tests. |
+| clang-tidy                | Pass    | PR #16 CI run `41304683356` passed firmware build and clang-tidy. |
+| Format Check              | Pass    | PR #16 CI run `41304683522` passed. |
+| Host unit tests           | Pass    | PR #16 CI run `41304683244` passed all test targets. |
+| Doxygen Check             | Pass    | PR #16 CI run `41304683311` passed. |
+| Touch/network hardware    | Pending | Requires a CYD board with touch and Wi-Fi station connectivity. |
 
 ## Milestone 5 — usability and maintenance follow-up
 

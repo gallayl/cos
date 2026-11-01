@@ -7,14 +7,18 @@
 
 static text_buffer_t buf;
 
-void setUp(void)
+static void reset_buffer(int cols, int rows)
 {
-    text_buffer_init(&buf, 20, 5);
+    text_buffer_clear(&buf);
+    text_buffer_init(&buf, cols, rows);
 }
 
-void tearDown(void)
+void setUp(void)
 {
+    reset_buffer(20, 5);
 }
+
+void tearDown(void) {}
 
 /* ── Initialization ────────────────────────────────────────── */
 
@@ -50,6 +54,40 @@ static void test_init_cells_are_spaces(void)
 static void test_init_all_dirty(void)
 {
     TEST_ASSERT_TRUE(text_buffer_has_dirty(&buf));
+}
+
+static void test_scrollback_cells_use_compact_color_indices(void)
+{
+    TEST_ASSERT_EQUAL(2, sizeof(text_history_cell_t));
+}
+
+static void test_scrollback_is_allocated_lazily_and_freed_on_clear(void)
+{
+    TEST_ASSERT_NULL(buf.scrollback);
+    text_buffer_write(&buf, "visible", 7);
+    TEST_ASSERT_NULL(buf.scrollback);
+
+    reset_buffer(5, 1);
+    text_buffer_write(&buf, "old\n", 4);
+    TEST_ASSERT_NOT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL(1, buf.scrollback_count);
+
+    text_buffer_clear(&buf);
+    TEST_ASSERT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL(0, buf.scrollback_count);
+}
+
+static void test_clear_scrollback_preserves_visible_grid(void)
+{
+    reset_buffer(5, 1);
+    text_buffer_write(&buf, "old\nnew", 7);
+    TEST_ASSERT_NOT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL('n', buf.cells[0][0].ch);
+
+    text_buffer_clear_scrollback(&buf);
+    TEST_ASSERT_NULL(buf.scrollback);
+    TEST_ASSERT_EQUAL('n', buf.cells[0][0].ch);
+    TEST_ASSERT_EQUAL(0, buf.scrollback_count);
 }
 
 /* ── Basic character writing ───────────────────────────────── */
@@ -124,7 +162,10 @@ static void test_tab_already_at_stop(void)
 
 static void test_bell_ignored(void)
 {
-    text_buffer_write(&buf, "A\x07" "B", 3);
+    text_buffer_write(&buf,
+                      "A\x07"
+                      "B",
+                      3);
     TEST_ASSERT_EQUAL('A', buf.cells[0][0].ch);
     TEST_ASSERT_EQUAL('B', buf.cells[0][1].ch);
     TEST_ASSERT_EQUAL(2, buf.cursor_col);
@@ -134,7 +175,7 @@ static void test_bell_ignored(void)
 
 static void test_wrap_at_end_of_line(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "ABCDE", 5);
     TEST_ASSERT_EQUAL('E', buf.cells[0][4].ch);
     TEST_ASSERT_EQUAL(0, buf.cursor_row);
@@ -144,7 +185,7 @@ static void test_wrap_at_end_of_line(void)
 
 static void test_wrap_continues_on_next_row(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "ABCDEF", 6);
     TEST_ASSERT_EQUAL('F', buf.cells[1][0].ch);
     TEST_ASSERT_EQUAL(1, buf.cursor_row);
@@ -158,7 +199,7 @@ static void test_scroll_on_screen_full(void)
     /* 5 cols, 3 rows. With deferred wrap: "AAAAA" fills row 0, pending_wrap set.
        \n clears wrap and moves to row 1. "BBBBB" fills row 1, \n to row 2.
        "CCCCC" fills row 2, \n scrolls: row 0=BBBBB, row 1=CCCCC, row 2=empty. */
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     text_buffer_write(&buf, "AAAAA\n", 6);
     text_buffer_write(&buf, "BBBBB\n", 6);
     text_buffer_write(&buf, "CCCCC\n", 6);
@@ -172,13 +213,101 @@ static void test_scroll_on_screen_full(void)
 
 static void test_scroll_multiple_times(void)
 {
-    text_buffer_init(&buf, 5, 2);
+    reset_buffer(5, 2);
     text_buffer_write(&buf, "AA\nBB\nCC\nDD", 11);
 
     TEST_ASSERT_EQUAL('C', buf.cells[0][0].ch);
     TEST_ASSERT_EQUAL('D', buf.cells[1][0].ch);
     TEST_ASSERT_EQUAL(1, buf.cursor_row);
     TEST_ASSERT_EQUAL(2, buf.cursor_col);
+}
+
+static void test_scrollback_and_viewport_navigation(void)
+{
+    reset_buffer(5, 2);
+    text_buffer_write(&buf, "one\ntwo\nthree\n", 14);
+
+    TEST_ASSERT_EQUAL(2, buf.scrollback_count);
+    TEST_ASSERT_EQUAL(0, buf.viewport_offset);
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("three", chars, 5);
+
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 1));
+    TEST_ASSERT_EQUAL(1, buf.viewport_offset);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("two  ", chars, 5);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 1, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("three", chars, 5);
+
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 99));
+    TEST_ASSERT_EQUAL(2, buf.viewport_offset);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("one  ", chars, 5);
+    TEST_ASSERT_FALSE(text_buffer_scroll_view(&buf, 1));
+
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, -99));
+    TEST_ASSERT_EQUAL(0, buf.viewport_offset);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("three", chars, 5);
+}
+
+static void test_scrollback_view_stays_put_as_output_arrives(void)
+{
+    reset_buffer(5, 2);
+    text_buffer_write(&buf, "one\ntwo\nthree\n", 14);
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 2));
+    text_buffer_write(&buf, "four\n", 5);
+
+    TEST_ASSERT_EQUAL(3, buf.scrollback_count);
+    TEST_ASSERT_EQUAL(3, buf.viewport_offset);
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("one  ", chars, 5);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 1, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("two  ", chars, 5);
+
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, -99));
+    TEST_ASSERT_EQUAL(0, buf.viewport_offset);
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("four ", chars, 5);
+}
+
+static void test_scrollback_preserves_foreground_color(void)
+{
+    reset_buffer(5, 1);
+    text_buffer_write(&buf, "\033[31mred\n", 9);
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, 1));
+
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_STRING_LEN("red  ", chars, 5);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_RED, fg[0]);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_RED, fg[2]);
+    TEST_ASSERT_EQUAL(TEXT_BUF_DEFAULT_FG, fg[3]);
+}
+
+static void test_scrollback_ring_is_bounded(void)
+{
+    reset_buffer(1, 1);
+    for (int i = 0; i < TEXT_BUF_SCROLLBACK_ROWS + 2; i++)
+    {
+        const char ch = (char)('A' + (i % 26));
+        text_buffer_write(&buf, &ch, 1);
+        text_buffer_write(&buf, "\n", 1);
+    }
+
+    TEST_ASSERT_EQUAL(TEXT_BUF_SCROLLBACK_ROWS, buf.scrollback_count);
+    TEST_ASSERT_EQUAL(2, buf.scrollback_start);
+    TEST_ASSERT_TRUE(text_buffer_scroll_view(&buf, TEXT_BUF_SCROLLBACK_ROWS + 1));
+    TEST_ASSERT_EQUAL(TEXT_BUF_SCROLLBACK_ROWS, buf.viewport_offset);
+    char chars[TEXT_BUF_MAX_COLS];
+    uint16_t fg[TEXT_BUF_MAX_COLS];
+    TEST_ASSERT_TRUE(text_buffer_get_visible_row(&buf, 0, chars, fg));
+    TEST_ASSERT_EQUAL_CHAR('C', chars[0]);
 }
 
 /* ── Clear ─────────────────────────────────────────────────── */
@@ -192,6 +321,8 @@ static void test_clear(void)
     TEST_ASSERT_EQUAL(0, buf.cursor_col);
     TEST_ASSERT_EQUAL(' ', buf.cells[0][0].ch);
     TEST_ASSERT_EQUAL(TEXT_BUF_DEFAULT_FG, buf.current_fg);
+    TEST_ASSERT_EQUAL(0, buf.scrollback_count);
+    TEST_ASSERT_EQUAL(0, buf.viewport_offset);
 }
 
 /* ── CSI cursor movement ───────────────────────────────────── */
@@ -322,14 +453,8 @@ static void test_sgr_reset_bare_m(void)
 static void test_sgr_all_basic_colors(void)
 {
     const uint16_t expected[] = {
-        TEXT_BUF_COLOR_BLACK,
-        TEXT_BUF_COLOR_RED,
-        TEXT_BUF_COLOR_GREEN,
-        TEXT_BUF_COLOR_YELLOW,
-        TEXT_BUF_COLOR_BLUE,
-        TEXT_BUF_COLOR_MAGENTA,
-        TEXT_BUF_COLOR_CYAN,
-        TEXT_BUF_COLOR_WHITE,
+        TEXT_BUF_COLOR_BLACK, TEXT_BUF_COLOR_RED,     TEXT_BUF_COLOR_GREEN, TEXT_BUF_COLOR_YELLOW,
+        TEXT_BUF_COLOR_BLUE,  TEXT_BUF_COLOR_MAGENTA, TEXT_BUF_COLOR_CYAN,  TEXT_BUF_COLOR_WHITE,
     };
     char seq[16];
     for (int i = 0; i < 8; i++)
@@ -430,7 +555,7 @@ static void test_dirty_rows_bitmask(void)
 
 static void test_dirty_rows_scroll_marks_all(void)
 {
-    text_buffer_init(&buf, 5, 3);
+    reset_buffer(5, 3);
     for (int r = 0; r < buf.rows; r++)
     {
         text_buffer_clear_row_dirty(&buf, r);
@@ -515,7 +640,10 @@ static void test_linenoise_refresh_line(void)
 {
     text_buffer_write(&buf, "COS> hello", 10);
 
-    const char *refresh = "\r" "COS> hell" "\033[0K" "\r\033[9C";
+    const char *refresh = "\r"
+                          "COS> hell"
+                          "\033[0K"
+                          "\r\033[9C";
     text_buffer_write(&buf, refresh, strlen(refresh));
 
     TEST_ASSERT_EQUAL('C', buf.cells[0][0].ch);
@@ -542,6 +670,9 @@ int main(void)
     RUN_TEST(test_init_clamps_dimensions);
     RUN_TEST(test_init_cells_are_spaces);
     RUN_TEST(test_init_all_dirty);
+    RUN_TEST(test_scrollback_cells_use_compact_color_indices);
+    RUN_TEST(test_scrollback_is_allocated_lazily_and_freed_on_clear);
+    RUN_TEST(test_clear_scrollback_preserves_visible_grid);
 
     /* Basic character writing */
     RUN_TEST(test_write_single_char);
@@ -563,6 +694,10 @@ int main(void)
     /* Scrolling */
     RUN_TEST(test_scroll_on_screen_full);
     RUN_TEST(test_scroll_multiple_times);
+    RUN_TEST(test_scrollback_and_viewport_navigation);
+    RUN_TEST(test_scrollback_view_stays_put_as_output_arrives);
+    RUN_TEST(test_scrollback_preserves_foreground_color);
+    RUN_TEST(test_scrollback_ring_is_bounded);
 
     /* Clear */
     RUN_TEST(test_clear);

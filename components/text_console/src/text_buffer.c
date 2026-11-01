@@ -1,10 +1,31 @@
 #include "text_buffer.h"
+#include <stdlib.h>
 #include <string.h>
 
 static const uint16_t s_ansi_color_table[8] = {
     TEXT_BUF_COLOR_BLACK, TEXT_BUF_COLOR_RED,     TEXT_BUF_COLOR_GREEN, TEXT_BUF_COLOR_YELLOW,
     TEXT_BUF_COLOR_BLUE,  TEXT_BUF_COLOR_MAGENTA, TEXT_BUF_COLOR_CYAN,  TEXT_BUF_COLOR_WHITE,
 };
+
+#define TEXT_HISTORY_DEFAULT_COLOR_INDEX 8
+
+static uint8_t history_color_index(uint16_t foreground)
+{
+    for (uint8_t i = 0; i < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]); i++)
+    {
+        if (s_ansi_color_table[i] == foreground)
+        {
+            return i;
+        }
+    }
+    return TEXT_HISTORY_DEFAULT_COLOR_INDEX;
+}
+
+static uint16_t history_foreground(uint8_t index)
+{
+    return index < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]) ? s_ansi_color_table[index]
+                                                                              : TEXT_BUF_DEFAULT_FG;
+}
 
 static void clear_cell(text_cell_t *cell, uint16_t fg)
 {
@@ -13,17 +34,98 @@ static void clear_cell(text_cell_t *cell, uint16_t fg)
     cell->dirty = true;
 }
 
+static void mark_grid_row_dirty(text_buffer_t *buf, int row)
+{
+    if (row < 0 || row >= buf->rows)
+    {
+        return;
+    }
+
+    for (int c = 0; c < buf->cols; c++)
+    {
+        buf->cells[row][c].dirty = true;
+    }
+    const int display_row = row + buf->viewport_offset;
+    if (display_row < buf->rows)
+    {
+        buf->dirty_rows |= (1ULL << display_row);
+    }
+}
+
+static void mark_all_rows_dirty(text_buffer_t *buf)
+{
+    for (int r = 0; r < buf->rows; r++)
+    {
+        for (int c = 0; c < buf->cols; c++)
+        {
+            buf->cells[r][c].dirty = true;
+        }
+    }
+    buf->dirty_rows = (1ULL << buf->rows) - 1;
+}
+
 static void clear_row(text_buffer_t *buf, int row)
 {
     for (int c = 0; c < buf->cols; c++)
     {
         clear_cell(&buf->cells[row][c], TEXT_BUF_DEFAULT_FG);
     }
-    buf->dirty_rows |= (1ULL << row);
+    const int display_row = row + buf->viewport_offset;
+    if (display_row < buf->rows)
+    {
+        buf->dirty_rows |= (1ULL << display_row);
+    }
+}
+
+static void retain_scrolled_row(text_buffer_t *buf)
+{
+    if (buf->scrollback_disabled)
+    {
+        return;
+    }
+
+    if (buf->scrollback == NULL)
+    {
+        buf->scrollback = malloc(sizeof(*buf->scrollback) * TEXT_BUF_SCROLLBACK_ROWS);
+        if (buf->scrollback == NULL)
+        {
+            buf->scrollback_disabled = true;
+            buf->scrollback_allocation_failed = true;
+            return;
+        }
+    }
+
+    int index;
+    if (buf->scrollback_count < TEXT_BUF_SCROLLBACK_ROWS)
+    {
+        index = (buf->scrollback_start + buf->scrollback_count) % TEXT_BUF_SCROLLBACK_ROWS;
+        buf->scrollback_count++;
+    }
+    else
+    {
+        index = buf->scrollback_start;
+        buf->scrollback_start = (buf->scrollback_start + 1) % TEXT_BUF_SCROLLBACK_ROWS;
+    }
+
+    for (int c = 0; c < buf->cols; c++)
+    {
+        buf->scrollback[index][c].ch = buf->cells[0][c].ch;
+        buf->scrollback[index][c].fg_index = history_color_index(buf->cells[0][c].fg);
+    }
+
+    if (buf->viewport_offset > 0 && buf->viewport_offset < TEXT_BUF_SCROLLBACK_ROWS)
+    {
+        buf->viewport_offset++;
+        if (buf->viewport_offset > buf->scrollback_count)
+        {
+            buf->viewport_offset = buf->scrollback_count;
+        }
+    }
 }
 
 static void scroll_up(text_buffer_t *buf)
 {
+    retain_scrolled_row(buf);
     for (int r = 1; r < buf->rows; r++)
     {
         memcpy(buf->cells[r - 1], buf->cells[r], sizeof(text_cell_t) * (size_t)buf->cols);
@@ -33,7 +135,7 @@ static void scroll_up(text_buffer_t *buf)
         }
     }
     clear_row(buf, buf->rows - 1);
-    buf->dirty_rows = (1ULL << buf->rows) - 1;
+    mark_all_rows_dirty(buf);
 }
 
 static void next_line(text_buffer_t *buf)
@@ -64,7 +166,11 @@ static void put_char(text_buffer_t *buf, char ch)
     cell->ch = ch;
     cell->fg = buf->current_fg;
     cell->dirty = true;
-    buf->dirty_rows |= (1ULL << buf->cursor_row);
+    const int display_row = buf->cursor_row + buf->viewport_offset;
+    if (display_row < buf->rows)
+    {
+        buf->dirty_rows |= (1ULL << display_row);
+    }
 
     buf->cursor_col++;
     if (buf->cursor_col >= buf->cols)
@@ -198,7 +304,7 @@ static void dispatch_csi(text_buffer_t *buf, char final_byte)
             {
                 clear_cell(&buf->cells[buf->cursor_row][c], TEXT_BUF_DEFAULT_FG);
             }
-            buf->dirty_rows |= (1ULL << buf->cursor_row);
+            mark_grid_row_dirty(buf, buf->cursor_row);
         }
         break;
     case 'm': /* SGR - select graphic rendition */
@@ -324,6 +430,7 @@ void text_buffer_write(text_buffer_t *buf, const char *data, size_t len)
 
 void text_buffer_clear(text_buffer_t *buf)
 {
+    text_buffer_clear_scrollback(buf);
     for (int r = 0; r < buf->rows; r++)
     {
         clear_row(buf, r);
@@ -335,16 +442,110 @@ void text_buffer_clear(text_buffer_t *buf)
     buf->state = TB_STATE_NORMAL;
 }
 
+void text_buffer_clear_scrollback(text_buffer_t *buf)
+{
+    free(buf->scrollback);
+    buf->scrollback = NULL;
+    buf->scrollback_start = 0;
+    buf->scrollback_count = 0;
+    buf->viewport_offset = 0;
+    buf->scrollback_disabled = false;
+    buf->scrollback_allocation_failed = false;
+    mark_all_rows_dirty(buf);
+}
+
+bool text_buffer_take_scrollback_allocation_failure(text_buffer_t *buf)
+{
+    const bool allocation_failed = buf->scrollback_allocation_failed;
+    buf->scrollback_allocation_failed = false;
+    return allocation_failed;
+}
+
 bool text_buffer_has_dirty(const text_buffer_t *buf)
 {
     return buf->dirty_rows != 0;
 }
 
+bool text_buffer_scroll_view(text_buffer_t *buf, int rows)
+{
+    const int old_offset = buf->viewport_offset;
+    if (rows > 0)
+    {
+        const int remaining = buf->scrollback_count - buf->viewport_offset;
+        buf->viewport_offset += rows > remaining ? remaining : rows;
+    }
+    else if (rows < 0)
+    {
+        if (rows < -buf->viewport_offset)
+        {
+            buf->viewport_offset = 0;
+        }
+        else
+        {
+            buf->viewport_offset += rows;
+        }
+    }
+
+    if (buf->viewport_offset == old_offset)
+    {
+        return false;
+    }
+
+    mark_all_rows_dirty(buf);
+    return true;
+}
+
+bool text_buffer_get_visible_row(const text_buffer_t *buf, int row, char *chars, uint16_t *fg)
+{
+    if (row < 0 || row >= buf->rows || chars == NULL || fg == NULL)
+    {
+        return false;
+    }
+
+    const int history_row = buf->scrollback_count - buf->viewport_offset + row;
+    if (history_row < buf->scrollback_count)
+    {
+        if (buf->scrollback == NULL)
+        {
+            return false;
+        }
+        const int index = (buf->scrollback_start + history_row) % TEXT_BUF_SCROLLBACK_ROWS;
+        for (int c = 0; c < buf->cols; c++)
+        {
+            chars[c] = buf->scrollback[index][c].ch;
+            fg[c] = history_foreground(buf->scrollback[index][c].fg_index);
+        }
+    }
+    else
+    {
+        const int grid_row = history_row - buf->scrollback_count;
+        if (grid_row < 0 || grid_row >= buf->rows)
+        {
+            return false;
+        }
+        for (int c = 0; c < buf->cols; c++)
+        {
+            chars[c] = buf->cells[grid_row][c].ch;
+            fg[c] = buf->cells[grid_row][c].fg;
+        }
+    }
+    return true;
+}
+
 void text_buffer_clear_row_dirty(text_buffer_t *buf, int row)
 {
-    for (int c = 0; c < buf->cols; c++)
+    if (row < 0 || row >= buf->rows)
     {
-        buf->cells[row][c].dirty = false;
+        return;
+    }
+
+    const int grid_row = row - buf->viewport_offset;
+    if (grid_row >= 0 && grid_row < buf->rows)
+    {
+        for (int c = 0; c < buf->cols; c++)
+        {
+            buf->cells[grid_row][c].dirty = false;
+        }
     }
     buf->dirty_rows &= ~(1ULL << row);
 }
