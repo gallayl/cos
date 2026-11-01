@@ -211,17 +211,27 @@ fails, the command must report the remaining path and error.
 
 ## Milestone 5 — simple startup and console usability
 
-**Status:** Planned
+**Status:** Implementation complete; PR #17 CI passes
 
-- [ ] Add a concise `clear` shell command and document it.
-- [ ] Run `/flash/autoexec.be` once during startup after the filesystem and
+- [x] Add a concise `clear` shell command and document it.
+- [x] Run `/flash/autoexec.be` once during startup after the filesystem and
       Berry runtime are ready. A missing script is a no-op; execution errors
       are logged without preventing the shell from starting.
-- [ ] Add a small Berry clear-screen script that demonstrates `action("clear")`.
-- [ ] Cover command behavior, optional autoexec, and autoexec failure handling
+- [x] Add a small Berry clear-screen script that demonstrates `action("clear")`.
+- [x] Cover command behavior, optional autoexec, and autoexec failure handling
       with focused tests.
-- [ ] Document startup-script location, timing, missing-file behavior, and
+- [x] Document startup-script location, timing, missing-file behavior, and
       examples.
+
+### Milestone 5 validation
+
+| Validation                   | Status | Result |
+| ---------------------------- | ------ | ------ |
+| Host unit tests              | Pass   | Local run and PR #17 CI run `41326322264` passed all 21 test targets. |
+| ESP-IDF build and clang-tidy | Pass | PR #17 CI run `41326322254` passed. |
+| clang-format check           | Pass   | PR #17 CI run `41326322330` passed. |
+| Doxygen check                | Pass   | PR #17 CI run `41326322229` passed. |
+| Shell QEMU integration       | Pass   | PR #17 CI run `41326322279` passed, including startup autoexec execution. |
 
 ## Milestone 6 — low-risk maintenance and scripting improvements
 
