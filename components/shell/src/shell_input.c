@@ -436,7 +436,6 @@ static void input_task(void *arg)
         {
             process_byte(buf[i]);
         }
-        s_previous_line_ending = '\0';
         fflush(stdout);
     }
 }
