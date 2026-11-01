@@ -235,7 +235,7 @@ fails, the command must report the remaining path and error.
 
 ## Milestone 6 — low-risk maintenance and scripting improvements
 
-**Status:** Implementation complete; CI pending
+**Status:** Complete; all PR #18 CI checks passed.
 
 - [x] Review shell line/history limits and their static RAM cost before changing
       defaults.
@@ -256,10 +256,11 @@ fails, the command must report the remaining path and error.
 
 | Validation                | Status | Result |
 | ------------------------- | ------ | ------ |
-| Host unit tests           | Pass   | All 21 C test targets and 3 Python tidy-script tests passed. |
-| clang-format check        | Pass   | Repository format check passed with clang-format 18.1.8. |
-| Doxygen check             | Pass   | `make docs-check` passed. |
-| ESP-IDF build and QEMU CI | Pending | Local ESP-IDF is not configured; PR CI will provide firmware and integration validation. |
+| Host unit tests           | Pass   | All 21 C test targets and 3 Python tidy-script tests passed; PR #18 Unit Tests run `41346372235` passed. |
+| clang-format check        | Pass   | Local repository format check and PR #18 Format Check run `41346372206` passed. |
+| Doxygen check             | Pass   | `make docs-check` and PR #18 Doxygen Check run `41346372212` passed. |
+| ESP-IDF build and clang-tidy | Pass | Local ESP-IDF 6.1 build and PR #18 Build & Lint run `41346372199` passed. |
+| QEMU shell integration    | Pass   | PR #18 Integration Tests run `41346372318` passed. |
 
 ## Berry API risk, complexity, and ROI
 
