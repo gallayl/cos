@@ -19,6 +19,7 @@ static const char *const TAG = "shell_input";
 #define INPUT_LINE_MAX 128
 #define INPUT_STREAM_SIZE 256
 #define INPUT_CANCEL_REQUEST 0xFF
+#define PROMPT_EOL_GRACE_MS 50
 #define HISTORY_SIZE 8
 #define UART_RX_BUF_SIZE 256
 #define UART_NUM CONFIG_ESP_CONSOLE_UART_NUM
@@ -425,7 +426,6 @@ static void process_input_buffer(const uint8_t *buf, size_t length)
     {
         process_byte(buf[i]);
     }
-    s_ignore_prompt_eol = false;
 }
 
 /* ── Tasks ─────────────────────────────────────────────────── */
@@ -455,6 +455,15 @@ static void input_task(void *arg)
     {
         size_t n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), portMAX_DELAY);
         process_input_buffer(buf, n);
+        if (s_ignore_prompt_eol)
+        {
+            n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), pdMS_TO_TICKS(PROMPT_EOL_GRACE_MS));
+            if (n > 0)
+            {
+                process_input_buffer(buf, n);
+            }
+            s_ignore_prompt_eol = false;
+        }
         fflush(stdout);
     }
 }
