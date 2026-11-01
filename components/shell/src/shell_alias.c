@@ -79,8 +79,34 @@ static bool valid_name(const char *name)
 
 static bool valid_command(const shell_alias_t *aliases, size_t count, const char *command)
 {
-    return command != NULL && command[0] != '\0' && strlen(command) < ALIAS_COMMAND_MAX &&
-           find_alias(aliases, count, command) < 0 && command_exists(command);
+    if (command == NULL || command[0] == '\0' || strlen(command) >= ALIAS_COMMAND_MAX ||
+        strchr(command, '\n') != NULL || strchr(command, '\r') != NULL)
+    {
+        return false;
+    }
+
+    const char *command_name = command;
+    while (*command_name == ' ' || *command_name == '\t')
+    {
+        command_name++;
+    }
+
+    const char *command_end = command_name;
+    while (*command_end != '\0' && *command_end != ' ' && *command_end != '\t')
+    {
+        command_end++;
+    }
+
+    size_t command_name_length = (size_t)(command_end - command_name);
+    if (command_name_length == 0)
+    {
+        return false;
+    }
+
+    char name[ALIAS_COMMAND_MAX];
+    memcpy(name, command_name, command_name_length);
+    name[command_name_length] = '\0';
+    return find_alias(aliases, count, name) < 0 && command_exists(name);
 }
 
 static esp_err_t save_aliases(const shell_alias_t *aliases, size_t count)

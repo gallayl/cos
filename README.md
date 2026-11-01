@@ -92,7 +92,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | Command     | Description                              |
 | ----------- | ---------------------------------------- |
 | `clear`     | Clear the text console                   |
-| `alias` / `unalias` | List, define, or remove persistent single-command aliases |
+| `alias` / `unalias` | List, define, or remove persistent command aliases |
 | `calibrate` | Run interactive touch screen calibration |
 | `cd`, `pwd` | Change or show the current directory |
 | `ls`, `dir` | List directory contents |
@@ -134,10 +134,12 @@ eight history entries. Its line, history, saved-line, and Berry prompt buffers
 use 1,408 bytes of static RAM; the existing limits are retained.
 
 Define a persistent alias with `alias <name> <command>`, list aliases with
-`alias`, and remove one with `unalias <name>`. Aliases map one command name to
-another registered command and pass through the arguments supplied at use;
-they do not store arguments, shadow existing commands, or chain to other
-aliases. Up to eight aliases are stored in `/flash/.cos_aliases`.
+`alias`, and remove one with `unalias <name>`. Quote a command and its fixed
+arguments when defining it, for example
+`alias breakout "berry run apps/breakout.be"`. Aliases map to a registered
+command, may include fixed arguments, and pass through arguments supplied at
+use; they do not shadow existing commands or chain to other aliases. Up to
+eight aliases are stored in `/flash/.cos_aliases`.
 Aliases expand on interactive shell command lines; Berry `action()` calls
 continue to invoke registered commands directly.
 

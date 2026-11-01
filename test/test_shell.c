@@ -507,15 +507,20 @@ static void test_alias_expands_command_and_persists_configuration(void)
     char *argv[] = {"alias", "ll", "ls"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("alias", 3, argv));
 
+    char *breakout_argv[] = {"alias", "breakout", "berry run apps/breakout.be"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("alias", 3, breakout_argv));
+
     char expanded[128];
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("  ll -a", expanded, sizeof(expanded)));
     TEST_ASSERT_EQUAL_STRING("  ls -a", expanded);
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
 
     char contents[128];
     size_t length = 0;
     TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/.cos_aliases", contents, sizeof(contents) - 1, &length));
     contents[length] = '\0';
-    TEST_ASSERT_EQUAL_STRING("ll=ls\n", contents);
+    TEST_ASSERT_EQUAL_STRING("ll=ls\nbreakout=berry run apps/breakout.be\n", contents);
 
     mock_console_reset();
     shell_register_fs_commands();
@@ -526,6 +531,8 @@ static void test_alias_expands_command_and_persists_configuration(void)
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("ll -a", expanded, sizeof(expanded)));
     TEST_ASSERT_EQUAL_STRING("ls -a", expanded);
+    TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
+    TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
 }
 
 static void test_alias_rejects_unknown_commands_and_builtin_names(void)
@@ -538,6 +545,9 @@ static void test_alias_rejects_unknown_commands_and_builtin_names(void)
 
     char *chain_argv[] = {"alias", "list", "ll"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, chain_argv));
+
+    char *chain_with_args_argv[] = {"alias", "list", "ll -a"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, chain_with_args_argv));
 
     char expanded[128];
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("not_alias", expanded, sizeof(expanded)));

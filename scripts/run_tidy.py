@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Sanitize compile_commands.json and run clang-tidy.
 
-ESP-IDF's Xtensa toolchain emits flags that clang-tidy does not understand.
-This script strips those flags from a copy of compile_commands.json before
-invoking clang-tidy, and exits non-zero when warnings-as-errors are found.
+ESP-IDF's Xtensa toolchain emits flags that clang-tidy does not understand and
+targets an architecture unavailable in the host clang build. This script
+sanitizes a copy of compile_commands.json, analyzes with the host target, and
+exits non-zero when clang-tidy reports errors or warnings-as-errors.
 """
 
 import json
 import os
+import platform
 import shlex
 import subprocess
 import sys
@@ -21,6 +23,22 @@ UNSUPPORTED_FLAGS = {
 
 SRC_PATH = "build/compile_commands.json"
 DST_PATH = "build/tidy/compile_commands.json"
+
+
+def host_target_triple():
+    machine = platform.machine().lower()
+    if machine in {"amd64", "x86_64"}:
+        arch = "x86_64"
+    elif machine in {"arm64", "aarch64"}:
+        arch = "aarch64"
+    else:
+        arch = machine
+
+    if os.name == "nt":
+        return f"{arch}-pc-windows-msvc"
+    if sys.platform == "darwin":
+        return f"{arch}-apple-darwin"
+    return f"{arch}-unknown-linux-gnu"
 
 
 def sanitize_compile_commands(src_path, dst_path):
@@ -50,7 +68,13 @@ def sanitize_compile_commands(src_path, dst_path):
 
 def run_clang_tidy(compile_commands_dir, sources):
     proc = subprocess.Popen(
-        ["clang-tidy", "-p", compile_commands_dir] + sources,
+        [
+            "clang-tidy",
+            f"--extra-arg-before=--target={host_target_triple()}",
+            "-p",
+            compile_commands_dir,
+        ]
+        + sources,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

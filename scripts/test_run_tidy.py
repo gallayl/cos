@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from run_tidy import run_clang_tidy, sanitize_compile_commands
+from run_tidy import host_target_triple, run_clang_tidy, sanitize_compile_commands
 
 
 class SanitizeCompileCommandsTests(unittest.TestCase):
@@ -57,6 +57,18 @@ class RunClangTidyTests(unittest.TestCase):
         process.returncode = 7
 
         self.assertEqual(7, run_clang_tidy("build/tidy", ["source.c"]))
+        popen.assert_called_once_with(
+            [
+                "clang-tidy",
+                f"--extra-arg-before=--target={host_target_triple()}",
+                "-p",
+                "build/tidy",
+                "source.c",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
 
     @patch("run_tidy.subprocess.Popen")
     def test_warnings_as_errors_fail_even_with_zero_exit_status(self, popen):
