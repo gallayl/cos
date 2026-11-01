@@ -39,7 +39,8 @@ static const char s_berry_api_script[] = "class BerryApiApp\n"
                                          "            log(\"NET_INVALID_HOST_OK\")\n"
                                          "        end\n"
                                          "    end\n"
-                                         "end\n";
+                                         "end\n"
+                                         "BerryApiApp\n";
 static const char s_berry_input_script[] = "class InputApp\n"
                                            "    def setup(content, width, height)\n"
                                            "        console.read_line(\"Input: \", def (value)\n"
@@ -51,7 +52,8 @@ static const char s_berry_input_script[] = "class InputApp\n"
                                            "            ui.exit()\n"
                                            "        end)\n"
                                            "    end\n"
-                                           "end\n";
+                                           "end\n"
+                                           "InputApp\n";
 
 static void init_nvs(void)
 {
