@@ -37,7 +37,8 @@ static _Atomic(void *) s_line_input_owner;
 
 static char s_line[INPUT_LINE_MAX];
 static int s_line_pos;
-static char s_previous_line_ending;
+static bool s_ignore_lf;
+static bool s_ignore_prompt_cr;
 
 /* ── Command history ───────────────────────────────────────── */
 
@@ -348,18 +349,25 @@ static void handle_normal_char(uint8_t ch)
 
 static void process_byte(uint8_t ch)
 {
-    if (s_previous_line_ending != '\0')
+    if (s_ignore_lf)
     {
-        const char previous_line_ending = s_previous_line_ending;
-        s_previous_line_ending = '\0';
-        if ((previous_line_ending == '\r' && ch == '\n') || (previous_line_ending == '\n' && ch == '\r'))
+        s_ignore_lf = false;
+        if (ch == '\n')
         {
             return;
         }
     }
-    if (ch == '\r' || ch == '\n')
+    if (s_ignore_prompt_cr)
     {
-        s_previous_line_ending = (char)ch;
+        s_ignore_prompt_cr = false;
+        if (ch == '\r')
+        {
+            return;
+        }
+    }
+    if (ch == '\r')
+    {
+        s_ignore_lf = true;
     }
 
     if (ch == INPUT_CANCEL_REQUEST)
@@ -381,6 +389,10 @@ static void process_byte(uint8_t ch)
     {
     case ST_NORMAL:
         handle_normal_char(ch);
+        if (ch == '\n' && s_line_input.active)
+        {
+            s_ignore_prompt_cr = true;
+        }
         break;
 
     case ST_ESC:
@@ -525,7 +537,8 @@ esp_err_t shell_input_init(void)
 
     s_history_browse = -1;
     s_parse_state = ST_NORMAL;
-    s_previous_line_ending = '\0';
+    s_ignore_lf = false;
+    s_ignore_prompt_cr = false;
     atomic_init(&s_line_input_owned, false);
     atomic_init(&s_line_input_owner, NULL);
 

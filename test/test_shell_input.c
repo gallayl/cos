@@ -48,7 +48,8 @@ esp_err_t shell_complete_line(char *line, size_t capacity, bool *changed)
 static void reset_state(void)
 {
     s_line_pos = 0;
-    s_previous_line_ending = '\0';
+    s_ignore_lf = false;
+    s_ignore_prompt_cr = false;
     memset(s_line, 0, sizeof(s_line));
     s_parse_state = ST_NORMAL;
     s_history_count = 0;
@@ -282,7 +283,7 @@ static void test_async_line_input_collects_text_and_completes(void)
 
 static void test_lf_after_command_cr_does_not_finish_pending_prompt(void)
 {
-    s_previous_line_ending = '\r';
+    s_ignore_lf = true;
     s_line_input.active = true;
     s_line_input.callback = line_input_callback;
     s_line_input.context = &s_test_stream;
@@ -293,12 +294,12 @@ static void test_lf_after_command_cr_does_not_finish_pending_prompt(void)
     TEST_ASSERT_TRUE(s_line_input.active);
     TEST_ASSERT_TRUE(shell_input_is_reading_line());
     TEST_ASSERT_EQUAL(0, s_line_callback_calls);
-    TEST_ASSERT_EQUAL('\0', s_previous_line_ending);
+    TEST_ASSERT_FALSE(s_ignore_lf);
 }
 
 static void test_cr_after_command_lf_does_not_finish_pending_prompt(void)
 {
-    s_previous_line_ending = '\n';
+    s_ignore_prompt_cr = true;
     s_line_input.active = true;
     s_line_input.callback = line_input_callback;
     s_line_input.context = &s_test_stream;
@@ -309,7 +310,7 @@ static void test_cr_after_command_lf_does_not_finish_pending_prompt(void)
     TEST_ASSERT_TRUE(s_line_input.active);
     TEST_ASSERT_TRUE(shell_input_is_reading_line());
     TEST_ASSERT_EQUAL(0, s_line_callback_calls);
-    TEST_ASSERT_EQUAL('\0', s_previous_line_ending);
+    TEST_ASSERT_FALSE(s_ignore_prompt_cr);
 }
 
 static void test_async_line_input_backspace_and_cancel(void)
