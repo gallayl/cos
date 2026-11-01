@@ -24,15 +24,17 @@ jobs:
           . $IDF_PATH/export.sh
           make build
 
+      - name: Generate Clang compile database
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          mkdir -p build/clang
+          cp build/sdkconfig build/clang/sdkconfig
+          IDF_TOOLCHAIN=clang idf.py -B build/clang reconfigure
+
       - name: Run clang-tidy
         shell: bash
         run: |
           . $IDF_PATH/export.sh
-          include_paths() {
-            "$1" -E -x "$2" - -v </dev/null 2>&1 |
-              sed -n '/#include <...> search starts here:/,/End of search list/{/#include <...> search starts here:/d; /End of search list/d; s/^[[:space:]]*//; p}'
-          }
-          c_include_paths="$(include_paths xtensa-esp32-elf-gcc c)"
-          cxx_include_paths="$(include_paths xtensa-esp32-elf-g++ c++)"
-          export CPATH="${c_include_paths}:${cxx_include_paths}"
+          export TIDY_COMPILE_COMMANDS=build/clang/compile_commands.json
           make lint

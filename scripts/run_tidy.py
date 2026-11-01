@@ -19,7 +19,7 @@ UNSUPPORTED_FLAGS = {
     "-fstrict-volatile-bitfields",
 }
 
-SRC_PATH = "build/compile_commands.json"
+SRC_PATH = os.environ.get("TIDY_COMPILE_COMMANDS", "build/compile_commands.json")
 DST_PATH = "build/tidy/compile_commands.json"
 
 
