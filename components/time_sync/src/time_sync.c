@@ -53,8 +53,8 @@ static long utc_offset_seconds(time_t t)
         day_diff = 1;
     }
 
-    return (long)(day_diff * 86400 + (local_tm.tm_hour - utc_tm.tm_hour) * 3600 +
-                  (local_tm.tm_min - utc_tm.tm_min) * 60 + (local_tm.tm_sec - utc_tm.tm_sec));
+    return (long)day_diff * 86400L + ((long)local_tm.tm_hour - utc_tm.tm_hour) * 3600L +
+           ((long)local_tm.tm_min - utc_tm.tm_min) * 60L + (long)local_tm.tm_sec - utc_tm.tm_sec;
 }
 
 esp_err_t time_sync_init(void)

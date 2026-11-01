@@ -11,11 +11,11 @@ static const uint16_t s_ansi_color_table[8] = {
 
 static uint8_t history_color_index(uint16_t foreground)
 {
-    for (uint8_t i = 0; i < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]); i++)
+    for (size_t i = 0; i < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]); i++)
     {
         if (s_ansi_color_table[i] == foreground)
         {
-            return i;
+            return (uint8_t)i;
         }
     }
     return TEXT_HISTORY_DEFAULT_COLOR_INDEX;
