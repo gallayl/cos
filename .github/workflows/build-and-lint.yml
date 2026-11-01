@@ -28,4 +28,11 @@ jobs:
         shell: bash
         run: |
           . $IDF_PATH/export.sh
+          include_paths() {
+            "$1" -E -x "$2" - -v </dev/null 2>&1 |
+              sed -n '/#include <...> search starts here:/,/End of search list/{/#include <...> search starts here:/d; /End of search list/d; s/^[[:space:]]*//; p}'
+          }
+          c_include_paths="$(include_paths xtensa-esp32-elf-gcc c)"
+          cxx_include_paths="$(include_paths xtensa-esp32-elf-g++ c++)"
+          export CPATH="${c_include_paths}:${cxx_include_paths}"
           make lint

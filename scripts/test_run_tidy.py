@@ -62,7 +62,7 @@ class RunClangTidyTests(unittest.TestCase):
 
         self.assertEqual(7, run_clang_tidy("build/tidy", ["source.c"]))
         popen.assert_called_once_with(
-            ["clang-tidy", "--query-driver=*xtensa-*-elf-gcc*", "-p", "build/tidy", "source.c"],
+            ["clang-tidy", "-p", "build/tidy", "source.c"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

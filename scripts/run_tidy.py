@@ -50,13 +50,7 @@ def sanitize_compile_commands(src_path, dst_path):
 
 def run_clang_tidy(compile_commands_dir, sources):
     proc = subprocess.Popen(
-        [
-            "clang-tidy",
-            "--query-driver=*xtensa-*-elf-gcc*",
-            "-p",
-            compile_commands_dir,
-        ]
-        + sources,
+        ["clang-tidy", "-p", compile_commands_dir] + sources,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
