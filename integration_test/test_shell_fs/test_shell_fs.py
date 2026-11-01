@@ -70,6 +70,19 @@ def test_help_lists_registered_commands(dut):
     dut.expect("cat", timeout=CMD_TIMEOUT)
     dut.expect("berry", timeout=CMD_TIMEOUT)
 
+def test_ping_reports_unavailable_network(dut):
+    _wait_ready(dut)
+    dut.write("ping example.com\n")
+    dut.expect("ping: example.com failed (ESP_ERR_INVALID_STATE)", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+
+def test_nslookup_reports_unavailable_network(dut):
+    _wait_ready(dut)
+    dut.write("nslookup example.com\n")
+    dut.expect("nslookup: example.com failed (ESP_ERR_INVALID_STATE)", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
 
 def test_berry_filesystem_and_network_apis(dut):
     _wait_ready(dut)

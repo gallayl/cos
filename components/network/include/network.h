@@ -39,6 +39,14 @@ extern "C"
      */
     esp_err_t network_ping(const char *host, uint32_t timeout_ms, network_ping_result_t *result);
 
+    /**
+     * Resolve an IPv4 host on the same serialized worker used by network_ping.
+     * The caller returns by timeout_ms, including DNS time. A lookup may
+     * continue on the worker after caller timeout, so a new request is
+     * rejected until that lookup finishes.
+     */
+    esp_err_t network_resolve(const char *host, uint32_t timeout_ms, network_ping_result_t *result);
+
 #ifdef __cplusplus
 }
 #endif

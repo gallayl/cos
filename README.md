@@ -79,6 +79,8 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | Command     | Description                              |
 | ----------- | ---------------------------------------- |
 | `calibrate` | Run interactive touch screen calibration |
+| `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
+| `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
 | `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
 | `berry eval <source>` | Evaluate Berry source in the shared VM |
 | `berry close` | Close the active Berry app and run its teardown method |
@@ -94,6 +96,19 @@ directory; `rm` also retains its existing support for removing empty
 directories. Press **Tab** at the end of a command or supported path argument
 to complete a unique match or extend an ambiguous match to its common prefix.
 Paths containing whitespace are not completed.
+
+When the text console owns the display, drag upward to view older output and
+downward to return toward live output. The console retains up to 128 rows in
+addition to the visible grid; the oldest rows are discarded when full. New
+output continues over UART while viewing history and does not move the
+viewport. Touch is routed to Berry UI apps instead whenever their display is
+active.
+
+`ping` sends one ICMP echo request; `nslookup` performs DNS resolution only.
+Both accept an optional 100–3000 ms overall deadline (default 1000 ms), which
+includes DNS resolution, and require Wi-Fi station connectivity. They use the
+same serialized worker as Berry `net.ping`; if DNS continues after a caller
+times out, another request is rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
 

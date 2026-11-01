@@ -6,6 +6,7 @@
 
 #define TEXT_BUF_MAX_COLS 54
 #define TEXT_BUF_MAX_ROWS 40
+#define TEXT_BUF_SCROLLBACK_ROWS 128
 
 #define TEXT_BUF_DEFAULT_FG 0xFFFF
 #define TEXT_BUF_COLOR_BLACK 0x0000
@@ -40,14 +41,25 @@ extern "C"
         bool dirty;  /**< True if cell needs redraw. */
     } text_cell_t;
 
+    /** A retained scrollback cell, independent of the visible text grid. */
+    typedef struct
+    {
+        char ch;
+        uint16_t fg;
+    } text_history_cell_t;
+
     /** Text buffer state. */
     typedef struct
     {
         text_cell_t cells[TEXT_BUF_MAX_ROWS][TEXT_BUF_MAX_COLS];
+        text_history_cell_t scrollback[TEXT_BUF_SCROLLBACK_ROWS][TEXT_BUF_MAX_COLS];
         int rows;                                /**< Active row count (<= MAX_ROWS). */
         int cols;                                /**< Active column count (<= MAX_COLS). */
         int cursor_row;                          /**< Current cursor row. */
         int cursor_col;                          /**< Current cursor column. */
+        int scrollback_start;                    /**< Oldest retained row in the ring. */
+        int scrollback_count;                    /**< Number of retained rows. */
+        int viewport_offset;                     /**< Rows above the live bottom. */
         bool pending_wrap;                       /**< Deferred wrap: cursor at EOL, wrap on next printable char. */
         uint16_t current_fg;                     /**< Current foreground color for new chars. */
         uint64_t dirty_rows;                     /**< Bitmask of rows containing dirty cells. */
@@ -79,6 +91,17 @@ extern "C"
 
     /** Check if any row is marked dirty (O(1) via bitmask). */
     bool text_buffer_has_dirty(const text_buffer_t *buf);
+
+    /**
+     * @brief Move the viewport by a signed number of rows.
+     *
+     * Positive values show older rows; negative values move toward live output.
+     * The offset is clamped to retained history. Returns true if it changed.
+     */
+    bool text_buffer_scroll_view(text_buffer_t *buf, int rows);
+
+    /** Copy one displayed row into caller-provided arrays. */
+    bool text_buffer_get_visible_row(const text_buffer_t *buf, int row, char *chars, uint16_t *fg);
 
     /**
      * @brief Clear dirty flags for a single row.

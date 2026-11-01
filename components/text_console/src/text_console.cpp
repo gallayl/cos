@@ -25,6 +25,9 @@ static SemaphoreHandle_t s_mutex;
 static TaskHandle_t s_render_task;
 static bool s_initialized = false;
 static bool s_screen_visible = true;
+static bool s_touch_active = false;
+static int s_touch_last_y = 0;
+static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
 
@@ -37,21 +40,50 @@ static void render_dirty(void)
         return;
     }
 
-    char chars[TEXT_BUF_MAX_COLS];
-    uint16_t fg[TEXT_BUF_MAX_COLS];
     uint64_t dirty = s_buf.dirty_rows;
 
     while (dirty)
     {
         int r = __builtin_ctzll(dirty);
-        for (int c = 0; c < s_buf.cols; c++)
+        char chars[TEXT_BUF_MAX_COLS];
+        uint16_t fg[TEXT_BUF_MAX_COLS];
+        if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
-            chars[c] = s_buf.cells[r][c].ch;
-            fg[c] = s_buf.cells[r][c].fg;
+            display_draw_text_row(r * FONT_HEIGHT, chars, fg, s_buf.cols, BG_COLOR);
+            text_buffer_clear_row_dirty(&s_buf, r);
         }
-        display_draw_text_row(r * FONT_HEIGHT, chars, fg, s_buf.cols, BG_COLOR);
-        text_buffer_clear_row_dirty(&s_buf, r);
         dirty &= dirty - 1;
+    }
+}
+
+static void handle_console_touch(void)
+{
+    int x;
+    int y;
+    if (display_get_touch(&x, &y))
+    {
+        (void)x;
+        if (!s_touch_active)
+        {
+            s_touch_active = true;
+            s_touch_last_y = y;
+            s_touch_remainder = 0;
+            return;
+        }
+
+        const int movement = y - s_touch_last_y + s_touch_remainder;
+        const int rows = movement / FONT_HEIGHT;
+        s_touch_last_y = y;
+        s_touch_remainder = movement - rows * FONT_HEIGHT;
+        if (rows != 0)
+        {
+            (void)text_buffer_scroll_view(&s_buf, -rows);
+        }
+    }
+    else
+    {
+        s_touch_active = false;
+        s_touch_remainder = 0;
     }
 }
 
@@ -71,7 +103,13 @@ static void render_task(void *arg)
         {
             if (s_screen_visible)
             {
+                handle_console_touch();
                 render_dirty();
+            }
+            else
+            {
+                s_touch_active = false;
+                s_touch_remainder = 0;
             }
             xSemaphoreGive(s_mutex);
         }
@@ -173,6 +211,11 @@ extern "C" esp_err_t text_console_set_visible(bool visible)
         return ESP_ERR_TIMEOUT;
     }
     s_screen_visible = visible;
+    if (!visible)
+    {
+        s_touch_active = false;
+        s_touch_remainder = 0;
+    }
     if (visible)
     {
         for (int row = 0; row < s_buf.rows; ++row)
