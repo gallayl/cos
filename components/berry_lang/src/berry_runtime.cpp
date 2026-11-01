@@ -2,6 +2,10 @@
 
 #include "berry.h"
 #include "berry_internal.h"
+extern "C"
+{
+#include "be_gc.h"
+}
 #include "display.h"
 #include "filesystem.h"
 #include "network.h"
@@ -36,12 +40,35 @@ berry_console_read_line_fn s_console_read_line = nullptr;
 berry_console_cancel_line_fn s_console_cancel_line = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
+const char *s_app_class_global_name = nullptr;
 
 void log_heap_snapshot(const char *phase)
 {
     ESP_LOGI(TAG, "%s: free=%u bytes, minimum=%u bytes, largest block=%u bytes", phase,
              static_cast<unsigned>(esp_get_free_heap_size()), static_cast<unsigned>(esp_get_minimum_free_heap_size()),
              static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+}
+
+void collect_berry_garbage()
+{
+    const size_t before = be_gc_memcount(s_vm);
+    be_gc_collect(s_vm);
+    const size_t after = be_gc_memcount(s_vm);
+    const size_t reclaimed = before > after ? before - after : 0;
+    ESP_LOGI(TAG, "Berry GC: %u bytes in use (%u reclaimed)", static_cast<unsigned>(after),
+             static_cast<unsigned>(reclaimed));
+}
+
+void clear_app_class_global(const char *class_name)
+{
+    if (class_name == nullptr)
+    {
+        return;
+    }
+
+    be_pushnil(s_vm);
+    be_setglobal(s_vm, class_name);
+    be_pop(s_vm, 1);
 }
 
 void close_app_from_ui()
@@ -482,9 +509,12 @@ esp_err_t close_active_app()
     }
     ui::stop();
     berry_ui_end_app();
+    clear_app_class_global(s_app_class_global_name);
+    s_app_class_global_name = nullptr;
     be_pushnil(s_vm);
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
+    collect_berry_garbage();
     if (had_active_app)
     {
         esp_err_t visible_err = text_console_set_visible(true);
@@ -537,6 +567,7 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
         ESP_LOGE(TAG, "%s: %s", source_name, error != nullptr ? error : "unknown Berry error");
         be_pop(s_vm, 1);
         discard_app();
+        collect_berry_garbage();
         return ESP_FAIL;
     }
 
@@ -544,7 +575,33 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     {
         be_pop(s_vm, 1);
         discard_app();
+        collect_berry_garbage();
         return require_app ? ESP_ERR_INVALID_ARG : ESP_OK;
+    }
+
+    const char *app_class_name = be_classname(s_vm, -1);
+    bool app_class_is_global = false;
+    if (app_class_name != nullptr)
+    {
+        be_pushvalue(s_vm, -1);
+        be_getglobal(s_vm, app_class_name);
+        app_class_is_global = be_iseq(s_vm);
+        be_pop(s_vm, 2);
+    }
+
+    esp_err_t err = text_console_release_scrollback();
+    if (err == ESP_OK)
+    {
+        err = text_console_set_visible(false);
+    }
+    const bool console_hidden = err == ESP_OK;
+    if (err != ESP_OK)
+    {
+        be_pop(s_vm, 1);
+        discard_app();
+        clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
+        collect_berry_garbage();
+        return err;
     }
 
     if (be_pcall(s_vm, 0) != 0)
@@ -553,35 +610,45 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
         ESP_LOGE(TAG, "%s: app construction failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
         be_pop(s_vm, 1);
         discard_app();
+        if (console_hidden)
+        {
+            const esp_err_t visible_err = text_console_set_visible(true);
+            if (visible_err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
+            }
+        }
+        clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
+        collect_berry_garbage();
         return ESP_FAIL;
     }
 
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
-    esp_err_t err = invoke_app_method("setup", true);
+    s_app_class_global_name = app_class_is_global ? app_class_name : nullptr;
+
+    err = invoke_app_method("setup", true);
     if (err == ESP_OK)
     {
-        err = text_console_release_scrollback();
-        if (err == ESP_OK)
-        {
-            err = text_console_set_visible(false);
-        }
-        if (err == ESP_OK && !ui::start())
-        {
-            esp_err_t visible_err = text_console_set_visible(true);
-            if (visible_err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
-            }
-            err = ESP_ERR_NO_MEM;
-        }
+        err = ui::start() ? ESP_OK : ESP_ERR_NO_MEM;
     }
     if (err != ESP_OK)
     {
         discard_app();
+        clear_app_class_global(s_app_class_global_name);
+        s_app_class_global_name = nullptr;
         be_pushnil(s_vm);
         be_setglobal(s_vm, APP_GLOBAL);
         be_pop(s_vm, 1);
+        collect_berry_garbage();
+        if (console_hidden)
+        {
+            const esp_err_t visible_err = text_console_set_visible(true);
+            if (visible_err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
+            }
+        }
     }
     return err;
 }
