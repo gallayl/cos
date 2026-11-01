@@ -34,7 +34,7 @@ Checks: >
 
 WarningsAsErrors: '*'
 
-ExtraArgs:
+ExtraArgsBefore:
   - '-Wdocumentation'
   - '-Wdocumentation-unknown-command'
 
