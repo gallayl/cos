@@ -73,14 +73,14 @@ def test_help_lists_registered_commands(dut):
 def test_ping_reports_unavailable_network(dut):
     _wait_ready(dut)
     dut.write("ping example.com\n")
-    dut.expect("ping: example.com failed (ESP_ERR_INVALID_STATE)", timeout=CMD_TIMEOUT)
+    dut.expect(r"ping: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
 def test_nslookup_reports_unavailable_network(dut):
     _wait_ready(dut)
     dut.write("nslookup example.com\n")
-    dut.expect("nslookup: example.com failed (ESP_ERR_INVALID_STATE)", timeout=CMD_TIMEOUT)
+    dut.expect(r"nslookup: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
