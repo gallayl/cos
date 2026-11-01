@@ -62,7 +62,7 @@ L = new behavior with architectural, resource, or integration concerns.
 
 ## Milestone 2 — file operations and command completion
 
-**Status:** Implementation complete; QEMU and CI clang-tidy validation pending
+**Status:** Complete; merged in PR #14 after all CI checks passed
 
 ### Command contract
 
@@ -88,25 +88,24 @@ L = new behavior with architectural, resource, or integration concerns.
 - [x] Add host unit and QEMU integration coverage for file operations and
       completion behavior.
 - [x] Pass host unit tests, firmware build, formatting, and Doxygen validation.
-- [ ] Pass clang-tidy in the supported CI environment.
-- [ ] Pass QEMU integration tests; the local integration firmware build is
-      currently blocked because the ESP Component Registry is unreachable.
-- [ ] Record passing CI results before marking the milestone complete.
+- [x] Pass clang-tidy in the supported CI environment.
+- [x] Pass QEMU integration tests.
+- [x] Record passing CI results before marking the milestone complete.
 
 ### Milestone 2 validation log
 
-| Validation                        | Status          | Result                                                                                                                                            |
-| --------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Host unit tests                   | Pass            | `make test`: all 19 test targets passed, including filesystem commands and completion.                                                            |
-| ESP-IDF firmware build            | Pass            | `espIdfCommands build` succeeded with ESP-IDF 6.1.                                                                                                |
-| clang-format check                | Pass            | `make format-check` passed.                                                                                                                       |
-| Doxygen check                     | Pass            | `doxygen` completed successfully.                                                                                                                 |
-| clang-tidy                        | Pending CI      | Local clang-tidy 21 cannot use this ESP-IDF 6.1 compile database (unsupported flags and missing toolchain headers); CI validation remains needed. |
-| Shell filesystem QEMU integration | Blocked locally | Test cases are added, but the integration project could not resolve `joltwallet/littlefs` because the component registry connection failed.       |
+| Validation                        | Status | Result                                                                                              |
+| --------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| Host unit tests                   | Pass   | PR #14 CI run `41191835116` passed all unit-test targets.                                           |
+| ESP-IDF firmware build            | Pass   | PR #14 CI run `41191835086` passed the firmware build and clang-tidy.                               |
+| clang-format check                | Pass   | PR #14 CI run `41191835095` passed.                                                                 |
+| Doxygen check                     | Pass   | PR #14 CI run `41191835153` passed.                                                                 |
+| clang-tidy                        | Pass   | PR #14 CI run `41191835086` passed.                                                                 |
+| Shell filesystem QEMU integration | Pass   | PR #14 CI run `41191835061` passed all integration tests.                                           |
 
 ## Milestone 3 — keyboard and Berry interaction/API
 
-**Status:** In progress
+**Status:** Complete; PR #15 is open for manual merge
 
 ### Input contract
 
@@ -132,7 +131,7 @@ L = new behavior with architectural, resource, or integration concerns.
       value is status/error, not structured command output.
 - [x] Document keyboard controls and the Berry console, filesystem, and network
       APIs, including their limits and error behavior.
-- [ ] Test input routing across console/GUI transitions, script cancellation,
+- [x] Test input routing across console/GUI transitions, script cancellation,
       malformed paths, empty directories, and network error/timeout paths.
 
 The line reader is started only from the console input task (including a
@@ -146,6 +145,16 @@ overall caller deadline, and returns a structured success/error map. DNS and
 ICMP run on one worker; a DNS lookup may continue after the caller times out,
 and new requests are rejected until that lookup finishes its configured lwIP
 retries.
+
+### Milestone 3 validation log
+
+| Validation               | Status | Result                                                                                                      |
+| ------------------------ | ------ | ----------------------------------------------------------------------------------------------------------- |
+| Host unit tests          | Pass   | PR #15 CI run `41293185660` passed all host unit tests.                                                       |
+| ESP-IDF build/clang-tidy | Pass   | PR #15 CI run `41293185681` passed.                                                                         |
+| clang-format check       | Pass   | PR #15 CI run `41293185657` passed.                                                                         |
+| Doxygen check            | Pass   | PR #15 CI run `41293185694` passed.                                                                         |
+| QEMU integration tests   | Pass   | PR #15 CI run `41293185678` passed all suites (39 tests), including Berry APIs and async input.              |
 
 ## Milestone 4 — console scrollback and network utilities
 
