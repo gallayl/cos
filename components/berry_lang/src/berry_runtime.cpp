@@ -18,6 +18,7 @@ extern "C"
 #include "esp_log.h"
 #include "esp_system.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -743,8 +744,14 @@ esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *len
         return ESP_FAIL;
     }
 
+    if (static_cast<std::uintmax_t>(file_size) >= std::numeric_limits<size_t>::max())
+    {
+        std::fclose(file);
+        return ESP_ERR_NO_MEM;
+    }
+
     *length = static_cast<size_t>(file_size);
-    *source = static_cast<char *>(std::malloc(*length + 1));
+    *source = static_cast<char *>(std::calloc(*length + 1, sizeof(char)));
     if (*source == nullptr)
     {
         std::fclose(file);
@@ -759,7 +766,6 @@ esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *len
         *source = nullptr;
         return ESP_FAIL;
     }
-    (*source)[*length] = '\0';
     return ESP_OK;
 }
 } // namespace
