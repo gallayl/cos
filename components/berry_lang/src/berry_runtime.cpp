@@ -18,9 +18,11 @@ extern "C"
 #include "esp_log.h"
 #include "esp_system.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <string>
 
 void berry_ui_register(bvm *vm);
@@ -449,6 +451,69 @@ esp_err_t execute_source(const char *source, size_t length, const char *source_n
     return ESP_OK;
 }
 
+void restore_command_main(int saved_main_index)
+{
+    be_pushvalue(s_vm, saved_main_index);
+    be_setglobal(s_vm, "main");
+    be_pop(s_vm, 1);
+    be_pop(s_vm, 1);
+}
+
+esp_err_t execute_command_source(const char *source, size_t length, const char *source_name, int argc,
+                                 char *const argv[], int *exit_status)
+{
+    const int saved_main_index = be_top(s_vm) + 1;
+    be_getglobal(s_vm, "main");
+    be_pushnil(s_vm);
+    be_setglobal(s_vm, "main");
+    be_pop(s_vm, 1);
+
+    esp_err_t err = execute_source(source, length, source_name);
+    if (err == ESP_OK)
+    {
+        be_getglobal(s_vm, "main");
+        if (!be_isfunction(s_vm, -1))
+        {
+            ESP_LOGE(TAG, "%s: script must define main(args)", source_name);
+            be_pop(s_vm, 1);
+            err = ESP_ERR_INVALID_ARG;
+        }
+        else
+        {
+            be_newobject(s_vm, "list");
+            for (int index = 0; index < argc; ++index)
+            {
+                be_pushstring(s_vm, argv[index]);
+                be_data_push(s_vm, -2);
+                be_pop(s_vm, 1);
+            }
+            be_pop(s_vm, 1);
+
+            if (be_pcall(s_vm, 1) != 0)
+            {
+                const char *error = be_tostring(s_vm, -1);
+                ESP_LOGE(TAG, "%s: command failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
+                be_pop(s_vm, 1);
+                err = ESP_FAIL;
+            }
+            else if (!be_isint(s_vm, -2) || be_toint(s_vm, -2) < std::numeric_limits<int>::min() ||
+                     be_toint(s_vm, -2) > std::numeric_limits<int>::max())
+            {
+                ESP_LOGE(TAG, "%s: main(args) must return an integer shell status", source_name);
+                err = ESP_ERR_INVALID_ARG;
+            }
+            else
+            {
+                *exit_status = static_cast<int>(be_toint(s_vm, -2));
+            }
+        }
+    }
+
+    be_pop(s_vm, be_top(s_vm) - saved_main_index);
+    restore_command_main(saved_main_index);
+    return err;
+}
+
 esp_err_t invoke_app_method(const char *method, bool with_dimensions)
 {
     be_getglobal(s_vm, APP_GLOBAL);
@@ -679,8 +744,14 @@ esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *len
         return ESP_FAIL;
     }
 
+    if (static_cast<std::uintmax_t>(file_size) >= std::numeric_limits<size_t>::max())
+    {
+        std::fclose(file);
+        return ESP_ERR_NO_MEM;
+    }
+
     *length = static_cast<size_t>(file_size);
-    *source = static_cast<char *>(std::malloc(*length + 1));
+    *source = static_cast<char *>(std::calloc(*length + 1, sizeof(char)));
     if (*source == nullptr)
     {
         std::fclose(file);
@@ -695,7 +766,6 @@ esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *len
         *source = nullptr;
         return ESP_FAIL;
     }
-    (*source)[*length] = '\0';
     return ESP_OK;
 }
 } // namespace
@@ -790,6 +860,46 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
     ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
     log_heap_snapshot("After Berry file load");
     err = execute_app_source(source, length, virtual_path, false);
+    std::free(source);
+    return err;
+}
+
+extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
+{
+    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    if (virtual_path == nullptr || argc < 0 || (argc > 0 && argv == nullptr) || exit_status == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    for (int index = 0; index < argc; ++index)
+    {
+        if (argv[index] == nullptr)
+        {
+            return ESP_ERR_INVALID_ARG;
+        }
+    }
+
+    if (s_vm == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    *exit_status = 1;
+    char *source = nullptr;
+    size_t length = 0;
+    esp_err_t err = read_virtual_file(virtual_path, &source, &length);
+    if (err != ESP_OK)
+    {
+        if (err == ESP_ERR_NO_MEM)
+        {
+            ESP_LOGW(TAG, "Could not allocate Berry command source buffer (%u bytes); free=%u, largest block=%u",
+                     static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        }
+        return err;
+    }
+
+    err = execute_command_source(source, length, virtual_path, argc, argv, exit_status);
     std::free(source);
     return err;
 }

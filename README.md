@@ -6,45 +6,45 @@ COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featu
 
 ### ESP-IDF
 
-Install [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32/get-started/index.html), the version used by CI.
+Install [ESP-IDF v6.1](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/get-started/index.html), the version used by CI.
 
 ### Environment variables
 
-Set `IDF_PATH` to the ESP-IDF v5.5.2 checkout. `IDF_TOOLS_PATH` and
+Set `IDF_PATH` to the ESP-IDF v6.1 checkout. `IDF_TOOLS_PATH` and
 `IDF_PYTHON_ENV_PATH` are optional overrides for the tool and Python
 environments:
 
 | Variable              | Example (Windows)                       | Example (Linux / devcontainer)          |
 | --------------------- | --------------------------------------- | --------------------------------------- |
-| `IDF_PATH`            | `C:\esp\v5.5.2\esp-idf\`                | `/opt/esp/idf`                          |
+| `IDF_PATH`            | `C:\esp\v6.1\esp-idf\`                  | `/opt/esp/idf`                          |
 | `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                    | `/opt/esp`                              |
-| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v5.5.2\venv` | `/opt/esp/python_env/idf5.5_py3.12_env` |
+| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv`   | `/opt/esp/python_env/idf6.1_py3.12_env` |
 
 **Windows (CMD):**
 
 ```cmd
-set ESP_IDF_VERSION=5.5.2
-set IDF_PATH=C:/esp/v5.5.2/esp-idf/
+set ESP_IDF_VERSION=6.1
+set IDF_PATH=C:/esp/v6.1/esp-idf/
 set IDF_TOOLS_PATH=C:/Espressif/tools
-set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v5.5.2/venv
+set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v6.1/venv
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-$env:ESP_IDF_VERSION = "5.5.2"
-$env:IDF_PATH = "C:/esp/v5.5.2/esp-idf/"
+$env:ESP_IDF_VERSION = "6.1"
+$env:IDF_PATH = "C:/esp/v6.1/esp-idf/"
 $env:IDF_TOOLS_PATH = "C:/Espressif/tools"
-$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v5.5.2/venv"
+$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v6.1/venv"
 ```
 
 **Linux / macOS:**
 
 ```bash
-export ESP_IDF_VERSION=5.5.2
-export IDF_PATH=~/.espressif/v5.5.2/esp-idf
+export ESP_IDF_VERSION=6.1
+export IDF_PATH=~/.espressif/v6.1/esp-idf
 export IDF_TOOLS_PATH=~/.espressif/tools
-export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.12_env
+export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf6.1_py3.12_env
 ```
 
 ### Host tools
@@ -59,7 +59,7 @@ export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.12_env
 | clang-tidy   | Static analysis               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
 
 Host unit tests require CMake, Ninja, a host C compiler, and Python 3. QEMU
-integration tests additionally require ESP-IDF v5.5.2, its QEMU tool, and the
+integration tests additionally require ESP-IDF v6.1, its QEMU tool, and the
 pinned Python test plugins in `integration_test/requirements.txt`. Activate
 the ESP-IDF environment before installing the plugins:
 
@@ -113,6 +113,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
 | `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
 | `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
+| `berry exec <path> [args...]` | Execute a Berry command script without changing app state |
 | `berry eval <source>` | Evaluate Berry source in the shared VM |
 | `berry close` | Close the active Berry app and run its teardown method |
 | `mem` / `memory` | Show current, minimum, and largest free heap metrics |
@@ -163,7 +164,20 @@ includes DNS resolution, and require Wi-Fi station connectivity. They use the
 same serialized worker as Berry `net.ping`; if DNS continues after a caller
 times out, another request is rejected until the lookup finishes.
 
-Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
+Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. `berry exec <path> [args...]` runs a command script without closing or changing an active Berry UI app. Command scripts define `main(args)`, where `args` is a list of strings excluding the script path; the function must return an integer shell status (zero for success). The bundled `/flash/scripts/arg_test.be` demonstrates argument handling:
+
+```text
+berry exec scripts/arg_test.be "argument 1" "asd asd asd argument 2"
+```
+
+It prints:
+
+```text
+1: argument 1
+2: asd asd asd argument 2
+```
+
+Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
 
 If `/flash/autoexec.be` exists, COS runs it once during shell startup after the
 filesystem and Berry runtime are ready. A missing file is ignored; script or

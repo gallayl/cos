@@ -6,7 +6,7 @@ alwaysApply: true
 # COS Project Conventions
 
 ## Target
-- ESP32 (esp-idf 5.5.2), CYD board (ESP32-2432S028R)
+- ESP32 (ESP-IDF 6.1), CYD board (ESP32-2432S028R)
 - Resource-constrained: minimize RAM/flash usage at all times
 
 ## Language

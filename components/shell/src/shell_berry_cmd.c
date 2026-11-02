@@ -38,7 +38,7 @@ static int cmd_berry(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: berry run <path> | berry eval <source> | berry close\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close\n");
         return 1;
     }
 
@@ -70,6 +70,25 @@ static int cmd_berry(int argc, char **argv)
         if (err == ESP_OK)
         {
             err = berry_runtime_run_file(path);
+        }
+    }
+    else if (strcmp(argv[1], "exec") == 0)
+    {
+        if (argc < 3)
+        {
+            printf("Usage: berry exec <path> [args...]\n");
+            return 1;
+        }
+        char path[VFS_PATH_MAX];
+        err = shell_resolve_relative(argv[2], path, sizeof(path));
+        if (err == ESP_OK)
+        {
+            int exit_status = 1;
+            err = berry_runtime_exec_file(path, argc - 3, argv + 3, &exit_status);
+            if (err == ESP_OK)
+            {
+                return exit_status;
+            }
         }
     }
     else if (strcmp(argv[1], "eval") == 0)
@@ -117,7 +136,7 @@ static int cmd_berry(int argc, char **argv)
     else
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
-        printf("Usage: berry run <path> | berry eval <source> | berry close\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close\n");
         return 1;
     }
 
@@ -134,7 +153,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run a Berry script or evaluate Berry source",
+        .help = "Run, execute, or evaluate Berry scripts and source",
         .hint = NULL,
         .func = &cmd_berry,
     };

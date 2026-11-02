@@ -86,6 +86,21 @@ static void parse_part_headers(const char *headers, size_t hdr_len, char *name, 
     }
 }
 
+static void append_field_value(char *field_value, size_t field_value_capacity, size_t *field_value_len,
+                               const char *data, size_t data_len)
+{
+    if (*field_value_len >= field_value_capacity)
+    {
+        return;
+    }
+
+    const size_t available = field_value_capacity - *field_value_len - 1;
+    const size_t copy = data_len < available ? data_len : available;
+    memcpy(field_value + *field_value_len, data, copy);
+    *field_value_len += copy;
+    field_value[*field_value_len] = '\0';
+}
+
 esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, multipart_file_cb on_file, void *ctx)
 {
     char ct_buf[256];
@@ -193,14 +208,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
                     }
                     else if (!is_file && on_field)
                     {
-                        size_t copy = data_len;
-                        if (field_value_len + copy >= sizeof(field_value))
-                        {
-                            copy = sizeof(field_value) - field_value_len - 1;
-                        }
-                        memcpy(field_value + field_value_len, accum, copy);
-                        field_value_len += copy;
-                        field_value[field_value_len] = '\0';
+                        append_field_value(field_value, sizeof(field_value), &field_value_len, accum, data_len);
                         on_field(field_name, field_value, ctx);
                     }
 
@@ -224,13 +232,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
                     }
                     else if (!is_file)
                     {
-                        size_t copy = safe;
-                        if (field_value_len + copy >= sizeof(field_value))
-                        {
-                            copy = sizeof(field_value) - field_value_len - 1;
-                        }
-                        memcpy(field_value + field_value_len, accum, copy);
-                        field_value_len += copy;
+                        append_field_value(field_value, sizeof(field_value), &field_value_len, accum, safe);
                     }
                     memmove(accum, accum + safe, accum_len - safe);
                     accum_len -= safe;
@@ -289,14 +291,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
         }
         else if (!is_file && on_field)
         {
-            size_t copy = accum_len;
-            if (field_value_len + copy >= sizeof(field_value))
-            {
-                copy = sizeof(field_value) - field_value_len - 1;
-            }
-            memcpy(field_value + field_value_len, accum, copy);
-            field_value_len += copy;
-            field_value[field_value_len] = '\0';
+            append_field_value(field_value, sizeof(field_value), &field_value_len, accum, accum_len);
             on_field(field_name, field_value, ctx);
         }
     }

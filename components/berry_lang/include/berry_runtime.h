@@ -27,6 +27,12 @@ extern "C"
     /** Load and execute a Berry script from a COS virtual filesystem path. */
     esp_err_t berry_runtime_run_file(const char *virtual_path);
 
+    /**
+     * Execute a Berry command script without changing UI app state.
+     * The script must define main(args), returning an integer shell status.
+     */
+    esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
+
     /** Load a class-based Berry UI app and invoke its setup method. */
     esp_err_t berry_runtime_open_app(const char *virtual_path);
 
