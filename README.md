@@ -113,6 +113,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
 | `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
 | `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
+| `berry exec <path> [args...]` | Execute a Berry command script without changing app state |
 | `berry eval <source>` | Evaluate Berry source in the shared VM |
 | `berry close` | Close the active Berry app and run its teardown method |
 | `mem` / `memory` | Show current, minimum, and largest free heap metrics |
@@ -163,7 +164,20 @@ includes DNS resolution, and require Wi-Fi station connectivity. They use the
 same serialized worker as Berry `net.ping`; if DNS continues after a caller
 times out, another request is rejected until the lookup finishes.
 
-Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
+Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. `berry exec <path> [args...]` runs a command script without closing or changing an active Berry UI app. Command scripts define `main(args)`, where `args` is a list of strings excluding the script path; the function must return an integer shell status (zero for success). The bundled `/flash/scripts/arg_test.be` demonstrates argument handling:
+
+```text
+berry exec scripts/arg_test.be "argument 1" "asd asd asd argument 2"
+```
+
+It prints:
+
+```text
+1: argument 1
+2: asd asd asd argument 2
+```
+
+Use `berry eval 'print(1 + 2)'` for a short expression. The runtime exposes `log(message)` and `action(command)`; `action` runs a registered COS console command and returns its integer command status or an ESP error name, not parsed command output.
 
 If `/flash/autoexec.be` exists, COS runs it once during shell startup after the
 filesystem and Berry runtime are ready. A missing file is ignored; script or
