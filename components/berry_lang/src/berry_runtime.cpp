@@ -486,6 +486,7 @@ esp_err_t execute_command_source(const char *source, size_t length, const char *
                 be_data_push(s_vm, -2);
                 be_pop(s_vm, 1);
             }
+            be_pop(s_vm, 1);
 
             if (be_pcall(s_vm, 1) != 0)
             {
@@ -494,21 +495,20 @@ esp_err_t execute_command_source(const char *source, size_t length, const char *
                 be_pop(s_vm, 1);
                 err = ESP_FAIL;
             }
-            else if (!be_isint(s_vm, -1) || be_toint(s_vm, -1) < std::numeric_limits<int>::min() ||
-                     be_toint(s_vm, -1) > std::numeric_limits<int>::max())
+            else if (!be_isint(s_vm, -2) || be_toint(s_vm, -2) < std::numeric_limits<int>::min() ||
+                     be_toint(s_vm, -2) > std::numeric_limits<int>::max())
             {
                 ESP_LOGE(TAG, "%s: main(args) must return an integer shell status", source_name);
-                be_pop(s_vm, 1);
                 err = ESP_ERR_INVALID_ARG;
             }
             else
             {
-                *exit_status = static_cast<int>(be_toint(s_vm, -1));
-                be_pop(s_vm, 1);
+                *exit_status = static_cast<int>(be_toint(s_vm, -2));
             }
         }
     }
 
+    be_pop(s_vm, be_top(s_vm) - saved_main_index);
     restore_command_main(saved_main_index);
     return err;
 }
