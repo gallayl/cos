@@ -9,8 +9,8 @@ class _PatchedPopen(_OrigPopen):
     Work around incompatibilities between pytest-embedded-qemu and ESP-IDF's
     bundled esptool:
 
-    - (All platforms) esptool bundled with ESP-IDF v5.5.x uses 'merge_bin'
-      (underscore) but pytest-embedded-qemu sends 'merge-bin' (hyphen).
+    - esptool uses 'merge_bin' (underscore) but pytest-embedded-qemu sends
+      'merge-bin' (hyphen).
     - (Windows only) 'esptool.py' is not a valid executable name on Windows
       because CreateProcess cannot resolve .py files. Rewrite to 'esptool'
       so Windows finds esptool.exe.

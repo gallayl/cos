@@ -6,45 +6,45 @@ COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featu
 
 ### ESP-IDF
 
-Install [ESP-IDF v5.5.2](https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32/get-started/index.html), the version used by CI.
+Install [ESP-IDF v6.1](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/get-started/index.html), the version used by CI.
 
 ### Environment variables
 
-Set `IDF_PATH` to the ESP-IDF v5.5.2 checkout. `IDF_TOOLS_PATH` and
+Set `IDF_PATH` to the ESP-IDF v6.1 checkout. `IDF_TOOLS_PATH` and
 `IDF_PYTHON_ENV_PATH` are optional overrides for the tool and Python
 environments:
 
 | Variable              | Example (Windows)                       | Example (Linux / devcontainer)          |
 | --------------------- | --------------------------------------- | --------------------------------------- |
-| `IDF_PATH`            | `C:\esp\v5.5.2\esp-idf\`                | `/opt/esp/idf`                          |
+| `IDF_PATH`            | `C:\esp\v6.1\esp-idf\`                  | `/opt/esp/idf`                          |
 | `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                    | `/opt/esp`                              |
-| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v5.5.2\venv` | `/opt/esp/python_env/idf5.5_py3.12_env` |
+| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv`   | `/opt/esp/python_env/idf6.1_py3.12_env` |
 
 **Windows (CMD):**
 
 ```cmd
-set ESP_IDF_VERSION=5.5.2
-set IDF_PATH=C:/esp/v5.5.2/esp-idf/
+set ESP_IDF_VERSION=6.1
+set IDF_PATH=C:/esp/v6.1/esp-idf/
 set IDF_TOOLS_PATH=C:/Espressif/tools
-set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v5.5.2/venv
+set IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v6.1/venv
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-$env:ESP_IDF_VERSION = "5.5.2"
-$env:IDF_PATH = "C:/esp/v5.5.2/esp-idf/"
+$env:ESP_IDF_VERSION = "6.1"
+$env:IDF_PATH = "C:/esp/v6.1/esp-idf/"
 $env:IDF_TOOLS_PATH = "C:/Espressif/tools"
-$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v5.5.2/venv"
+$env:IDF_PYTHON_ENV_PATH = "C:/Espressif/tools/python/v6.1/venv"
 ```
 
 **Linux / macOS:**
 
 ```bash
-export ESP_IDF_VERSION=5.5.2
-export IDF_PATH=~/.espressif/v5.5.2/esp-idf
+export ESP_IDF_VERSION=6.1
+export IDF_PATH=~/.espressif/v6.1/esp-idf
 export IDF_TOOLS_PATH=~/.espressif/tools
-export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.12_env
+export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf6.1_py3.12_env
 ```
 
 ### Host tools
@@ -59,7 +59,7 @@ export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf5.5_py3.12_env
 | clang-tidy   | Static analysis               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
 
 Host unit tests require CMake, Ninja, a host C compiler, and Python 3. QEMU
-integration tests additionally require ESP-IDF v5.5.2, its QEMU tool, and the
+integration tests additionally require ESP-IDF v6.1, its QEMU tool, and the
 pinned Python test plugins in `integration_test/requirements.txt`. Activate
 the ESP-IDF environment before installing the plugins:
 

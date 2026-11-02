@@ -61,7 +61,7 @@ bool mock_system_restart_called(void)
 
 const char *esp_get_idf_version(void)
 {
-    return "v5.5.2-mock";
+    return "v6.1-mock";
 }
 
 uint32_t esp_get_free_heap_size(void)
