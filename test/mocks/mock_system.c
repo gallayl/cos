@@ -1,7 +1,7 @@
 #include "mock_system.h"
-#include "esp_system.h"
 #include "esp_flash.h"
 #include "esp_heap_caps.h"
+#include "esp_system.h"
 
 static uint32_t s_free_heap = 200000;
 static uint32_t s_min_free_heap = 150000;
@@ -97,6 +97,18 @@ size_t heap_caps_get_total_size(uint32_t caps)
 {
     (void)caps;
     return s_total_heap;
+}
+
+size_t heap_caps_get_free_size(uint32_t caps)
+{
+    (void)caps;
+    return s_free_heap;
+}
+
+size_t heap_caps_get_minimum_free_size(uint32_t caps)
+{
+    (void)caps;
+    return s_min_free_heap;
 }
 
 size_t heap_caps_get_largest_free_block(uint32_t caps)

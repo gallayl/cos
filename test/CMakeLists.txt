@@ -162,6 +162,14 @@ target_include_directories(test_shell_berry PRIVATE
 target_link_libraries(test_shell_berry PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell_berry COMMAND test_shell_berry)
 
+# --- Test: Berry source buffer ownership ---
+add_executable(test_berry_source_buffer test_berry_source_buffer.cpp)
+target_include_directories(test_berry_source_buffer PRIVATE
+    ${COMPONENT_DIR}/components/berry_lang/src
+)
+target_link_libraries(test_berry_source_buffer PRIVATE unity)
+add_test(NAME test_berry_source_buffer COMMAND test_berry_source_buffer)
+
 # --- Test: text console commands ---
 add_executable(test_text_console_cmd
     test_text_console_cmd.c

@@ -39,20 +39,15 @@ esp_err_t system_get_info(system_info_t *info)
     info->total_heap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
     info->max_alloc_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
 
-    const uint32_t internal_caps =
-    MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+    const uint32_t internal_caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
 
-    info->internal_free_heap =
-        heap_caps_get_free_size(internal_caps);
+    info->internal_free_heap = heap_caps_get_free_size(internal_caps);
 
-    info->internal_min_free_heap =
-        heap_caps_get_minimum_free_size(internal_caps);
+    info->internal_min_free_heap = heap_caps_get_minimum_free_size(internal_caps);
 
-    info->internal_total_heap =
-        heap_caps_get_total_size(internal_caps);
+    info->internal_total_heap = heap_caps_get_total_size(internal_caps);
 
-    info->internal_max_alloc_block =
-        heap_caps_get_largest_free_block(internal_caps);
+    info->internal_max_alloc_block = heap_caps_get_largest_free_block(internal_caps);
 
     return ESP_OK;
 }

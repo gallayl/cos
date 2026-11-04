@@ -49,15 +49,13 @@ extern "C"
     void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
                                                   berry_console_cancel_line_fn cancel_line);
 
-                                                  
-    typedef struct {
+    typedef struct
+    {
         bool initialized;
         size_t gc_managed_bytes;
     } berry_runtime_memory_info_t;
 
-    esp_err_t berry_runtime_get_memory_info(
-        berry_runtime_memory_info_t *info
-    );
+    esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info);
 
 #ifdef __cplusplus
 }
