@@ -57,6 +57,10 @@ static int cmd_memory(int argc, char **argv)
     printf("Min free heap:  %u bytes\n", (unsigned)info.min_free_heap);
     printf("Total heap:     %u bytes\n", (unsigned)info.total_heap);
     printf("Max alloc:      %u bytes\n", (unsigned)info.max_alloc_block);
+    printf("Internal free:  %u bytes\n", (unsigned)info.internal_free_heap);
+    printf("Internal min:   %u bytes\n", (unsigned)info.internal_min_free_heap);
+    printf("Internal total: %u bytes\n", (unsigned)info.internal_total_heap);
+    printf("Internal max:   %u bytes\n", (unsigned)info.internal_max_alloc_block);
     return 0;
 }
 

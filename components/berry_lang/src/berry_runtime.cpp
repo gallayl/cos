@@ -434,6 +434,8 @@ esp_err_t execute_source(const char *source, size_t length, const char *source_n
     }
 
     int result = be_loadbuffer(s_vm, source_name, source, length);
+    log_heap_snapshot("After Berry compilation");
+
     if (result == 0)
     {
         result = be_pcall(s_vm, 0);
@@ -572,7 +574,10 @@ esp_err_t close_active_app()
             err = teardown_err;
         }
     }
+
+    log_heap_snapshot("Before app teardown");
     ui::stop();
+
     berry_ui_end_app();
     clear_app_class_global(s_app_class_global_name);
     s_app_class_global_name = nullptr;
@@ -592,6 +597,7 @@ esp_err_t close_active_app()
             }
         }
     }
+    log_heap_snapshot("After app teardown and GC");
     return err;
 }
 
@@ -622,6 +628,8 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     berry_ui_begin_app(s_vm);
 
     int result = be_loadbuffer(s_vm, source_name, source, length);
+    log_heap_snapshot("After Berry compilation");
+
     if (result == 0)
     {
         result = be_pcall(s_vm, 0);
@@ -696,6 +704,7 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     if (err == ESP_OK)
     {
         err = ui::start() ? ESP_OK : ESP_ERR_NO_MEM;
+        log_heap_snapshot("After app setup");
     }
     if (err != ESP_OK)
     {
@@ -794,6 +803,9 @@ extern "C" esp_err_t berry_runtime_init(void)
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
     ui::set_exit_callback(close_app_from_ui);
+
+    log_heap_snapshot("Berry VM initialized");
+
     return ESP_OK;
 }
 
@@ -990,4 +1002,21 @@ void berry_runtime_lock()
 void berry_runtime_unlock()
 {
     s_vm_mutex.unlock();
+}
+
+extern "C" esp_err_t berry_runtime_get_memory_info(
+    berry_runtime_memory_info_t *info
+)
+{
+    if (info == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+
+    info->initialized = (s_vm != nullptr);
+    info->gc_managed_bytes =
+        s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
+
+    return ESP_OK;
 }
