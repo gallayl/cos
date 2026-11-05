@@ -9,13 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "typescript": "~7.0.2",
+    "typescript": "^7.0.2",
     "vite": "^8.3.6"
   },
   "dependencies": {
     "@furystack/inject": "^13.0.4",
     "@furystack/shades": "^15.0.4",
     "@furystack/shades-monaco": "^1.0.0",
+    "@typescript/typescript6": "^6.0.2",
     "monaco-editor": "^0.57.0"
   }
 }

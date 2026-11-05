@@ -6,11 +6,23 @@ import {
 } from "@furystack/shades-common-components";
 
 import { typescriptDefaults } from "monaco-editor/languages/features/typescript/register";
+import ts from "@typescript/typescript6";
+
+function getAst(scriptText: string) {
+  const ast = ts.createSourceFile(
+    "cos-script.ts",
+    scriptText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+
+  return ast;
+}
 
 import sdkTypes from "./cos-sdk/ui.d.ts?raw" with { type: "text" };
 
 typescriptDefaults.addExtraLib(sdkTypes, "file:///cos-sdk/ui.d.ts");
-
 const initialCode = `// Welcome to Shades + Monaco
 
 import { Shade } from '@furystack/shades'
@@ -106,6 +118,15 @@ export const EditorApp = Shade({
 
     const theme = injector.get(ThemeProviderService);
     theme.setAssignedTheme(defaultDarkTheme);
+
+    ts.forEachChild(getAst(value), (node) => {
+      console.log(
+        "Node kind:",
+        ts.SyntaxKind[node.kind],
+        "Text:",
+        node.getText(),
+      );
+    });
 
     return (
       <div className="app-shell">
