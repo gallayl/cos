@@ -1,0 +1,21 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~7.0.2",
+    "vite": "^8.3.6"
+  },
+  "dependencies": {
+    "@furystack/inject": "^13.0.4",
+    "@furystack/shades": "^15.0.4",
+    "@furystack/shades-monaco": "^1.0.0",
+    "monaco-editor": "^0.57.0"
+  }
+}

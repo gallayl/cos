@@ -1,4 +1,4 @@
-.PHONY: build flash flash-game monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
+.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -75,7 +75,7 @@ build:
 flash:
 	$(IDF_PY) flash
 
-flash-game: build
+flash-data: build
 	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
 
 monitor:

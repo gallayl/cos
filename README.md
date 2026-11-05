@@ -1,3 +1,5 @@
+<img src="./images/cos-logo.png" alt="COS LOGO" width="400" style="margin-left: auto; margin-right: auto; display: block;">
+
 # COS
 
 COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featuring an ILI9341 display with XPT2046 resistive touch.
@@ -14,11 +16,11 @@ Set `IDF_PATH` to the ESP-IDF v6.1 checkout. `IDF_TOOLS_PATH` and
 `IDF_PYTHON_ENV_PATH` are optional overrides for the tool and Python
 environments:
 
-| Variable              | Example (Windows)                       | Example (Linux / devcontainer)          |
-| --------------------- | --------------------------------------- | --------------------------------------- |
-| `IDF_PATH`            | `C:\esp\v6.1\esp-idf\`                  | `/opt/esp/idf`                          |
-| `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                    | `/opt/esp`                              |
-| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv`   | `/opt/esp/python_env/idf6.1_py3.12_env` |
+| Variable              | Example (Windows)                     | Example (Linux / devcontainer)          |
+| --------------------- | ------------------------------------- | --------------------------------------- |
+| `IDF_PATH`            | `C:\esp\v6.1\esp-idf\`                | `/opt/esp/idf`                          |
+| `IDF_TOOLS_PATH`      | `C:\Espressif\tools`                  | `/opt/esp`                              |
+| `IDF_PYTHON_ENV_PATH` | `C:\Espressif\tools\python\v6.1\venv` | `/opt/esp/python_env/idf6.1_py3.12_env` |
 
 **Windows (CMD):**
 
@@ -49,14 +51,14 @@ export IDF_PYTHON_ENV_PATH=~/.espressif/python_env/idf6.1_py3.12_env
 
 ### Host tools
 
-| Tool         | Purpose                       | Install                                                                                  |
-| ------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| GNU Make     | Build orchestration           | Included with MSYS2 / Xcode CLT / apt                                                    |
-| CMake        | Test build system             | Bundled with ESP-IDF (`C:\Espressif\tools\cmake`)                                        |
-| GCC (host)   | Compile host-based unit tests | `winget install BrechtSanders.WinLibs.POSIX.UCRT` (Windows) or `apt install gcc` (Linux) |
-| Python 3     | Tidy-script tests and QEMU integration tests | Bundled with ESP-IDF or `python3` on Linux |
-| clang-format | Code formatting               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
-| clang-tidy   | Static analysis               | Bundled with LLVM or ESP-IDF clang toolchain                                             |
+| Tool         | Purpose                                      | Install                                                                                  |
+| ------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| GNU Make     | Build orchestration                          | Included with MSYS2 / Xcode CLT / apt                                                    |
+| CMake        | Test build system                            | Bundled with ESP-IDF (`C:\Espressif\tools\cmake`)                                        |
+| GCC (host)   | Compile host-based unit tests                | `winget install BrechtSanders.WinLibs.POSIX.UCRT` (Windows) or `apt install gcc` (Linux) |
+| Python 3     | Tidy-script tests and QEMU integration tests | Bundled with ESP-IDF or `python3` on Linux                                               |
+| clang-format | Code formatting                              | Bundled with LLVM or ESP-IDF clang toolchain                                             |
+| clang-tidy   | Static analysis                              | Bundled with LLVM or ESP-IDF clang toolchain                                             |
 
 Host unit tests require CMake, Ninja, a host C compiler, and Python 3. QEMU
 integration tests additionally require ESP-IDF v6.1, its QEMU tool, and the
@@ -73,11 +75,11 @@ python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
 ```bash
 make build       # compile the firmware
 make flash       # flash to the connected board
-make flash-game  # build and flash the example Berry game to LittleFS only
+make flash-data  # build and upload data to the flash storage (LittleFS) only
 make monitor     # open serial monitor (115200 baud)
 ```
 
-`make flash-game` packages `examples/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. It leaves the board in the bootloader after transfer; press the board's reset button to boot COS. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start either Berry game from the COS console:
+`make flash-data` packages `storage/flash_data` as a LittleFS image and flashes only the `littlefs` partition; it does not flash firmware or erase other partitions. It leaves the board in the bootloader after transfer; press the board's reset button to boot COS. To select a serial port, use `make flash-game PORT=COM5` (replace with your port). After flashing, start either Berry game from the COS console:
 
 ```text
 berry run /flash/apps/breakout.be
@@ -89,36 +91,36 @@ Drag your finger across the screen to move the Breakout paddle. Tap **RESET** to
 
 Once flashed, the firmware starts an interactive console on UART (`cos>` prompt). Available commands:
 
-| Command     | Description                              |
-| ----------- | ---------------------------------------- |
-| `clear`     | Clear the text console                   |
-| `alias` / `unalias` | List, define, or remove persistent command aliases |
-| `calibrate` | Run interactive touch screen calibration |
-| `cd`, `pwd` | Change or show the current directory |
-| `ls`, `dir` | List directory contents |
-| `mkdir`, `md` | Create a directory |
-| `rm`, `del` | Remove a file or empty directory |
-| `cp`, `mv`, `rmdir` | Copy, move, or remove files/directories |
-| `cat`, `type`, `touch`, `hexdump` | Read, create, or inspect files |
-| `sd` | Mount, unmount, or inspect the SD card |
-| `info`, `format` | Show filesystem usage or format flash |
-| `display_mode` | Inspect or clear the display |
-| `wifi` | Show Wi-Fi status, scan, and connect or disconnect |
-| `bt` | Show Bluetooth status and manage device connections |
-| `led`, `light`, `screen` | Inspect or control the LED, light sensor, and brightness |
-| `i2c` | Scan the bus and read or write device data |
-| `time` | Show local/UTC time, sync status, or epoch |
-| `server`, `ws` | Inspect and control the HTTP server and WebSocket clients |
-| `restart`, `uptime` | Restart the device or show uptime |
-| `ping <host> [timeout_ms]` | Resolve a host and send one ICMP echo request |
-| `nslookup <host> [timeout_ms]` | Resolve a hostname to IPv4 |
-| `berry run <path>` | Execute a Berry script from `/flash` or `/sdcard` |
-| `berry exec <path> [args...]` | Execute a Berry command script without changing app state |
-| `berry eval <source>` | Evaluate Berry source in the shared VM |
-| `berry close` | Close the active Berry app and run its teardown method |
-| `mem` / `memory` | Show current, minimum, and largest free heap metrics |
-| `logging [error\|warn\|info]` | Set the persistent global ESP log threshold |
-| `help`      | List all registered commands             |
+| Command                           | Description                                               |
+| --------------------------------- | --------------------------------------------------------- |
+| `clear`                           | Clear the text console                                    |
+| `alias` / `unalias`               | List, define, or remove persistent command aliases        |
+| `calibrate`                       | Run interactive touch screen calibration                  |
+| `cd`, `pwd`                       | Change or show the current directory                      |
+| `ls`, `dir`                       | List directory contents                                   |
+| `mkdir`, `md`                     | Create a directory                                        |
+| `rm`, `del`                       | Remove a file or empty directory                          |
+| `cp`, `mv`, `rmdir`               | Copy, move, or remove files/directories                   |
+| `cat`, `type`, `touch`, `hexdump` | Read, create, or inspect files                            |
+| `sd`                              | Mount, unmount, or inspect the SD card                    |
+| `info`, `format`                  | Show filesystem usage or format flash                     |
+| `display_mode`                    | Inspect or clear the display                              |
+| `wifi`                            | Show Wi-Fi status, scan, and connect or disconnect        |
+| `bt`                              | Show Bluetooth status and manage device connections       |
+| `led`, `light`, `screen`          | Inspect or control the LED, light sensor, and brightness  |
+| `i2c`                             | Scan the bus and read or write device data                |
+| `time`                            | Show local/UTC time, sync status, or epoch                |
+| `server`, `ws`                    | Inspect and control the HTTP server and WebSocket clients |
+| `restart`, `uptime`               | Restart the device or show uptime                         |
+| `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request             |
+| `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4                                |
+| `berry run <path>`                | Execute a Berry script from `/flash` or `/sdcard`         |
+| `berry exec <path> [args...]`     | Execute a Berry command script without changing app state |
+| `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
+| `berry close`                     | Close the active Berry app and run its teardown method    |
+| `mem` / `memory`                  | Show current, minimum, and largest free heap metrics      |
+| `logging [error\|warn\|info]`     | Set the persistent global ESP log threshold               |
+| `help`                            | List all registered commands                              |
 
 File commands accept virtual paths and resolve relative paths from the current
 directory. `cp <source> <destination>` and `mv <source> <destination>` operate
@@ -191,12 +193,12 @@ The Berry interpreter is fetched from a fixed upstream commit during CMake confi
 
 The Berry runtime also provides:
 
-| API | Behavior |
-| --- | --- |
-| `console.read_line(prompt, callback)` | Start a non-blocking console prompt. The callback receives the entered string, or `nil` after Ctrl+C. It returns `true` when the request starts or an ESP error name on failure. |
-| `console.cancel_input()` | Cancel the pending prompt; the callback receives `nil`. Returns `true` when cancellation is accepted, `false` if none is pending, or an ESP error name. Cancellation from another task is handed to the console input task. |
-| `fs.list(path)` | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected. |
-| `net.ping(host, timeout_ms=1000)` | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
+| API                                   | Behavior                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `console.read_line(prompt, callback)` | Start a non-blocking console prompt. The callback receives the entered string, or `nil` after Ctrl+C. It returns `true` when the request starts or an ESP error name on failure.                                                                                                                                                          |
+| `console.cancel_input()`              | Cancel the pending prompt; the callback receives `nil`. Returns `true` when cancellation is accepted, `false` if none is pending, or an ESP error name. Cancellation from another task is handed to the console input task.                                                                                                               |
+| `fs.list(path)`                       | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected.                                                                                                                 |
+| `net.ping(host, timeout_ms=1000)`     | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
 
 Small Berry starter scripts are included in `/flash/scripts`: run
 `berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, or `prompt.be`.
