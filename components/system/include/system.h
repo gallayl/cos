@@ -13,13 +13,17 @@ extern "C"
     /** Snapshot of system information. */
     typedef struct
     {
-        const char *idf_version; /**< ESP-IDF SDK version string. */
-        uint32_t cpu_freq_mhz;   /**< CPU frequency in MHz. */
-        uint32_t flash_size;     /**< External flash size in bytes. */
-        size_t free_heap;        /**< Current free heap in bytes. */
-        size_t min_free_heap;    /**< Minimum free heap since boot. */
-        size_t total_heap;       /**< Total heap capacity in bytes. */
-        size_t max_alloc_block;  /**< Largest allocatable block in bytes. */
+        const char *idf_version;         /**< ESP-IDF SDK version string. */
+        uint32_t cpu_freq_mhz;           /**< CPU frequency in MHz. */
+        uint32_t flash_size;             /**< External flash size in bytes. */
+        size_t free_heap;                /**< Current free heap in bytes. */
+        size_t min_free_heap;            /**< Minimum free heap since boot. */
+        size_t total_heap;               /**< Total heap capacity in bytes. */
+        size_t max_alloc_block;          /**< Largest allocatable block in bytes. */
+        size_t internal_free_heap;       /**< Internal free heap in bytes. */
+        size_t internal_min_free_heap;   /**< Internal minimum free heap since boot. */
+        size_t internal_total_heap;      /**< Internal total heap capacity in bytes. */
+        size_t internal_max_alloc_block; /**< Internal largest allocatable block in bytes. */
     } system_info_t;
 
     /**

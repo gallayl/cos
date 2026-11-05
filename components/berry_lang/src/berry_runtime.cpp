@@ -2,6 +2,7 @@
 
 #include "berry.h"
 #include "berry_internal.h"
+#include "berry_source_buffer.h"
 extern "C"
 {
 #include "be_gc.h"
@@ -24,6 +25,7 @@ extern "C"
 #include <cstring>
 #include <limits>
 #include <string>
+#include <utility>
 
 void berry_ui_register(bvm *vm);
 void berry_ui_begin_app(bvm *vm);
@@ -43,7 +45,6 @@ berry_console_cancel_line_fn s_console_cancel_line = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
 const char *s_app_class_global_name = nullptr;
-
 void log_heap_snapshot(const char *phase)
 {
     ESP_LOGI(TAG, "%s: free=%u bytes, minimum=%u bytes, largest block=%u bytes", phase,
@@ -426,6 +427,14 @@ void register_network_module(bvm *vm)
     be_pop(vm, 1);
 }
 
+int load_owned_source(BerrySourceBuffer &source, size_t length, const char *source_name)
+{
+    const int result = compile_and_release_source(source, [source_name, length](const char *buffer)
+                                                  { return be_loadbuffer(s_vm, source_name, buffer, length); });
+    log_heap_snapshot("After Berry compilation");
+    return result;
+}
+
 esp_err_t execute_source(const char *source, size_t length, const char *source_name)
 {
     if (s_vm == nullptr)
@@ -434,6 +443,33 @@ esp_err_t execute_source(const char *source, size_t length, const char *source_n
     }
 
     int result = be_loadbuffer(s_vm, source_name, source, length);
+    log_heap_snapshot("After Berry compilation");
+
+    if (result == 0)
+    {
+        result = be_pcall(s_vm, 0);
+    }
+
+    if (result != 0)
+    {
+        const char *error = be_tostring(s_vm, -1);
+        ESP_LOGE(TAG, "%s: %s", source_name, error != nullptr ? error : "unknown Berry error");
+        be_pop(s_vm, 1);
+        return ESP_FAIL;
+    }
+
+    be_pop(s_vm, 1);
+    return ESP_OK;
+}
+
+esp_err_t execute_owned_source(BerrySourceBuffer source, size_t length, const char *source_name)
+{
+    if (s_vm == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    int result = load_owned_source(source, length, source_name);
     if (result == 0)
     {
         result = be_pcall(s_vm, 0);
@@ -459,7 +495,7 @@ void restore_command_main(int saved_main_index)
     be_pop(s_vm, 1);
 }
 
-esp_err_t execute_command_source(const char *source, size_t length, const char *source_name, int argc,
+esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const char *source_name, int argc,
                                  char *const argv[], int *exit_status)
 {
     const int saved_main_index = be_top(s_vm) + 1;
@@ -468,7 +504,7 @@ esp_err_t execute_command_source(const char *source, size_t length, const char *
     be_setglobal(s_vm, "main");
     be_pop(s_vm, 1);
 
-    esp_err_t err = execute_source(source, length, source_name);
+    esp_err_t err = execute_owned_source(std::move(source), length, source_name);
     if (err == ESP_OK)
     {
         be_getglobal(s_vm, "main");
@@ -572,7 +608,10 @@ esp_err_t close_active_app()
             err = teardown_err;
         }
     }
+
+    log_heap_snapshot("Before app teardown");
     ui::stop();
+
     berry_ui_end_app();
     clear_app_class_global(s_app_class_global_name);
     s_app_class_global_name = nullptr;
@@ -592,6 +631,7 @@ esp_err_t close_active_app()
             }
         }
     }
+    log_heap_snapshot("After app teardown and GC");
     return err;
 }
 
@@ -601,7 +641,7 @@ void discard_app()
     ui::stop();
 }
 
-esp_err_t execute_app_source(const char *source, size_t length, const char *source_name, bool require_app)
+esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char *source_name, bool require_app)
 {
     if (s_vm == nullptr)
     {
@@ -621,7 +661,8 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     log_heap_snapshot("Before Berry source execution");
     berry_ui_begin_app(s_vm);
 
-    int result = be_loadbuffer(s_vm, source_name, source, length);
+    int result = load_owned_source(source, length, source_name);
+
     if (result == 0)
     {
         result = be_pcall(s_vm, 0);
@@ -696,6 +737,7 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     if (err == ESP_OK)
     {
         err = ui::start() ? ESP_OK : ESP_ERR_NO_MEM;
+        log_heap_snapshot("After app setup");
     }
     if (err != ESP_OK)
     {
@@ -718,8 +760,9 @@ esp_err_t execute_app_source(const char *source, size_t length, const char *sour
     return err;
 }
 
-esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *length)
+esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source, size_t *length)
 {
+    source->reset();
     char real_path[VFS_PATH_MAX];
     esp_err_t err = vfs_resolve_path(virtual_path, real_path, sizeof(real_path));
     if (err != ESP_OK)
@@ -751,19 +794,18 @@ esp_err_t read_virtual_file(const char *virtual_path, char **source, size_t *len
     }
 
     *length = static_cast<size_t>(file_size);
-    *source = static_cast<char *>(std::calloc(*length + 1, sizeof(char)));
-    if (*source == nullptr)
+    source->reset(static_cast<char *>(std::calloc(*length + 1, sizeof(char))));
+    if (!*source)
     {
         std::fclose(file);
         return ESP_ERR_NO_MEM;
     }
-    const size_t bytes_read = std::fread(*source, 1, *length, file);
+    const size_t bytes_read = std::fread(source->get(), 1, *length, file);
     const bool read_error = std::ferror(file) != 0;
     std::fclose(file);
     if (read_error || bytes_read != *length)
     {
-        std::free(*source);
-        *source = nullptr;
+        source->reset();
         return ESP_FAIL;
     }
     return ESP_OK;
@@ -794,6 +836,9 @@ extern "C" esp_err_t berry_runtime_init(void)
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
     ui::set_exit_callback(close_app_from_ui);
+
+    log_heap_snapshot("Berry VM initialized");
+
     return ESP_OK;
 }
 
@@ -844,7 +889,7 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
         return err;
     }
     log_heap_snapshot("Before Berry file load");
-    char *source = nullptr;
+    BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     err = read_virtual_file(virtual_path, &source, &length);
     if (err != ESP_OK)
@@ -859,9 +904,7 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
     }
     ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
     log_heap_snapshot("After Berry file load");
-    err = execute_app_source(source, length, virtual_path, false);
-    std::free(source);
-    return err;
+    return execute_app_source(std::move(source), length, virtual_path, false);
 }
 
 extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
@@ -885,7 +928,7 @@ extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc,
     }
 
     *exit_status = 1;
-    char *source = nullptr;
+    BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     esp_err_t err = read_virtual_file(virtual_path, &source, &length);
     if (err != ESP_OK)
@@ -899,9 +942,7 @@ extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc,
         return err;
     }
 
-    err = execute_command_source(source, length, virtual_path, argc, argv, exit_status);
-    std::free(source);
-    return err;
+    return execute_command_source(std::move(source), length, virtual_path, argc, argv, exit_status);
 }
 
 extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
@@ -922,7 +963,7 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
         return err;
     }
     log_heap_snapshot("Before Berry app load");
-    char *source = nullptr;
+    BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     err = read_virtual_file(virtual_path, &source, &length);
     if (err != ESP_OK)
@@ -938,9 +979,7 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
     ESP_LOGI(TAG, "Loaded Berry app file (%u bytes)", static_cast<unsigned>(length));
     log_heap_snapshot("After Berry app load");
 
-    err = execute_app_source(source, length, virtual_path, true);
-    std::free(source);
-    return err;
+    return execute_app_source(std::move(source), length, virtual_path, true);
 }
 
 extern "C" esp_err_t berry_runtime_close_app(void)
@@ -990,4 +1029,19 @@ void berry_runtime_lock()
 void berry_runtime_unlock()
 {
     s_vm_mutex.unlock();
+}
+
+extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info)
+{
+    if (info == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+
+    info->initialized = (s_vm != nullptr);
+    info->gc_managed_bytes = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
+
+    return ESP_OK;
 }

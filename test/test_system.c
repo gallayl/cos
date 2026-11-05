@@ -1,7 +1,7 @@
-#include "unity.h"
-#include "system.h"
-#include "mock_system.h"
 #include "mock_console.h"
+#include "mock_system.h"
+#include "system.h"
+#include "unity.h"
 
 void setUp(void)
 {
@@ -9,9 +9,7 @@ void setUp(void)
     mock_console_reset();
 }
 
-void tearDown(void)
-{
-}
+void tearDown(void) {}
 
 /* --- system_get_info --- */
 
@@ -33,6 +31,10 @@ void test_get_info_populates_struct(void)
     TEST_ASSERT_EQUAL(160000, info.min_free_heap);
     TEST_ASSERT_EQUAL(320000, info.total_heap);
     TEST_ASSERT_EQUAL(110000, info.max_alloc_block);
+    TEST_ASSERT_EQUAL(180000, info.internal_free_heap);
+    TEST_ASSERT_EQUAL(160000, info.internal_min_free_heap);
+    TEST_ASSERT_EQUAL(320000, info.internal_total_heap);
+    TEST_ASSERT_EQUAL(110000, info.internal_max_alloc_block);
 }
 
 void test_get_info_null_returns_error(void)

@@ -43,6 +43,7 @@ static int cmd_berry(int argc, char **argv)
     }
 
     esp_err_t err = berry_runtime_init();
+
     if (err != ESP_OK)
     {
         printf("berry: initialization failed (%s)\n", esp_err_to_name(err));
