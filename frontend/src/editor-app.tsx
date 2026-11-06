@@ -6,36 +6,24 @@ import {
 } from "@furystack/shades-common-components";
 
 import { typescriptDefaults } from "monaco-editor/languages/features/typescript/register";
-import ts from "@typescript/typescript6";
-
-function getAst(scriptText: string) {
-  const ast = ts.createSourceFile(
-    "cos-script.ts",
-    scriptText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-
-  return ast;
-}
 
 import sdkTypes from "./cos-sdk/ui.d.ts?raw" with { type: "text" };
+import { astToBerry } from "./ide/ast-to-berry";
+import { getAst } from "./ide/get-ast";
 
 typescriptDefaults.addExtraLib(sdkTypes, "file:///cos-sdk/ui.d.ts");
-const initialCode = `// Welcome to Shades + Monaco
+const initialCode = `export default class Counter {
+  private ticks = 0;
 
-import { Shade } from '@furystack/shades'
+  setup(content: unknown, width: number, height: number): void {
+    ui.timer(1000, () => this.tick());
+  }
 
-export const HelloWorld = Shade({
-  customElementName: 'hello-world',
-
-  render: () => (
-    <div>
-      Hello from FuryStack!
-    </div>
-  ),
-})
+  private tick(): void {
+    this.ticks += 1;
+    log("ticks: " + this.ticks);
+  }
+}
 `;
 
 export const EditorApp = Shade({
@@ -72,6 +60,11 @@ export const EditorApp = Shade({
       fontWeight: "600",
     },
 
+    "& .toolbar-actions": {
+      display: "flex",
+      gap: "8px",
+    },
+
     "& .toolbar button": {
       padding: "6px 12px",
       border: "1px solid #3b414d",
@@ -99,6 +92,22 @@ export const EditorApp = Shade({
       minWidth: "0",
     },
 
+    "& .output": {
+      height: "220px",
+      minHeight: "120px",
+      margin: "0 10px 10px",
+      padding: "10px 12px",
+      overflow: "auto",
+      border: "1px solid #292d35",
+      borderRadius: "6px",
+      backgroundColor: "#0d0f13",
+      color: "#d5dbe6",
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      fontSize: "12px",
+      lineHeight: "1.45",
+      whiteSpace: "pre",
+    },
+
     "& .statusbar": {
       height: "26px",
       minHeight: "26px",
@@ -115,27 +124,47 @@ export const EditorApp = Shade({
 
   render: ({ useState, injector }) => {
     const [value, setValue] = useState("source", initialCode);
+    const [output, setOutput] = useState("output", "");
+    const [status, setStatus] = useState("status", "TypeScript");
 
     const theme = injector.get(ThemeProviderService);
     theme.setAssignedTheme(defaultDarkTheme);
 
-    ts.forEachChild(getAst(value), (node) => {
-      console.log(
-        "Node kind:",
-        ts.SyntaxKind[node.kind],
-        "Text:",
-        node.getText(),
+    const compile = () => {
+      const result = astToBerry(getAst(value));
+      if (result.ok) {
+        setOutput(result.code);
+        setStatus("Compiled");
+        return;
+      }
+      setOutput(
+        result.diagnostics
+          .map((diagnostic) => `${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`)
+          .join("\n"),
       );
-    });
+      setStatus(`${result.diagnostics.length} error(s)`);
+    };
 
     return (
       <div className="app-shell">
         <header className="toolbar">
-          <div className="brand">Shades Playground</div>
+          <div className="brand">COS TypeScript</div>
 
-          <button type="button" onclick={() => setValue(initialCode)}>
-            Reset
-          </button>
+          <div className="toolbar-actions">
+            <button type="button" onclick={compile}>
+              Compile
+            </button>
+            <button
+              type="button"
+              onclick={() => {
+                setValue(initialCode);
+                setOutput("");
+                setStatus("TypeScript");
+              }}
+            >
+              Reset
+            </button>
+          </div>
         </header>
 
         <main className="editor-area">
@@ -156,8 +185,10 @@ export const EditorApp = Shade({
           />
         </main>
 
+        {output ? <pre className="output">{output}</pre> : null}
+
         <footer className="statusbar">
-          <span>TypeScript</span>
+          <span>{status}</span>
           <span>{value.split("\n").length} lines</span>
         </footer>
       </div>
