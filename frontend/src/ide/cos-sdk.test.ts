@@ -122,6 +122,19 @@ describe("COS TypeScript SDK", () => {
     expect(messages).toContain("ButtonHandle");
   });
 
+  it("accepts Berry print, str, and list push", () => {
+    const result = diagnosticsFor(`
+      function main(args: string[]): number {
+        const items: number[] = [];
+        items.push(args.length);
+        print(str(args.length) + ": " + args[0]);
+        return 0;
+      }
+    `);
+    expect(result.sdk).toEqual([]);
+    expect(result.app).toEqual([]);
+  });
+
   it("type-checks for-of over arrays without a DOM library", () => {
     const result = diagnosticsFor(`
       const values = [1, 2, 3];

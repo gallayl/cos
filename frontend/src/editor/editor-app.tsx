@@ -3,7 +3,7 @@ import { cssVariableTheme } from "@furystack/shades-common-components";
 
 import { astToBerry } from "../ide/ast-to-berry";
 import { CosFilesError, describeCosError, writeTextFile } from "../ide/files/cos-files";
-import { canOpenPath } from "../ide/files/paths";
+import { canOpenPath, languageForPath, parentPath } from "../ide/files/paths";
 import {
   isAbortError,
   pickTextFile,
@@ -34,6 +34,7 @@ import { EditorStatusBar } from "./editor-status-bar";
 import { EditorToolbar } from "./editor-toolbar";
 import { FileBrowser } from "./file-browser";
 import { FileCache } from "./file-cache";
+import { movedPath } from "./file-tree";
 import { SourceEditor } from "./source-editor";
 
 const textFileAccept =
@@ -73,7 +74,6 @@ export const EditorApp = Shade({
     const [status, setStatus] = useState("status", "TypeScript");
     const [localHandle, setLocalHandle] = useState<FileSystemFileHandle | null>("localHandle", null);
     const [revision, setRevision] = useState("revision", 0);
-    const [directory, setDirectory] = useState("directory", "/flash");
     const fileInput = useRef<HTMLInputElement>("file-input");
     const live = useDisposable("live-document", () => ({
       document,
@@ -166,7 +166,10 @@ export const EditorApp = Shade({
           await writeTextFile(plan.path, written, { authorization });
           keepSaved();
           cache.rememberFile(plan.path, authorization, written);
-          cache.refreshDirectory(directory, authorization);
+          const parent = parentPath(plan.path);
+          if (parent) {
+            cache.refreshDirectory(parent, authorization);
+          }
           setStatus(`Saved ${plan.path}`);
         } catch (error) {
           noteFailure(error);
@@ -231,7 +234,10 @@ export const EditorApp = Shade({
         try {
           const authorization = access.authorization.getValue();
           await writeTextFile(plan.path, result.code, { authorization });
-          cache.refreshDirectory(directory, authorization);
+          const parent = parentPath(plan.path);
+          if (parent) {
+            cache.refreshDirectory(parent, authorization);
+          }
           setStatus(`Wrote ${plan.path}`);
         } catch (error) {
           noteFailure(error);
@@ -277,10 +283,18 @@ export const EditorApp = Shade({
         />
         <div className="workspace">
           <FileBrowser
-            directory={directory}
             activePath={document.path}
-            onDirectoryChange={setDirectory}
             onOpenFile={(path) => void openDeviceFile(path)}
+            onActivity={setStatus}
+            onMoved={(from, to) => {
+              const next = movedPath(live.document.path, from, to);
+              if (!next) {
+                return;
+              }
+              cache.rememberFile(next, access.authorization.getValue(), live.document.text);
+              setDocument({ ...live.document, path: next, language: languageForPath(next) });
+              setStatus(next);
+            }}
           />
           <div className="editor-column">
             <SourceEditor

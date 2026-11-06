@@ -391,7 +391,7 @@ esp_err_t vfs_rename_file(const char *source, const char *destination)
     {
         return ESP_ERR_NOT_FOUND;
     }
-    if (!S_ISREG(source_stat.st_mode))
+    if (!S_ISREG(source_stat.st_mode) && !S_ISDIR(source_stat.st_mode))
     {
         return ESP_ERR_INVALID_ARG;
     }

@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
           target: device,
           changeOrigin: true,
         },
+        "/ws": {
+          target: device,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
   };

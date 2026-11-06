@@ -75,10 +75,30 @@ export async function readTextFile(path: string, options: CosRequestOptions = {}
 
 /** Write a virtual file. Parent directories are created by the device. */
 export async function writeTextFile(path: string, content: string, options: CosRequestOptions = {}): Promise<void> {
+  await uploadFile(path, new Blob([content], { type: "text/plain" }), options);
+}
+
+/** Upload a file blob. Parent directories are created by the device. */
+export async function uploadFile(path: string, content: Blob, options: CosRequestOptions = {}): Promise<void> {
   const body = new FormData();
   body.append("path", path);
-  body.append("file", new Blob([content], { type: "text/plain" }), fileName(path));
+  body.append("file", content, fileName(path));
   await request("/api/upload", options, { method: "POST", body });
+}
+
+/** Create an empty virtual directory. */
+export async function createDirectory(path: string, options: CosRequestOptions = {}): Promise<void> {
+  await request(`/api/mkdir?path=${encodePathQuery(path)}`, options, { method: "POST" });
+}
+
+/** Rename a file or directory on the same filesystem. */
+export async function renameEntry(from: string, to: string, options: CosRequestOptions = {}): Promise<void> {
+  await request(`/api/rename?from=${encodePathQuery(from)}&to=${encodePathQuery(to)}`, options, { method: "POST" });
+}
+
+/** Delete a file, or an empty directory. */
+export async function deleteEntry(path: string, options: CosRequestOptions = {}): Promise<void> {
+  await request(`/api/file?path=${encodePathQuery(path)}`, options, { method: "DELETE" });
 }
 
 function fileName(path: string): string {

@@ -15,6 +15,14 @@ static const char *const TAG = "websocket";
 static int s_clients[WEBSOCKET_MAX_CLIENTS];
 static size_t s_client_count = 0;
 static SemaphoreHandle_t s_mutex = NULL;
+static websocket_text_handler_t s_text_handler = NULL;
+static void *s_text_handler_context = NULL;
+
+void websocket_set_text_handler(websocket_text_handler_t handler, void *context)
+{
+    s_text_handler = handler;
+    s_text_handler_context = context;
+}
 
 static void add_client(int fd)
 {
@@ -101,7 +109,6 @@ static esp_err_t ws_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    /* Broadcast-only: ignore incoming frames */
     httpd_ws_frame_t frame = {0};
     frame.type = HTTPD_WS_TYPE_TEXT;
     esp_err_t ret = httpd_ws_recv_frame(req, &frame, 0);
@@ -117,22 +124,50 @@ static esp_err_t ws_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "Client closed (fd=%d)", fd);
     }
 
-    /* Discard any payload */
-    if (frame.len > 0)
+    if (frame.len == 0)
     {
-        uint8_t *buf = malloc(frame.len + 1);
-        if (buf)
+        return ESP_OK;
+    }
+
+    if (frame.len > WEBSOCKET_MAX_TEXT)
+    {
+        ESP_LOGW(TAG, "Dropping %u byte frame", (unsigned)frame.len);
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    uint8_t *buf = malloc(frame.len);
+    if (buf == NULL)
+    {
+        ESP_LOGW(TAG, "Dropping %u byte frame", (unsigned)frame.len);
+        return ESP_ERR_NO_MEM;
+    }
+
+    frame.payload = buf;
+    ret = httpd_ws_recv_frame(req, &frame, frame.len);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to receive frame payload: %s", esp_err_to_name(ret));
+        free(buf);
+        return ret;
+    }
+
+    if (frame.type == HTTPD_WS_TYPE_TEXT && s_text_handler != NULL)
+    {
+        char line[WEBSOCKET_MAX_TEXT + 1];
+        size_t len = frame.len;
+        memcpy(line, buf, len);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
         {
-            frame.payload = buf;
-            esp_err_t ret2 = httpd_ws_recv_frame(req, &frame, frame.len);
-            if (ret2 != ESP_OK)
-            {
-                ESP_LOGW(TAG, "Failed to receive frame payload: %s", esp_err_to_name(ret2));
-            }
-            free(buf);
+            len--;
+        }
+        if (len > 0)
+        {
+            line[len++] = '\n';
+            s_text_handler(line, len, s_text_handler_context);
         }
     }
 
+    free(buf);
     return ESP_OK;
 }
 

@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "strict": true,
+    "noLib": true,
+    "noEmit": true,
+    "types": [],
+    "skipLibCheck": false,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["ts/**/*.ts", "../frontend/src/cos-sdk/**/*.d.ts"]
+}

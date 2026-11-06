@@ -4,8 +4,12 @@ import {
   CosFilesError,
   basicAuthorization,
   describeCosError,
+  createDirectory,
+  deleteEntry,
   listDirectory,
   readTextFile,
+  renameEntry,
+  uploadFile,
   writeTextFile,
 } from "./cos-files";
 
@@ -58,6 +62,33 @@ describe("cos files", () => {
     });
 
     await writeTextFile("/flash/app.ts", "let ticks = 0\n", { fetchImpl: fetchImpl as typeof fetch });
+  });
+
+  it("creates, renames, deletes, and uploads through the filesystem API", async () => {
+    const calls: { url: string; method: string }[] = [];
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, method: init?.method ?? "GET" });
+      if (url.startsWith("/api/upload")) {
+        const body = init?.body as FormData;
+        expect(body.get("path")).toBe("/flash/apps/icon.png");
+        expect(body.get("file")).toBeInstanceOf(Blob);
+      }
+      return jsonResponse({ status: "ok" });
+    });
+    const options = { fetchImpl: fetchImpl as typeof fetch, authorization: "Basic abc" };
+
+    await createDirectory("/flash/apps", options);
+    await renameEntry("/flash/apps", "/flash/widgets", options);
+    await deleteEntry("/flash/widgets/old.ts", options);
+    await uploadFile("/flash/apps/icon.png", new Blob([Uint8Array.from([1, 2])]), options);
+
+    expect(calls).toEqual([
+      { url: "/api/mkdir?path=/flash/apps", method: "POST" },
+      { url: "/api/rename?from=/flash/apps&to=/flash/widgets", method: "POST" },
+      { url: "/api/file?path=/flash/widgets/old.ts", method: "DELETE" },
+      { url: "/api/upload", method: "POST" },
+    ]);
+    expect(new Headers(fetchImpl.mock.calls[0]?.[1]?.headers).get("Authorization")).toBe("Basic abc");
   });
 
   it("rejects a file list that is not JSON", async () => {

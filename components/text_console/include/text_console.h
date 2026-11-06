@@ -72,6 +72,22 @@ extern "C"
     /** Register clear, display_mode, and logging shell commands. */
     void text_console_register_commands(void);
 
+    /**
+     * @brief Receive a copy of bytes written to the console stdout hook.
+     *
+     * The listener runs on the task that wrote to stdout, after the bytes
+     * have been forwarded to UART. It must return quickly. Nested stdout
+     * from the same task is not delivered again.
+     */
+    typedef void (*text_console_output_listener_t)(const char *data, size_t len, void *context);
+
+    /**
+     * @brief Install or clear the stdout listener.
+     * @param listener Callback, or NULL to clear it.
+     * @param context Value passed through to the listener.
+     */
+    void text_console_set_output_listener(text_console_output_listener_t listener, void *context);
+
 #ifdef __cplusplus
 }
 #endif

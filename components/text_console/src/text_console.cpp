@@ -36,6 +36,9 @@ static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
 static text_console_log_level_t s_log_level = TEXT_CONSOLE_LOG_WARN;
+static text_console_output_listener_t s_output_listener = nullptr;
+static void *s_output_listener_context = nullptr;
+static TaskHandle_t s_output_listener_task = nullptr;
 
 static esp_log_level_t esp_log_level(text_console_log_level_t level)
 {
@@ -177,6 +180,25 @@ static void render_task(void *arg)
 
 /* ── stdout hook ───────────────────────────────────────────── */
 
+static void notify_output_listener(const char *buf, size_t size)
+{
+    if (s_output_listener == nullptr || buf == nullptr || size == 0)
+    {
+        return;
+    }
+
+    const TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    if (s_output_listener_task == self)
+    {
+        return;
+    }
+
+    const TaskHandle_t previous = s_output_listener_task;
+    s_output_listener_task = self;
+    s_output_listener(buf, size, s_output_listener_context);
+    s_output_listener_task = previous;
+}
+
 static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
 {
     (void)cookie;
@@ -184,6 +206,7 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     /* Forward to original UART stdout */
     size_t written = fwrite(buf, 1, size, s_original_stdout);
     fflush(s_original_stdout);
+    notify_output_listener(buf, size);
 
     bool history_allocation_failed = false;
     bool should_notify_render = false;
@@ -318,6 +341,8 @@ extern "C" void text_console_deinit(void)
     }
 
     s_initialized = false;
+    s_output_listener = nullptr;
+    s_output_listener_context = nullptr;
 
     /* Restore stdout */
     if (stdout != s_original_stdout)
@@ -450,6 +475,12 @@ extern "C" void text_console_clear(void)
         xSemaphoreGive(s_mutex);
         xTaskNotifyGive(s_render_task);
     }
+}
+
+extern "C" void text_console_set_output_listener(text_console_output_listener_t listener, void *context)
+{
+    s_output_listener = listener;
+    s_output_listener_context = context;
 }
 
 extern "C" void text_console_resize(void)

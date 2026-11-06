@@ -17,7 +17,7 @@ const features = [
   {
     path: "/console",
     title: "Console",
-    description: "Open a session with the device.",
+    description: "Send commands and follow device logs.",
   },
 ] as const;
 

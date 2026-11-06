@@ -73,9 +73,10 @@ extern "C"
      */
     esp_err_t vfs_copy_file(const char *source, const char *destination);
     /**
-     * @brief Rename a regular file without replacing an existing destination.
+     * @brief Rename a file or directory without replacing an existing destination.
      *
      * Source and destination must be on the same mounted filesystem.
+     * A directory can be renamed only within that filesystem.
      */
     esp_err_t vfs_rename_file(const char *source, const char *destination);
     esp_err_t vfs_mkdir(const char *path);

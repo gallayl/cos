@@ -62,6 +62,18 @@ declare global {
   interface Function {}
   interface CallableFunction extends Function {}
   interface NewableFunction extends Function {}
+
+  /**
+   * Berry VM `print`. Writes to the Berry output stream shown by the shell.
+   * This is not JavaScript `console.log`.
+   */
+  function print(message: string): void;
+
+  /**
+   * Berry VM `str()`. Turns a value into its display text.
+   * Template substitutions compile to this call. `str` of a string is that string.
+   */
+  function str(value: string | number | boolean | null): string;
 }
 
 export {};
