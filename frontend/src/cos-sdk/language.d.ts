@@ -21,6 +21,10 @@ declare global {
     /** Element count. Compiles to Berry `size()`. */
     readonly length: number;
     [index: number]: T;
+    /**
+     * Append one item. Compiles to Berry `list.push`, which returns nil.
+     */
+    push(item: T): void;
     [Symbol.iterator](): Iterator<T>;
   }
 

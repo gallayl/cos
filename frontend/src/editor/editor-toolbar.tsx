@@ -1,4 +1,4 @@
-import { createComponent, Shade } from "@furystack/shades";
+import { createComponent, NestedRouteLink, Shade } from "@furystack/shades";
 import { Button, ButtonGroup, Typography, cssVariableTheme } from "@furystack/shades-common-components";
 
 export interface EditorToolbarProps {
@@ -26,8 +26,19 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
       background: cssVariableTheme.background.paper,
       borderBottom: `${cssVariableTheme.shape.borderWidth} solid ${cssVariableTheme.divider}`,
     },
+    "& .title": {
+      display: "flex",
+      alignItems: "center",
+      gap: cssVariableTheme.spacing.md,
+      minWidth: "0",
+    },
     "& shade-typography": {
       margin: "0",
+    },
+    "& nested-route-link": {
+      color: cssVariableTheme.text.secondary,
+      fontSize: cssVariableTheme.typography.fontSize.sm,
+      whiteSpace: "nowrap",
     },
     "& shade-button-group": {
       flexWrap: "wrap",
@@ -36,7 +47,10 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
   },
   render: ({ props }) => (
     <header>
-      <Typography variant="subtitle2">COS TypeScript</Typography>
+      <div className="title">
+        <NestedRouteLink path="/">Home</NestedRouteLink>
+        <Typography variant="subtitle2">COS TypeScript</Typography>
+      </div>
       <ButtonGroup variant="outlined">
         <Button type="button" size="small" onclick={props.onOpen}>
           Open

@@ -4,7 +4,7 @@ import { createInjector } from "@furystack/inject";
 import { createComponent, initializeShadeRoot } from "@furystack/shades";
 import { ThemeProviderService, defaultDarkTheme } from "@furystack/shades-common-components";
 
-import { EditorApp } from "./editor/editor-app.js";
+import { App } from "./app/app.js";
 
 const rootElement = document.querySelector<HTMLDivElement>("#root");
 
@@ -18,5 +18,5 @@ injector.get(ThemeProviderService).setAssignedTheme(defaultDarkTheme);
 initializeShadeRoot({
   injector,
   rootElement,
-  jsxElement: <EditorApp />,
+  jsxElement: <App />,
 });
