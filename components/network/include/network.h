@@ -75,16 +75,23 @@ extern "C"
         char value[NETWORK_HTTP_HEADER_VALUE_MAX + 1]; /**< Header value. */
     } network_http_header_t;
 
+    /** One HTTP header name and value. Both strings are owned by the caller. */
+    typedef struct
+    {
+        const char *name;
+        const char *value;
+    } network_http_request_header_t;
+
     /** Inputs for one HTTP fetch. Pointers are only read during the call. */
     typedef struct
     {
         const char *method; /**< `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, or `HEAD`. NULL means GET. */
         const char *body;   /**< Request body, or NULL when body_len is 0. */
         size_t body_len;    /**< Body length in bytes. */
-        const network_http_header_t *headers; /**< Request headers, or NULL when header_count is 0. */
-        size_t header_count;                  /**< Number of request headers. */
-        uint32_t timeout_ms;                  /**< Socket connect and read timeout. */
-        uint32_t total_timeout_ms;            /**< Wall-clock budget for the whole call, including DNS. */
+        const network_http_request_header_t *headers; /**< Request headers, or NULL when header_count is 0. */
+        size_t header_count;                          /**< Number of request headers. */
+        uint32_t timeout_ms;                          /**< Socket connect and read timeout. */
+        uint32_t total_timeout_ms;                    /**< Wall-clock budget for the whole call, including DNS. */
     } network_http_request_t;
 
     /**

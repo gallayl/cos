@@ -9,13 +9,14 @@ def main(args)
         print("status " + str(result["status"]))
     end
     if !result["ok"]
+        print("Request failed")
         print(result["error"])
+        return 1
     end
-    if result["body"].size() > 0
+    if size(result["body"]) > 0
         print(result["body"])
-    end
-    if result["ok"]
         return 0
     end
+    print(result)
     return 1
 end

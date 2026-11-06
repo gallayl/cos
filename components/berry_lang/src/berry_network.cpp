@@ -318,10 +318,7 @@ static int native_net_base_url(bvm *vm)
     be_return(vm);
 }
 
-static network_http_header_t s_headers[NETWORK_HTTP_HEADER_MAX];
-static char s_body[NETWORK_HTTP_BODY_MAX + 1];
-
-static esp_err_t read_headers(bvm *vm, int headers_index, size_t *count)
+static esp_err_t read_headers(bvm *vm, int headers_index, network_http_request_header_t *headers, size_t *count)
 {
     const int base = be_top(vm);
     headers_index = be_absindex(vm, headers_index);
@@ -352,8 +349,8 @@ static esp_err_t read_headers(bvm *vm, int headers_index, size_t *count)
             be_pop(vm, be_top(vm) - base);
             return ESP_ERR_INVALID_ARG;
         }
-        std::memcpy(s_headers[*count].name, name, std::strlen(name) + 1);
-        std::memcpy(s_headers[*count].value, value, std::strlen(value) + 1);
+        headers[*count].name = name;
+        headers[*count].value = value;
         ++(*count);
         be_pop(vm, 2);
     }
@@ -430,6 +427,9 @@ static int native_net_fetch(bvm *vm)
         .total_timeout_ms = NETWORK_HTTP_TIMEOUT_DEFAULT_MS,
     };
     bool want_json = false;
+    bool have_headers = false;
+    bool have_body = false;
+    network_http_request_header_t request_headers[NETWORK_HTTP_HEADER_MAX];
     if (argc == 2 && be_ismapinstance(vm, 2))
     {
         const esp_err_t fields = reject_unknown_fields(vm, 2);
@@ -461,14 +461,15 @@ static int native_net_fetch(bvm *vm)
             }
             const int headers_index = be_absindex(vm, -1);
             size_t header_count = 0;
-            const esp_err_t header_err = read_headers(vm, headers_index, &header_count);
-            be_pop(vm, 1);
+            const esp_err_t header_err = read_headers(vm, headers_index, request_headers, &header_count);
             if (header_err != ESP_OK)
             {
+                be_pop(vm, 1);
                 return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0, esp_err_to_name(header_err));
             }
-            request.headers = s_headers;
+            request.headers = request_headers;
             request.header_count = header_count;
+            have_headers = true;
         }
         if (push_field(vm, 2, "body"))
         {
@@ -486,14 +487,9 @@ static int native_net_fetch(bvm *vm)
                                          esp_err_to_name(ESP_ERR_INVALID_SIZE));
             }
             const char *body = be_tostring(vm, -1);
-            if (body != nullptr && length > 0)
-            {
-                std::memcpy(s_body, body, static_cast<size_t>(length));
-            }
-            s_body[length > 0 ? length : 0] = '\0';
-            be_pop(vm, 1);
-            request.body = s_body;
+            request.body = body;
             request.body_len = static_cast<size_t>(length);
+            have_body = true;
         }
         if (push_field(vm, 2, "response_type"))
         {
@@ -552,6 +548,14 @@ static int native_net_fetch(bvm *vm)
 
     const network_http_response_t *response = nullptr;
     const esp_err_t err = network_http_fetch(url, &request, &response);
+    if (have_body)
+    {
+        be_pop(vm, 1);
+    }
+    if (have_headers)
+    {
+        be_pop(vm, 1);
+    }
     const char *reported_url = url != nullptr ? url : "";
     const char *body = "";
     size_t body_len = 0;

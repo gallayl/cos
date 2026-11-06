@@ -51,7 +51,6 @@ static network_http_header_t s_req_headers[NETWORK_HTTP_HEADER_MAX];
 static char s_resp_body[NETWORK_HTTP_BODY_MAX + 1];
 static const char s_empty_body[] = "";
 static network_http_response_t s_response;
-static network_http_response_t s_idle;
 
 static TickType_t time_until_deadline_ticks(int64_t deadline_us)
 {
@@ -317,13 +316,6 @@ static esp_err_t ensure_http_worker(void)
     return ESP_OK;
 }
 
-static void publish_idle(const network_http_response_t **response)
-{
-    memset(&s_idle, 0, sizeof(s_idle));
-    s_idle.body = s_empty_body;
-    *response = &s_idle;
-}
-
 esp_err_t network_http_fetch(const char *url, const network_http_request_t *request,
                              const network_http_response_t **response)
 {
@@ -331,7 +323,9 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     {
         return ESP_ERR_INVALID_ARG;
     }
-    publish_idle(response);
+    memset(&s_response, 0, sizeof(s_response));
+    s_response.body = s_empty_body;
+    *response = &s_response;
     if (url == NULL || request == NULL)
     {
         return ESP_ERR_INVALID_ARG;
@@ -376,7 +370,8 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     }
 
     memset(&s_response, 0, sizeof(s_response));
-    s_response.body = s_resp_body;
+    s_response.body = s_empty_body;
+    s_response.url[0] = '\0';
     s_resp_body[0] = '\0';
     const esp_err_t compose_err = network_compose_url(url, s_req_url, sizeof(s_req_url));
     if (compose_err != ESP_OK || !wifi_is_connected())
@@ -385,16 +380,19 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
         return compose_err != ESP_OK ? compose_err : ESP_ERR_INVALID_STATE;
     }
     memcpy(s_response.url, s_req_url, strlen(s_req_url) + 1);
-    *response = &s_response;
 
     if (request->body_len > 0)
     {
         memcpy(s_req_body, request->body, request->body_len);
     }
     s_req_body[request->body_len] = '\0';
+    memset(s_req_headers, 0, sizeof(s_req_headers));
     for (size_t index = 0; index < request->header_count; ++index)
     {
-        s_req_headers[index] = request->headers[index];
+        const size_t name_len = strlen(request->headers[index].name);
+        const size_t value_len = strlen(request->headers[index].value);
+        memcpy(s_req_headers[index].name, request->headers[index].name, name_len + 1);
+        memcpy(s_req_headers[index].value, request->headers[index].value, value_len + 1);
     }
 
     while (xSemaphoreTake(s_http_done, 0) == pdTRUE)
