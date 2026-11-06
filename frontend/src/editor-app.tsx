@@ -2,9 +2,7 @@ import { createComponent, Shade } from "@furystack/shades";
 import { MonacoEditor } from "@furystack/shades-monaco";
 import { ThemeProviderService, defaultDarkTheme } from "@furystack/shades-common-components";
 import { editor as monacoEditor } from "monaco-editor";
-import { typescriptDefaults } from "monaco-editor/languages/features/typescript/register";
 
-import sdkTypes from "./cos-sdk/ui.d.ts?raw" with { type: "text" };
 import { astToBerry } from "./ide/ast-to-berry";
 import {
   CosFilesError,
@@ -33,8 +31,7 @@ import {
 } from "./ide/files/local-files";
 import { getAst } from "./ide/get-ast";
 import "./ide/monaco-languages";
-
-typescriptDefaults.addExtraLib(sdkTypes, "file:///cos-sdk/ui.d.ts");
+import "./ide/register-cos-sdk";
 
 const initialCode = `export default class Counter {
   private ticks = 0;
