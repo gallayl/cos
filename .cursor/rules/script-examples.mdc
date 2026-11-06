@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Device script examples
 
-When adding or changing a Berry API that scripts can call, add a device example and compile it before finishing.
+When adding or changing a Berry API that scripts can call, update the TypeScript SDK and the native binding together, then add a device example and compile it before finishing.
 
 1. Write the example in `storage/ts/scripts/` (a `main(args)` command) or `storage/ts/apps/` (a UI app). Exercise the new API, including arguments when the command takes them.
 2. Compile that TypeScript with the COS Berry compiler. Write the result to the matching `storage/flash_data/` path. Do not hand-translate it.
