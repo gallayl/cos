@@ -363,6 +363,35 @@ static void test_csi_cursor_home(void)
     TEST_ASSERT_EQUAL(0, buf.cursor_col);
 }
 
+static void test_csi_cursor_position(void)
+{
+    text_buffer_write(&buf, "\033[3;5H", 6);
+    TEST_ASSERT_EQUAL(2, buf.cursor_row);
+    TEST_ASSERT_EQUAL(4, buf.cursor_col);
+
+    text_buffer_write(&buf, "\033[1;1f", 6);
+    TEST_ASSERT_EQUAL(0, buf.cursor_row);
+    TEST_ASSERT_EQUAL(0, buf.cursor_col);
+}
+
+static void test_set_cursor_and_clipped_write(void)
+{
+    reset_buffer(10, 3);
+    TEST_ASSERT_FALSE(text_buffer_set_cursor(&buf, -1, 0));
+    TEST_ASSERT_FALSE(text_buffer_set_cursor(&buf, 10, 0));
+    TEST_ASSERT_TRUE(text_buffer_set_cursor(&buf, 8, 1));
+    buf.current_fg = TEXT_BUF_COLOR_GREEN;
+    text_buffer_write_clipped(&buf, "A\nBXYZ", 6);
+
+    TEST_ASSERT_EQUAL('A', buf.cells[1][8].ch);
+    TEST_ASSERT_EQUAL('B', buf.cells[1][9].ch);
+    TEST_ASSERT_EQUAL(' ', buf.cells[1][7].ch);
+    TEST_ASSERT_EQUAL(' ', buf.cells[2][0].ch);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_GREEN, buf.cells[1][8].fg);
+    TEST_ASSERT_EQUAL(1, buf.cursor_row);
+    TEST_ASSERT_TRUE(buf.pending_wrap);
+}
+
 static void test_csi_cursor_clamps_to_bounds(void)
 {
     text_buffer_write(&buf, "\033[999C", 6);
@@ -708,6 +737,8 @@ int main(void)
     RUN_TEST(test_csi_cursor_up);
     RUN_TEST(test_csi_cursor_down);
     RUN_TEST(test_csi_cursor_home);
+    RUN_TEST(test_csi_cursor_position);
+    RUN_TEST(test_set_cursor_and_clipped_write);
     RUN_TEST(test_csi_cursor_clamps_to_bounds);
     RUN_TEST(test_csi_default_param_is_one);
 

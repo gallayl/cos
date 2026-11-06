@@ -132,8 +132,11 @@ esp_err_t berry_runtime_close_app(void)
 }
 
 void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                              berry_console_cancel_line_fn cancel_line)
+                                              berry_console_cancel_line_fn cancel_line, berry_console_read_key_fn read_key,
+                                              berry_console_read_key_fn read_char)
 {
     (void)read_line;
     (void)cancel_line;
+    (void)read_key;
+    (void)read_char;
 }

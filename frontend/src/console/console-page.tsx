@@ -10,19 +10,8 @@ import {
 
 import { DeviceAccess } from "../editor/device-access";
 import { DeviceSignIn } from "../editor/device-sign-in";
-import { openConsoleLink, type ConsoleLink, type ConsoleLinkPhase } from "./console-link";
-import {
-  consoleMessageLimit,
-  createConsoleTranscript,
-  isConsoleSeverity,
-  lineVisible,
-  normalizeConsoleMessage,
-  pushConsoleChunk,
-  severityOf,
-  stripAnsi,
-  type ConsoleSeverity,
-  type ConsoleTranscript,
-} from "./console-lines";
+import { consoleMessageLimit, lineVisible, severityOf, stripAnsi } from "./console-lines";
+import { ConsoleSession, type ConsolePhase } from "./console-session";
 
 const levelOptions = [
   { value: "error", label: "Error" },
@@ -30,7 +19,7 @@ const levelOptions = [
   { value: "info", label: "Info" },
 ];
 
-const phaseText: Record<ConsoleLinkPhase | "signed-out", string> = {
+const phaseText: Record<ConsolePhase, string> = {
   "signed-out": "Sign in to use the console",
   connecting: "Connecting",
   open: "Connected",
@@ -39,7 +28,7 @@ const phaseText: Record<ConsoleLinkPhase | "signed-out", string> = {
   closed: "Disconnected",
 };
 
-/** Device console: filtered logs and one command at a time. */
+/** Device console. Connection state lives on {@link ConsoleSession}. */
 export const ConsolePage = Shade({
   customElementName: "cos-console-page",
   css: {
@@ -108,96 +97,31 @@ export const ConsolePage = Shade({
       padding: `0 ${cssVariableTheme.spacing.md}`,
     },
   },
-  render: ({ injector, useObservable, useState, useDisposable, useRef }) => {
+  render: ({ injector, useObservable, useDisposable, useRef }) => {
     const access = injector.get(DeviceAccess);
+    const session = injector.get(ConsoleSession);
     const [authorization] = useObservable("authorization", access.authorization);
     const [needsAuth] = useObservable("needs-auth", access.needsAuth);
-    const [level, setLevel] = useState<ConsoleSeverity>("level", "warn");
-    const [draft, setDraft] = useState("draft", "");
-    const [phase, setPhase] = useState<ConsoleLinkPhase | "signed-out">("phase", "signed-out");
-    const [attempt, setAttempt] = useState("attempt", 0);
-    const [transcript, setTranscript] = useState<ConsoleTranscript>("transcript", createConsoleTranscript());
+    const [phase] = useObservable("phase", session.phase);
+    const [transcript] = useObservable("transcript", session.transcript);
+    const [level] = useObservable("level", session.level);
+    const [draft] = useObservable("draft", session.draft);
     const log = useRef<HTMLDivElement>("log");
-    const session = useDisposable("session", () => ({
-      key: "",
-      generation: 0,
-      link: null as ConsoleLink | null,
-      transcript: createConsoleTranscript(),
-      follow: true,
-      [Symbol.dispose]() {
-        this.generation += 1;
-        this.link?.close();
-      },
+    const follow = useDisposable("follow", () => ({
+      current: true,
+      [Symbol.dispose]() {},
     }));
-
-    const connectionKey = authorization && !needsAuth ? `${authorization}:${attempt}` : "";
-    if (session.key !== connectionKey) {
-      session.key = connectionKey;
-      const generation = ++session.generation;
-      session.link?.close();
-      session.link = null;
-      if (!connectionKey) {
-        queueMicrotask(() => {
-          if (generation === session.generation) {
-            setPhase(authorization ? "unauthorized" : "signed-out");
-          }
-        });
-      } else {
-        void openConsoleLink({
-          authorization,
-          pageUrl: window.location.href,
-          onChunk: (chunk) => {
-            if (generation !== session.generation) {
-              return;
-            }
-            session.transcript = pushConsoleChunk(session.transcript, chunk);
-            setTranscript(session.transcript);
-          },
-          onPhase: (next) => {
-            if (generation !== session.generation) {
-              return;
-            }
-            if (next === "unauthorized") {
-              access.markUnauthorized();
-            }
-            setPhase(next);
-          },
-        }).then((link) => {
-          if (generation !== session.generation) {
-            link.close();
-            return;
-          }
-          session.link = link;
-        });
-      }
-    }
 
     const visible = transcript.lines.filter((line) => lineVisible(line.severity, level));
     const pending = stripAnsi(transcript.pending);
     const pendingSeverity = severityOf(pending);
     const showPending = pending !== "" && lineVisible(pendingSeverity, level);
-    if (log.current && session.follow) {
+    if (log.current && follow.current) {
       log.current.scrollTop = log.current.scrollHeight;
     }
 
-    const send = () => {
-      const message = normalizeConsoleMessage(draft);
-      if (!message || !session.link?.send(message)) {
-        return;
-      }
-      setDraft("");
-    };
-
-    const chooseLevel = (value: string) => {
-      if (!isConsoleSeverity(value)) {
-        return;
-      }
-      setLevel(value);
-    };
-
-    const signedOut = !authorization || needsAuth || phase === "unauthorized";
+    const signedOut = !authorization || needsAuth;
     const connected = phase === "open";
-    const canSend = connected && normalizeConsoleMessage(draft) !== null;
 
     return (
       <>
@@ -212,13 +136,18 @@ export const ConsolePage = Shade({
           <Typography variant="caption" color="textSecondary">
             Log level
           </Typography>
-          <SegmentedControl size="small" value={level} options={levelOptions} onValueChange={chooseLevel} />
+          <SegmentedControl
+            size="small"
+            value={level}
+            options={levelOptions}
+            onValueChange={(value) => session.setLevel(value)}
+          />
         </header>
         {signedOut ? <DeviceSignIn /> : null}
         {phase === "unreachable" || phase === "closed" ? (
           <div className="notice">
             <Alert severity="error" variant="outlined" title={phaseText[phase]}>
-              <Button type="button" size="small" variant="outlined" onclick={() => setAttempt(attempt + 1)}>
+              <Button type="button" size="small" variant="outlined" onclick={() => session.retry()}>
                 Retry
               </Button>
             </Alert>
@@ -229,7 +158,7 @@ export const ConsolePage = Shade({
           ref={log}
           onscroll={(event) => {
             const element = event.currentTarget as HTMLDivElement;
-            session.follow = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+            follow.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
           }}
         >
           {visible.map((line) => (
@@ -239,8 +168,21 @@ export const ConsolePage = Shade({
         </div>
         <form
           className="composer"
+          oninput={(event) => {
+            const target = event.target;
+            if (target instanceof HTMLInputElement) {
+              session.setDraft(target.value);
+            }
+          }}
           onsubmit={(event) => {
             event.preventDefault();
+            session.send();
+          }}
+          onkeydown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              session.send();
+            }
           }}
         >
           <Input
@@ -251,15 +193,9 @@ export const ConsolePage = Shade({
             maxLength={consoleMessageLimit}
             disabled={!connected}
             value={draft}
-            onTextChange={setDraft}
-            onkeydown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                send();
-              }
-            }}
+            oninput={(event) => session.setDraft((event.target as HTMLInputElement).value)}
           />
-          <Button type="button" variant="contained" size="small" disabled={!canSend} onclick={send}>
+          <Button type="submit" variant="contained" size="small" disabled={!connected || draft.trim() === ""}>
             Send
           </Button>
         </form>

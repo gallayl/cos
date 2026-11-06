@@ -42,6 +42,8 @@ constexpr char CONSOLE_INPUT_CALLBACK_GLOBAL[] = "_cos_console_input_callback";
 std::recursive_mutex s_vm_mutex;
 berry_console_read_line_fn s_console_read_line = nullptr;
 berry_console_cancel_line_fn s_console_cancel_line = nullptr;
+berry_console_read_key_fn s_console_read_key = nullptr;
+berry_console_read_key_fn s_console_read_char = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
 const char *s_app_class_global_name = nullptr;
@@ -252,6 +254,306 @@ void map_set_number(bvm *vm, const char *key, double value)
     be_pop(vm, 2);
 }
 
+esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn start)
+{
+    if (start == nullptr || s_console_line_pending)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    be_pushvalue(vm, function_index);
+    be_setglobal(vm, CONSOLE_INPUT_CALLBACK_GLOBAL);
+    be_pop(vm, 1);
+    s_console_line_pending = true;
+    const esp_err_t err = start(console_line_complete, &s_console_line_token);
+    if (err != ESP_OK)
+    {
+        s_console_line_pending = false;
+        clear_console_input_callback();
+    }
+    return err;
+}
+
+int native_console_read_key(bvm *vm)
+{
+    if (be_top(vm) < 1 || !be_isfunction(vm, 1))
+    {
+        be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_ARG));
+        be_return(vm);
+    }
+
+    const esp_err_t err = begin_console_callback(vm, 1, s_console_read_key);
+    if (err == ESP_OK)
+    {
+        be_pushbool(vm, true);
+    }
+    else
+    {
+        be_pushstring(vm, esp_err_to_name(err));
+    }
+    be_return(vm);
+}
+
+int native_console_read_char(bvm *vm)
+{
+    if (be_top(vm) < 1 || !be_isfunction(vm, 1))
+    {
+        be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_ARG));
+        be_return(vm);
+    }
+
+    const esp_err_t err = begin_console_callback(vm, 1, s_console_read_char);
+    if (err == ESP_OK)
+    {
+        be_pushbool(vm, true);
+    }
+    else
+    {
+        be_pushstring(vm, esp_err_to_name(err));
+    }
+    be_return(vm);
+}
+
+esp_err_t parse_console_color(const char *name, text_console_color_t *color)
+{
+    if (name == nullptr || color == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (std::strcmp(name, "default") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_DEFAULT;
+    }
+    else if (std::strcmp(name, "black") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_BLACK;
+    }
+    else if (std::strcmp(name, "red") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_RED;
+    }
+    else if (std::strcmp(name, "green") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_GREEN;
+    }
+    else if (std::strcmp(name, "yellow") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_YELLOW;
+    }
+    else if (std::strcmp(name, "blue") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_BLUE;
+    }
+    else if (std::strcmp(name, "magenta") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_MAGENTA;
+    }
+    else if (std::strcmp(name, "cyan") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_CYAN;
+    }
+    else if (std::strcmp(name, "white") == 0)
+    {
+        *color = TEXT_CONSOLE_COLOR_WHITE;
+    }
+    else
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return ESP_OK;
+}
+
+esp_err_t optional_console_color(bvm *vm, int index, int argc, text_console_color_t *color)
+{
+    if (argc < index)
+    {
+        *color = TEXT_CONSOLE_COLOR_CURRENT;
+        return ESP_OK;
+    }
+    if (!be_isstring(vm, index))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return parse_console_color(be_tostring(vm, index), color);
+}
+
+bool berry_int_arg(bvm *vm, int index, int *value)
+{
+    if (!be_isint(vm, index))
+    {
+        return false;
+    }
+    const bint raw = be_toint(vm, index);
+    *value = static_cast<int>(raw);
+    return true;
+}
+
+void push_console_status(bvm *vm, esp_err_t err)
+{
+    if (err == ESP_OK)
+    {
+        be_pushbool(vm, true);
+    }
+    else
+    {
+        be_pushstring(vm, esp_err_to_name(err));
+    }
+}
+
+int native_console_move(bvm *vm)
+{
+    int x = 0;
+    int y = 0;
+    if (be_top(vm) != 2 || !berry_int_arg(vm, 1, &x) || !berry_int_arg(vm, 2, &y))
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+    push_console_status(vm, text_console_set_cursor(x, y));
+    be_return(vm);
+}
+
+int native_console_cursor(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+
+    int x = 0;
+    int y = 0;
+    const esp_err_t err = text_console_get_cursor(&x, &y);
+    if (err != ESP_OK)
+    {
+        push_console_status(vm, err);
+        be_return(vm);
+    }
+
+    be_newobject(vm, "map");
+    map_set_number(vm, "x", static_cast<double>(x));
+    map_set_number(vm, "y", static_cast<double>(y));
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
+int native_console_size(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+
+    int cols = 0;
+    int rows = 0;
+    const esp_err_t err = text_console_get_size(&cols, &rows);
+    if (err != ESP_OK)
+    {
+        push_console_status(vm, err);
+        be_return(vm);
+    }
+
+    be_newobject(vm, "map");
+    map_set_number(vm, "cols", static_cast<double>(cols));
+    map_set_number(vm, "rows", static_cast<double>(rows));
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
+int native_console_write(bvm *vm)
+{
+    const int argc = be_top(vm);
+    text_console_color_t color = TEXT_CONSOLE_COLOR_CURRENT;
+    if (argc < 1 || argc > 2 || !be_isstring(vm, 1))
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+    const esp_err_t color_err = optional_console_color(vm, 2, argc, &color);
+    if (color_err != ESP_OK)
+    {
+        push_console_status(vm, color_err);
+        be_return(vm);
+    }
+    push_console_status(vm, text_console_write_text(be_tostring(vm, 1), color));
+    be_return(vm);
+}
+
+int native_console_write_at(bvm *vm)
+{
+    const int argc = be_top(vm);
+    int x = 0;
+    int y = 0;
+    text_console_color_t color = TEXT_CONSOLE_COLOR_CURRENT;
+    if (argc < 3 || argc > 4 || !berry_int_arg(vm, 1, &x) || !berry_int_arg(vm, 2, &y) || !be_isstring(vm, 3))
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+    const esp_err_t color_err = optional_console_color(vm, 4, argc, &color);
+    if (color_err != ESP_OK)
+    {
+        push_console_status(vm, color_err);
+        be_return(vm);
+    }
+    push_console_status(vm, text_console_write_at(x, y, be_tostring(vm, 3), color));
+    be_return(vm);
+}
+
+int native_console_clear(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+
+    int cols = 0;
+    int rows = 0;
+    const esp_err_t err = text_console_get_size(&cols, &rows);
+    if (err != ESP_OK)
+    {
+        push_console_status(vm, err);
+        be_return(vm);
+    }
+    text_console_clear();
+    push_console_status(vm, ESP_OK);
+    be_return(vm);
+}
+
+int native_console_set_font_size(bvm *vm)
+{
+    int size = 0;
+    if (be_top(vm) != 1 || !berry_int_arg(vm, 1, &size) || size < TEXT_CONSOLE_FONT_SIZE_MIN ||
+        size > TEXT_CONSOLE_FONT_SIZE_MAX)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+    push_console_status(vm, text_console_set_font_size(static_cast<uint8_t>(size)));
+    be_return(vm);
+}
+
+int native_console_font_size(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+
+    uint8_t size = 0;
+    const esp_err_t err = text_console_get_font_size(&size);
+    if (err != ESP_OK)
+    {
+        push_console_status(vm, err);
+        be_return(vm);
+    }
+    be_pushint(vm, size);
+    be_return(vm);
+}
+
 bool valid_virtual_path(const char *path)
 {
     if (path == nullptr || path[0] != '/' || std::strlen(path) >= VFS_PATH_MAX)
@@ -400,6 +702,36 @@ void register_console_module(bvm *vm)
     be_pop(vm, 1);
     be_pushntvfunction(vm, native_console_cancel_line);
     be_setmember(vm, -2, "cancel_input");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_read_key);
+    be_setmember(vm, -2, "read_key");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_read_char);
+    be_setmember(vm, -2, "read_char");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_move);
+    be_setmember(vm, -2, "move");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_cursor);
+    be_setmember(vm, -2, "cursor");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_size);
+    be_setmember(vm, -2, "size");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_write);
+    be_setmember(vm, -2, "write");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_write_at);
+    be_setmember(vm, -2, "write_at");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_clear);
+    be_setmember(vm, -2, "clear");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_set_font_size);
+    be_setmember(vm, -2, "set_font_size");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_console_font_size);
+    be_setmember(vm, -2, "font_size");
     be_pop(vm, 1);
     be_setglobal(vm, "console");
     be_pop(vm, 1);
@@ -1009,11 +1341,15 @@ extern "C" bool berry_runtime_handle_key_event(const keyboard_event_t *event)
 }
 
 extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                                         berry_console_cancel_line_fn cancel_line)
+                                                         berry_console_cancel_line_fn cancel_line,
+                                                         berry_console_read_key_fn read_key,
+                                                         berry_console_read_key_fn read_char)
 {
     std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     s_console_read_line = read_line;
     s_console_cancel_line = cancel_line;
+    s_console_read_key = read_key;
+    s_console_read_char = read_char;
 }
 
 std::recursive_mutex &berry_runtime_mutex()

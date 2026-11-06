@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { openConsoleLink, consoleWebSocketUrl, type ConsoleSocket } from "./console-link";
+import { consoleSocketText, consoleWebSocketUrl, openConsoleLink, type ConsoleSocket } from "./console-link";
 
 const authorization = `Basic ${btoa("cos:cos12345")}`;
 
@@ -30,6 +30,13 @@ class FakeSocket implements ConsoleSocket {
 }
 
 describe("console link", () => {
+  it("reads text and binary websocket payloads", async () => {
+    expect(await consoleSocketText("COS/flash> ls\n")).toBe("COS/flash> ls\n");
+    expect(await consoleSocketText(new Blob(["apps\n"]))).toBe("apps\n");
+    expect(await consoleSocketText(new TextEncoder().encode("ok\n").buffer)).toBe("ok\n");
+    expect(await consoleSocketText(1)).toBeNull();
+  });
+
   it("puts the device credentials in the websocket URL", () => {
     expect(consoleWebSocketUrl("http://localhost:5173/console", authorization)).toBe(
       "ws://cos:cos12345@localhost:5173/ws",
@@ -77,6 +84,7 @@ describe("console link", () => {
     socket!.onmessage?.({ data: "I (1) main: ready\n" } as MessageEvent);
     expect(link.send("help")).toBe(true);
     expect(socket!.sent).toEqual(["help"]);
+    await Promise.resolve();
     expect(chunks).toEqual(["I (1) main: ready\n"]);
     expect(phases).toEqual(["connecting", "open"]);
   });

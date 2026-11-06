@@ -25,6 +25,7 @@ describe("storage TypeScript scripts", () => {
       "autoexec",
       "scripts/arg_test",
       "scripts/clear",
+      "scripts/font_size",
       "scripts/hello",
       "scripts/list_files",
       "scripts/ping",

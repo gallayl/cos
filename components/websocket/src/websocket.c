@@ -7,7 +7,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "websocket";
@@ -24,14 +26,41 @@ void websocket_set_text_handler(websocket_text_handler_t handler, void *context)
     s_text_handler_context = context;
 }
 
+static void remove_client(int fd);
+
 static void add_client(int fd)
 {
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    if (s_client_count < WEBSOCKET_MAX_CLIENTS)
+    bool known = false;
+    for (size_t i = 0; i < s_client_count; i++)
+    {
+        if (s_clients[i] == fd)
+        {
+            known = true;
+            break;
+        }
+    }
+    if (!known && s_client_count < WEBSOCKET_MAX_CLIENTS)
     {
         s_clients[s_client_count++] = fd;
     }
     xSemaphoreGive(s_mutex);
+}
+
+typedef struct
+{
+    uint8_t *payload;
+} ws_tx_t;
+
+static void ws_tx_done(esp_err_t err, int sockfd, void *arg)
+{
+    ws_tx_t *tx = (ws_tx_t *)arg;
+    if (err != ESP_OK)
+    {
+        remove_client(sockfd);
+    }
+    free(tx->payload);
+    free(tx);
 }
 
 static void remove_client(int fd)
@@ -65,32 +94,48 @@ size_t websocket_client_count(void)
 esp_err_t websocket_broadcast(const char *msg, size_t len)
 {
     httpd_handle_t server = http_server_get_handle();
-    if (!server || !msg)
+    if (!server || !msg || len == 0)
     {
         return ESP_ERR_INVALID_STATE;
     }
 
-    httpd_ws_frame_t frame = {
-        .type = HTTPD_WS_TYPE_TEXT,
-        .payload = (uint8_t *)msg,
-        .len = len,
-    };
-
+    int fds[WEBSOCKET_MAX_CLIENTS];
+    size_t count = 0;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    for (size_t i = 0; i < s_client_count;)
+    count = s_client_count;
+    for (size_t i = 0; i < count; i++)
     {
-        if (httpd_ws_send_frame_async(server, s_clients[i], &frame) != ESP_OK)
-        {
-            ESP_LOGW(TAG, "Send failed for fd %d, removing", s_clients[i]);
-            s_clients[i] = s_clients[s_client_count - 1];
-            s_client_count--;
-        }
-        else
-        {
-            i++;
-        }
+        fds[i] = s_clients[i];
     }
     xSemaphoreGive(s_mutex);
+
+    /* Queue onto the HTTP server task. send_frame is not safe from the shell task,
+       which is where console output is printed. */
+    for (size_t i = 0; i < count; i++)
+    {
+        uint8_t *payload = malloc(len);
+        ws_tx_t *tx = malloc(sizeof(*tx));
+        if (payload == NULL || tx == NULL)
+        {
+            free(payload);
+            free(tx);
+            return ESP_ERR_NO_MEM;
+        }
+        memcpy(payload, msg, len);
+        tx->payload = payload;
+
+        httpd_ws_frame_t frame = {
+            .type = HTTPD_WS_TYPE_TEXT,
+            .payload = payload,
+            .len = len,
+        };
+        if (httpd_ws_send_data_async(server, fds[i], &frame, ws_tx_done, tx) != ESP_OK)
+        {
+            free(payload);
+            free(tx);
+            remove_client(fds[i]);
+        }
+    }
 
     return ESP_OK;
 }
@@ -149,6 +194,11 @@ static esp_err_t ws_handler(httpd_req_t *req)
         ESP_LOGW(TAG, "Failed to receive frame payload: %s", esp_err_to_name(ret));
         free(buf);
         return ret;
+    }
+
+    if (frame.type == HTTPD_WS_TYPE_TEXT)
+    {
+        add_client(httpd_req_to_sockfd(req));
     }
 
     if (frame.type == HTTPD_WS_TYPE_TEXT && s_text_handler != NULL)

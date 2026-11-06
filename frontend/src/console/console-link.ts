@@ -39,6 +39,20 @@ const idleLink: ConsoleLink = {
   close() {},
 };
 
+/** Text from a websocket message. Binary frames are decoded; anything else is ignored. */
+export async function consoleSocketText(data: unknown): Promise<string | null> {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (data instanceof Blob) {
+    return data.text();
+  }
+  if (data instanceof ArrayBuffer) {
+    return new TextDecoder().decode(data);
+  }
+  return null;
+}
+
 /** Decode the username and password stored in an HTTP Basic header. */
 export function credentialsFromAuthorization(authorization: string): { username: string; password: string } | null {
   if (!authorization.startsWith("Basic ")) {
@@ -136,9 +150,11 @@ export async function openConsoleLink(options: OpenConsoleLinkOptions): Promise<
     notify("open");
   };
   socket.onmessage = (event) => {
-    if (typeof event.data === "string") {
-      options.onChunk(event.data);
-    }
+    void consoleSocketText(event.data).then((text) => {
+      if (text != null && !closed) {
+        options.onChunk(text);
+      }
+    });
   };
   socket.onerror = () => {
     if (!opened) {

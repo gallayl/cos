@@ -76,6 +76,17 @@ extern "C"
     void display_set_text_font(uint8_t font_id);
 
     /**
+     * @brief Set the integer scale of the fixed 6x8 console font.
+     *
+     * Size 1 is 6x8 pixels, size 2 is 12x16, and size 3 is 18x24.
+     * Values outside 1..3 are clamped. The row sprite is rebuilt on the next draw.
+     */
+    void display_set_text_size(uint8_t size);
+
+    /** Pixel width and height of one console cell at the active text scale. */
+    void display_get_text_cell_size(int *width, int *height);
+
+    /**
      * @brief Begin a batched draw transaction (acquire SPI bus).
      *
      * Call before a series of draw operations, paired with display_end_write().

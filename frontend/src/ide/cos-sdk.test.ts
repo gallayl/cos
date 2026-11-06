@@ -90,6 +90,8 @@ describe("COS TypeScript SDK", () => {
           const ping = net.ping("example.com", 1000);
           if (ping.ok) log(ping.address);
           console.read_line("Name: ", (line) => log(line === null ? "cancelled" : line));
+          console.read_key((key) => log(key === null ? "cancelled" : key));
+          console.read_char((character) => log(character === "y" ? "yes" : "no"));
           ui.fill_screen(ui.color565(10, 16, 34));
           if (ui.key_down(ui.KEY_LEFT)) action("clear");
         }
@@ -98,6 +100,27 @@ describe("COS TypeScript SDK", () => {
           log("tap");
         }
       }
+    `);
+    expect(result.sdk).toEqual([]);
+    expect(result.app).toEqual([]);
+  });
+
+  it("accepts a character-grid console application", () => {
+    const result = diagnosticsFor(`
+      const screen = console.size();
+      if (typeof screen !== "string") {
+        console.clear();
+        console.set_font_size(2);
+        console.move(0, 0);
+        console.write("Score", "green");
+        console.write_at(0, 1, "Quit? y/n", "yellow");
+        const cursor = console.cursor();
+        if (typeof cursor !== "string") log(cursor.x + "," + cursor.y);
+        log(console.font_size() === 2 ? "large" : "small");
+      }
+      console.read_key((key) => {
+        if (key === "up" || key === "down") console.write_at(0, 2, key);
+      });
     `);
     expect(result.sdk).toEqual([]);
     expect(result.app).toEqual([]);
