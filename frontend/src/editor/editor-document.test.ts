@@ -6,6 +6,7 @@ import {
   canCreateBerry,
   confirmDiscard,
   createScratchDocument,
+  documentAfterEdit,
   documentFromFile,
   fileEntryLabel,
   formatDiagnostics,
@@ -26,7 +27,9 @@ describe("editor document", () => {
     expect(opened.language).toBe("typescript");
     expect(isDirty(opened)).toBe(false);
 
+    expect(documentAfterEdit(opened, opened.text)).toBeNull();
     const edited = replaceText(opened, "export { changed }\n");
+    expect(documentAfterEdit(opened, edited.text)).toEqual(edited);
     expect(isDirty(edited)).toBe(true);
     expect(locationText(edited.path, true)).toBe("/flash/app.ts · modified");
     expect(isDirty(markSaved(edited))).toBe(false);

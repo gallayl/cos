@@ -35,6 +35,21 @@ export function entryNameError(name: string): string | null {
   return null;
 }
 
+/**
+ * True when the file tree should drop its focused row.
+ * A focused row calls `focus()` on every redraw, which pulls the caret out of the editor.
+ * Monaco's caret target is a plain div, so this follows the element path instead of the tag.
+ */
+export function shouldReleaseTreeFocus(path: readonly { tagName?: string; isContentEditable?: boolean }[]): boolean {
+  const inTree = path.some((entry) => entry.tagName === "COS-FILE-TREE-VIEW");
+  if (!inTree) {
+    return true;
+  }
+  return path.some(
+    (entry) => entry.tagName === "INPUT" || entry.tagName === "TEXTAREA" || entry.isContentEditable === true,
+  );
+}
+
 /** Character range selected when a rename starts. Files keep their extension. */
 export function nameSelection(name: string, isDirectory: boolean): { start: number; end: number } {
   if (isDirectory || name.startsWith(".")) {

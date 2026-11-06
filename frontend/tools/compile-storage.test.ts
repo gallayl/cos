@@ -25,11 +25,17 @@ describe("storage TypeScript scripts", () => {
       "autoexec",
       "scripts/arg_test",
       "scripts/clear",
+      "scripts/fetch_json",
+      "scripts/files",
       "scripts/font_size",
       "scripts/hello",
+      "scripts/host_info",
       "scripts/list_files",
       "scripts/ping",
       "scripts/prompt",
+      "scripts/set_base",
+      "scripts/wget",
+      "scripts/wifi",
     ]);
     for (const script of report.scripts) {
       expect(script.diagnostics, script.name).toEqual([]);

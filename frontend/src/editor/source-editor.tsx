@@ -31,6 +31,14 @@ export const SourceEditor = Shade<SourceEditorProps>({
     },
   },
   render: ({ props, useDisposable }) => {
+    const onChange = useDisposable("on-change", () => ({
+      current: props.onValueChange,
+      [Symbol.dispose]() {},
+    }));
+    onChange.current = props.onValueChange;
+
+    useDisposable("editor-changes", () => watchEditorText((text) => onChange.current(text)));
+
     useDisposable(
       "sync-editor",
       () => {
@@ -45,7 +53,6 @@ export const SourceEditor = Shade<SourceEditorProps>({
     return (
       <MonacoEditor
         value={props.value}
-        onValueChange={props.onValueChange}
         options={{
           language: props.language,
           theme: "vs-dark",
@@ -59,6 +66,38 @@ export const SourceEditor = Shade<SourceEditorProps>({
     );
   },
 });
+
+/** Report every model edit. Monaco's own value callback keeps the first listener and skips same-length changes. */
+function watchEditorText(onText: (text: string) => void): { [Symbol.dispose](): void } {
+  const seen = new Set<monacoEditor.ICodeEditor>();
+  const subscriptions: { dispose(): void }[] = [];
+
+  const attach = (instance: monacoEditor.ICodeEditor) => {
+    if (seen.has(instance)) {
+      return;
+    }
+    seen.add(instance);
+    subscriptions.push(
+      instance.onDidChangeModelContent(() => {
+        onText(instance.getValue());
+      }),
+    );
+  };
+
+  for (const instance of monacoEditor.getEditors()) {
+    attach(instance);
+  }
+  const created = monacoEditor.onDidCreateEditor(attach);
+
+  return {
+    [Symbol.dispose]() {
+      created.dispose();
+      for (const subscription of subscriptions) {
+        subscription.dispose();
+      }
+    },
+  };
+}
 
 function syncMonacoModels(text: string, languageId: string): void {
   const models: SyncableModel[] = monacoEditor.getModels().map((model) => ({

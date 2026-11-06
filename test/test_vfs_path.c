@@ -3,14 +3,14 @@
 #include "filesystem.h"
 #include "mock_filesystem.h"
 
+#include <string.h>
+
 void setUp(void)
 {
     mock_filesystem_reset();
 }
 
-void tearDown(void)
-{
-}
+void tearDown(void) {}
 
 /* --- vfs_resolve_path tests --- */
 
@@ -92,6 +92,61 @@ static void test_exists_sdcard_mounted(void)
     TEST_ASSERT_TRUE(vfs_exists("/sdcard"));
 }
 
+static void test_compose_absolute_normalizes_parents(void)
+{
+    char resolved[VFS_PATH_MAX];
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_compose_script_path(NULL, "/flash/scripts/../note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/flash/note.txt", resolved);
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_compose_script_path(NULL, "/flash/../", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/", resolved);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, vfs_compose_script_path(NULL, "/flash/../..", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, vfs_compose_script_path(NULL, "note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, vfs_compose_script_path(NULL, "../note.txt", resolved, sizeof(resolved)));
+}
+
+static void test_compose_relative_to_script(void)
+{
+    char resolved[VFS_PATH_MAX];
+    TEST_ASSERT_EQUAL(ESP_OK,
+                      vfs_compose_script_path("/flash/scripts/files.be", "./note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/flash/scripts/note.txt", resolved);
+    TEST_ASSERT_EQUAL(ESP_OK,
+                      vfs_compose_script_path("/flash/scripts/files.be", "./../note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/flash/note.txt", resolved);
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_compose_script_path("/flash/scripts/files.be", "./", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/flash/scripts", resolved);
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_compose_script_path("/flash/files.be", "./note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL_STRING("/flash/note.txt", resolved);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG,
+                      vfs_compose_script_path("/flash/files.be", "./../../note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, vfs_compose_script_path(NULL, "./note.txt", resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE,
+                      vfs_compose_script_path("shell", "./note.txt", resolved, sizeof(resolved)));
+}
+
+static void test_compose_rejects_paths_that_do_not_fit(void)
+{
+    char resolved[VFS_PATH_MAX];
+    char input[VFS_PATH_MAX + 8];
+    memset(input, 'a', sizeof(input) - 1);
+    input[0] = '/';
+    input[sizeof(input) - 1] = '\0';
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, vfs_compose_script_path(NULL, input, resolved, sizeof(resolved)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, vfs_compose_script_path(NULL, NULL, resolved, sizeof(resolved)));
+}
+
+static void test_virtual_path_mounts(void)
+{
+    TEST_ASSERT_TRUE(vfs_is_virtual_path("/"));
+    TEST_ASSERT_TRUE(vfs_is_virtual_path("/flash"));
+    TEST_ASSERT_TRUE(vfs_is_virtual_path("/flash/scripts/note.txt"));
+    TEST_ASSERT_TRUE(vfs_is_virtual_path("/sdcard"));
+    TEST_ASSERT_TRUE(vfs_is_virtual_path("/sdcard/note.txt"));
+    TEST_ASSERT_FALSE(vfs_is_virtual_path("/flashing"));
+    TEST_ASSERT_FALSE(vfs_is_virtual_path("/nope"));
+    TEST_ASSERT_FALSE(vfs_is_virtual_path(NULL));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -108,6 +163,10 @@ int main(void)
     RUN_TEST(test_exists_flash);
     RUN_TEST(test_exists_sdcard_not_mounted);
     RUN_TEST(test_exists_sdcard_mounted);
+    RUN_TEST(test_compose_absolute_normalizes_parents);
+    RUN_TEST(test_compose_relative_to_script);
+    RUN_TEST(test_compose_rejects_paths_that_do_not_fit);
+    RUN_TEST(test_virtual_path_mounts);
 
     return UNITY_END();
 }

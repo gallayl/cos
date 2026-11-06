@@ -33,6 +33,7 @@ import {
   directoriesToCreate,
   menuActions,
   nameSelection,
+  shouldReleaseTreeFocus,
   type FileMenuAction,
   type FileNode,
 } from "./file-tree";
@@ -123,15 +124,32 @@ export const FileTreeView = Shade<FileTreeViewProps>({
       props.onActivity(describeCosError(error));
     };
 
-    useDisposable("editing-keys", () => {
-      const listener = (event: KeyboardEvent) => {
-        const target = event.target;
-        if (target instanceof HTMLInputElement && target.closest("cos-file-name-field")) {
+    useDisposable("release-tree-focus", () => {
+      const listener = (event: Event) => {
+        const path = event.composedPath().flatMap((entry) => {
+          if (!(entry instanceof HTMLElement)) {
+            return [];
+          }
+          return [{ tagName: entry.tagName, isContentEditable: entry.isContentEditable }];
+        });
+        if (!shouldReleaseTreeFocus(path)) {
+          return;
+        }
+        if (treeService.focusedItem.getValue() !== undefined) {
+          treeService.focusedItem.setValue(undefined);
+        }
+        if (treeService.hasFocus.getValue()) {
           treeService.hasFocus.setValue(false);
         }
       };
-      window.addEventListener("keydown", listener, true);
-      return { [Symbol.dispose]: () => window.removeEventListener("keydown", listener, true) };
+      window.addEventListener("pointerdown", listener, true);
+      window.addEventListener("focusin", listener, true);
+      return {
+        [Symbol.dispose]() {
+          window.removeEventListener("pointerdown", listener, true);
+          window.removeEventListener("focusin", listener, true);
+        },
+      };
     });
 
     useDisposable("listings", () => {

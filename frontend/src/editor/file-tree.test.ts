@@ -9,6 +9,7 @@ import {
   menuActions,
   movedPath,
   nameSelection,
+  shouldReleaseTreeFocus,
   type FileNode,
 } from "./file-tree";
 
@@ -21,6 +22,12 @@ describe("file tree paths", () => {
     expect(nameSelection("app.ts", false)).toEqual({ start: 0, end: 3 });
     expect(nameSelection(".gitignore", false)).toEqual({ start: 0, end: 10 });
     expect(nameSelection("apps", true)).toEqual({ start: 0, end: 4 });
+    expect(shouldReleaseTreeFocus([{ tagName: "DIV" }, { tagName: "MONACO-EDITOR" }])).toBe(true);
+    expect(shouldReleaseTreeFocus([{ tagName: "INPUT" }, { tagName: "COS-FILE-TREE-VIEW" }])).toBe(true);
+    expect(shouldReleaseTreeFocus([{ tagName: "DIV", isContentEditable: true }, { tagName: "COS-FILE-TREE-VIEW" }])).toBe(
+      true,
+    );
+    expect(shouldReleaseTreeFocus([{ tagName: "SHADE-TREE-ITEM" }, { tagName: "COS-FILE-TREE-VIEW" }])).toBe(false);
   });
 
   it("remaps renamed paths and joins dropped relative paths", () => {

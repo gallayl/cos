@@ -158,6 +158,33 @@ describe("COS TypeScript SDK", () => {
     expect(result.app).toEqual([]);
   });
 
+  it("accepts filesystem reads, writes, and relative paths", () => {
+    const result = diagnosticsFor(`
+      function main(args: string[]): number {
+        const written = fs.write_text("./note.txt", "hello");
+        if (written !== true) return 1;
+        const text = fs.read_text("./note.txt");
+        if (!text.ok) return 1;
+        const saved = fs.write_json("./note.json", {
+          label: "cos",
+          flags: [true, false],
+          child: { ok: true },
+        });
+        if (saved !== true) return 1;
+        const loaded = fs.read_json("/flash/note.json");
+        if (!loaded.ok) return 1;
+        const record = loaded.value as { label: string };
+        if (!fs.exists("./note.txt") || !fs.is_file("./note.txt") || fs.is_dir("./../")) return 1;
+        const bytes = fs.size("./note.txt");
+        if (!bytes.ok) return 1;
+        log(text.text + record.label + bytes.size + args.length);
+        return 0;
+      }
+    `);
+    expect(result.sdk).toEqual([]);
+    expect(result.app).toEqual([]);
+  });
+
   it("type-checks for-of over arrays without a DOM library", () => {
     const result = diagnosticsFor(`
       const values = [1, 2, 3];

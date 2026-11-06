@@ -28,6 +28,7 @@ extern "C"
 #include <utility>
 
 void berry_ui_register(bvm *vm);
+void berry_network_register(bvm *vm);
 void berry_ui_begin_app(bvm *vm);
 void berry_ui_end_app(void);
 void berry_ui_set_key_state(uint8_t keycode, bool pressed);
@@ -47,6 +48,45 @@ berry_console_read_key_fn s_console_read_char = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
 const char *s_app_class_global_name = nullptr;
+constexpr int kScriptPathStack = 4;
+constexpr size_t kScriptTextMax = 4096;
+char s_script_paths[kScriptPathStack][VFS_PATH_MAX];
+int s_script_depth = 0;
+char s_app_script[VFS_PATH_MAX];
+bool s_app_script_set = false;
+
+const char *current_script_path()
+{
+    if (s_script_depth > 0)
+    {
+        return s_script_paths[s_script_depth - 1];
+    }
+    if (s_app_script_set)
+    {
+        return s_app_script;
+    }
+    return nullptr;
+}
+
+void retain_app_script_path()
+{
+    const char *path = current_script_path();
+    if (path == nullptr)
+    {
+        s_app_script_set = false;
+        return;
+    }
+
+    const size_t length = std::strlen(path);
+    if (length >= VFS_PATH_MAX)
+    {
+        s_app_script_set = false;
+        return;
+    }
+    std::memcpy(s_app_script, path, length + 1);
+    s_app_script_set = true;
+}
+
 void log_heap_snapshot(const char *phase)
 {
     ESP_LOGI(TAG, "%s: free=%u bytes, minimum=%u bytes, largest block=%u bytes", phase,
@@ -252,6 +292,131 @@ void map_set_number(bvm *vm, const char *key, double value)
     be_pushreal(vm, static_cast<breal>(value));
     be_data_insert(vm, -3);
     be_pop(vm, 2);
+}
+
+void map_set_int(bvm *vm, const char *key, bint value)
+{
+    be_pushstring(vm, key);
+    be_pushint(vm, value);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+}
+
+int push_fs_error(bvm *vm, esp_err_t err)
+{
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", false);
+    map_set_string(vm, "error", esp_err_to_name(err));
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
+bool path_has_prefix(const char *path)
+{
+    if (path == nullptr || path[0] == '\0')
+    {
+        return false;
+    }
+    if (path[0] == '/')
+    {
+        return true;
+    }
+    return path[0] == '.' && path[1] == '/';
+}
+
+bool read_script_path(bvm *vm, char *resolved, esp_err_t *error)
+{
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        *error = ESP_ERR_INVALID_ARG;
+        return false;
+    }
+
+    const char *path = be_tostring(vm, 1);
+    if (!path_has_prefix(path))
+    {
+        be_raise(vm, "value_error", "path must start with '/' or './'");
+    }
+
+    const esp_err_t composed = vfs_compose_script_path(current_script_path(), path, resolved, VFS_PATH_MAX);
+    if (composed == ESP_ERR_INVALID_STATE)
+    {
+        be_raise(vm, "value_error", "relative paths need a script file");
+    }
+    if (composed == ESP_ERR_INVALID_ARG)
+    {
+        be_raise(vm, "value_error", "path escapes the filesystem root");
+    }
+    if (composed == ESP_ERR_INVALID_SIZE)
+    {
+        be_raise(vm, "value_error", "path is too long");
+    }
+    if (composed != ESP_OK)
+    {
+        be_raise(vm, "value_error", "path must start with '/' or './'");
+    }
+    if (!vfs_is_virtual_path(resolved))
+    {
+        *error = ESP_ERR_INVALID_ARG;
+        return false;
+    }
+
+    *error = ESP_OK;
+    return true;
+}
+
+bool berry_json_value(bvm *vm, int index)
+{
+    return be_isnil(vm, index) || be_isbool(vm, index) || be_isnumber(vm, index) || be_isstring(vm, index) ||
+           be_islist(vm, index) || be_islistinstance(vm, index) || be_ismap(vm, index) || be_ismapinstance(vm, index);
+}
+
+bool call_json_method(bvm *vm, const char *method, int value_index)
+{
+    value_index = be_absindex(vm, value_index);
+    const int base = be_top(vm);
+    if (!be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
+    {
+        be_pop(vm, be_top(vm) - base);
+        return false;
+    }
+
+    be_remove(vm, -2);
+    be_pushvalue(vm, value_index);
+    const int status = be_pcall(vm, 1);
+    if (status != 0)
+    {
+        be_pop(vm, be_top(vm) - base);
+        return false;
+    }
+    if (be_top(vm) == base + 2)
+    {
+        be_remove(vm, base + 2);
+    }
+    if (be_top(vm) != base + 1)
+    {
+        be_pop(vm, be_top(vm) - base);
+        return false;
+    }
+    return true;
+}
+
+bool json_whitespace(char character)
+{
+    return character == ' ' || character == '\t' || character == '\r' || character == '\n';
+}
+
+int push_write_status(bvm *vm, esp_err_t err)
+{
+    if (err == ESP_OK)
+    {
+        be_pushbool(vm, true);
+    }
+    else
+    {
+        be_pushstring(vm, esp_err_to_name(err));
+    }
+    be_return(vm);
 }
 
 esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn start)
@@ -554,63 +719,18 @@ int native_console_font_size(bvm *vm)
     be_return(vm);
 }
 
-bool valid_virtual_path(const char *path)
-{
-    if (path == nullptr || path[0] != '/' || std::strlen(path) >= VFS_PATH_MAX)
-    {
-        return false;
-    }
-
-    const bool mounted_path = std::strcmp(path, "/") == 0 || std::strcmp(path, "/flash") == 0 ||
-                              std::strncmp(path, "/flash/", 7) == 0 || std::strcmp(path, "/sdcard") == 0 ||
-                              std::strncmp(path, "/sdcard/", 8) == 0;
-    if (!mounted_path)
-    {
-        return false;
-    }
-
-    const char *segment = path;
-    while (*segment != '\0')
-    {
-        while (*segment == '/')
-        {
-            ++segment;
-        }
-        const char *end = std::strchr(segment, '/');
-        const size_t length = end != nullptr ? static_cast<size_t>(end - segment) : std::strlen(segment);
-        if (length == 2 && segment[0] == '.' && segment[1] == '.')
-        {
-            return false;
-        }
-        segment += length;
-    }
-    return true;
-}
-
 int native_fs_list(bvm *vm)
 {
-    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
     {
-        be_newobject(vm, "map");
-        map_set_bool(vm, "ok", false);
-        map_set_string(vm, "error", esp_err_to_name(ESP_ERR_INVALID_ARG));
-        be_pop(vm, 1);
-        be_return(vm);
-    }
-
-    const char *path = be_tostring(vm, 1);
-    if (!valid_virtual_path(path))
-    {
-        be_newobject(vm, "map");
-        map_set_bool(vm, "ok", false);
-        map_set_string(vm, "error", esp_err_to_name(ESP_ERR_INVALID_ARG));
-        be_pop(vm, 1);
-        be_return(vm);
+        return push_fs_error(vm, path_error);
     }
 
     static vfs_dir_entry_t entries[VFS_ENTRIES_MAX];
     size_t count = 0;
-    const esp_err_t err = vfs_list_dir(path, entries, VFS_ENTRIES_MAX, &count);
+    const esp_err_t err = vfs_list_dir(resolved, entries, VFS_ENTRIES_MAX, &count);
     be_newobject(vm, "map");
     if (err != ESP_OK)
     {
@@ -640,6 +760,288 @@ int native_fs_list(bvm *vm)
     be_pop(vm, 2);
     be_pop(vm, 1);
     map_set_number(vm, "count", static_cast<double>(count));
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
+int native_fs_read_text(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        return push_fs_error(vm, path_error);
+    }
+
+    bool is_dir = false;
+    size_t file_size = 0;
+    esp_err_t err = vfs_stat(resolved, &is_dir, &file_size);
+    if (err != ESP_OK)
+    {
+        return push_fs_error(vm, err);
+    }
+    if (is_dir)
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_ARG);
+    }
+    if (file_size > kScriptTextMax)
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_SIZE);
+    }
+
+    char *buffer = static_cast<char *>(std::malloc(file_size + 1));
+    if (buffer == nullptr)
+    {
+        return push_fs_error(vm, ESP_ERR_NO_MEM);
+    }
+
+    size_t bytes_read = 0;
+    err = file_size == 0 ? ESP_OK : vfs_read_file(resolved, buffer, file_size, &bytes_read);
+    if (err != ESP_OK || bytes_read != file_size || std::memchr(buffer, '\0', bytes_read) != nullptr)
+    {
+        std::free(buffer);
+        return push_fs_error(vm, err != ESP_OK ? err : ESP_ERR_INVALID_ARG);
+    }
+
+    buffer[bytes_read] = '\0';
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", true);
+    map_set_string(vm, "text", buffer);
+    std::free(buffer);
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
+int native_fs_write_text(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        return push_write_status(vm, path_error);
+    }
+    if (be_top(vm) < 2 || !be_isstring(vm, 2))
+    {
+        return push_write_status(vm, ESP_ERR_INVALID_ARG);
+    }
+
+    const int length = be_strlen(vm, 2);
+    if (length < 0 || static_cast<size_t>(length) > kScriptTextMax)
+    {
+        return push_write_status(vm, ESP_ERR_INVALID_SIZE);
+    }
+    const char *text = be_tostring(vm, 2);
+    if (text == nullptr)
+    {
+        return push_write_status(vm, ESP_ERR_INVALID_ARG);
+    }
+    return push_write_status(vm, vfs_write_file(resolved, text, static_cast<size_t>(length)));
+}
+
+int native_fs_read_json(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        return push_fs_error(vm, path_error);
+    }
+
+    bool is_dir = false;
+    size_t file_size = 0;
+    esp_err_t err = vfs_stat(resolved, &is_dir, &file_size);
+    if (err != ESP_OK)
+    {
+        return push_fs_error(vm, err);
+    }
+    if (is_dir || file_size == 0)
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_ARG);
+    }
+    if (file_size > kScriptTextMax)
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_SIZE);
+    }
+
+    char *buffer = static_cast<char *>(std::malloc(file_size + 1));
+    if (buffer == nullptr)
+    {
+        return push_fs_error(vm, ESP_ERR_NO_MEM);
+    }
+
+    size_t bytes_read = 0;
+    err = vfs_read_file(resolved, buffer, file_size, &bytes_read);
+    if (err != ESP_OK || bytes_read != file_size || std::memchr(buffer, '\0', bytes_read) != nullptr)
+    {
+        std::free(buffer);
+        return push_fs_error(vm, err != ESP_OK ? err : ESP_ERR_INVALID_ARG);
+    }
+
+    const char *begin = buffer;
+    const char *end = buffer + bytes_read;
+    while (begin < end && json_whitespace(*begin))
+    {
+        ++begin;
+    }
+    while (end > begin && json_whitespace(end[-1]))
+    {
+        --end;
+    }
+    const size_t trimmed_len = static_cast<size_t>(end - begin);
+    const bool json_null = trimmed_len == 4 && std::memcmp(begin, "null", 4) == 0;
+    if (trimmed_len == 0)
+    {
+        std::free(buffer);
+        return push_fs_error(vm, ESP_ERR_INVALID_ARG);
+    }
+
+    be_pushnstring(vm, begin, trimmed_len);
+    std::free(buffer);
+    const int source_index = be_absindex(vm, -1);
+    if (!call_json_method(vm, "load", source_index))
+    {
+        be_remove(vm, source_index);
+        return push_fs_error(vm, ESP_FAIL);
+    }
+    if (be_isnil(vm, -1) && !json_null)
+    {
+        be_pop(vm, 2);
+        return push_fs_error(vm, ESP_ERR_INVALID_ARG);
+    }
+
+    const int value_index = be_absindex(vm, -1);
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", true);
+    be_pushstring(vm, "value");
+    be_pushvalue(vm, value_index);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+    be_pop(vm, 1);
+    be_remove(vm, value_index);
+    be_remove(vm, source_index);
+    be_return(vm);
+}
+
+int native_fs_write_json(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        return push_write_status(vm, path_error);
+    }
+    if (be_top(vm) < 2 || !berry_json_value(vm, 2))
+    {
+        return push_write_status(vm, ESP_ERR_INVALID_ARG);
+    }
+    if (!call_json_method(vm, "dump", 2) || !be_isstring(vm, -1))
+    {
+        if (be_top(vm) > 2)
+        {
+            be_pop(vm, be_top(vm) - 2);
+        }
+        return push_write_status(vm, ESP_FAIL);
+    }
+
+    const int length = be_strlen(vm, -1);
+    const char *encoded = be_tostring(vm, -1);
+    if (length < 0 || encoded == nullptr || static_cast<size_t>(length) > kScriptTextMax)
+    {
+        be_pop(vm, 1);
+        return push_write_status(vm, ESP_ERR_INVALID_SIZE);
+    }
+
+    const esp_err_t err = vfs_write_file(resolved, encoded, static_cast<size_t>(length));
+    be_pop(vm, 1);
+    return push_write_status(vm, err);
+}
+
+int native_fs_exists(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        be_raise(vm, "value_error", "path must be a string");
+    }
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        (void)path_error;
+        be_pushbool(vm, false);
+        be_return(vm);
+    }
+    be_pushbool(vm, vfs_exists(resolved));
+    be_return(vm);
+}
+
+int native_fs_is_dir(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        be_raise(vm, "value_error", "path must be a string");
+    }
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        (void)path_error;
+        be_pushbool(vm, false);
+        be_return(vm);
+    }
+    be_pushbool(vm, vfs_is_directory(resolved));
+    be_return(vm);
+}
+
+int native_fs_is_file(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        be_raise(vm, "value_error", "path must be a string");
+    }
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        (void)path_error;
+        be_pushbool(vm, false);
+        be_return(vm);
+    }
+
+    bool is_dir = false;
+    size_t file_size = 0;
+    const bool file = vfs_stat(resolved, &is_dir, &file_size) == ESP_OK && !is_dir;
+    be_pushbool(vm, file);
+    be_return(vm);
+}
+
+int native_fs_size(bvm *vm)
+{
+    char resolved[VFS_PATH_MAX];
+    esp_err_t path_error = ESP_OK;
+    if (!read_script_path(vm, resolved, &path_error))
+    {
+        return push_fs_error(vm, path_error);
+    }
+
+    bool is_dir = false;
+    size_t file_size = 0;
+    const esp_err_t err = vfs_stat(resolved, &is_dir, &file_size);
+    if (err != ESP_OK)
+    {
+        return push_fs_error(vm, err);
+    }
+    if (is_dir)
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_ARG);
+    }
+    if (file_size > static_cast<size_t>(std::numeric_limits<bint>::max()))
+    {
+        return push_fs_error(vm, ESP_ERR_INVALID_SIZE);
+    }
+
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", true);
+    map_set_int(vm, "size", static_cast<bint>(file_size));
     be_pop(vm, 1);
     be_return(vm);
 }
@@ -744,6 +1146,30 @@ void register_filesystem_module(bvm *vm)
     be_pushntvfunction(vm, native_fs_list);
     be_setmember(vm, -2, "list");
     be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_read_text);
+    be_setmember(vm, -2, "read_text");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_write_text);
+    be_setmember(vm, -2, "write_text");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_read_json);
+    be_setmember(vm, -2, "read_json");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_write_json);
+    be_setmember(vm, -2, "write_json");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_exists);
+    be_setmember(vm, -2, "exists");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_is_dir);
+    be_setmember(vm, -2, "is_dir");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_is_file);
+    be_setmember(vm, -2, "is_file");
+    be_pop(vm, 1);
+    be_pushntvfunction(vm, native_fs_size);
+    be_setmember(vm, -2, "size");
+    be_pop(vm, 1);
     be_setglobal(vm, "fs");
     be_pop(vm, 1);
 }
@@ -755,6 +1181,7 @@ void register_network_module(bvm *vm)
     be_pushntvfunction(vm, native_net_ping);
     be_setmember(vm, -2, "ping");
     be_pop(vm, 1);
+    berry_network_register(vm);
     be_setglobal(vm, "net");
     be_pop(vm, 1);
 }
@@ -819,6 +1246,42 @@ esp_err_t execute_owned_source(BerrySourceBuffer source, size_t length, const ch
     return ESP_OK;
 }
 
+class ScriptPathScope
+{
+  public:
+    explicit ScriptPathScope(const char *virtual_path)
+        : pushed_(false)
+    {
+        if (s_script_depth >= kScriptPathStack || virtual_path == nullptr || virtual_path[0] != '/')
+        {
+            return;
+        }
+
+        const size_t length = std::strlen(virtual_path);
+        if (length == 0 || length >= VFS_PATH_MAX)
+        {
+            return;
+        }
+        std::memcpy(s_script_paths[s_script_depth], virtual_path, length + 1);
+        ++s_script_depth;
+        pushed_ = true;
+    }
+
+    ~ScriptPathScope()
+    {
+        if (pushed_)
+        {
+            --s_script_depth;
+        }
+    }
+
+    ScriptPathScope(const ScriptPathScope &) = delete;
+    ScriptPathScope &operator=(const ScriptPathScope &) = delete;
+
+  private:
+    bool pushed_;
+};
+
 void restore_command_main(int saved_main_index)
 {
     be_pushvalue(s_vm, saved_main_index);
@@ -830,6 +1293,8 @@ void restore_command_main(int saved_main_index)
 esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const char *source_name, int argc,
                                  char *const argv[], int *exit_status)
 {
+    const ScriptPathScope script_path(source_name);
+    (void)script_path;
     const int saved_main_index = be_top(s_vm) + 1;
     be_getglobal(s_vm, "main");
     be_pushnil(s_vm);
@@ -964,6 +1429,7 @@ esp_err_t close_active_app()
         }
     }
     log_heap_snapshot("After app teardown and GC");
+    s_app_script_set = false;
     return err;
 }
 
@@ -990,6 +1456,8 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
     {
         return history_err;
     }
+    const ScriptPathScope script_path(source_name);
+    (void)script_path;
     log_heap_snapshot("Before Berry source execution");
     berry_ui_begin_app(s_vm);
 
@@ -1089,6 +1557,10 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
             }
         }
     }
+    if (err == ESP_OK && has_active_app())
+    {
+        retain_app_script_path();
+    }
     return err;
 }
 
@@ -1165,6 +1637,23 @@ extern "C" esp_err_t berry_runtime_init(void)
     register_filesystem_module(s_vm);
     register_network_module(s_vm);
     berry_ui_register(s_vm);
+    const char json_import[] = "import json";
+    int json_result = be_loadbuffer(s_vm, "json", json_import, sizeof(json_import) - 1);
+    if (json_result == 0)
+    {
+        json_result = be_pcall(s_vm, 0);
+    }
+    if (json_result != 0)
+    {
+        const char *error = be_tostring(s_vm, -1);
+        ESP_LOGE(TAG, "Could not import json: %s", error != nullptr ? error : "unknown Berry error");
+        be_pop(s_vm, 1);
+        be_vm_delete(s_vm);
+        s_vm = nullptr;
+        return ESP_FAIL;
+    }
+    be_pop(s_vm, 1);
+
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
     ui::set_exit_callback(close_app_from_ui);

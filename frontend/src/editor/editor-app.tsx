@@ -21,12 +21,12 @@ import {
   canCreateBerry,
   confirmDiscard,
   createScratchDocument,
+  documentAfterEdit,
   documentFromFile,
   formatDiagnostics,
   isDirty,
   lineCountLabel,
   locationText,
-  replaceText,
   savePlan,
   type EditorDocument,
 } from "./editor-document";
@@ -153,8 +153,10 @@ export const EditorApp = Shade({
     };
 
     const save = async () => {
-      const plan = savePlan(document, localHandle !== null);
-      const written = document.text;
+      const current = live.document;
+      const handle = live.localHandle;
+      const plan = savePlan(current, handle !== null);
+      const written = current.text;
       const authorization = access.authorization.getValue();
       const keepSaved = (patch: Partial<EditorDocument> = {}) => {
         setDocument({ ...live.document, ...patch, savedText: written });
@@ -177,12 +179,12 @@ export const EditorApp = Shade({
         return;
       }
 
-      if (plan.kind === "handle" && localHandle) {
-        setStatus(`Saving ${document.path}`);
+      if (plan.kind === "handle" && handle) {
+        setStatus(`Saving ${current.path}`);
         try {
-          await writeTextToHandle(localHandle, written);
+          await writeTextToHandle(handle, written);
           keepSaved();
-          setStatus(`Saved ${document.path}`);
+          setStatus(`Saved ${current.path}`);
         } catch (error) {
           if (!isAbortError(error)) {
             setStatus(describeCosError(error));
@@ -191,7 +193,7 @@ export const EditorApp = Shade({
         return;
       }
 
-      const suggested = plan.kind === "save-as" ? plan.suggestedName : document.path || "script.ts";
+      const suggested = plan.kind === "save-as" ? plan.suggestedName : current.path || "script.ts";
       try {
         const handle = await saveTextFile(suggested, written);
         if (handle) {
@@ -301,7 +303,12 @@ export const EditorApp = Shade({
               value={document.text}
               language={document.language}
               revision={revision}
-              onValueChange={(text) => setDocument(replaceText(document, text))}
+              onValueChange={(text) => {
+                const next = documentAfterEdit(live.document, text);
+                if (next) {
+                  setDocument(next);
+                }
+              }}
             />
             {output ? <CompileOutput text={output} /> : null}
           </div>

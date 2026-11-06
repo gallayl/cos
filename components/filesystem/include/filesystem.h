@@ -49,6 +49,34 @@ extern "C"
     /* --- VFS path resolution --- */
     esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len);
 
+    /**
+     * @brief Join a script-relative or absolute path and normalize `.` and `..`.
+     *
+     * Absolute paths start with `/`. Relative paths start with `./` and are
+     * resolved from the directory that contains `script_file`. Any other form
+     * is rejected. `script_file` may be NULL when `input` is absolute.
+     *
+     * @param script_file Virtual path of the running script, or NULL.
+     * @param input Path supplied by the caller.
+     * @param resolved Output buffer for the normalized absolute virtual path.
+     * @param len Size of `resolved`, including the terminator.
+     * @return ESP_OK on success.
+     * @return ESP_ERR_INVALID_ARG when the form is rejected or `..` climbs above `/`.
+     * @return ESP_ERR_INVALID_STATE when a relative path has no script file.
+     * @return ESP_ERR_INVALID_SIZE when the path does not fit.
+     */
+    esp_err_t vfs_compose_script_path(const char *script_file, const char *input, char *resolved, size_t len);
+
+    /**
+     * @brief Report whether a normalized path is on the virtual filesystem.
+     *
+     * Accepts `/`, `/flash`, `/sdcard`, and their descendants.
+     *
+     * @param path Normalized absolute virtual path.
+     * @return True when `path` is one of those locations.
+     */
+    bool vfs_is_virtual_path(const char *path);
+
     /* --- VFS file operations (accept virtual paths) --- */
     esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_entries, size_t *count);
     esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *bytes_read);
@@ -83,6 +111,21 @@ extern "C"
     esp_err_t vfs_remove(const char *path);
     bool vfs_exists(const char *path);
     bool vfs_is_directory(const char *path);
+
+    /**
+     * @brief Read the kind and size of a virtual path.
+     *
+     * Directories report a size of 0. `/` and `/flash` are directories.
+     * `/sdcard` is a directory only while the card is mounted.
+     *
+     * @param path Virtual path.
+     * @param is_dir Set when the path is a directory.
+     * @param size File size in bytes. Directories report 0.
+     * @return ESP_OK on success.
+     * @return ESP_ERR_NOT_FOUND when the path is missing.
+     * @return ESP_ERR_INVALID_ARG when an argument is NULL.
+     */
+    esp_err_t vfs_stat(const char *path, bool *is_dir, size_t *size);
 
 #ifdef __cplusplus
 }

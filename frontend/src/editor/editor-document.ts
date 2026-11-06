@@ -55,6 +55,17 @@ export function replaceText(document: EditorDocument, text: string): EditorDocum
   return { ...document, text };
 }
 
+/**
+ * Apply text reported by the editor.
+ * Returns null when the buffer already has that text, so a model refresh does not mark it modified.
+ */
+export function documentAfterEdit(document: EditorDocument, text: string): EditorDocument | null {
+  if (text === document.text) {
+    return null;
+  }
+  return replaceText(document, text);
+}
+
 /** Treat the current text as saved. */
 export function markSaved(document: EditorDocument): EditorDocument {
   return { ...document, savedText: document.text };
