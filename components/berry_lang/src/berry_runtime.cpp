@@ -40,6 +40,7 @@ constexpr char TAG[] = "berry";
 bvm *s_vm = nullptr;
 constexpr char APP_GLOBAL[] = "_cos_berry_app";
 constexpr char CONSOLE_INPUT_CALLBACK_GLOBAL[] = "_cos_console_input_callback";
+constexpr char MODULE_CACHE_GLOBAL[] = "_cos_modules";
 std::recursive_mutex s_vm_mutex;
 berry_console_read_line_fn s_console_read_line = nullptr;
 berry_console_cancel_line_fn s_console_cancel_line = nullptr;
@@ -1415,6 +1416,9 @@ esp_err_t close_active_app()
     be_pushnil(s_vm);
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
+    be_pushnil(s_vm);
+    be_setglobal(s_vm, MODULE_CACHE_GLOBAL);
+    be_pop(s_vm, 1);
     collect_berry_garbage();
     if (had_active_app)
     {
@@ -1614,6 +1618,172 @@ esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source,
     }
     return ESP_OK;
 }
+
+bool resolve_module_path(const char *specifier, char *resolved, size_t resolved_size)
+{
+    char composed[VFS_PATH_MAX];
+    const esp_err_t composed_err =
+        vfs_compose_script_path(current_script_path(), specifier, composed, sizeof(composed));
+    if (composed_err != ESP_OK)
+    {
+        return false;
+    }
+
+    auto try_path = [resolved, resolved_size](const char *candidate) -> bool
+    {
+        char real_path[VFS_PATH_MAX];
+        if (vfs_resolve_path(candidate, real_path, sizeof(real_path)) != ESP_OK)
+        {
+            return false;
+        }
+        const size_t len = std::strlen(candidate);
+        if (len + 1 > resolved_size)
+        {
+            return false;
+        }
+        std::memcpy(resolved, candidate, len + 1);
+        return true;
+    };
+
+    const size_t len = std::strlen(composed);
+    if (len >= 3 && std::strcmp(composed + len - 3, ".ts") == 0)
+    {
+        char candidate[VFS_PATH_MAX];
+        if (len + 1 < sizeof(candidate))
+        {
+            std::memcpy(candidate, composed, len - 3);
+            std::memcpy(candidate + len - 3, ".be", 4);
+            if (try_path(candidate))
+            {
+                return true;
+            }
+        }
+    }
+    else if (len >= 4 && std::strcmp(composed + len - 4, ".tsx") == 0)
+    {
+        char candidate[VFS_PATH_MAX];
+        if (len + 1 < sizeof(candidate))
+        {
+            std::memcpy(candidate, composed, len - 4);
+            std::memcpy(candidate + len - 4, ".be", 4);
+            if (try_path(candidate))
+            {
+                return true;
+            }
+        }
+    }
+    else if (len >= 3 && std::strcmp(composed + len - 3, ".be") == 0)
+    {
+        if (try_path(composed))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        char candidate[VFS_PATH_MAX];
+        if (len + 3 < sizeof(candidate))
+        {
+            std::memcpy(candidate, composed, len);
+            std::memcpy(candidate + len, ".be", 4);
+            if (try_path(candidate))
+            {
+                return true;
+            }
+        }
+    }
+
+    return try_path(composed);
+}
+
+void ensure_module_cache(bvm *vm)
+{
+    if (be_getglobal(vm, MODULE_CACHE_GLOBAL))
+    {
+        be_pop(vm, 1);
+        return;
+    }
+    be_pop(vm, 1);
+    be_newobject(vm, "map");
+    be_setglobal(vm, MODULE_CACHE_GLOBAL);
+    be_pop(vm, 1);
+}
+
+int native_cos_import(bvm *vm)
+{
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        be_raise(vm, "value_error", "module specifier must be a string");
+    }
+    if (current_script_path() == nullptr)
+    {
+        be_raise(vm, "import_error", "relative imports need a script file");
+    }
+
+    const char *specifier = be_tostring(vm, 1);
+    const bool relative = specifier != nullptr && specifier[0] == '.' &&
+                          (specifier[1] == '/' || (specifier[1] == '.' && specifier[2] == '/'));
+    if (!relative)
+    {
+        be_raise(vm, "import_error", "only relative module specifiers are supported");
+    }
+
+    char resolved[VFS_PATH_MAX];
+    if (!resolve_module_path(specifier, resolved, sizeof(resolved)))
+    {
+        char message[VFS_PATH_MAX + 32];
+        std::snprintf(message, sizeof(message), "module not found: %s", specifier);
+        be_raise(vm, "import_error", message);
+    }
+
+    ensure_module_cache(vm);
+    be_getglobal(vm, MODULE_CACHE_GLOBAL);
+    const int cache_index = be_absindex(vm, -1);
+    be_pushstring(vm, resolved);
+    if (be_getindex(vm, cache_index) && !be_isnil(vm, -1))
+    {
+        const int value_index = be_absindex(vm, -1);
+        be_remove(vm, cache_index);
+        be_pop(vm, be_top(vm) - value_index);
+        be_return(vm);
+    }
+    be_pop(vm, 1);
+
+    BerrySourceBuffer source(nullptr, &std::free);
+    size_t length = 0;
+    const esp_err_t read_err = read_virtual_file(resolved, &source, &length);
+    if (read_err != ESP_OK)
+    {
+        be_pop(vm, 1);
+        char message[VFS_PATH_MAX + 32];
+        std::snprintf(message, sizeof(message), "could not read module: %s", resolved);
+        be_raise(vm, "import_error", message);
+    }
+
+    const ScriptPathScope script_path(resolved);
+    (void)script_path;
+    int result = load_owned_source(source, length, resolved);
+    if (result == 0)
+    {
+        result = be_pcall(vm, 0);
+    }
+    if (result != 0)
+    {
+        const char *error = be_tostring(vm, -1);
+        ESP_LOGE(TAG, "Module import failed (%s): %s", resolved, error != nullptr ? error : "unknown Berry error");
+        be_pop(vm, 2);
+        char message[VFS_PATH_MAX + 48];
+        std::snprintf(message, sizeof(message), "module import failed: %s", specifier);
+        be_raise(vm, "import_error", message);
+    }
+
+    const int value_index = be_absindex(vm, -1);
+    be_pushstring(vm, resolved);
+    be_pushvalue(vm, value_index);
+    be_data_insert(vm, cache_index);
+    be_remove(vm, cache_index);
+    be_return(vm);
+}
 } // namespace
 
 extern "C" esp_err_t berry_runtime_init(void)
@@ -1633,6 +1803,7 @@ extern "C" esp_err_t berry_runtime_init(void)
 
     be_regfunc(s_vm, "log", native_log);
     be_regfunc(s_vm, "action", native_action);
+    be_regfunc(s_vm, "cos_import", native_cos_import);
     register_console_module(s_vm);
     register_filesystem_module(s_vm);
     register_network_module(s_vm);

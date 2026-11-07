@@ -103,11 +103,7 @@ export function emitStatement(
   if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node))
     return;
   if (ts.isImportDeclaration(node)) {
-    if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return;
-    ctx.report(
-      node,
-      "Imports are not supported. COS APIs are available as globals.",
-    );
+    emitImportDeclaration(ctx, node);
     return;
   }
   if (ts.isImportEqualsDeclaration(node)) {
@@ -483,4 +479,52 @@ function emitClassDeclaration(
   node: ts.ClassDeclaration,
 ): void {
   emitClass(ctx, node);
+}
+
+function emitImportDeclaration(
+  ctx: GenerationContext,
+  node: ts.ImportDeclaration,
+): void {
+  if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return;
+  if (!node.moduleSpecifier || !ts.isStringLiteral(node.moduleSpecifier)) {
+    ctx.report(node, "Only string module specifiers are supported.");
+    return;
+  }
+
+  const specifier = node.moduleSpecifier.text;
+  if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
+    ctx.report(
+      node,
+      "Only relative imports are supported. COS APIs are available as globals.",
+    );
+    return;
+  }
+
+  const clause = node.importClause;
+  if (!clause) {
+    ctx.report(node, "Side-effect imports are not supported.");
+    return;
+  }
+  if (clause.namedBindings && !ts.isNamespaceImport(clause.namedBindings)) {
+    ctx.report(
+      node,
+      "Named imports are not supported yet. Use a default import.",
+    );
+    return;
+  }
+  if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+    ctx.report(
+      node,
+      "Namespace imports are not supported yet. Use a default import.",
+    );
+    return;
+  }
+  if (!clause.name) {
+    ctx.report(node, "Only default imports are supported.");
+    return;
+  }
+
+  const local = clause.name.text;
+  ctx.declareName(local, clause.name);
+  ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
 }

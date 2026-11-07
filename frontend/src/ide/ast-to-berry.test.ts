@@ -226,9 +226,42 @@ end
     expectBerry(`import type { Only } from "./types";`, "");
   });
 
+  it("lowers default imports from relative modules", () => {
+    expectBerry(
+      `
+        import myCustomStuff from "./myCustomModule";
+        import Widget from "../ui/widget.ts";
+        myCustomStuff();
+        return Widget;
+      `,
+      `var myCustomStuff = cos_import("./myCustomModule")
+var Widget = cos_import("../ui/widget.ts")
+myCustomStuff()
+return Widget
+`,
+    );
+  });
+
+  it("reports unsupported import forms", () => {
+    const result = compile(`
+      import * as ns from "./mod";
+      import { named } from "./mod";
+      import "./side-effect";
+      import type { T } from "./ok";
+    `);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+      "Namespace imports are not supported yet. Use a default import.",
+      "Named imports are not supported yet. Use a default import.",
+      "Side-effect imports are not supported.",
+    ]);
+  });
+
   it("reports syntax the runtime cannot represent", () => {
     const result = compile(`
       import { screen } from "./ui";
+      import ui from "@cos/ui";
       enum Color { Red }
       function same(a: number, b: number): boolean {
         return a == b;
@@ -257,7 +290,8 @@ end
     const messages = result.diagnostics.map((diagnostic) => diagnostic.message);
     expect(messages).toEqual(
       expect.arrayContaining([
-        "Imports are not supported. COS APIs are available as globals.",
+        "Named imports are not supported yet. Use a default import.",
+        "Only relative imports are supported. COS APIs are available as globals.",
         "Enums are not supported yet.",
         "Loose equality is not supported. Use === and !==.",
         "Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.",
