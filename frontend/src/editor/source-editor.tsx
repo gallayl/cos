@@ -2,7 +2,7 @@ import { createComponent, Shade } from "@furystack/shades";
 import { cssVariableTheme } from "@furystack/shades-common-components";
 import { Uri, editor } from "monaco-editor";
 
-import { registerWorkspaceTypeScriptFile } from "../ide/typescript-workspace";
+import { modelFilePath, registerWorkspaceTypeScriptFile } from "../ide/typescript-workspace";
 
 export interface SourceEditorProps {
   value: string;
@@ -127,15 +127,10 @@ export const SourceEditor = Shade<SourceEditorProps>({
 
 function modelUriForPath(path: string, language: string): Uri {
   if (path) {
-    return Uri.parse(`file://${normalizeModelPath(path)}`);
+    return Uri.parse(modelFilePath(path));
   }
   const extension = language === "javascript" ? "js" : "ts";
   return Uri.parse(`file:///workspace/untitled.${extension}`);
-}
-
-function normalizeModelPath(path: string): string {
-  const normalized = path.replace(/\\/g, "/");
-  return normalized.startsWith("/") ? normalized : `/${normalized}`;
 }
 
 function acquireModel(

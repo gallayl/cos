@@ -1,22 +1,26 @@
 import { extensionOf, isTypeScriptPath, parentPath } from "./files/paths";
 import { collectRelativeImportSpecifiers } from "./import-specifiers";
-import { registerWorkspaceTypeScriptFile } from "./typescript-workspace";
 
 export interface WorkspaceImportFetcher {
   get(path: string, authorization: string): Promise<string>;
 }
 
-/**
- * Resolve and fetch relative TypeScript imports referenced by `source`.
- * Fetched files are registered for Monaco IntelliSense. Failures are ignored
- * because missing files may be created later or be unavailable on device.
- */
-export async function fetchReferencedWorkspaceTypes(options: {
+export interface FetchReferencedWorkspaceTypesOptions {
   documentPath: string;
   source: string;
   authorization: string;
   fetcher: WorkspaceImportFetcher;
-}): Promise<void> {
+  registerFile(path: string, content: string): void;
+}
+
+/**
+ * Resolve and fetch relative TypeScript imports referenced by `source`.
+ * Fetched files are passed to `registerFile` for Monaco IntelliSense. Failures
+ * are ignored because missing files may be created later or be unavailable.
+ */
+export async function fetchReferencedWorkspaceTypes(
+  options: FetchReferencedWorkspaceTypesOptions,
+): Promise<void> {
   const directory = parentPath(options.documentPath);
   if (!directory) {
     return;
@@ -31,14 +35,15 @@ export async function fetchReferencedWorkspaceTypes(options: {
     seen.add(target);
     try {
       const text = await options.fetcher.get(target, options.authorization);
-      registerWorkspaceTypeScriptFile(target, text);
+      options.registerFile(target, text);
     } catch {
       // Best-effort: the file may not exist yet or the device may be unavailable.
     }
   }
 }
 
-function resolveImportPath(directory: string, specifier: string): string | null {
+/** Resolve a relative import specifier from a device directory to a TS path, or null when unsupported. */
+export function resolveImportPath(directory: string, specifier: string): string | null {
   const base = normalizePathSegments(`${directory}/${specifier}`);
   if (isTypeScriptPath(base)) {
     return base;

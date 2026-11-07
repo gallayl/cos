@@ -101,6 +101,7 @@ export const EditorApp = Shade({
             source: document.text,
             authorization: access.authorization.getValue(),
             fetcher: cache.contents,
+            registerFile: registerWorkspaceTypeScriptFile,
           });
         }, 600);
         return {
@@ -147,6 +148,7 @@ export const EditorApp = Shade({
           source: text,
           authorization,
           fetcher: cache.contents,
+          registerFile: registerWorkspaceTypeScriptFile,
         });
         replaceDocument(documentFromFile("device", path, text), null, path);
       } catch (error) {
