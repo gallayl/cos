@@ -476,3 +476,21 @@ target_include_directories(test_bluetooth_cmd PRIVATE
 )
 target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic mock_esp)
 add_test(NAME test_bluetooth_cmd COMMAND test_bluetooth_cmd)
+
+# --- Library: network_url ---
+add_library(network_url STATIC
+    ${COMPONENT_DIR}/components/network/src/network_url.c
+)
+target_include_directories(network_url PUBLIC
+    ${COMPONENT_DIR}/components/network/include
+    mocks
+)
+
+# --- Test: network_url ---
+add_executable(test_network_url test_network_url.c)
+target_include_directories(test_network_url PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/network/include
+)
+target_link_libraries(test_network_url PRIVATE unity network_url)
+add_test(NAME test_network_url COMMAND test_network_url)

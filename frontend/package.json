@@ -1,0 +1,28 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "check-storage": "vitest run tools/compile-storage.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@furystack/cache": "^8.0.3",
+    "@furystack/inject": "^13.0.4",
+    "@furystack/shades": "^15.0.4",
+    "@furystack/shades-common-components": "^17.1.0",
+    "@furystack/shades-monaco": "^1.0.0",
+    "@furystack/utils": "^9.0.4",
+    "@typescript/typescript6": "^6.0.2",
+    "monaco-editor": "^0.57.0"
+  }
+}

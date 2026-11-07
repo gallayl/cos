@@ -391,7 +391,7 @@ esp_err_t vfs_rename_file(const char *source, const char *destination)
     {
         return ESP_ERR_NOT_FOUND;
     }
-    if (!S_ISREG(source_stat.st_mode))
+    if (!S_ISREG(source_stat.st_mode) && !S_ISDIR(source_stat.st_mode))
     {
         return ESP_ERR_INVALID_ARG;
     }
@@ -496,6 +496,57 @@ bool vfs_exists(const char *path)
 
     struct stat st;
     return stat(real_path, &st) == 0;
+}
+
+esp_err_t vfs_stat(const char *path, bool *is_dir, size_t *size)
+{
+    if (path == NULL || is_dir == NULL || size == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *is_dir = false;
+    *size = 0;
+
+    if (strcmp(path, "/") == 0 || strcmp(path, "/flash") == 0)
+    {
+        *is_dir = true;
+        return ESP_OK;
+    }
+    if (strcmp(path, "/sdcard") == 0)
+    {
+        if (!sdcard_is_mounted())
+        {
+            return ESP_ERR_NOT_FOUND;
+        }
+        *is_dir = true;
+        return ESP_OK;
+    }
+
+    char real_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(path, real_path, sizeof(real_path));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    struct stat st;
+    if (stat(real_path, &st) != 0)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (S_ISDIR(st.st_mode))
+    {
+        *is_dir = true;
+        return ESP_OK;
+    }
+    if (st.st_size < 0)
+    {
+        return ESP_FAIL;
+    }
+
+    *size = (size_t)st.st_size;
+    return ESP_OK;
 }
 
 bool vfs_is_directory(const char *path)

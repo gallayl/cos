@@ -27,7 +27,7 @@ extern "C"
      */
     void shell_feed_input(const char *data, size_t len);
 
-    /** True while an asynchronous Berry line prompt owns console input. */
+    /** True while a line, key, or character prompt owns console input. */
     bool shell_is_reading_line_input(void);
 
     /**

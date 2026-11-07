@@ -63,6 +63,7 @@ static void reset_state(void)
     s_line_callback_result = ESP_OK;
     memset(s_line_callback_value, 0, sizeof(s_line_callback_value));
     memset(&s_line_input, 0, sizeof(s_line_input));
+    memset(&s_key_input, 0, sizeof(s_key_input));
     s_line_escape_state = ST_NORMAL;
     atomic_store(&s_line_input_owned, false);
     atomic_store(&s_line_input_owner, NULL);
@@ -393,6 +394,75 @@ static void test_history_wraps_around(void)
     TEST_ASSERT_EQUAL_STRING_LEN(expected, s_line, strlen(expected));
 }
 
+static void test_read_key_returns_character_and_arrows(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    process_byte('a');
+    TEST_ASSERT_EQUAL_STRING("a", s_line_callback_value);
+    TEST_ASSERT_EQUAL(0, s_line_pos);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    feed("\x1b[A");
+    TEST_ASSERT_EQUAL_STRING("up", s_line_callback_value);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    feed("\x1b[D");
+    TEST_ASSERT_EQUAL_STRING("left", s_line_callback_value);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    feed("\x1b[6~");
+    TEST_ASSERT_EQUAL_STRING("pagedown", s_line_callback_value);
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
+static void test_read_key_escape_times_out_and_ctrl_c_cancels(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    process_byte(0x1B);
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+    expire_pending_key_sequence();
+    TEST_ASSERT_EQUAL_STRING("escape", s_line_callback_value);
+    TEST_ASSERT_EQUAL(ESP_OK, s_line_callback_result);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    process_byte(0x03);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, s_line_callback_result);
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
+static void test_read_char_skips_arrows_until_a_character(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_char(line_input_callback, &s_test_stream));
+    feed("\x1b[C");
+    process_byte('\r');
+    process_byte('\n');
+    TEST_ASSERT_TRUE(shell_input_is_reading_line());
+    TEST_ASSERT_EQUAL(0, s_line_callback_calls);
+    process_byte('y');
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_EQUAL_STRING("y", s_line_callback_value);
+    TEST_ASSERT_EQUAL(0, s_line_pos);
+}
+
+static void test_key_read_rejects_a_second_request_and_can_be_cancelled(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_read_key(line_input_callback, &s_test_stream));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, shell_input_read_char(line_input_callback, &s_test_stream));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, shell_input_read_line("Name: ", line_input_callback, &s_test_stream));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_input_cancel_line(&s_test_stream));
+    process_byte(INPUT_CANCEL_REQUEST);
+    TEST_ASSERT_EQUAL(1, s_line_callback_calls);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, s_line_callback_result);
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
+static void test_read_key_rejects_other_task_requests(void)
+{
+    s_input_task = &s_other_task;
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, shell_input_read_key(line_input_callback, &s_test_stream));
+    TEST_ASSERT_FALSE(shell_input_is_reading_line());
+}
+
 /* ── main ────────────────────────────────────────────────── */
 
 int main(void)
@@ -436,6 +506,11 @@ int main(void)
     RUN_TEST(test_async_line_input_rejects_other_task_requests);
     RUN_TEST(test_async_line_input_cross_task_cancel_is_queued);
     RUN_TEST(test_history_wraps_around);
+    RUN_TEST(test_read_key_returns_character_and_arrows);
+    RUN_TEST(test_read_key_escape_times_out_and_ctrl_c_cancels);
+    RUN_TEST(test_read_char_skips_arrows_until_a_character);
+    RUN_TEST(test_key_read_rejects_a_second_request_and_can_be_cancelled);
+    RUN_TEST(test_read_key_rejects_other_task_requests);
 
     return UNITY_END();
 }

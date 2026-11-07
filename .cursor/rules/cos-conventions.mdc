@@ -5,6 +5,8 @@ alwaysApply: true
 
 # COS Project Conventions
 
+Firmware only: `components/`, `main/`, `test/`, and `integration_test/`. TypeScript in `frontend/` follows the Furystack Shades rule. Script APIs follow the TypeScript SDK and Berry bindings rule.
+
 ## Target
 - ESP32 (ESP-IDF 6.1), CYD board (ESP32-2432S028R)
 - Resource-constrained: minimize RAM/flash usage at all times
@@ -24,6 +26,7 @@ alwaysApply: true
 - Use NVS for small config data, LittleFS/SPIFFS for larger files
 
 ## Naming
+C and C++ only.
 - Functions/variables: `snake_case`
 - Macros/constants: `UPPER_CASE`
 - Types/structs: `snake_case_t` (C), `CamelCase` (C++ classes)

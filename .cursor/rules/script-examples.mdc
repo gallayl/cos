@@ -1,0 +1,25 @@
+---
+description: Compile a TypeScript device example when adding a COS script API
+alwaysApply: true
+---
+
+# Device script examples
+
+When adding or changing a Berry API that scripts can call, update the TypeScript SDK and the native binding together, then add a device example and compile it before finishing.
+
+1. Write the example in `storage/ts/scripts/` (a `main(args)` command) or `storage/ts/apps/` (a UI app). Exercise the new API, including arguments when the command takes them.
+2. Compile that TypeScript with the COS Berry compiler. Write the result to the matching `storage/flash_data/` path. Do not hand-translate it.
+3. Add the script name to the expected list in `frontend/tools/compile-storage.test.ts`.
+4. From `frontend/`, run `npm run check-storage` and leave it passing.
+5. Tell the user the flash command, for example `berry exec scripts/font_size.be 2`.
+
+```typescript
+function main(args: string[]): number {
+  const result = console.set_font_size(2);
+  if (result !== true) {
+    print(str(result));
+    return 1;
+  }
+  return 0;
+}
+```

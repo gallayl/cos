@@ -192,7 +192,8 @@ esp_err_t shell_init(void)
         return err;
     }
 
-    berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line);
+    berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line, shell_input_read_key,
+                                             shell_input_read_char);
 
     (void)shell_berry_run_autoexec();
 

@@ -1,0 +1,49 @@
+---
+description: Furystack Shades structure, services, lazy pages, and theming for the COS frontend
+globs: frontend/**/*.ts,frontend/**/*.tsx,frontend/**/*.css
+alwaysApply: false
+---
+
+# Frontend (Furystack Shades)
+
+The frontend uses Furystack Shades and `@furystack/inject`. Firmware C/C++ conventions do not apply in `frontend/`.
+
+## Components
+
+- Prefer `@furystack/shades-common-components` (`Button`, `Input`, `Alert`, `Loader`, theme helpers) before adding a custom control.
+- Keep each Shade small. Split a screen into focused pieces such as `EditorToolbar` and `DeviceSignIn`.
+- Put fetching, caching, and session logic in an injectable service. The Shade reads it with `injector.get(...)` and stays a view.
+
+```typescript
+export const DeviceAccess = defineService({
+  name: "cos/DeviceAccess",
+  lifetime: "singleton",
+  factory: ({ onDispose }) => {
+    const service = createDeviceAccess();
+    onDispose(() => service[Symbol.dispose]());
+    return service;
+  },
+});
+```
+
+## Pages
+
+Load feature routes through `LazyFeature` and a dynamic `import()`. `App`, home, and not-found stay eager.
+
+```tsx
+const loadConsole = async () => {
+  const { ConsolePage } = await import("../console/console-page.js");
+  return <ConsolePage />;
+};
+
+"/console": {
+  meta: { title: "Console" },
+  component: () => <LazyFeature load={loadConsole} />,
+},
+```
+
+## Theme
+
+Color, spacing, type, and shape come from the active Shades theme (`ThemeProviderService`, `cssVariableTheme`). Use those tokens inside a Shade `css` block.
+
+`frontend/src/style.css` is only the full-height viewport shell. New appearance belongs in the theme and in component `css`, using theme tokens.

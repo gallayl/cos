@@ -68,6 +68,7 @@ idf_component_register(
         "src/be_port.c"
         "src/berry_ui.cpp"
         "src/berry_runtime.cpp"
+        "src/berry_network.cpp"
     INCLUDE_DIRS
         "include"
         "src"

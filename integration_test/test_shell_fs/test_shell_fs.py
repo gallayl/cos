@@ -105,7 +105,11 @@ def test_berry_filesystem_and_network_apis(dut):
     markers = (
         "FS_LIST_OK",
         "FS_EMPTY_OK",
+        "FS_RELATIVE_OK",
+        "FS_PARENT_OK",
         "FS_INVALID_PATH_OK",
+        "FS_TEXT_OK",
+        "FS_JSON_OK",
         "NET_NO_WIFI_OK",
         "NET_TIMEOUT_BOUNDS_OK",
         "NET_INVALID_HOST_OK",

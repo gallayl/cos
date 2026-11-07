@@ -1,0 +1,32 @@
+---
+description: Keep the TypeScript SDK and native Berry bindings in sync
+alwaysApply: true
+---
+
+# TypeScript SDK and Berry bindings
+
+`frontend/src/cos-sdk/` and the native modules in `components/berry_lang/src/` are one script API. A change to either side updates the other in the same change.
+
+| Script global | Declarations | Native registration |
+| --- | --- | --- |
+| `log`, `action` | `index.d.ts` | `berry_runtime.cpp` |
+| `console` | `console.d.ts` | `berry_runtime.cpp` |
+| `fs` | `filesystem.d.ts` | `berry_runtime.cpp` |
+| `net` | `network.d.ts` | `berry_runtime.cpp` |
+| `ui` | `ui.d.ts` | `berry_ui.cpp` |
+
+When adding or changing a script-facing function:
+
+- Use the same Berry name, argument order, and return value on both sides. Names stay `snake_case`.
+- Document the declaration with a TSDoc comment so the editor can show it on hover.
+- Declare only functions the device can run, and register only functions the SDK exposes.
+- When scripts can call it, add and compile a device example as described in the device script examples rule.
+
+`language.d.ts` is the TypeScript subset the Berry compiler accepts. Keep it aligned with `frontend/src/ide/berry/`. It is not a native module.
+
+```typescript
+/** Integer scale of the 6x8 cell. `1` is 6x8 pixels. */
+function set_font_size(size: 1 | 2 | 3): true | string;
+```
+
+That declaration matches `native_console_set_font_size`, registered as `console.set_font_size`.
