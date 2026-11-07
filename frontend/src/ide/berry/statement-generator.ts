@@ -1,11 +1,24 @@
 import ts from "@typescript/typescript6";
 
-import { BOOLEAN_CONDITION_MESSAGE, isStructurallyBoolean } from "./boolean-expression";
+import {
+  BOOLEAN_CONDITION_MESSAGE,
+  isStructurallyBoolean,
+} from "./boolean-expression";
 import { emitClass } from "./class-generator";
 import type { GenerationContext } from "./context";
 import { CALL_PRECEDENCE, emitGrouped } from "./expression-generator";
-import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from "./function-emitter";
-import { hasDecorators, isAmbient, isDefaultExport, isIncrement, isLexicalBinding } from "./syntax";
+import {
+  beginFunction,
+  endFunction,
+  hasUnsupportedFunctionModifiers,
+} from "./function-emitter";
+import {
+  hasDecorators,
+  isAmbient,
+  isDefaultExport,
+  isIncrement,
+  isLexicalBinding,
+} from "./syntax";
 
 const LOOP_CLOSURE_MESSAGE =
   "Closures that capture for-loop bindings are not supported.";
@@ -13,7 +26,10 @@ const LOOP_CLOSURE_MESSAGE =
 /**
  * @brief Lower one TypeScript statement to Berry statements.
  */
-export function emitStatement(ctx: GenerationContext, node: ts.Statement): void {
+export function emitStatement(
+  ctx: GenerationContext,
+  node: ts.Statement,
+): void {
   if (isAmbient(node)) return;
   if (ts.isEmptyStatement(node)) return;
 
@@ -66,7 +82,9 @@ export function emitStatement(ctx: GenerationContext, node: ts.Statement): void 
   }
   if (ts.isReturnStatement(node)) {
     ctx.writeLine(
-      node.expression ? `return ${ctx.emitExpression(node.expression)}` : "return",
+      node.expression
+        ? `return ${ctx.emitExpression(node.expression)}`
+        : "return",
     );
     return;
   }
@@ -82,9 +100,22 @@ export function emitStatement(ctx: GenerationContext, node: ts.Statement): void 
     ctx.report(node, "Enums are not supported yet.");
     return;
   }
-  if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return;
-  if (ts.isImportDeclaration(node) || ts.isImportEqualsDeclaration(node)) {
-    ctx.report(node, "Imports are not supported. COS APIs are available as globals.");
+  if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node))
+    return;
+  if (ts.isImportDeclaration(node)) {
+    if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return;
+    ctx.report(
+      node,
+      "Imports are not supported. COS APIs are available as globals.",
+    );
+    return;
+  }
+  if (ts.isImportEqualsDeclaration(node)) {
+    if (node.isTypeOnly) return;
+    ctx.report(
+      node,
+      "Imports are not supported. COS APIs are available as globals.",
+    );
     return;
   }
   if (ts.isExportDeclaration(node)) {
@@ -119,7 +150,10 @@ export function emitStatement(ctx: GenerationContext, node: ts.Statement): void 
   ctx.report(node, `Unsupported syntax: ${ts.SyntaxKind[node.kind]}.`);
 }
 
-function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclaration): void {
+function emitFunctionDeclaration(
+  ctx: GenerationContext,
+  node: ts.FunctionDeclaration,
+): void {
   if (!node.name) {
     ctx.report(node, "Functions must be named.");
     return;
@@ -135,7 +169,10 @@ function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclar
   endFunction(ctx);
 }
 
-function emitExportAssignment(ctx: GenerationContext, node: ts.ExportAssignment): void {
+function emitExportAssignment(
+  ctx: GenerationContext,
+  node: ts.ExportAssignment,
+): void {
   if (node.isExportEquals) {
     ctx.report(node, "export = is not supported.");
     return;
@@ -218,7 +255,9 @@ function emitFor(ctx: GenerationContext, node: ts.ForStatement): void {
   if (node.condition && !isStructurallyBoolean(node.condition)) {
     ctx.report(node.condition, BOOLEAN_CONDITION_MESSAGE);
   }
-  const condition = node.condition ? ctx.emitExpression(node.condition) : "true";
+  const condition = node.condition
+    ? ctx.emitExpression(node.condition)
+    : "true";
   ctx.writeLine(`while ${condition}`);
   ctx.indent();
   ctx.emitStatement(node.statement);
@@ -260,12 +299,15 @@ function forOfBinding(
     }
     return { name: declaration.name.text, node: declaration.name };
   }
-  if (ts.isIdentifier(initializer)) return { name: initializer.text, node: initializer };
+  if (ts.isIdentifier(initializer))
+    return { name: initializer.text, node: initializer };
   ctx.report(initializer, "Destructuring is not supported.");
   return undefined;
 }
 
-function capturesLoopBinding(node: ts.ForStatement | ts.ForOfStatement): boolean {
+function capturesLoopBinding(
+  node: ts.ForStatement | ts.ForOfStatement,
+): boolean {
   if (
     !node.initializer ||
     !ts.isVariableDeclarationList(node.initializer) ||
@@ -274,7 +316,11 @@ function capturesLoopBinding(node: ts.ForStatement | ts.ForOfStatement): boolean
     return false;
   }
   if (containsNewClosure(node.statement)) return true;
-  return ts.isForStatement(node) && !!node.incrementor && containsNewClosure(node.incrementor);
+  return (
+    ts.isForStatement(node) &&
+    !!node.incrementor &&
+    containsNewClosure(node.incrementor)
+  );
 }
 
 function containsNewClosure(node: ts.Node): boolean {
@@ -323,7 +369,8 @@ function emitSwitch(ctx: GenerationContext, node: ts.SwitchStatement): void {
   const defaultArm = arms.find((arm) => arm.isDefault);
   ctx.pushScope();
   if (conditional.length === 0) {
-    for (const statement of defaultArm?.statements ?? []) ctx.emitStatement(statement);
+    for (const statement of defaultArm?.statements ?? [])
+      ctx.emitStatement(statement);
     ctx.popScope();
     return;
   }
@@ -331,7 +378,10 @@ function emitSwitch(ctx: GenerationContext, node: ts.SwitchStatement): void {
   conditional.forEach((arm, index) => {
     const keyword = index === 0 ? "if" : "elif";
     const test = arm.tests
-      .map((expression) => `(${name} == ${emitGrouped(ctx, expression, CALL_PRECEDENCE)})`)
+      .map(
+        (expression) =>
+          `(${name} == ${emitGrouped(ctx, expression, CALL_PRECEDENCE)})`,
+      )
       .join(" || ");
     ctx.writeLine(`${keyword} ${test}`);
     ctx.indent();
@@ -370,13 +420,18 @@ function collectSwitchArms(
     }
     const isLast = index === clauses.length - 1;
     const terminated =
-      split.explicitBreak || terminatesClause(split.statements[split.statements.length - 1]);
+      split.explicitBreak ||
+      terminatesClause(split.statements[split.statements.length - 1]);
     if (split.statements.length === 0 && !terminated && !isLast) continue;
     if (split.statements.length > 0 && !terminated && !isLast) {
       ctx.report(clause, "Switch fallthrough is not supported.");
       return undefined;
     }
-    arms.push({ tests: tests.slice(), isDefault, statements: split.statements });
+    arms.push({
+      tests: tests.slice(),
+      isDefault,
+      statements: split.statements,
+    });
     tests = [];
     isDefault = false;
   }
@@ -396,7 +451,8 @@ function splitCaseStatements(statements: readonly ts.Statement[]): {
       body.push(statement);
       continue;
     }
-    if (statement.label) return { statements: body, explicitBreak: true, illegal: true };
+    if (statement.label)
+      return { statements: body, explicitBreak: true, illegal: true };
     const trailing = statements
       .slice(index + 1)
       .some((item) => item.kind !== ts.SyntaxKind.EmptyStatement);
@@ -422,6 +478,9 @@ function terminatesClause(statement: ts.Statement | undefined): boolean {
   return terminatesClause(last);
 }
 
-function emitClassDeclaration(ctx: GenerationContext, node: ts.ClassDeclaration): void {
+function emitClassDeclaration(
+  ctx: GenerationContext,
+  node: ts.ClassDeclaration,
+): void {
   emitClass(ctx, node);
 }

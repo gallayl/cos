@@ -208,8 +208,22 @@ end
     );
   });
 
+  it("erases type-only imports", () => {
+    expectBerry(
+      `
+        import type { MyCustomType } from "./formSomewhere";
+        import type * as Types from "./types";
+        import type DefaultType from "./default";
+        const value = 1;
+      `,
+      `var value = 1
+`,
+    );
+  });
+
   it("returns an empty program for type-only source", () => {
     expectBerry(`interface Only { value: number }`, "");
+    expectBerry(`import type { Only } from "./types";`, "");
   });
 
   it("reports syntax the runtime cannot represent", () => {
