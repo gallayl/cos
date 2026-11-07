@@ -14,6 +14,8 @@ import {
 import { getAst } from "../ide/get-ast";
 import "../ide/monaco-languages";
 import "../ide/register-cos-sdk";
+import { fetchReferencedWorkspaceTypes } from "../ide/import-resolution";
+import { registerWorkspaceTypeScriptFile } from "../ide/typescript-workspace";
 import { CompileOutput } from "./compile-output";
 import { DeviceAccess } from "./device-access";
 import {
@@ -87,6 +89,29 @@ export const EditorApp = Shade({
     const cache = injector.get(FileCache);
     const dirty = isDirty(document);
 
+    useDisposable(
+      "import-type-fetch",
+      () => {
+        if (document.language !== "typescript" || !document.path) {
+          return { [Symbol.dispose]() {} };
+        }
+        const timeout = window.setTimeout(() => {
+          void fetchReferencedWorkspaceTypes({
+            documentPath: document.path,
+            source: document.text,
+            authorization: access.authorization.getValue(),
+            fetcher: cache.contents,
+          });
+        }, 600);
+        return {
+          [Symbol.dispose]() {
+            window.clearTimeout(timeout);
+          },
+        };
+      },
+      [document.path, document.text, document.language],
+    );
+
     const discard = () => confirmDiscard(dirty, (message) => window.confirm(message));
 
     const noteFailure = (error: unknown) => {
@@ -116,6 +141,13 @@ export const EditorApp = Shade({
       try {
         const authorization = access.authorization.getValue();
         const text = await cache.contents.get(path, authorization);
+        registerWorkspaceTypeScriptFile(path, text);
+        void fetchReferencedWorkspaceTypes({
+          documentPath: path,
+          source: text,
+          authorization,
+          fetcher: cache.contents,
+        });
         replaceDocument(documentFromFile("device", path, text), null, path);
       } catch (error) {
         noteFailure(error);
@@ -127,6 +159,7 @@ export const EditorApp = Shade({
         setStatus("That file type cannot be opened as text");
         return;
       }
+      registerWorkspaceTypeScriptFile(name, text);
       replaceDocument(documentFromFile("local", name, text), handle, name);
     };
 
@@ -167,6 +200,7 @@ export const EditorApp = Shade({
         try {
           await writeTextFile(plan.path, written, { authorization });
           keepSaved();
+          registerWorkspaceTypeScriptFile(plan.path, written);
           cache.rememberFile(plan.path, authorization, written);
           const parent = parentPath(plan.path);
           if (parent) {
@@ -184,6 +218,7 @@ export const EditorApp = Shade({
         try {
           await writeTextToHandle(handle, written);
           keepSaved();
+          registerWorkspaceTypeScriptFile(current.path, written);
           setStatus(`Saved ${current.path}`);
         } catch (error) {
           if (!isAbortError(error)) {
@@ -199,8 +234,10 @@ export const EditorApp = Shade({
         if (handle) {
           keepSaved({ origin: "local", path: handle.name });
           setLocalHandle(handle);
+          registerWorkspaceTypeScriptFile(handle.name, written);
         } else {
           keepSaved();
+          registerWorkspaceTypeScriptFile(suggested, written);
         }
         setStatus(`Saved ${handle?.name ?? suggested}`);
       } catch (error) {
@@ -302,6 +339,7 @@ export const EditorApp = Shade({
             <SourceEditor
               value={document.text}
               language={document.language}
+              path={document.path}
               revision={revision}
               onValueChange={(text) => {
                 const next = documentAfterEdit(live.document, text);

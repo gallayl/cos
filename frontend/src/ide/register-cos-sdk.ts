@@ -28,17 +28,23 @@ const cosLibs = [
 /**
  * TypeScript subset used by COS scripts.
  * `noLib` drops the DOM and ECMAScript default libraries, including `console.log`.
+ * Bundler resolution with explicit `.ts` imports enables local type-only imports in the IDE.
  */
 const cosCompilerOptions: CompilerOptions = {
   allowNonTsExtensions: true,
+  allowImportingTsExtensions: true,
   target: ScriptTarget.ESNext,
   module: ModuleKind.ESNext,
+  moduleResolution: 100 as unknown as CompilerOptions["moduleResolution"], // Bundler
   noLib: true,
   strict: true,
 };
 
 typescriptDefaults.setCompilerOptions(cosCompilerOptions);
-typescriptDefaults.setExtraLibs(cosLibs);
+for (const lib of cosLibs) {
+  typescriptDefaults.addExtraLib(lib.content, lib.filePath);
+  javascriptDefaults.addExtraLib(lib.content, lib.filePath);
+}
 
 javascriptDefaults.setCompilerOptions({
   ...cosCompilerOptions,
@@ -50,4 +56,3 @@ javascriptDefaults.setDiagnosticsOptions({
   noSyntaxValidation: false,
   onlyVisible: false,
 });
-javascriptDefaults.setExtraLibs(cosLibs);
