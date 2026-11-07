@@ -242,6 +242,88 @@ return Widget
     );
   });
 
+  it("lowers non-class default exports", () => {
+    expectBerry(`export default 42;`, `var __cos_default_1 = 42
+
+return __cos_default_1
+`);
+    expectBerry(`export default "hello";`, `var __cos_default_1 = "hello"
+
+return __cos_default_1
+`);
+    expectBerry(`export default null;`, `var __cos_default_1 = nil
+
+return __cos_default_1
+`);
+    expectBerry(
+      `export default { a: 1, b: "x" };`,
+      `var __cos_default_1 = {"a": 1, "b": "x"}
+
+return __cos_default_1
+`,
+    );
+    expectBerry(
+      `export default [1, 2];`,
+      `var __cos_default_1 = [1, 2]
+
+return __cos_default_1
+`,
+    );
+  });
+
+  it("lowers default-exported functions", () => {
+    expectBerry(
+      `
+        export default function add(a: number, b: number): number {
+          return a + b;
+        }
+      `,
+      `def add(a, b)
+    return a + b
+end
+
+return add
+`,
+    );
+    expectBerry(
+      `
+        export default function(x: number): number {
+          return x + 1;
+        }
+      `,
+      `def __cos_default_1(x)
+    return x + 1
+end
+
+return __cos_default_1
+`,
+    );
+  });
+
+  it("lowers default-exported expressions and identifiers", () => {
+    expectBerry(
+      `
+        function helper(): number {
+          return 7;
+        }
+        export default helper;
+      `,
+      `def helper()
+    return 7
+end
+
+return helper
+`,
+    );
+    expectBerry(
+      `export default (x: number): number => x + 1;`,
+      `var __cos_default_1 = def (x) return x + 1 end
+
+return __cos_default_1
+`,
+    );
+  });
+
   it("reports unsupported import forms", () => {
     const result = compile(`
       import * as ns from "./mod";

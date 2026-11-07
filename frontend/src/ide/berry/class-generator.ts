@@ -18,12 +18,14 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): vo
       ctx.report(clause, "Single inheritance is not supported yet.");
     }
   }
-  if (!node.name) {
+  const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp("__cos_default_") : undefined);
+  if (!name) {
     ctx.report(node, "Classes must be named.");
     return;
   }
-  if (isDefaultExport(node)) ctx.noteDefaultExport(node.name.text, node);
-  ctx.declareName(node.name.text, node.name);
+  if (node.name) ctx.declareName(node.name.text, node.name);
+  else ctx.declareName(name, node);
+  if (isDefaultExport(node)) ctx.noteDefaultExport(name, node);
 
   const fields: Array<{ name: string; initializer?: ts.Expression }> = [];
   const methods: ts.MethodDeclaration[] = [];
@@ -67,7 +69,7 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): vo
     ctx.report(member, `Unsupported syntax: ${ts.SyntaxKind[member.kind]}.`);
   }
 
-  ctx.writeLine(`class ${node.name.text}`);
+  ctx.writeLine(`class ${name}`);
   ctx.indent();
   for (const field of fields) ctx.writeLine(`var ${field.name}`);
 

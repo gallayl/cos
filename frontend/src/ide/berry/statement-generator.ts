@@ -150,19 +150,19 @@ function emitFunctionDeclaration(
   ctx: GenerationContext,
   node: ts.FunctionDeclaration,
 ): void {
-  if (!node.name) {
+  if (hasDecorators(node)) ctx.report(node, "Decorators are not supported.");
+  if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return;
+  const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp("__cos_default_") : undefined);
+  if (!name) {
     ctx.report(node, "Functions must be named.");
     return;
   }
-  if (isDefaultExport(node)) {
-    ctx.report(node, "Only a default class export is supported.");
-  }
-  if (hasDecorators(node)) ctx.report(node, "Decorators are not supported.");
-  if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return;
-  ctx.declareName(node.name.text, node.name);
-  if (!beginFunction(ctx, `def ${node.name.text}`, node.parameters)) return;
+  if (node.name) ctx.declareName(node.name.text, node.name);
+  else ctx.declareName(name, node);
+  if (!beginFunction(ctx, `def ${name}`, node.parameters)) return;
   for (const statement of node.body.statements) ctx.emitStatement(statement);
   endFunction(ctx);
+  if (isDefaultExport(node)) ctx.noteDefaultExport(name, node);
 }
 
 function emitExportAssignment(
@@ -177,7 +177,21 @@ function emitExportAssignment(
     ctx.noteDefaultExport(node.expression.text, node);
     return;
   }
-  ctx.report(node, "Only a default class export is supported.");
+  if (
+    ts.isFunctionExpression(node.expression) ||
+    ts.isArrowFunction(node.expression) ||
+    ts.isClassExpression(node.expression)
+  ) {
+    const name = ctx.nextTemp("__cos_default_");
+    ctx.declareName(name, node);
+    ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`);
+    ctx.noteDefaultExport(name, node);
+    return;
+  }
+  const name = ctx.nextTemp("__cos_default_");
+  ctx.declareName(name, node);
+  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`);
+  ctx.noteDefaultExport(name, node);
 }
 
 function emitVariableDeclarationList(
