@@ -14,10 +14,12 @@ import {
 } from "./function-emitter";
 import {
   hasDecorators,
+  hasModifier,
   isAmbient,
   isDefaultExport,
   isIncrement,
   isLexicalBinding,
+  isNamedExport,
 } from "./syntax";
 
 const LOOP_CLOSURE_MESSAGE =
@@ -41,6 +43,13 @@ export function emitStatement(
   }
   if (ts.isVariableStatement(node)) {
     emitVariableDeclarationList(ctx, node.declarationList);
+    if (hasModifier(node, ts.SyntaxKind.ExportKeyword)) {
+      for (const declaration of node.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) {
+          ctx.noteNamedExport(declaration.name.text, declaration.name.text, declaration);
+        }
+      }
+    }
     return;
   }
   if (ts.isFunctionDeclaration(node)) {
@@ -115,7 +124,7 @@ export function emitStatement(
     return;
   }
   if (ts.isExportDeclaration(node)) {
-    ctx.report(node, "Named exports are not supported.");
+    emitExportDeclaration(ctx, node);
     return;
   }
   if (ts.isExportAssignment(node)) {
@@ -152,7 +161,9 @@ function emitFunctionDeclaration(
 ): void {
   if (hasDecorators(node)) ctx.report(node, "Decorators are not supported.");
   if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return;
-  const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp("__cos_default_") : undefined);
+  const name =
+    node.name?.text ??
+    (isDefaultExport(node) ? ctx.nextTemp("__cos_default_") : undefined);
   if (!name) {
     ctx.report(node, "Functions must be named.");
     return;
@@ -163,6 +174,7 @@ function emitFunctionDeclaration(
   for (const statement of node.body.statements) ctx.emitStatement(statement);
   endFunction(ctx);
   if (isDefaultExport(node)) ctx.noteDefaultExport(name, node);
+  else if (isNamedExport(node) && node.name) ctx.noteNamedExport(node.name.text, node.name.text, node);
 }
 
 function emitExportAssignment(
@@ -495,6 +507,75 @@ function emitClassDeclaration(
   emitClass(ctx, node);
 }
 
+function emitExportDeclaration(
+  ctx: GenerationContext,
+  node: ts.ExportDeclaration,
+): void {
+  if (node.isTypeOnly) return;
+
+  const specifierNode = node.moduleSpecifier;
+  const specifier =
+    specifierNode && ts.isStringLiteral(specifierNode) ? specifierNode.text : undefined;
+  if (specifierNode && specifier === undefined) {
+    ctx.report(node, "Only string module specifiers are supported.");
+    return;
+  }
+  if (specifier !== undefined && !specifier.startsWith("./") && !specifier.startsWith("../")) {
+    ctx.report(
+      node,
+      "Only relative re-exports are supported. COS APIs are available as globals.",
+    );
+    return;
+  }
+
+  const exportClause = node.exportClause;
+  if (!exportClause) {
+    ctx.report(node, "export * re-exports are not supported yet.");
+    return;
+  }
+
+  if (ts.isNamespaceExport(exportClause)) {
+    if (specifier === undefined) {
+      ctx.report(node, "Namespace exports require a module specifier.");
+      return;
+    }
+    const moduleTemp = ctx.nextTemp("__cos_re_");
+    ctx.declareName(moduleTemp, node);
+    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+    ctx.noteNamedExport(exportClause.name.text, moduleTemp, node);
+    return;
+  }
+
+  let moduleTemp: string | undefined;
+  if (specifier !== undefined) {
+    moduleTemp = ctx.nextTemp("__cos_re_");
+    ctx.declareName(moduleTemp, node);
+    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+  }
+
+  for (const element of exportClause.elements) {
+    if (element.isTypeOnly) continue;
+    const exported = element.name.text;
+    if (moduleTemp) {
+      const source = (element.propertyName ?? element.name).text;
+      const localTemp = ctx.nextTemp("__cos_export_");
+      ctx.declareName(localTemp, element);
+      ctx.writeLine(`var ${localTemp} = ${moduleTemp}.find(${JSON.stringify(source)})`);
+      ctx.noteNamedExport(exported, localTemp, element);
+    } else {
+      const local =
+        element.propertyName !== undefined
+          ? element.propertyName.text
+          : element.name.text;
+      if (exported === "default") {
+        ctx.noteDefaultExport(local, element);
+      } else {
+        ctx.noteNamedExport(exported, local, element);
+      }
+    }
+  }
+}
+
 function emitImportDeclaration(
   ctx: GenerationContext,
   node: ts.ImportDeclaration,
@@ -519,26 +600,50 @@ function emitImportDeclaration(
     ctx.report(node, "Side-effect imports are not supported.");
     return;
   }
-  if (clause.namedBindings && !ts.isNamespaceImport(clause.namedBindings)) {
-    ctx.report(
-      node,
-      "Named imports are not supported yet. Use a default import.",
-    );
-    return;
-  }
-  if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-    ctx.report(
-      node,
-      "Namespace imports are not supported yet. Use a default import.",
-    );
-    return;
-  }
-  if (!clause.name) {
-    ctx.report(node, "Only default imports are supported.");
+
+  const namedBindings = clause.namedBindings;
+  const hasNamed =
+    !!namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length > 0;
+  const hasNamespace = !!namedBindings && ts.isNamespaceImport(namedBindings);
+
+  if (hasNamespace) {
+    const local = namedBindings.name.text;
+    ctx.declareName(local, namedBindings.name);
+    ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
+    if (clause.name) {
+      ctx.report(
+        clause.name,
+        "Default imports cannot be combined with namespace imports.",
+      );
+    }
     return;
   }
 
-  const local = clause.name.text;
-  ctx.declareName(local, clause.name);
-  ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
+  if (!clause.name && !hasNamed) {
+    if (namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length === 0) {
+      ctx.report(node, "Empty named imports are not supported.");
+      return;
+    }
+    ctx.report(node, "Only default, named, and namespace imports are supported.");
+    return;
+  }
+
+  const moduleTemp = ctx.nextTemp("__cos_mod_");
+  ctx.declareName(moduleTemp, node);
+  ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+
+  if (clause.name) {
+    ctx.declareName(clause.name.text, clause.name);
+    ctx.writeLine(`var ${clause.name.text} = ${moduleTemp}.find("default")`);
+  }
+
+  if (namedBindings && ts.isNamedImports(namedBindings)) {
+    for (const element of namedBindings.elements) {
+      if (element.isTypeOnly) continue;
+      const imported = (element.propertyName ?? element.name).text;
+      const local = element.name.text;
+      ctx.declareName(local, element.name);
+      ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`);
+    }
+  }
 }

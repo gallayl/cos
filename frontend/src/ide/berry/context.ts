@@ -19,4 +19,5 @@ export interface GenerationContext {
   popScope(): void;
   nextTemp(prefix: string): string;
   noteDefaultExport(name: string, node: ts.Node): void;
+  noteNamedExport(exported: string, localExpr: string, node: ts.Node): void;
 }

@@ -2,7 +2,13 @@ import ts from "@typescript/typescript6";
 
 import type { GenerationContext } from "./context";
 import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from "./function-emitter";
-import { hasDecorators, hasModifier, isAmbient, isDefaultExport } from "./syntax";
+import {
+  hasDecorators,
+  hasModifier,
+  isAmbient,
+  isDefaultExport,
+  isNamedExport,
+} from "./syntax";
 
 /**
  * @brief Lower a class to a Berry class. Instance field initializers run in `init`.
@@ -26,6 +32,8 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): vo
   if (node.name) ctx.declareName(node.name.text, node.name);
   else ctx.declareName(name, node);
   if (isDefaultExport(node)) ctx.noteDefaultExport(name, node);
+  else if (isNamedExport(node) && node.name)
+    ctx.noteNamedExport(node.name.text, node.name.text, node);
 
   const fields: Array<{ name: string; initializer?: ts.Expression }> = [];
   const methods: ts.MethodDeclaration[] = [];

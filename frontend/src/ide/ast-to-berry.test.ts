@@ -234,115 +234,150 @@ end
         myCustomStuff();
         return Widget;
       `,
-      `var myCustomStuff = cos_import("./myCustomModule")
-var Widget = cos_import("../ui/widget.ts")
+      `var __cos_mod_1 = cos_import("./myCustomModule")
+var myCustomStuff = __cos_mod_1.find("default")
+var __cos_mod_2 = cos_import("../ui/widget.ts")
+var Widget = __cos_mod_2.find("default")
 myCustomStuff()
 return Widget
 `,
     );
   });
 
-  it("lowers non-class default exports", () => {
-    expectBerry(`export default 42;`, `var __cos_default_1 = 42
-
-return __cos_default_1
-`);
-    expectBerry(`export default "hello";`, `var __cos_default_1 = "hello"
-
-return __cos_default_1
-`);
-    expectBerry(`export default null;`, `var __cos_default_1 = nil
-
-return __cos_default_1
-`);
+  it("lowers named and namespace imports from relative modules", () => {
     expectBerry(
-      `export default { a: 1, b: "x" };`,
-      `var __cos_default_1 = {"a": 1, "b": "x"}
-
-return __cos_default_1
-`,
-    );
-    expectBerry(
-      `export default [1, 2];`,
-      `var __cos_default_1 = [1, 2]
-
-return __cos_default_1
+      `
+        import { add, sub as minus } from "./math";
+        import * as util from "./util";
+        import main, { helper } from "./mixed";
+        add(1, 2);
+        minus(3, 1);
+        util.run();
+        main(helper);
+      `,
+      `var __cos_mod_1 = cos_import("./math")
+var add = __cos_mod_1.find("add")
+var minus = __cos_mod_1.find("sub")
+var util = cos_import("./util")
+var __cos_mod_2 = cos_import("./mixed")
+var main = __cos_mod_2.find("default")
+var helper = __cos_mod_2.find("helper")
+add(1, 2)
+minus(3, 1)
+util.run()
+main(helper)
 `,
     );
   });
 
-  it("lowers default-exported functions", () => {
+  it("lowers named exports as a module descriptor", () => {
     expectBerry(
       `
-        export default function add(a: number, b: number): number {
+        export const answer = 42;
+        export function add(a: number, b: number): number {
           return a + b;
         }
       `,
-      `def add(a, b)
+      `var answer = 42
+def add(a, b)
     return a + b
 end
 
-return add
-`,
-    );
-    expectBerry(
-      `
-        export default function(x: number): number {
-          return x + 1;
-        }
-      `,
-      `def __cos_default_1(x)
-    return x + 1
-end
-
-return __cos_default_1
+return cos_module(nil, "answer", answer, "add", add)
 `,
     );
   });
 
-  it("lowers default-exported expressions and identifiers", () => {
+  it("lowers default and named exports together", () => {
     expectBerry(
       `
+        export const version = 1;
+        export default function main(): number {
+          return version;
+        }
+      `,
+      `var version = 1
+def main()
+    return version
+end
+
+return cos_module(main, "version", version)
+`,
+    );
+  });
+
+  it("lowers local re-export declarations", () => {
+    expectBerry(
+      `
+        const internal = 1;
         function helper(): number {
-          return 7;
+          return internal;
         }
-        export default helper;
+        export { internal as value, helper };
       `,
-      `def helper()
-    return 7
+      `var internal = 1
+def helper()
+    return internal
 end
 
-return helper
-`,
-    );
-    expectBerry(
-      `export default (x: number): number => x + 1;`,
-      `var __cos_default_1 = def (x) return x + 1 end
-
-return __cos_default_1
+return cos_module(nil, "value", internal, "helper", helper)
 `,
     );
   });
 
-  it("reports unsupported import forms", () => {
+  it("lowers relative module re-exports", () => {
+    expectBerry(
+      `
+        export { add, sub as minus } from "./math";
+        export * as math from "./math";
+      `,
+      `var __cos_re_1 = cos_import("./math")
+var __cos_export_2 = __cos_re_1.find("add")
+var __cos_export_3 = __cos_re_1.find("sub")
+var __cos_re_4 = cos_import("./math")
+
+return cos_module(nil, "add", __cos_export_2, "minus", __cos_export_3, "math", __cos_re_4)
+`,
+    );
+  });
+
+  it("keeps default-only app exports as raw returns", () => {
+    expectBerry(
+      `
+        export default class Counter {
+          setup(content: unknown, width: number, height: number): void {}
+        }
+      `,
+      `class Counter
+    def setup(content, width, height)
+    end
+end
+
+return Counter
+`,
+    );
+  });
+
+  it("reports unsupported import and export forms", () => {
     const result = compile(`
-      import * as ns from "./mod";
-      import { named } from "./mod";
       import "./side-effect";
-      import type { T } from "./ok";
+      import { named } from "json";
+      export * from "./all";
+      export { x } from "@cos/x";
     `);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
-      "Namespace imports are not supported yet. Use a default import.",
-      "Named imports are not supported yet. Use a default import.",
       "Side-effect imports are not supported.",
+      "Only relative imports are supported. COS APIs are available as globals.",
+      "export * re-exports are not supported yet.",
+      "Only relative re-exports are supported. COS APIs are available as globals.",
     ]);
   });
 
   it("reports syntax the runtime cannot represent", () => {
     const result = compile(`
-      import { screen } from "./ui";
+      import "./ui";
       import ui from "@cos/ui";
       enum Color { Red }
       function same(a: number, b: number): boolean {
@@ -372,7 +407,7 @@ return __cos_default_1
     const messages = result.diagnostics.map((diagnostic) => diagnostic.message);
     expect(messages).toEqual(
       expect.arrayContaining([
-        "Named imports are not supported yet. Use a default import.",
+        "Side-effect imports are not supported.",
         "Only relative imports are supported. COS APIs are available as globals.",
         "Enums are not supported yet.",
         "Loose equality is not supported. Use === and !==.",

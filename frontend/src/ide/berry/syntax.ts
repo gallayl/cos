@@ -12,6 +12,13 @@ export function isDefaultExport(node: ts.Node): boolean {
   );
 }
 
+export function isNamedExport(node: ts.Node): boolean {
+  return (
+    hasModifier(node, ts.SyntaxKind.ExportKeyword) &&
+    !hasModifier(node, ts.SyntaxKind.DefaultKeyword)
+  );
+}
+
 export function isAmbient(node: ts.Node): boolean {
   return hasModifier(node, ts.SyntaxKind.DeclareKeyword);
 }

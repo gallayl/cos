@@ -20,6 +20,7 @@ class GenerationSession implements GenerationContext {
   private readonly diagnostics: BerryDiagnostic[] = [];
   private temps = 0;
   private exportedName: string | undefined;
+  private readonly namedExports: Array<{ exported: string; local: string }> = [];
 
   constructor(sourceFile: ts.SourceFile) {
     this.sourceFile = sourceFile;
@@ -85,8 +86,20 @@ class GenerationSession implements GenerationContext {
     this.exportedName = name;
   }
 
+  noteNamedExport(exported: string, localExpr: string, _node: ts.Node): void {
+    this.namedExports.push({ exported, local: localExpr });
+  }
+
   toResult(): BerryGenerationResult {
-    if (this.exportedName) {
+    if (this.namedExports.length > 0) {
+      this.writeLine("");
+      const defaultValue = this.exportedName ?? "nil";
+      const pairs = this.namedExports
+        .map(({ exported, local }) => `${JSON.stringify(exported)}, ${local}`)
+        .join(", ");
+      const args = pairs.length > 0 ? `${defaultValue}, ${pairs}` : defaultValue;
+      this.writeLine(`return cos_module(${args})`);
+    } else if (this.exportedName) {
       this.writeLine("");
       this.writeLine(`return ${this.exportedName}`);
     }

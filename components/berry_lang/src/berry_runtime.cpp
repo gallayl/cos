@@ -1709,6 +1709,75 @@ void ensure_module_cache(bvm *vm)
     be_pop(vm, 1);
 }
 
+void push_map_instance(bvm *vm)
+{
+    be_getbuiltin(vm, "map");
+    be_call(vm, 0);
+    be_pop(vm, 0);
+}
+
+void copy_map_entries(bvm *vm, int src_index, int dst_map_index)
+{
+    src_index = be_absindex(vm, src_index);
+    dst_map_index = be_absindex(vm, dst_map_index);
+    if (!be_pushiter(vm, src_index))
+    {
+        return;
+    }
+    const int iter_index = be_absindex(vm, -1);
+    while (be_iter_hasnext(vm, src_index))
+    {
+        be_iter_next(vm, src_index);
+        // stack: [..., dst_map, ..., src_map, ..., iter, key, value]
+        const int key_index = be_absindex(vm, -2);
+        const int value_index = be_absindex(vm, -1);
+        be_pushvalue(vm, key_index);
+        be_pushvalue(vm, value_index);
+        be_data_insert(vm, dst_map_index);
+        be_pop(vm, 2);
+        be_pop(vm, 2);
+    }
+    be_pop(vm, 1);
+    (void)iter_index;
+}
+
+int native_cos_module(bvm *vm)
+{
+    const int argc = be_top(vm);
+    push_map_instance(vm);
+    const int inst_index = be_absindex(vm, -1);
+    be_getmember(vm, inst_index, ".p");
+    const int map_index = be_absindex(vm, -1);
+    be_pushstring(vm, "__cos_module__");
+    be_pushbool(vm, true);
+    be_data_insert(vm, map_index);
+    be_pop(vm, 2);
+    be_pushstring(vm, "default");
+    if (argc >= 1)
+    {
+        be_pushvalue(vm, 1);
+    }
+    else
+    {
+        be_pushnil(vm);
+    }
+    be_data_insert(vm, map_index);
+    be_pop(vm, 2);
+    for (int index = 2; index + 1 <= argc; index += 2)
+    {
+        if (!be_isstring(vm, index))
+        {
+            continue;
+        }
+        be_pushvalue(vm, index);
+        be_pushvalue(vm, index + 1);
+        be_data_insert(vm, map_index);
+        be_pop(vm, 2);
+    }
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
 int native_cos_import(bvm *vm)
 {
     if (be_top(vm) < 1 || !be_isstring(vm, 1))
@@ -1742,9 +1811,7 @@ int native_cos_import(bvm *vm)
     be_pushstring(vm, resolved);
     if (be_getindex(vm, cache_index) && !be_isnil(vm, -1))
     {
-        const int value_index = be_absindex(vm, -1);
         be_remove(vm, cache_index);
-        be_pop(vm, be_top(vm) - value_index);
         be_return(vm);
     }
     be_pop(vm, 1);
@@ -1777,7 +1844,53 @@ int native_cos_import(bvm *vm)
         be_raise(vm, "import_error", message);
     }
 
-    const int value_index = be_absindex(vm, -1);
+    int value_index = be_absindex(vm, -1);
+    bool is_descriptor = false;
+    if (be_ismapinstance(vm, value_index))
+    {
+        be_getmember(vm, value_index, ".p");
+        const int data = be_absindex(vm, -1);
+        be_pushstring(vm, "__cos_module__");
+        is_descriptor = be_getindex(vm, data) && be_isbool(vm, -1) && be_tobool(vm, -1);
+        be_pop(vm, 2);
+    }
+    if (!is_descriptor && be_ismap(vm, value_index))
+    {
+        be_pushstring(vm, "__cos_module__");
+        is_descriptor = be_getindex(vm, value_index) && be_isbool(vm, -1) && be_tobool(vm, -1);
+        be_pop(vm, 1);
+        if (is_descriptor)
+        {
+            push_map_instance(vm);
+            const int inst_index = be_absindex(vm, -1);
+            be_getmember(vm, inst_index, ".p");
+            const int dst = be_absindex(vm, -1);
+            copy_map_entries(vm, value_index, dst);
+            be_pop(vm, 1);
+            be_remove(vm, value_index);
+            value_index = be_absindex(vm, -1);
+        }
+    }
+    if (!is_descriptor)
+    {
+        push_map_instance(vm);
+        const int inst_index = be_absindex(vm, -1);
+        be_getmember(vm, inst_index, ".p");
+        const int dst = be_absindex(vm, -1);
+        be_pushstring(vm, "__cos_module__");
+        be_pushbool(vm, true);
+        be_data_insert(vm, dst);
+        be_pop(vm, 2);
+        be_pushstring(vm, "default");
+        be_pushvalue(vm, value_index);
+        be_data_insert(vm, dst);
+        be_pop(vm, 2);
+        be_pop(vm, 1);
+        be_remove(vm, value_index);
+        value_index = be_absindex(vm, -1);
+        (void)inst_index;
+    }
+
     be_pushstring(vm, resolved);
     be_pushvalue(vm, value_index);
     be_data_insert(vm, cache_index);
@@ -1804,6 +1917,7 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "log", native_log);
     be_regfunc(s_vm, "action", native_action);
     be_regfunc(s_vm, "cos_import", native_cos_import);
+    be_regfunc(s_vm, "cos_module", native_cos_module);
     register_console_module(s_vm);
     register_filesystem_module(s_vm);
     register_network_module(s_vm);
