@@ -60,8 +60,8 @@ static void print_profile(void)
     }
     if (berry_err == ESP_OK)
     {
-        printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n",
-               berry_info.initialized ? "yes" : "no", (unsigned)berry_info.gc_managed_bytes, berry_info.gc_step_rate);
+        printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n", berry_info.initialized ? "yes" : "no",
+               (unsigned)berry_info.gc_managed_bytes, berry_info.gc_step_rate);
         printf("  Heap snapshot: free=%u min=%u largest=%u internal_free=%u internal_min=%u internal_largest=%u\n",
                (unsigned)berry_info.heap_free, (unsigned)berry_info.heap_min_free,
                (unsigned)berry_info.heap_largest_block, (unsigned)berry_info.internal_free,

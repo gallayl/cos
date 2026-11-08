@@ -137,8 +137,7 @@ void collect_berry_garbage()
              "[R5] 7 GC complete | berry_gc=%u reclaimed=%u from=%u heap_free=%u heap_min=%u heap_largest=%u "
              "internal_free=%u internal_min=%u internal_largest=%u",
              static_cast<unsigned>(after), static_cast<unsigned>(reclaimed), static_cast<unsigned>(before),
-             static_cast<unsigned>(esp_get_free_heap_size()),
-             static_cast<unsigned>(esp_get_minimum_free_heap_size()),
+             static_cast<unsigned>(esp_get_free_heap_size()), static_cast<unsigned>(esp_get_minimum_free_heap_size()),
              static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
              static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
              static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)),
@@ -1374,7 +1373,8 @@ esp_err_t close_active_app()
         }
     }
 
-    log_lifecycle_checkpoint(had_active_app ? "6 Before app teardown cleanup" : "6 Before app-state cleanup (no active app)");
+    log_lifecycle_checkpoint(had_active_app ? "6 Before app teardown cleanup"
+                                            : "6 Before app-state cleanup (no active app)");
     ui::stop();
 
     berry_ui_end_app();
@@ -1592,8 +1592,7 @@ esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source,
     }
     if (buffer == nullptr)
     {
-        ESP_LOGW(TAG,
-                 "Source buffer alloc failed (%u bytes): def_free=%u def_largest=%u int_largest=%u after stat",
+        ESP_LOGW(TAG, "Source buffer alloc failed (%u bytes): def_free=%u def_largest=%u int_largest=%u after stat",
                  static_cast<unsigned>(need), static_cast<unsigned>(esp_get_free_heap_size()),
                  static_cast<unsigned>(def_largest), static_cast<unsigned>(int_largest));
     }
@@ -2160,7 +2159,8 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
     {
         if (err == ESP_ERR_NO_MEM)
         {
-            ESP_LOGW(TAG, "Could not allocate Berry app source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
+            ESP_LOGW(TAG,
+                     "Could not allocate Berry app source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
                      static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
                      static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
                      static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
@@ -2294,7 +2294,7 @@ extern "C" esp_err_t berry_runtime_set_gc_step_rate(int rate)
 
     be_gc_setsteprate(s_vm, rate);
     s_gc_step_rate = rate;
-    ESP_LOGI(TAG, "Berry GC step rate set to %d (default %d); use only for R5 experiments until benchmarked",
-             rate, BERRY_GC_STEP_RATE_DEFAULT);
+    ESP_LOGI(TAG, "Berry GC step rate set to %d (default %d); use only for R5 experiments until benchmarked", rate,
+             BERRY_GC_STEP_RATE_DEFAULT);
     return ESP_OK;
 }
