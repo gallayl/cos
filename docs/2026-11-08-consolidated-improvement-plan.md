@@ -51,7 +51,7 @@
 |---|---|---:|---|---|
 | R1 | Finish lazy JSON / startup module hygiene | P0 | ✅ Done | M7a |
 | R2 | 2026-11-06 profiling + regression matrix (P7) | P0 | ✅ Done (follow-ups tracked) | M7a |
-| R3 | TS→Berry semantic conformance pass | P0 | ✅ Done (hardware validation pending) | M7b |
+| R3 | TS→Berry semantic conformance pass | P0 | ✅ Done | M7b |
 | R4 | `try`/`catch`/`throw` compiler lowering | P1 | ⬜ Not started | M7b |
 | R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ⬜ Not started | M7c |
 | R6 | Firmware on-demand native module loading | P1 | ⬜ Not started | M7c |
@@ -125,7 +125,7 @@
   - [x] `.length`/`size()` behavior verified and fixed if needed. (Berry source/tests verified; compiler emits `size(expr)`.)
   - [x] Other semantic edge cases audited. (numeric literal preservation, int/int division diagnostic, unary +/typeof/void/delete diagnostics; null/undefined/equality/truthiness/template/class-init/import-export mappings documented)
   - [x] Tests/docs updated. (frontend tests: 82 passed / 16 files; storage TS→Berry outputs regenerated)
-  - [ ] Hardware/Berry VM runtime validation completed (see checklist).
+  - [x] Hardware/Berry VM runtime validation completed as possible by user (2026-11-08; see `docs/reports/2026-11-08-r3-hardware-checklist.md`).
 
 ### R4 — `try`/`catch`/`throw` compiler lowering
 - **Priority:** P1 | **Complexity:** M | **ROI:** High | **Risk:** Medium
@@ -301,6 +301,7 @@
 | 2026-11-08 | R2 hardware analysis (partial). | User provided `idf.py size`/components and clean-boot reruns A–D in `docs/reports/2026-11-08-r2-profiling-checklist.md`. FS text/JSON pass. HTTP success is functional but costly (`min=3288`, `largest=6912` after 158 B). HTTPS fails from clean boot (`mbedtls_ssl_setup -0x008D` / connect alloc failure). Timeout/error paths can collapse native heap (`min 24–76`, `largest 384–1920`, BT malloc failures, `ESP_ERR_NO_MEM`), with no Berry GC recovery. Report updated with anomalies and prioritized improvements (R8/P4 stack HWM, R8/P5 mbedTLS peak, timeout/cleanup audit). |
 | 2026-11-08 | R2 completed as tracker item; remaining work moved to follow-ups. | Deliverables committed (`docs/reports/2026-11-08-r2-profiling-checklist.md`, `berry profile`/`berry gc`, `storage/flash_data/tests/r2/*`). Hardware runs showed HTTPS progressed (`-0x008D` TLS alloc → `-141` PSA insufficient memory during cert verification) after memory tuning (`sdkconfig.defaults` mbedTLS 4KB/variable buffers, `HTTP_TASK_STACK` 6144, `NETWORK_HTTP_BODY_MAX` 2048/headers reduced, smaller esp_http_client buffers) — committed in `6a48ecf` plus subsequent uncommitted tuning. Follow-ups: HTTPS PSA/RAM with verification, timeout/abandon cleanup, BT coexistence, and remaining P7 regression/clean-boot checkpoint runs (see R2 follow-ups, R8). |
 | 2026-11-08 | R3 implementation complete; hardware validation pending. | TS→Berry compiler fixes in `frontend/src/ide/berry/*` (`.length` → `size(expr)`, numeric literal source preservation, int-literal division / unary + / typeof/void/delete diagnostics). SDK numeric harmonization in `frontend/src/cos-sdk/language.d.ts` and `modules/math.d.ts`. Regenerated `storage/flash_data/*.be` outputs. Added `docs/2026-11-08-ts-berry-semantic-conformance.md` and `docs/reports/2026-11-08-r3-hardware-checklist.md`. Frontend tests: `npx vitest run` → 82 passed, 16 files. |
+| 2026-11-08 | R3 completed. | User validated what was possible; R3 marked complete. Follow-up: IDE/Monaco SDK registration updated for `@cos/*` module paths (`frontend/src/ide/register-cos-sdk.ts`) to resolve imports such as `@cos/math`. |
 
 ## Validation checklist (use when closing items)
 
