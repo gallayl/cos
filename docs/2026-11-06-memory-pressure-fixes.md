@@ -4,9 +4,11 @@
 
 **Partially implemented** (as of 2026-11-08). Commit `e0bf05b` ("memory pressure
 mitigation pt.1") implemented the core P1 buffer-sharing/lifetime changes in
-`components/network` and `components/berry_lang/src/berry_network.cpp`. P2 has
-partial infrastructure but does not yet meet its startup-loading acceptance
-criterion. P3–P7 remain open or require measurement.
+`components/network` and `components/berry_lang/src/berry_network.cpp`. P2 (lazy
+Berry JSON initialization / startup module hygiene, consolidated as R1) is
+implemented in `components/berry_lang/src/berry_runtime.cpp` and validated on
+hardware (`fs.read_json/write_json`, `net.fetch(..., response_type="json")`,
+non-JSON startup/app unchanged). P3–P7 remain open or require measurement.
 
 ## Progress summary
 
@@ -16,7 +18,7 @@ criterion. P3–P7 remain open or require measurement.
 | P1.2 Remove duplicate Berry request body buffer | Done (`e0bf05b`) | Berry binding reads `be_tostring()` directly, keeps stack ref rooted until `network_http_fetch()` copies into network-owned `s_req_body`. |
 | P1.3 Remove duplicate Berry request header storage | Done (`e0bf05b`) | `network_http_request_header_t` view added; Berry builds local view, network copies into persistent `s_req_headers` before queueing. |
 | P1.4 Preserve remaining network-owned buffers | Done | `s_req_url/body/headers`, `s_resp_body`, `s_response` retained. |
-| P2 Lazy Berry JSON initialization | Partial | `berry_runtime_ensure_json()` and on-demand loading used by FS JSON methods / JSON parsing paths; **but** `berry_runtime_init()` still calls `install_module_global(..., "json")` and loads JSON at startup, so the "no JSON on ordinary startup" criterion is not met. |
+| P2 Lazy Berry JSON initialization | Done (R1, hardware-validated 2026-11-08) | `berry_runtime_init()` no longer eagerly installs/loads `json`; `json` remains in `be_modtab.c` for `import`/`be_getmodule`; `berry_runtime_ensure_json()` loads/caches on first use. Hardware validation: `fs.read_json`/`fs.write_json` OK; `net.fetch(..., response_type="json")` parsed JSON OK (`ok=true,status=200,json_ok=true`); non-JSON scripts/apps unchanged. |
 | P3 `include_body` for JSON fetch | Not started | No `include_body` handling found in native fetch/SDK declarations. |
 | P4 HTTP worker stack measurement/tuning | Not started | `HTTP_TASK_STACK` remains 12288; no high-water-mark logging/measurement evidence. |
 | P5 HTTPS/TLS peak-memory measurement | Not started | Measurement/profiling plan not recorded; cleanup paths still required. |
