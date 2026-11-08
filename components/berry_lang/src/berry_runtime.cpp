@@ -1933,11 +1933,13 @@ extern "C" esp_err_t berry_runtime_init(void)
 
     // Backward-compatible globals for existing scripts; modules are also
     // available lazily via `import` / `cos_import('@cos/*')`.
+    // `json` is intentionally not preloaded at startup (R1 / 2026-11-06 P2):
+    // it stays in the native module table for `import json` and is loaded on
+    // demand by berry_runtime_ensure_json() from FS JSON / net.fetch JSON paths.
     install_module_global(s_vm, "console");
     install_module_global(s_vm, "fs");
     install_module_global(s_vm, "net");
     install_module_global(s_vm, "ui");
-    install_module_global(s_vm, "json");
 
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
