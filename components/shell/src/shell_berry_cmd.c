@@ -1,6 +1,8 @@
 #include "berry_runtime.h"
 #include "filesystem.h"
+#include "network.h"
 #include "shell.h"
+#include "system.h"
 
 #include "esp_console.h"
 #include "esp_log.h"
@@ -34,12 +36,99 @@ esp_err_t shell_berry_run_autoexec(void)
     return err;
 }
 
+static void print_profile(void)
+{
+    system_info_t info;
+    const esp_err_t sys_err = system_get_info(&info);
+    berry_runtime_memory_info_t berry_info;
+    const esp_err_t berry_err = berry_runtime_get_memory_info(&berry_info);
+    network_http_worker_stack_info_t http_stack;
+    const esp_err_t http_err = network_http_get_worker_stack_info(&http_stack);
+
+    printf("R2 profile\n");
+    if (sys_err == ESP_OK)
+    {
+        printf("  System heap:   free=%u min=%u total=%u largest=%u\n", (unsigned)info.free_heap,
+               (unsigned)info.min_free_heap, (unsigned)info.total_heap, (unsigned)info.max_alloc_block);
+        printf("  Internal heap: free=%u min=%u total=%u largest=%u\n", (unsigned)info.internal_free_heap,
+               (unsigned)info.internal_min_free_heap, (unsigned)info.internal_total_heap,
+               (unsigned)info.internal_max_alloc_block);
+    }
+    else
+    {
+        printf("  System heap:   unavailable (%s)\n", esp_err_to_name(sys_err));
+    }
+    if (berry_err == ESP_OK)
+    {
+        printf("  Berry GC:      initialized=%s managed=%u bytes\n", berry_info.initialized ? "yes" : "no",
+               (unsigned)berry_info.gc_managed_bytes);
+    }
+    else
+    {
+        printf("  Berry GC:      unavailable (%s)\n", esp_err_to_name(berry_err));
+    }
+    if (http_err == ESP_OK)
+    {
+        if (http_stack.available)
+        {
+            printf("  HTTP worker:   cfg=%u unit=%u hwm=%u used~=%u bytes method=%s %s status=%d err=%s\n",
+                   (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
+                   (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes, http_stack.last_method,
+                   http_stack.https ? "https" : "http", http_stack.last_status, esp_err_to_name(http_stack.last_error));
+        }
+        else
+        {
+            printf("  HTTP worker:   not started (cfg=%u unit=%u)\n", (unsigned)http_stack.configured_stack,
+                   (unsigned)http_stack.stack_unit_bytes);
+        }
+    }
+}
+
 static int cmd_berry(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry profile | berry gc\n");
         return 1;
+    }
+
+    if (strcmp(argv[1], "profile") == 0 || strcmp(argv[1], "heap") == 0)
+    {
+        if (argc != 2)
+        {
+            printf("Usage: berry profile\n");
+            return 1;
+        }
+        print_profile();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "gc") == 0)
+    {
+        if (argc != 2)
+        {
+            printf("Usage: berry gc\n");
+            return 1;
+        }
+        esp_err_t err = berry_runtime_init();
+        if (err != ESP_OK)
+        {
+            printf("berry: initialization failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        size_t before = 0;
+        size_t after = 0;
+        err = berry_runtime_gc_collect(&before, &after);
+        if (err != ESP_OK)
+        {
+            printf("berry: gc failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        const size_t reclaimed = before > after ? before - after : 0;
+        printf("Berry GC: before=%u after=%u reclaimed=%u bytes\n", (unsigned)before, (unsigned)after,
+               (unsigned)reclaimed);
+        print_profile();
+        return 0;
     }
 
     esp_err_t err = berry_runtime_init();
@@ -137,7 +226,7 @@ static int cmd_berry(int argc, char **argv)
     else
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry profile | berry gc\n");
         return 1;
     }
 
@@ -154,7 +243,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run, execute, or evaluate Berry scripts and source",
+        .help = "Run/exec/eval Berry scripts; profile or gc memory (R2)",
         .hint = NULL,
         .func = &cmd_berry,
     };

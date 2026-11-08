@@ -10,5 +10,5 @@ idf_component_register(
          "src/shell_berry_cmd.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES berry_lang filesystem network console esp_driver_uart freertos
+    REQUIRES berry_lang filesystem network console esp_driver_uart freertos system
 )

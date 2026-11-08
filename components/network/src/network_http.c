@@ -4,6 +4,7 @@
 
 #include "esp_crt_bundle.h"
 #include "esp_http_client.h"
+#include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -14,6 +15,8 @@
 
 #define HTTP_TASK_STACK 12288
 #define HTTP_TASK_PRIORITY 4
+
+static const char *TAG = "net_http";
 
 typedef struct
 {
@@ -51,6 +54,89 @@ static network_http_header_t s_req_headers[NETWORK_HTTP_HEADER_MAX];
 static char s_resp_body[NETWORK_HTTP_BODY_MAX + 1];
 static const char s_empty_body[] = "";
 static network_http_response_t s_response;
+
+static network_http_worker_stack_info_t s_http_stack_info;
+
+static const char *http_method_name(esp_http_client_method_t method)
+{
+    switch (method)
+    {
+    case HTTP_METHOD_POST:
+        return "POST";
+    case HTTP_METHOD_PUT:
+        return "PUT";
+    case HTTP_METHOD_PATCH:
+        return "PATCH";
+    case HTTP_METHOD_DELETE:
+        return "DELETE";
+    case HTTP_METHOD_HEAD:
+        return "HEAD";
+    case HTTP_METHOD_GET:
+    default:
+        return "GET";
+    }
+}
+
+static void log_http_worker_stack(const char *method, bool https, int status, esp_err_t err)
+{
+    const UBaseType_t hwm_words = uxTaskGetStackHighWaterMark(NULL);
+    const uint32_t stack_unit = (uint32_t)sizeof(StackType_t);
+    const uint32_t hwm_bytes = (uint32_t)hwm_words * stack_unit;
+    const uint32_t configured = (uint32_t)HTTP_TASK_STACK;
+    const uint32_t used_bytes = configured > hwm_bytes ? configured - hwm_bytes : 0;
+
+    ESP_LOGI(TAG,
+             "R8/P4 stack: cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u min_free=%u method=%s scheme=%s status=%d err=%s",
+             (unsigned)configured, (unsigned)stack_unit, (unsigned)hwm_words, (unsigned)hwm_bytes, (unsigned)used_bytes,
+             (unsigned)hwm_bytes, method != NULL ? method : "?", https ? "https" : "http", status, esp_err_to_name(err));
+
+    network_http_worker_stack_info_t sample = {0};
+    sample.available = true;
+    sample.configured_stack = configured;
+    sample.stack_unit_bytes = stack_unit;
+    sample.hwm_words = (uint32_t)hwm_words;
+    sample.hwm_bytes = hwm_bytes;
+    sample.used_bytes = used_bytes;
+    sample.https = https;
+    sample.last_status = status;
+    sample.last_error = err;
+    strncpy(sample.last_method, method != NULL ? method : "?", sizeof(sample.last_method) - 1);
+    sample.last_method[sizeof(sample.last_method) - 1] = '\0';
+
+    if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        s_http_stack_info = sample;
+        xSemaphoreGive(s_http_mutex);
+    }
+    else
+    {
+        s_http_stack_info = sample;
+    }
+}
+
+esp_err_t network_http_get_worker_stack_info(network_http_worker_stack_info_t *info)
+{
+    if (info == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memset(info, 0, sizeof(*info));
+    if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        *info = s_http_stack_info;
+        xSemaphoreGive(s_http_mutex);
+    }
+    else
+    {
+        *info = s_http_stack_info;
+    }
+    if (!info->available)
+    {
+        info->configured_stack = (uint32_t)HTTP_TASK_STACK;
+        info->stack_unit_bytes = (uint32_t)sizeof(StackType_t);
+    }
+    return ESP_OK;
+}
 
 static TickType_t time_until_deadline_ticks(int64_t deadline_us)
 {
@@ -257,6 +343,9 @@ static void http_worker(void *argument)
         }
 
         const esp_err_t err = perform_request(&message);
+        const int status = s_response.status;
+        const bool https = strncmp(s_req_url, "https://", 8) == 0;
+        log_http_worker_stack(http_method_name(message.method), https, status, err);
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
         if (s_http_active && s_active_request_id == message.request_id)
         {

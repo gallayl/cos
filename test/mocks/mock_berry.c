@@ -14,6 +14,11 @@ static int s_exec_status;
 static int s_exec_argc;
 static char s_exec_args[MOCK_BERRY_MAX_ARGS][MOCK_BERRY_BUFFER_SIZE];
 static esp_err_t s_close_result;
+static esp_err_t s_gc_collect_result;
+static size_t s_gc_before;
+static size_t s_gc_after;
+static bool s_memory_initialized;
+static size_t s_gc_managed_bytes;
 static char s_last_source[MOCK_BERRY_BUFFER_SIZE];
 static char s_last_path[MOCK_BERRY_BUFFER_SIZE];
 static char s_last_source_name[MOCK_BERRY_BUFFER_SIZE];
@@ -28,6 +33,11 @@ void mock_berry_reset(void)
     s_exec_argc = 0;
     memset(s_exec_args, 0, sizeof(s_exec_args));
     s_close_result = ESP_OK;
+    s_gc_collect_result = ESP_OK;
+    s_gc_before = 1024;
+    s_gc_after = 512;
+    s_memory_initialized = true;
+    s_gc_managed_bytes = 512;
     s_last_source[0] = '\0';
     s_last_path[0] = '\0';
     s_last_source_name[0] = '\0';
@@ -61,6 +71,23 @@ void mock_berry_set_exec_status(int status)
 void mock_berry_set_close_result(esp_err_t result)
 {
     s_close_result = result;
+}
+
+void mock_berry_set_gc_collect_result(esp_err_t result)
+{
+    s_gc_collect_result = result;
+}
+
+void mock_berry_set_gc_bytes(size_t before, size_t after)
+{
+    s_gc_before = before;
+    s_gc_after = after;
+}
+
+void mock_berry_set_memory_info(bool initialized, size_t gc_managed_bytes)
+{
+    s_memory_initialized = initialized;
+    s_gc_managed_bytes = gc_managed_bytes;
 }
 
 const char *mock_berry_last_source(void)
@@ -139,4 +166,32 @@ void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_li
     (void)cancel_line;
     (void)read_key;
     (void)read_char;
+}
+
+esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info)
+{
+    if (info == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    info->initialized = s_memory_initialized;
+    info->gc_managed_bytes = s_gc_managed_bytes;
+    return ESP_OK;
+}
+
+esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes)
+{
+    if (s_gc_collect_result == ESP_OK)
+    {
+        if (before_bytes != NULL)
+        {
+            *before_bytes = s_gc_before;
+        }
+        if (after_bytes != NULL)
+        {
+            *after_bytes = s_gc_after;
+        }
+        s_gc_managed_bytes = s_gc_after;
+    }
+    return s_gc_collect_result;
 }

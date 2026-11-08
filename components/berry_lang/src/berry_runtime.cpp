@@ -2157,3 +2157,33 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
 
     return ESP_OK;
 }
+
+extern "C" esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes)
+{
+    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    if (s_vm == nullptr)
+    {
+        if (before_bytes != nullptr)
+        {
+            *before_bytes = 0;
+        }
+        if (after_bytes != nullptr)
+        {
+            *after_bytes = 0;
+        }
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    const size_t before = be_gc_memcount(s_vm);
+    be_gc_collect(s_vm);
+    const size_t after = be_gc_memcount(s_vm);
+    if (before_bytes != nullptr)
+    {
+        *before_bytes = before;
+    }
+    if (after_bytes != nullptr)
+    {
+        *after_bytes = after;
+    }
+    return ESP_OK;
+}

@@ -4,6 +4,7 @@
 #include "keyboard_event.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -59,6 +60,12 @@ extern "C"
     } berry_runtime_memory_info_t;
 
     esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info);
+
+    /**
+     * Run Berry garbage collection and report managed bytes before/after.
+     * Out parameters may be NULL. Returns ESP_ERR_INVALID_STATE if the VM is not initialized.
+     */
+    esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes);
 
 #ifdef __cplusplus
 }

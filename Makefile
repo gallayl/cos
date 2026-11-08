@@ -130,3 +130,9 @@ docs:
 docs-check:
 	@cmake -E make_directory build/docs
 	doxygen
+
+size:
+	$(IDF_PY) size
+
+size-components:
+	$(IDF_PY) size-components

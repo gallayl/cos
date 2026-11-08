@@ -3,6 +3,7 @@
 #include "mock_berry.h"
 #include "mock_console.h"
 #include "mock_filesystem.h"
+#include "mock_system.h"
 #include "shell.h"
 #include "shell_cmds.h"
 
@@ -11,6 +12,7 @@ void setUp(void)
     mock_console_reset();
     mock_filesystem_reset();
     mock_berry_reset();
+    mock_system_reset();
     shell_register_berry_commands();
 }
 
@@ -136,6 +138,49 @@ static void test_autoexec_initialization_error_is_reported(void)
     TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 
+static void test_profile_prints_metrics(void)
+{
+    mock_system_set_free_heap(180000);
+    mock_system_set_min_free_heap(160000);
+    mock_system_set_max_alloc(110000);
+    mock_berry_set_memory_info(true, 2048);
+    char *argv[] = {"berry", "profile"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_profile_accepts_heap_alias(void)
+{
+    char *argv[] = {"berry", "heap"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_profile_rejects_extra_args(void)
+{
+    char *argv[] = {"berry", "profile", "extra"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
+}
+
+static void test_gc_collects_and_reports(void)
+{
+    mock_berry_set_gc_bytes(4096, 1024);
+    char *argv[] = {"berry", "gc"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_gc_reports_init_failure(void)
+{
+    mock_berry_set_init_result(ESP_ERR_NO_MEM);
+    char *argv[] = {"berry", "gc"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_gc_reports_collect_failure(void)
+{
+    mock_berry_set_gc_collect_result(ESP_ERR_INVALID_STATE);
+    char *argv[] = {"berry", "gc"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -155,5 +200,11 @@ int main(void)
     RUN_TEST(test_autoexec_missing_script_is_not_an_error);
     RUN_TEST(test_autoexec_execution_error_is_reported);
     RUN_TEST(test_autoexec_initialization_error_is_reported);
+    RUN_TEST(test_profile_prints_metrics);
+    RUN_TEST(test_profile_accepts_heap_alias);
+    RUN_TEST(test_profile_rejects_extra_args);
+    RUN_TEST(test_gc_collects_and_reports);
+    RUN_TEST(test_gc_reports_init_failure);
+    RUN_TEST(test_gc_reports_collect_failure);
     return UNITY_END();
 }
