@@ -98,7 +98,9 @@ Berry treats only `false` and `nil` as falsy. TypeScript/JS treat `0`, `NaN`, `"
 
 Supported: `if`/`else if`/`else`, `while`, C-style `for` (lowered to while), `for..of`, `switch` (lowered to if/elif chain with temp, no fallthrough), `break`/`continue` (no labels), blocks, expression/return statements.
 
-Diagnosed: `for..in`, `for await`, `do..while`, labeled break/continue, `try`/`catch`/`finally`, `throw`, `with`, `debugger`, `switch` fallthrough.
+Supported (R4, 2026-11-08, compiler): `try`/`catch` lowers to Berry `try`/`except .. [as e]`/`end`; `throw` lowers to Berry `raise`. A single identifier catch binding (optional type annotation erased) is supported; optional catch binding (`catch {}`) is supported. Berry binds the first exception value to `e` in the supported form (Berry also supports an optional second message parameter in `except .. as e, m`, not currently exposed by TS catch syntax).
+
+Diagnosed: `for..in`, `for await`, `do..while`, labeled break/continue, `try`/`finally` / `try`/`catch`/`finally` (Berry has no `finally`), destructuring catch bindings, `with`, `debugger`, `switch` fallthrough.
 
 ## Imports/exports
 
@@ -109,6 +111,6 @@ Type-only imports/exports erased. Relative imports/exports and `@cos/*`/`@berry/
 - Consider a weaker/optional diagnostic mode for integer division when variable types are unknown but author intent is clear.
 - Audit `string` module function names/signatures against Berry `string.*` and avoid implying TS `String.prototype` methods are available.
 - Consider `console.log` vs Berry `print`/COS `log()` mapping in SDK docs (Berry `print` is global; COS also has `log()` native binding).
-- R4: `try`/`catch`/`throw`. R18: `async`/`await`.
+- R4: `try`/`catch`/`throw` compiler lowering complete (2026-11-08), including hardware validation; `finally` remains diagnosed. Follow-up: consider exposing Berry exception message (second `except` binding) if needed by SDK/runtime error model. R18: `async`/`await`.
 - R6: runtime lazy loading for non-JSON modules; ensure `@cos/*` imports align.
 - Hardware validation: run generated Berry apps/scripts that exercise `size()`, numeric literals/division, `nil` checks, template strings, and class init on device/VM.

@@ -450,6 +450,204 @@ ui.label(0, "hi")
   });
 });
 
+describe("astToBerry try/catch/throw (R4)", () => {
+  it("lowers try/catch with a bound exception variable", () => {
+    expectBerry(
+      `
+        function parse(): string {
+          try {
+            return load();
+          } catch (e) {
+            log(e);
+            return "fallback";
+          }
+        }
+      `,
+      `def parse()
+    try
+        return load()
+    except .. as e
+        log(e)
+        return "fallback"
+    end
+end
+`,
+    );
+  });
+
+  it("lowers catch without a binding", () => {
+    expectBerry(
+      `
+        function safe(): void {
+          try {
+            work();
+          } catch {
+            cleanup();
+          }
+        }
+      `,
+      `def safe()
+    try
+        work()
+    except ..
+        cleanup()
+    end
+end
+`,
+    );
+  });
+
+  it("lowers throw to Berry raise", () => {
+    expectBerry(
+      `
+        function fail(message: string): void {
+          throw message;
+        }
+      `,
+      `def fail(message)
+    raise message
+end
+`,
+    );
+  });
+
+  it("lowers throw of a string literal", () => {
+    expectBerry(`throw "stop_iteration";`, `raise "stop_iteration"\n`);
+  });
+
+  it("lowers nested try/catch and rethrow", () => {
+    expectBerry(
+      `
+        function guarded(): void {
+          try {
+            try {
+              risky();
+            } catch (inner) {
+              throw inner;
+            }
+          } catch (outer) {
+            log(outer);
+          }
+        }
+      `,
+      `def guarded()
+    try
+        try
+            risky()
+        except .. as inner
+            raise inner
+        end
+    except .. as outer
+        log(outer)
+    end
+end
+`,
+    );
+  });
+
+  it("accepts typed catch bindings and erases the type", () => {
+    expectBerry(
+      `
+        try {
+          run();
+        } catch (e: unknown) {
+          handle(e);
+        }
+      `,
+      `try
+    run()
+except .. as e
+    handle(e)
+end
+`,
+    );
+  });
+
+  it("lowers control flow inside try and catch blocks", () => {
+    expectBerry(
+      `
+        function find(items: number[]): number {
+          for (const item of items) {
+            try {
+              if (item > 0) {
+                return item;
+              }
+              continue;
+            } catch (e) {
+              break;
+            }
+          }
+          return -1;
+        }
+      `,
+      `def find(items)
+    for item: items
+        try
+            if item > 0
+                return item
+            end
+            continue
+        except .. as e
+            break
+        end
+    end
+    return -1
+end
+`,
+    );
+  });
+
+  it("diagnoses try/finally because Berry has no finally clause", () => {
+    const result = compile(`
+      try {
+        work();
+      } finally {
+        cleanup();
+      }
+    `);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("try/finally is not supported"),
+      ]),
+    );
+  });
+
+  it("diagnoses try/catch/finally", () => {
+    const result = compile(`
+      try {
+        work();
+      } catch (e) {
+        handle(e);
+      } finally {
+        cleanup();
+      }
+    `);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("try/finally is not supported"),
+      ]),
+    );
+  });
+
+  it("diagnoses destructuring in catch bindings", () => {
+    const result = compile(`
+      try {
+        work();
+      } catch ({ message }) {
+        log(message);
+      }
+    `);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Destructuring in catch bindings is not supported"),
+      ]),
+    );
+  });
+});
+
 describe("astToBerry semantic conformance (R3)", () => {
   it("lowers .length to Berry global size() for strings and containers", () => {
     expectBerry(

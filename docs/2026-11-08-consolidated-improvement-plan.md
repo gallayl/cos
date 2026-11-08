@@ -29,7 +29,7 @@
 |---|---|---|
 | Memory pressure follow-ups | `2026-11-02`, `2026-11-06` | P2 startup-loading gap; P3 `include_body`; P4 stack measurement/tuning; P5 TLS peak measurement; P7 profiling/regression matrix; Phase 1 instrumentation/source-buffer/lifecycle/GC/host `.be` CI validation. |
 | Firmware module loading hygiene | `2026-11-06` P2, `2026-11-07` | Runtime eagerly installs `console/fs/net/ui/json` globals at init; on-demand/native module loading strategy not implemented. |
-| TS compiler/runtime semantics | `2026-11-03`, `2026-11-07` | `.length`/`size()` and other Berry mappings need conformance audit; `try`/`catch`/`throw` rejected by compiler; `async`/`await`/`for await` rejected; full subset/semantic docs + tests incomplete. |
+| TS compiler/runtime semantics | `2026-11-03`, `2026-11-07` | R3 delivered `.length`→`size()`/numeric/diagnostic conformance pass and hardware validation. R4 complete: `try`/`catch`/`throw` compiler lowering implemented, unit tested, and hardware validated (`finally`/destructuring catch diagnosed). `async`/`await`/`for await` still rejected; broader subset/semantic docs/tests remain incomplete. |
 | Berry shell command scripts | `2026-11-01` | No resolver, persisted `path` command, `main(args)` command-script execution, or migration pilot wiring found. |
 | TS toolchain productization | `2026-11-03`, `2026-11-04` | Package layout differs from proposal; Worker isolation for compilation must be verified/enforced; SDK single-source-of-truth/audit missing; dev/prod profiles, source maps, editor memory diagnostics missing. |
 | Berry simulator | `2026-11-05` | No WASM runtime, simulator Worker, platform abstraction backend, renderer, or simulator UI found. |
@@ -52,7 +52,7 @@
 | R1 | Finish lazy JSON / startup module hygiene | P0 | ✅ Done | M7a |
 | R2 | 2026-11-06 profiling + regression matrix (P7) | P0 | ✅ Done (follow-ups tracked) | M7a |
 | R3 | TS→Berry semantic conformance pass | P0 | ✅ Done | M7b |
-| R4 | `try`/`catch`/`throw` compiler lowering | P1 | ⬜ Not started | M7b |
+| R4 | `try`/`catch`/`throw` compiler lowering | P1 | ✅ Done | M7b |
 | R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ⬜ Not started | M7c |
 | R6 | Firmware on-demand native module loading | P1 | ⬜ Not started | M7c |
 | R7 | Fetch `include_body` option (P3) | P1 | ⬜ Not started | M7d |
@@ -129,18 +129,25 @@
 
 ### R4 — `try`/`catch`/`throw` compiler lowering
 - **Priority:** P1 | **Complexity:** M | **ROI:** High | **Risk:** Medium
+- **Status:** ✅ **Done (2026-11-08)** — compiler lowering, diagnostics, frontend unit tests, and hardware/manual validation complete.
 - **Source:** `docs/2026-11-07-ts-feature-extensions.md`
-- **Current state:** `TryStatement` and `ThrowStatement` are explicitly rejected in `frontend/src/ide/berry/statement-generator.ts`.
+- **Current state:** `frontend/src/ide/berry/statement-generator.ts` lowers `throw` to Berry `raise` and `try/catch` to Berry `try`/`except ..`/`end` (with optional `as <identifier>` binding). `finally` and destructuring catch bindings are diagnosed (no silent miscompile). Berry semantics confirmed against pinned source tests (`build/berry-source/tests/exceptions.be`, `tests/class.be`, `tests/compiler.be`, `tests/division_by_zero.be`). User hardware validation (2026-11-08): `berry run /sdcard/tests/trycatch.be` produced expected output ending with `R4 OK` (basic catch, no-binding catch, rethrow, control flow/return in try, break in catch) with no uncaught exception/crash.
 - **Spec / acceptance criteria:**
-  - Standard TS `try/catch/finally` (scope decided explicitly) lowers to Berry exception handling (`try`/`except`/`raise` or equivalent supported form) with predictable binding/cleanup behavior.
+  - Standard TS `try/catch` lowers to Berry exception handling (`try`/`except`/`raise`) with predictable binding behavior.
+  - `finally` scope decided explicitly: **diagnosed as unsupported** (Berry has no `finally`; emulation is control-flow-sensitive and risky). Restructure cleanup explicitly.
   - `throw` lowers to Berry-compatible exception raising.
   - Unsupported patterns are diagnosed, not silently miscompiled.
   - Generated Berry is readable and tested.
+- **Berry mapping notes:**
+  - `throw expr` → `raise <compiled expr>`.
+  - `try { T } catch (e) { C }` → `try` / `T` / `except .. as e` / `C` / `end`. `e` receives Berry's first exception value (for many built-in errors this is the error type string; Berry also supports a second message parameter, not currently exposed from TS catch syntax).
+  - `try { T } catch { C }` → `try` / `T` / `except ..` / `C` / `end`.
 - **Progress:**
-  - [ ] Berry exception syntax/semantics confirmed for pinned Berry version.
-  - [ ] Lowering implemented.
-  - [ ] Diagnostics/tests added.
-  - [ ] SDK/docs updated.
+  - [x] Berry exception syntax/semantics confirmed for pinned Berry version (`65fce317...`, `raise`, `try/except [..|type] [as e[,m]]/end`).
+  - [x] Lowering implemented (`frontend/src/ide/berry/statement-generator.ts`: `emitTry`, `emitThrow`).
+  - [x] Diagnostics/tests added (frontend `ast-to-berry` R4 cases: bound/unbound catch, throw, rethrow/nesting, typed catch erasure, control flow in try/catch, `finally` diagnostic, destructuring catch diagnostic). `npx vitest run src/ide/ast-to-berry.test.ts` → 37 passed.
+  - [x] SDK/docs updated (source docs + conformance doc + hardware checklist). Broader SDK error-model docs may follow if Berry exception message binding (second `except` arg) is needed.
+  - [x] Hardware/manual validation completed (user, 2026-11-08): `docs/reports/2026-11-08-r4-hardware-checklist.md`.
 
 ### R5 — Phase 1 Berry memory instrumentation & lifecycle verification
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Medium
@@ -302,6 +309,7 @@
 | 2026-11-08 | R2 completed as tracker item; remaining work moved to follow-ups. | Deliverables committed (`docs/reports/2026-11-08-r2-profiling-checklist.md`, `berry profile`/`berry gc`, `storage/flash_data/tests/r2/*`). Hardware runs showed HTTPS progressed (`-0x008D` TLS alloc → `-141` PSA insufficient memory during cert verification) after memory tuning (`sdkconfig.defaults` mbedTLS 4KB/variable buffers, `HTTP_TASK_STACK` 6144, `NETWORK_HTTP_BODY_MAX` 2048/headers reduced, smaller esp_http_client buffers) — committed in `6a48ecf` plus subsequent uncommitted tuning. Follow-ups: HTTPS PSA/RAM with verification, timeout/abandon cleanup, BT coexistence, and remaining P7 regression/clean-boot checkpoint runs (see R2 follow-ups, R8). |
 | 2026-11-08 | R3 implementation complete; hardware validation pending. | TS→Berry compiler fixes in `frontend/src/ide/berry/*` (`.length` → `size(expr)`, numeric literal source preservation, int-literal division / unary + / typeof/void/delete diagnostics). SDK numeric harmonization in `frontend/src/cos-sdk/language.d.ts` and `modules/math.d.ts`. Regenerated `storage/flash_data/*.be` outputs. Added `docs/2026-11-08-ts-berry-semantic-conformance.md` and `docs/reports/2026-11-08-r3-hardware-checklist.md`. Frontend tests: `npx vitest run` → 82 passed, 16 files. |
 | 2026-11-08 | R3 completed. | User validated what was possible; R3 marked complete. Follow-up: IDE/Monaco SDK registration updated for `@cos/*` module paths (`frontend/src/ide/register-cos-sdk.ts`) to resolve imports such as `@cos/math`. |
+| 2026-11-08 | R4 complete: `try`/`catch`/`throw` compiler lowering. | `frontend/src/ide/berry/statement-generator.ts` lowers `throw`→`raise` and `try/catch`→Berry `try/except .. [as e]/end`; `finally` and destructuring catch bindings diagnosed. Berry exception syntax confirmed from pinned tests (`build/berry-source/tests/exceptions.be`, `class.be`, `compiler.be`, `division_by_zero.be`). R4 unit tests added in `frontend/src/ide/ast-to-berry.test.ts` (37 passed). User hardware validation: `berry run /sdcard/tests/trycatch.be` produced expected output ending with `R4 OK`. Checklist: `docs/reports/2026-11-08-r4-hardware-checklist.md`. |
 
 ## Validation checklist (use when closing items)
 

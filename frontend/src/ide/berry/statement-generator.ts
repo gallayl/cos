@@ -133,11 +133,11 @@ export function emitStatement(
     return;
   }
   if (ts.isThrowStatement(node)) {
-    ctx.report(node, "Throw is not supported.");
+    emitThrow(ctx, node);
     return;
   }
   if (ts.isTryStatement(node)) {
-    ctx.report(node, "Try statements are not supported.");
+    emitTry(ctx, node);
     return;
   }
   if (ts.isDoStatement(node)) {
@@ -495,6 +495,62 @@ function terminatesClause(statement: ts.Statement | undefined): boolean {
     .reverse()
     .find((item) => item.kind !== ts.SyntaxKind.EmptyStatement);
   return terminatesClause(last);
+}
+
+function emitThrow(ctx: GenerationContext, node: ts.ThrowStatement): void {
+  ctx.writeLine(`raise ${ctx.emitExpression(node.expression)}`);
+}
+
+function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
+  if (node.finallyBlock) {
+    ctx.report(
+      node.finallyBlock,
+      "try/finally is not supported. Berry has no finally clause; restructure cleanup explicitly (e.g. duplicate cleanup or helper functions).",
+    );
+    return;
+  }
+
+  const catchClause = node.catchClause;
+  if (!catchClause) {
+    ctx.report(node, "A try statement must have a catch clause.");
+    return;
+  }
+
+  ctx.writeLine("try");
+  ctx.indent();
+  ctx.pushScope();
+  for (const statement of node.tryBlock.statements) ctx.emitStatement(statement);
+  ctx.popScope();
+  ctx.dedent();
+
+  const binding = catchClause.variableDeclaration;
+  if (!binding) {
+    ctx.writeLine("except ..");
+  } else if (!ts.isIdentifier(binding.name)) {
+    ctx.report(
+      binding.name,
+      "Destructuring in catch bindings is not supported. Use a single identifier, e.g. catch (e).",
+    );
+    ctx.writeLine("except ..");
+  } else {
+    const name = binding.name.text;
+    ctx.writeLine(`except .. as ${name}`);
+    ctx.indent();
+    ctx.pushScope();
+    ctx.declareName(name, binding.name);
+    for (const statement of catchClause.block.statements) ctx.emitStatement(statement);
+    ctx.popScope();
+    ctx.dedent();
+    ctx.writeLine("end");
+    return;
+  }
+
+  ctx.indent();
+  ctx.pushScope();
+  for (const statement of catchClause.block.statements) ctx.emitStatement(statement);
+  ctx.popScope();
+  ctx.dedent();
+  ctx.writeLine("end");
 }
 
 function emitClassDeclaration(

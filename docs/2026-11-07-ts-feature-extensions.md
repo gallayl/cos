@@ -17,7 +17,7 @@ lazy module loading and several language mappings remain open.
 | On-demand Berry/native module loading (firmware) | Partial (R1 done for JSON) | R1 removed eager `json` install/load from `berry_runtime_init()`; `json` stays in the native module table and is loaded on demand via `berry_runtime_ensure_json()`. `console`, `fs`, `net`, `ui` are still eagerly installed as globals at init — tracked as consolidated plan R6. |
 | Harmonize Berry built-ins in TS SDK | Partial | `berry-builtins.d.ts` and per-module SDK files exist (`math`, `string`, `json`, `introspect`, `gc`, `global`, etc.). **Follow-up:** audit mappings/availability against actual Berry/COS runtime and avoid importing unused modules by default. |
 | `.length` / string-size mapping review | Open / needs verification | Compiler currently lowers property `.length` to `.size()` (method). The edge case called out here should be validated against Berry semantics and fixed with tests if incorrect. Audit similar mappings (arrays, maps, bytes, strings). |
-| `try`/`catch` | Not started | `TryStatement`/`ThrowStatement` are explicitly rejected by the compiler. Map to Berry `try`/`except`/`raise` semantics with clear diagnostics and tests. |
+| `try`/`catch`/`throw` (compiler) | Done (R4, 2026-11-08) | Compiler lowers `throw`→`raise` and `try/catch`→`try/except .. [as e]/end` with frontend unit tests (`ast-to-berry` R4 cases). `finally` and destructuring catch bindings are diagnosed (Berry has no `finally`; catch maps to Berry's first exception value). User hardware validation passed (`berry run /sdcard/tests/trycatch.be` → expected output, `R4 OK`): `docs/reports/2026-11-08-r4-hardware-checklist.md`. |
 | `async`/`await` | Not started | `async` functions, `await`, and `for await` are explicitly rejected. Requires runtime/concurrency design before syntax support; do not silently desugar. |
 
 ## Imports
@@ -51,9 +51,18 @@ What we should try to investigate:
         Current implementation: `myString.length` (TS) => `myString.size()` (Current Berry, invalid syntax), should be `size(myString)` (correct Berry syntax)
     - We should look for similar edge cases
 
- ## try / catch implementation
+## try / catch implementation
 
- Users should be able to use a standard, Typesciprt / Javascript-style Try / Catch block. Berry VM should already have a `try` / `except` syntax that we should use here. However it's not used right now, we should use it as a standard error handling mechanism
+**Status (R4, 2026-11-08):** Done (compiler + manual hardware validation).
+
+- Supported lowering:
+  - `throw expr;` → `raise <compiled expr>`
+  - `try { ... } catch (e) { ... }` → `try ... except .. as e ... end`
+  - `try { ... } catch { ... }` → `try ... except .. ... end`
+  - Catch parameter type annotations are erased.
+- Berry semantics (pinned `65fce317...`, confirmed via `build/berry-source/tests/exceptions.be`, `class.be`, `compiler.be`, `division_by_zero.be`): `try`/`except`/`end`, `except ..` catches all, `except <type> as e[, m]` supported by Berry; `raise <value>` / `raise <value>, <message>` supported by Berry. TS catch currently binds Berry's first exception value only.
+- Diagnosed (no silent miscompile): `finally` clauses (`try/finally`, `try/catch/finally`) — Berry has no `finally`; cleanup must be explicit. Destructuring catch bindings. `try` without `catch`.
+- Tests: `frontend/src/ide/ast-to-berry.test.ts` R4 block. Manual/hardware guide: `docs/reports/2026-11-08-r4-hardware-checklist.md`.
  
  ## async / await syntax
 
