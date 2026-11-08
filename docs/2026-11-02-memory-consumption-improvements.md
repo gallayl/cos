@@ -2,6 +2,39 @@
 
 ## Low-risk improvements before TypeScript support
 
+### Status
+
+**Proposed / largely not started** (as of 2026-11-08). Related but separate
+network/Berry memory work landed in `e0bf05b` (see
+[2026-11-06-memory-pressure-fixes.md](./2026-11-06-memory-pressure-fixes.md));
+it does not satisfy the Phase 1 acceptance criteria below.
+
+### Progress
+
+- [ ] **Instrumentation baseline:** no `be_gc_memcount()`/watermark/heap-block
+      reporting integrated into the lifecycle checkpoints described here was
+      found in `berry_runtime`/shell diagnostics during this review.
+- [ ] **Release source buffers immediately:** `read_virtual_file()` /
+      `execute_app_source()` ownership still needs verification/change against
+      the pinned Berry implementation.
+- [ ] **Lifecycle cleanup audit:** teardown, callback/timer/UI cleanup, and
+      post-GC leak checks need focused regression tests (repeated start/stop).
+- [ ] **GC tuning experiment:** `be_gc_setsteprate()` benchmarks (200/150/125)
+      not recorded; production default unchanged.
+- [x] **Preserve existing optimizations:** precompiled objects / constrained
+      stack settings remain in place unless measurements justify changes.
+- [ ] **Host-side Berry validation:** no dedicated CI target found that compiles
+      all existing `.be` applications as a compiler regression gate.
+
+### Follow-ups
+
+- Add a repeatable measurement harness for the seven lifecycle checkpoints,
+  including `be_gc_memcount()` and ESP heap watermarks/largest block.
+- Make source-buffer lifetime explicit around `be_loadbuffer()` and add failure
+  tests (compile error, missing file, VM pressure).
+- Add restart-loop tests for representative apps to detect leaks/fragmentation
+  before changing GC defaults.
+
 ### Goals
 
 Reduce unnecessary RAM consumption, startup memory peaks and memory leaks without changing the existing Berry VM architecture or breaking existing applications.

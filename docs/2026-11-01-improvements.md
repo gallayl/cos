@@ -2,9 +2,26 @@
 
 ## Status
 
-Proposed feature specification. This document describes the intended behavior
-for running Berry scripts as shell commands; it does not change the current
-command implementation.
+**Proposed / not implemented** (as of 2026-11-08). This document describes the
+intended behavior for running Berry scripts as shell commands; it does not
+change the current command implementation.
+
+### Current progress
+
+- [ ] No resolver, `path` shell command, persistence file, or Berry `main(args)`
+      command-script execution path found in the firmware.
+- [ ] Native commands such as `ping`/`nslookup` remain the active implementation
+      unless migrated deliberately after the resolver exists and tests pass.
+
+### Follow-ups
+
+- Implement the resolver in the interactive shell path (after alias expansion,
+  before/alongside unknown-command handling) with the exact lookup/precedence
+  rules below.
+- Add a shared argument-tokenization path so script commands receive the same
+  parsed arguments as native commands.
+- Add host/QEMU coverage for lookup order, native precedence, explicit paths,
+  quoting, status propagation, Berry errors, and VM/app lifecycle isolation.
 
 ## Summary
 

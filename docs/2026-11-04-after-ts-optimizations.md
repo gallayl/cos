@@ -2,6 +2,38 @@
 
 ## Optimizations enabled by the TypeScript SDK and compiler
 
+### Status
+
+**Mostly proposed / not started** (as of 2026-11-08). The browser TS→Berry
+compiler and COS SDK foundations exist (see
+[2026-11-03-ts-sdk.md](./2026-11-03-ts-sdk.md)), but the memory-focused compiler
+rules, profiles, bytecode/solidification work, native UI allocation changes, and
+editor diagnostics described here are not implemented as specified.
+
+### Progress snapshot
+
+- [ ] **Memory-conscious compiler rules:** no configurable documented rule set for
+      globals, lifecycle methods, top-level statements, or hot-callback
+      allocations was found beyond existing unsupported-syntax diagnostics.
+- [ ] **Resource lifecycle / `Disposable` / `CosApplication`:** not present as a
+      standardized SDK/runtime contract with guaranteed native cleanup registration.
+- [ ] **Compiler profiles (dev/prod), debug metadata, source maps:** not found.
+- [ ] **Persistent Berry bytecode (`.bec`) workflow/loader:** not found.
+- [ ] **Native UI allocation benchmarking/policy changes (`berry_ui.cpp`/`ui.cpp`):**
+      not evidenced as part of this phase.
+- [ ] **Berry solidification evaluation for firmware-bundled code:** not found.
+- [ ] **Memory diagnostics in the frontend/editor:** not found.
+- [ ] **Application memory metadata/policies:** not found.
+
+### Follow-ups
+
+- Start with low-risk compiler diagnostics that prevent common leaks (timers/
+  callbacks without cleanup patterns, accidental globals) and document them.
+- Add measurement-driven work only after Phase 1 instrumentation and 2026-11-06
+  profiling baselines exist.
+- Treat `.bec`, solidification, and allocation-policy changes as separate,
+  benchmarked experiments with rollback paths.
+
 ### Goals
 
 Use the TypeScript compiler to prevent avoidable application memory problems, improve deployment efficiency and explore more substantial Berry runtime optimizations.

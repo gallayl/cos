@@ -10,6 +10,26 @@ The goal is to validate application logic, UI behavior and interactions before d
 
 The simulator should eventually integrate with the COS TypeScript SDK and TypeScript-to-Berry compiler.
 
+## Implementation status (2026-11-08)
+
+**Proposed / not implemented.** No Berry WebAssembly build, simulator worker,
+platform-abstraction simulator backend, `SimulatorRenderer`, virtual CYD canvas,
+or simulator UI integration was found in the repository during this review. The
+frontend currently focuses on the TypeScript/Berry IDE, SDK declarations, and
+compile/storage workflows (see [2026-11-03-ts-sdk.md](./2026-11-03-ts-sdk.md)).
+
+### Follow-ups (prerequisites / sequencing)
+
+- Pin and reproduce the exact Berry source revision/config used by firmware before
+  building a WASM runtime.
+- Define the minimal COS platform abstraction seam (display/input/clock/timers/
+  filesystem/commands/logging) so ESP-IDF and simulator backends share
+  application-facing APIs without compiling ESP-IDF to WASM.
+- Start with a headless/diagnostic Worker + Berry VM lifecycle, then add a
+  `Renderer` backend and canvas, then input/timers/filesystem shims.
+- Treat network, camera, Bluetooth, and other hardware-backed features as explicit
+  simulated/stubbed capabilities with clear "not validated on hardware" labeling.
+
 ### Core principles
 
 1. Execute actual Berry code, not a JavaScript reimplementation of Berry.
