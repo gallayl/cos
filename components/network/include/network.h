@@ -51,16 +51,18 @@ extern "C"
 
 /** Maximum absolute URL length in bytes, excluding the terminating NUL. */
 #define NETWORK_URL_MAX 512
-/** Maximum HTTP request or response body size in bytes. */
-#define NETWORK_HTTP_BODY_MAX 4096
+/** Maximum HTTP request or response body size in bytes. Reduced from 4096 to
+ *  2048 to cut ~4KB static BSS (req+resp) on memory-constrained ESP32; oversized
+ *  responses fail with ESP_ERR_INVALID_SIZE. */
+#define NETWORK_HTTP_BODY_MAX 2048
 /** Maximum request headers accepted by one fetch. */
 #define NETWORK_HTTP_HEADER_MAX 8
-/** Maximum response headers retained from one fetch. */
-#define NETWORK_HTTP_RESPONSE_HEADER_MAX 12
+/** Maximum response headers retained from one fetch (extras are skipped). */
+#define NETWORK_HTTP_RESPONSE_HEADER_MAX 8
 /** Maximum HTTP header name length in bytes. */
 #define NETWORK_HTTP_HEADER_NAME_MAX 40
-/** Maximum HTTP header value length in bytes. */
-#define NETWORK_HTTP_HEADER_VALUE_MAX 256
+/** Maximum HTTP header value length in bytes (stored/accepted). */
+#define NETWORK_HTTP_HEADER_VALUE_MAX 128
 /** Shortest accepted fetch timeout in milliseconds. */
 #define NETWORK_HTTP_TIMEOUT_MIN_MS 100
 /** Longest accepted fetch timeout in milliseconds. */

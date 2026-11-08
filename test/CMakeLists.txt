@@ -91,6 +91,19 @@ target_include_directories(calibration_logic PUBLIC
 )
 target_link_libraries(calibration_logic PRIVATE mock_esp calibration_storage)
 
+# --- Library: system_logic ---
+add_library(system_logic STATIC
+    ${COMPONENT_DIR}/components/system/src/system.c
+    ${COMPONENT_DIR}/components/system/src/system_cmd.c
+)
+target_include_directories(system_logic PUBLIC
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/filesystem/include
+    mocks
+)
+target_link_libraries(system_logic PRIVATE mock_esp)
+
+# --- Library: shell_logic ---
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
@@ -107,9 +120,11 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/shell/src
     ${COMPONENT_DIR}/components/filesystem/include
     ${COMPONENT_DIR}/components/berry_lang/include
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
@@ -168,6 +183,9 @@ target_include_directories(test_berry_source_buffer PRIVATE
     ${COMPONENT_DIR}/components/berry_lang/src
 )
 target_link_libraries(test_berry_source_buffer PRIVATE unity)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(test_berry_source_buffer PRIVATE -static-libgcc -static-libstdc++)
+endif()
 add_test(NAME test_berry_source_buffer COMMAND test_berry_source_buffer)
 
 # --- Test: text console commands ---
@@ -192,6 +210,9 @@ target_include_directories(test_ui PRIVATE
     ${COMPONENT_DIR}/components/ui/include
 )
 target_link_libraries(test_ui PRIVATE unity mock_esp)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(test_ui PRIVATE -static-libgcc -static-libstdc++)
+endif()
 add_test(NAME test_ui COMMAND test_ui)
 
 # --- Library: rgb_led_logic ---
@@ -305,18 +326,6 @@ target_include_directories(test_time_sync PRIVATE
 )
 target_link_libraries(test_time_sync PRIVATE unity time_sync_logic mock_esp)
 add_test(NAME test_time_sync COMMAND test_time_sync)
-
-# --- Library: system_logic ---
-add_library(system_logic STATIC
-    ${COMPONENT_DIR}/components/system/src/system.c
-    ${COMPONENT_DIR}/components/system/src/system_cmd.c
-)
-target_include_directories(system_logic PUBLIC
-    ${COMPONENT_DIR}/components/system/include
-    ${COMPONENT_DIR}/components/filesystem/include
-    mocks
-)
-target_link_libraries(system_logic PRIVATE mock_esp)
 
 # --- Test: system ---
 add_executable(test_system test_system.c)

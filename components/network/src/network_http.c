@@ -273,8 +273,9 @@ static esp_err_t perform_request(const http_message_t *message)
         .timeout_ms = (int)message->timeout_ms,
         .event_handler = http_event,
         .user_data = &context,
-        .buffer_size = 1024,
-        .buffer_size_tx = 512,
+        // Smaller esp_http_client I/O buffers reduce peak heap during TLS setup.
+        .buffer_size = 512,
+        .buffer_size_tx = 256,
         .max_redirection_count = 3,
     };
     if (strncmp(s_req_url, "https://", 8) == 0)

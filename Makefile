@@ -136,3 +136,7 @@ size:
 
 size-components:
 	$(IDF_PY) size-components
+
+  
+reconfigure:
+	$(IDF_PY) reconfigure
