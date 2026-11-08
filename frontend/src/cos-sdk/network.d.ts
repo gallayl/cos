@@ -75,6 +75,12 @@ declare global {
        */
       response_type?: "text" | "json";
       /**
+       * Include the raw response body in the result. Defaults to `true`.
+       * Set to `false` with `response_type: "json"` to skip creating the raw
+       * `body` string when you only need the parsed `json` value.
+       */
+      include_body?: boolean;
+      /**
        * Socket connect and read timeout in milliseconds.
        * Defaults to `10000`. Values outside `100`–`60000` are rejected.
        */
@@ -95,7 +101,7 @@ declare global {
       url: string;
       /** Response headers. Names are lowercase. At most 12 are kept. */
       headers: { [name: string]: string };
-      /** Response body, at most 4096 bytes. */
+      /** Response body, at most 4096 bytes. Empty when `include_body` is `false`. */
       body: string;
       /** True when `json` holds the parsed document, including JSON `null`. */
       json_ok: boolean;
@@ -119,7 +125,7 @@ declare global {
       url: string;
       /** Response headers. Empty when the connection failed. */
       headers: { [name: string]: string };
-      /** Response body. Empty when the connection failed or the body exceeded 4096 bytes. */
+      /** Response body. Empty when the connection failed, the body exceeded 4096 bytes, or `include_body` is `false`. */
       body: string;
       /** True when a JSON body was parsed even though the status is not 2xx. */
       json_ok: boolean;

@@ -27,7 +27,7 @@
 
 | Area | Source docs | Current gap |
 |---|---|---|
-| Memory pressure follow-ups | `2026-11-02`, `2026-11-06` | P2 startup-loading gap; P3 `include_body`; P4 stack measurement/tuning; P5 TLS peak measurement; P7 profiling/regression matrix; Phase 1 instrumentation/source-buffer/lifecycle/GC/host `.be` CI validation. |
+| Memory pressure follow-ups | `2026-11-02`, `2026-11-06` | R7 (`include_body`) implemented and hardware validated (2026-11-08); P4 stack measurement/tuning in progress (R8); P5 TLS peak measurement; R2 follow-ups (HTTPS/timeout cleanup/BT coexistence/regression completion); R5 follow-ups (stdio/heap corruption, heap reporting). |
 | Firmware module loading hygiene | `2026-11-06` P2, `2026-11-07` | R1 made `json` on-demand; R6 implemented lazy proxy/on-demand loading for `console/fs/net/ui` (hardware validation pending). |
 | TS compiler/runtime semantics | `2026-11-03`, `2026-11-07` | R3 delivered `.length`→`size()`/numeric/diagnostic conformance pass and hardware validation. R4 complete: `try`/`catch`/`throw` compiler lowering implemented, unit tested, and hardware validated (`finally`/destructuring catch diagnosed). `async`/`await`/`for await` still rejected; broader subset/semantic docs/tests remain incomplete. |
 | Berry shell command scripts | `2026-11-01` | No resolver, persisted `path` command, `main(args)` command-script execution, or migration pilot wiring found. |
@@ -55,7 +55,7 @@
 | R4 | `try`/`catch`/`throw` compiler lowering | P1 | ✅ Done | M7b |
 | R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ✅ Done (R5-FU1/FU2 follow-ups open) | M7c |
 | R6 | Firmware on-demand native module loading | P1 | ✅ Done | M7c |
-| R7 | Fetch `include_body` option (P3) | P1 | ⬜ Not started | M7d |
+| R7 | Fetch `include_body` option (P3) | P1 | ✅ Done | M7d |
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
 | R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | ⬜ Not started | M8 |
 | R10 | Frontend TS toolchain hardening (Worker/layout/device API) | P1 | ⬜ Not started | M8 |
@@ -201,12 +201,20 @@
 
 ### R7 — Fetch `include_body` option (P3)
 - **Priority:** P1 | **Complexity:** S | **ROI:** Medium | **Risk:** Low
+- **Status:** ✅ **Done (2026-11-08, hardware validated).**
 - **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P3
+- **Current state:** `net.fetch` accepts optional `include_body: bool` (default `true`). When `false`, the returned `body` is an empty string, avoiding a Berry string copy of the raw HTTP response; JSON parsing and `json`/`json_ok` behavior are unchanged. Invalid `include_body` type is rejected as `ESP_ERR_INVALID_ARG` during option parsing (before queueing the request).
 - **Spec / acceptance criteria:** Add optional `include_body: bool` (default `true`). When `false` and JSON parsing succeeds, return parsed JSON but omit/empty raw body to avoid retaining the extra Berry string. Native parsing, `known_fetch_field`, TypeScript SDK, and docs updated. Existing scripts unchanged.
+- **Implementation notes:**
+  - `components/berry_lang/src/berry_network.cpp`: added `include_body` to `known_fetch_field`; parsed bool `include_body` (default `true`); omitted `body`/`body_len` from `push_fetch_result` when `false` after the existing JSON parse path.
+  - `frontend/src/cos-sdk/network.d.ts`: added `FetchRequest.include_body?: boolean` and documented `body` as empty when `include_body` is `false`.
+  - Validation: `scripts/validate-berry-scripts.ps1` **25/25** `.be` files compiled (includes `storage/flash_data/tests/r7/include_body.be`). Frontend `npx vitest run` **92 passed / 16 files**.
+  - Hardware validation (user, 2026-11-08): `berry exec body.be` (R7 command script) passed offline arg validation; live check `berry exec body.be http://ip-api.com/json` reported good (arg validation passed; JSON fetch/default-body vs `include_body:false` behavior validated per user report). Guide: `docs/reports/2026-11-08-r7-hardware-validation-guide.md`.
 - **Progress:**
-  - [ ] Native implementation.
-  - [ ] SDK/types/docs updated.
-  - [ ] Tests added.
+  - [x] Native implementation.
+  - [x] SDK/types/docs updated.
+  - [x] Tests added (Berry host syntax validation + hardware test script/guide).
+  - [x] Hardware validation completed.
 
 ### R8 — HTTP worker stack/TLS measurement & safe tuning (P4/P5)
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Medium–High
@@ -335,6 +343,8 @@
 | 2026-11-08 | **R5 complete (accepted). R5-HW3 GC benchmarks done; default GC step 200 confirmed.** | R5-HW3 identical workload (Breakout ×5 + `memory_churn.be` ×3; on-device churn file loaded as 0 bytes, Breakout comparison valid): rates **200/150/125** produced identical steady/post-close metrics (`managed=4551`, `reclaimed=10555–10581`, `heap_free=28400`, `heap_largest=8704`, `heap_min=2920`, `internal_min=26084`, `internal_largest=22528`), **no responsiveness impact noticed**. `berry gc-step 200` restored/confirmed (`step_rate=200`). R5 acceptance criteria satisfied (checkpoints 1–7, source-buffer lifetime/release+fallback, restart-loop regression, GC benchmark evidence, host `.be` validation/tests). Open follow-ups: **R5-FU1 (critical stdio/heap corruption root cause)**, R5-FU2 heap reporting display, optional churn redeploy/worst-case reload recheck. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
 | 2026-11-08 | **R6 implemented (firmware): on-demand native module loading with lazy compatibility proxies. Hardware validation pending.** | `components/berry_lang/src/berry_runtime.cpp`: removed eager startup loading of `console/fs/net/ui` globals; `berry_runtime_init()` installs lightweight lazy proxy globals (dynamic module + Berry closure `member` hook). First bare-global attribute access loads the real native module via `be_getmodule()`, replaces the global, and returns the attribute; real module tables are not initialized at startup. `cos_import('@cos/*')` and Berry `import` remain on-demand. `json` unchanged from R1. Compatibility: TS-compiled shipped apps/scripts already use `cos_import`; bare `ui.*`/`net.*`/`fs.*`/`console.*` still works via proxy. Validation: `scripts/validate-berry-scripts.ps1` **24/24** `.be` files compiled (after R6 test script added); host tests `test_shell_berry` **26/26**, `test_berry_source_buffer` **2/2**, `test_shell` **63/63**. Hardware guide: `docs/reports/2026-11-08-r6-hardware-validation-guide.md`. |
 | 2026-11-08 | **R6 bugfix validated on hardware; R6 accepted complete.** | User report: `tests/r6/lazy_modules.be` failed at bare `ui.KEY_ENTER` (`'function' value has no attribute 'KEY_ENTER'`). Root causes: (1) `be_setmember` does not pop, so `be_setglobal` stored the member function instead of the proxy module (`console/fs/net/ui` globals became functions). (2) Native `member` hook form was fragile for `be_module_attr`'s low-level call/return path. Fix in `components/berry_lang/src/berry_runtime.cpp`: `be_setmember` value popped; proxy `member` uses a Berry closure (`def(k) return cos_lazy_member('<name>', k) end`) calling `cos_lazy_member` native helper to load/replace real module and return attribute (with attribute errors). Hardware retest (user): `tests/r6/lazy_modules.be` → `R6 OK` (`R6 bare ui.KEY_ENTER 40`, `R6 bare console.font_size 1`, `import fs`/`cos_import @cos/net`/`import json` all OK). `apps/breakout.be` launched/setup/closed cleanly; `apps/tap_dash.be` launched/setup/closed cleanly. Earlier breakout `attribute_error` from buggy first build/session did not reproduce. R6 acceptance criteria satisfied (on-demand load, compatibility preserved, no observed VM lifetime issues, R5 checkpoint/profile evidence captured). |
+| 2026-11-08 | **R7 implemented (firmware/SDK/docs): fetch `include_body` option (P3). Hardware validation pending.** | `components/berry_lang/src/berry_network.cpp`: added `include_body` to `known_fetch_field`, parsed bool `include_body` (default `true`, invalid type → `ESP_ERR_INVALID_ARG` before fetch), and returns empty `body` when `include_body=false` while preserving JSON parse/`json_ok`/`json` behavior. `frontend/src/cos-sdk/network.d.ts`: added `FetchRequest.include_body?: boolean` and documented empty `body` cases. `docs/2026-11-06-memory-pressure-fixes.md` P3 marked implemented (hardware validation pending). Added `storage/flash_data/tests/r7/include_body.be` and `docs/reports/2026-11-08-r7-hardware-validation-guide.md`. Validation: `scripts/validate-berry-scripts.ps1` **25/25** `.be` files compiled; frontend `npx vitest run` **92 passed / 16 files**. ESP-IDF firmware build and live network/heap validation not run in this environment (hardware required). |
+| 2026-11-08 | **R7 complete (hardware validated).** | User hardware validation: `berry exec body.be` (R7 command script; `_argv` fixed to `def main(args)`, use `berry exec`) passed offline arg validation (`invalid include_body type rejected`, `bool values accepted`, `R7 ARG OK`). Live check `berry exec body.be http://ip-api.com/json` reported good (JSON fetch/default-body vs `include_body:false` behavior validated per user report). R7/P3 acceptance criteria satisfied; plan/docs updated. |
 
 ## Validation checklist (use when closing items)
 

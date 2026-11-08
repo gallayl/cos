@@ -112,7 +112,7 @@ static bool known_fetch_field(const char *key)
 {
     return std::strcmp(key, "method") == 0 || std::strcmp(key, "headers") == 0 || std::strcmp(key, "body") == 0 ||
            std::strcmp(key, "response_type") == 0 || std::strcmp(key, "timeout_ms") == 0 ||
-           std::strcmp(key, "total_timeout_ms") == 0;
+           std::strcmp(key, "total_timeout_ms") == 0 || std::strcmp(key, "include_body") == 0;
 }
 
 static bool push_field(bvm *vm, int map_index, const char *key)
@@ -437,6 +437,7 @@ static int native_net_fetch(bvm *vm)
         .total_timeout_ms = NETWORK_HTTP_TIMEOUT_DEFAULT_MS,
     };
     bool want_json = false;
+    bool include_body = true;
     bool have_headers = false;
     bool have_body = false;
     network_http_request_header_t request_headers[NETWORK_HTTP_HEADER_MAX];
@@ -524,6 +525,17 @@ static int native_net_fetch(bvm *vm)
                 return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0,
                                          esp_err_to_name(ESP_ERR_INVALID_ARG));
             }
+            be_pop(vm, 1);
+        }
+        if (push_field(vm, 2, "include_body"))
+        {
+            if (!be_isbool(vm, -1))
+            {
+                be_pop(vm, 1);
+                return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0,
+                                         esp_err_to_name(ESP_ERR_INVALID_ARG));
+            }
+            include_body = be_tobool(vm, -1) != 0;
             be_pop(vm, 1);
         }
         bool has_timeout = false;
@@ -649,6 +661,12 @@ static int native_net_fetch(bvm *vm)
                 json_index = be_absindex(vm, -1);
             }
         }
+    }
+
+    if (!include_body)
+    {
+        body = "";
+        body_len = 0;
     }
 
     return push_fetch_result(vm, http_ok, status, url_copy, err == ESP_OK ? response : nullptr, body, body_len, json_ok,
