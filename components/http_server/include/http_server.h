@@ -97,6 +97,17 @@ extern "C"
      */
     esp_err_t http_auth_check(httpd_req_t *req);
 
+    /** @brief Callback invoked when the HTTP server closes a client session socket. */
+    typedef void (*http_session_close_cb_t)(int sockfd);
+
+    /**
+     * @brief Register a session-close callback.
+     *
+     * Used by components that maintain per-socket state (e.g. WebSocket).
+     * Pass NULL to clear. Must be set before or is effective for future closes.
+     */
+    void http_server_set_session_close_cb(http_session_close_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

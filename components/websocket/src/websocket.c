@@ -244,6 +244,8 @@ esp_err_t websocket_init(void)
         return ESP_ERR_INVALID_STATE;
     }
 
+    http_server_set_session_close_cb(websocket_on_session_close);
+
     const httpd_uri_t ws_uri = {
         .uri = "/ws",
         .method = HTTP_GET,

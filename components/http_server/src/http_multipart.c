@@ -269,7 +269,8 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
             {
                 continue;
             }
-            break;
+            result = ESP_FAIL;
+            goto cleanup;
         }
         remaining -= (size_t)recvd;
 
@@ -281,6 +282,11 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
         memcpy(accum + accum_len, buf, (size_t)recvd);
         accum_len += (size_t)recvd;
         accum[accum_len] = '\0';
+    }
+
+    if (result == ESP_OK && state != BODY && !(state == AFTER_BOUNDARY && accum_len == 0))
+    {
+        result = ESP_ERR_INVALID_STATE;
     }
 
     if (state == BODY && accum_len > 0)
