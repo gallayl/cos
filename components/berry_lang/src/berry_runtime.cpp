@@ -37,6 +37,8 @@ namespace
 constexpr char TAG[] = "berry";
 bvm *s_vm = nullptr;
 constexpr char APP_GLOBAL[] = "_cos_berry_app";
+constexpr int BERRY_GC_STEP_RATE_DEFAULT = 200;
+int s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
 constexpr char CONSOLE_INPUT_CALLBACK_GLOBAL[] = "_cos_console_input_callback";
 constexpr char MODULE_CACHE_GLOBAL[] = "_cos_modules";
 std::recursive_mutex s_vm_mutex;
@@ -86,21 +88,37 @@ void retain_app_script_path()
     s_app_script_set = true;
 }
 
+void log_lifecycle_checkpoint(const char *phase)
+{
+    const size_t berry_gc = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
+    ESP_LOGI(TAG,
+             "[R5] %s | berry_gc=%u heap_free=%u heap_min=%u heap_largest=%u internal_free=%u internal_min=%u "
+             "internal_largest=%u",
+             phase, static_cast<unsigned>(berry_gc), static_cast<unsigned>(esp_get_free_heap_size()),
+             static_cast<unsigned>(esp_get_minimum_free_heap_size()),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+             static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
+}
+
 void log_heap_snapshot(const char *phase)
 {
-    ESP_LOGI(TAG, "%s: free=%u bytes, minimum=%u bytes, largest block=%u bytes", phase,
-             static_cast<unsigned>(esp_get_free_heap_size()), static_cast<unsigned>(esp_get_minimum_free_heap_size()),
-             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+    log_lifecycle_checkpoint(phase);
 }
 
 void collect_berry_garbage()
 {
-    const size_t before = be_gc_memcount(s_vm);
-    be_gc_collect(s_vm);
-    const size_t after = be_gc_memcount(s_vm);
+    const size_t before = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
+    if (s_vm != nullptr)
+    {
+        be_gc_collect(s_vm);
+    }
+    const size_t after = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
     const size_t reclaimed = before > after ? before - after : 0;
-    ESP_LOGI(TAG, "Berry GC: %u bytes in use (%u reclaimed)", static_cast<unsigned>(after),
-             static_cast<unsigned>(reclaimed));
+    ESP_LOGI(TAG, "Berry GC complete (checkpoint 7): %u bytes in use (%u reclaimed from %u)",
+             static_cast<unsigned>(after), static_cast<unsigned>(reclaimed), static_cast<unsigned>(before));
+    log_lifecycle_checkpoint("GC completion");
 }
 
 void clear_app_class_global(const char *class_name)
@@ -1111,9 +1129,12 @@ namespace
 
 int load_owned_source(BerrySourceBuffer &source, size_t length, const char *source_name)
 {
+    // R5: Berry copies/parses the source during be_loadbuffer(); compile_and_release_source
+    // releases the owned buffer immediately after compilation (success or failure), keeping
+    // peak RAM proportional to source size only until compile completes.
     const int result = compile_and_release_source(source, [source_name, length](const char *buffer)
                                                   { return be_loadbuffer(s_vm, source_name, buffer, length); });
-    log_heap_snapshot("After Berry compilation");
+    log_lifecycle_checkpoint("3 Berry compilation complete (source buffer released)");
     return result;
 }
 
@@ -1125,7 +1146,7 @@ esp_err_t execute_source(const char *source, size_t length, const char *source_n
     }
 
     int result = be_loadbuffer(s_vm, source_name, source, length);
-    log_heap_snapshot("After Berry compilation");
+    log_lifecycle_checkpoint("3 Berry compilation complete (non-owning source)");
 
     if (result == 0)
     {
@@ -1329,7 +1350,7 @@ esp_err_t close_active_app()
         }
     }
 
-    log_heap_snapshot("Before app teardown");
+    log_lifecycle_checkpoint(had_active_app ? "6 Before app teardown cleanup" : "6 Before app-state cleanup (no active app)");
     ui::stop();
 
     berry_ui_end_app();
@@ -1354,7 +1375,6 @@ esp_err_t close_active_app()
             }
         }
     }
-    log_heap_snapshot("After app teardown and GC");
     s_app_script_set = false;
     return err;
 }
@@ -1455,6 +1475,7 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
         return ESP_FAIL;
     }
 
+    log_lifecycle_checkpoint("4 Berry app constructed");
     be_setglobal(s_vm, APP_GLOBAL);
     be_pop(s_vm, 1);
     s_app_class_global_name = app_class_is_global ? app_class_name : nullptr;
@@ -1463,7 +1484,7 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
     if (err == ESP_OK)
     {
         err = ui::start() ? ESP_OK : ESP_ERR_NO_MEM;
-        log_heap_snapshot("After app setup");
+        log_lifecycle_checkpoint("5 Berry app setup complete");
     }
     if (err != ESP_OK)
     {
@@ -1492,52 +1513,81 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
 
 esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source, size_t *length)
 {
+    // R5: stat first, then allocate the short-lived source buffer before opening/reading.
+    // This avoids stdio/VFS read-path allocations fragmenting the heap before the large
+    // contiguous buffer is secured (observed: 8224-byte breakout source failed when
+    // largest block dropped from 13824 to 6400 between pre-load checkpoint and calloc).
+    // The buffer is released immediately after be_loadbuffer() via compile_and_release_source.
     source->reset();
-    char real_path[VFS_PATH_MAX];
-    esp_err_t err = vfs_resolve_path(virtual_path, real_path, sizeof(real_path));
+    if (length == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    *length = 0;
+
+    bool is_dir = false;
+    size_t file_size = 0;
+    esp_err_t err = vfs_stat(virtual_path, &is_dir, &file_size);
     if (err != ESP_OK)
     {
         return err;
     }
-
-    FILE *file = std::fopen(real_path, "rb");
-    if (file == nullptr)
+    if (is_dir)
     {
-        return ESP_ERR_NOT_FOUND;
+        return ESP_ERR_INVALID_ARG;
     }
-    if (std::fseek(file, 0, SEEK_END) != 0)
+    if (file_size >= std::numeric_limits<size_t>::max())
     {
-        std::fclose(file);
-        return ESP_FAIL;
-    }
-    const long file_size = std::ftell(file);
-    if (file_size < 0 || std::fseek(file, 0, SEEK_SET) != 0)
-    {
-        std::fclose(file);
-        return ESP_FAIL;
-    }
-
-    if (static_cast<std::uintmax_t>(file_size) >= std::numeric_limits<size_t>::max())
-    {
-        std::fclose(file);
         return ESP_ERR_NO_MEM;
     }
 
-    *length = static_cast<size_t>(file_size);
-    source->reset(static_cast<char *>(std::calloc(*length + 1, sizeof(char))));
+    *length = file_size;
+    // Short-lived buffer: released after be_loadbuffer() (compile_and_release_source).
+    // R5 hardware: vfs_stat()/VFS can fragment default heap before allocation (8224-byte
+    // buffer failed after checkpoint showed largest=18432). Prefer a capability that still
+    // has a contiguous block; fall back broadly. heap_caps allocations are free()-compatible.
+    const size_t need = file_size + 1;
+    const size_t def_largest = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    const size_t int_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    char *buffer = nullptr;
+    if (int_largest >= need && def_largest < need)
+    {
+        buffer = static_cast<char *>(heap_caps_malloc(need, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    }
+    if (buffer == nullptr)
+    {
+        buffer = static_cast<char *>(std::malloc(need));
+    }
+    if (buffer == nullptr)
+    {
+        buffer = static_cast<char *>(heap_caps_malloc(need, MALLOC_CAP_8BIT));
+    }
+    if (buffer == nullptr)
+    {
+        buffer = static_cast<char *>(heap_caps_malloc(need, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    }
+    if (buffer == nullptr)
+    {
+        ESP_LOGW(TAG,
+                 "Source buffer alloc failed (%u bytes): def_free=%u def_largest=%u int_largest=%u after stat",
+                 static_cast<unsigned>(need), static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(def_largest), static_cast<unsigned>(int_largest));
+    }
+    source->reset(buffer);
     if (!*source)
     {
-        std::fclose(file);
         return ESP_ERR_NO_MEM;
     }
-    const size_t bytes_read = std::fread(source->get(), 1, *length, file);
-    const bool read_error = std::ferror(file) != 0;
-    std::fclose(file);
-    if (read_error || bytes_read != *length)
+
+    size_t bytes_read = 0;
+    err = file_size == 0 ? ESP_OK : vfs_read_file(virtual_path, source->get(), file_size, &bytes_read);
+    if (err != ESP_OK || bytes_read != file_size)
     {
         source->reset();
-        return ESP_FAIL;
+        return err != ESP_OK ? err : ESP_FAIL;
     }
+
+    source->get()[file_size] = '\0';
     return ESP_OK;
 }
 
@@ -1931,6 +1981,7 @@ extern "C" esp_err_t berry_runtime_init(void)
         ESP_LOGE(TAG, "Failed to create Berry VM");
         return ESP_ERR_NO_MEM;
     }
+    s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
 
     be_regfunc(s_vm, "log", native_log);
     be_regfunc(s_vm, "action", native_action);
@@ -1951,7 +2002,7 @@ extern "C" esp_err_t berry_runtime_init(void)
     ui::set_tick_callback(berry_ui_tick);
     ui::set_exit_callback(close_app_from_ui);
 
-    log_heap_snapshot("Berry VM initialized");
+    log_lifecycle_checkpoint("1 Berry VM initialized");
 
     return ESP_OK;
 }
@@ -2002,7 +2053,7 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
     {
         return err;
     }
-    log_heap_snapshot("Before Berry file load");
+    log_lifecycle_checkpoint("Before Berry file load");
     BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     err = read_virtual_file(virtual_path, &source, &length);
@@ -2010,14 +2061,15 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
     {
         if (err == ESP_ERR_NO_MEM)
         {
-            ESP_LOGW(TAG, "Could not allocate Berry source buffer (%u bytes); free=%u, largest block=%u",
+            ESP_LOGW(TAG, "Could not allocate Berry source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
                      static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
-                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
         }
         return err;
     }
     ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
-    log_heap_snapshot("After Berry file load");
+    log_lifecycle_checkpoint("2 Berry source loaded");
     return execute_app_source(std::move(source), length, virtual_path, false);
 }
 
@@ -2076,7 +2128,7 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
     {
         return err;
     }
-    log_heap_snapshot("Before Berry app load");
+    log_lifecycle_checkpoint("Before Berry app load");
     BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     err = read_virtual_file(virtual_path, &source, &length);
@@ -2084,14 +2136,15 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
     {
         if (err == ESP_ERR_NO_MEM)
         {
-            ESP_LOGW(TAG, "Could not allocate Berry app source buffer (%u bytes); free=%u, largest block=%u",
+            ESP_LOGW(TAG, "Could not allocate Berry app source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
                      static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
-                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
+                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
         }
         return err;
     }
     ESP_LOGI(TAG, "Loaded Berry app file (%u bytes)", static_cast<unsigned>(length));
-    log_heap_snapshot("After Berry app load");
+    log_lifecycle_checkpoint("2 Berry source loaded");
 
     return execute_app_source(std::move(source), length, virtual_path, true);
 }
@@ -2160,6 +2213,14 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
 
     info->initialized = (s_vm != nullptr);
     info->gc_managed_bytes = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
+    info->gc_step_rate = s_vm != nullptr ? s_gc_step_rate : BERRY_GC_STEP_RATE_DEFAULT;
+    info->heap_free = esp_get_free_heap_size();
+    info->heap_total = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+    info->heap_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    info->heap_min_free = esp_get_minimum_free_heap_size();
+    info->internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    info->internal_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    info->internal_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
 
     return ESP_OK;
 }
@@ -2191,5 +2252,25 @@ extern "C" esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *afte
     {
         *after_bytes = after;
     }
+    return ESP_OK;
+}
+
+extern "C" esp_err_t berry_runtime_set_gc_step_rate(int rate)
+{
+    if (rate < 100 || rate > 500)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    if (s_vm == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    be_gc_setsteprate(s_vm, rate);
+    s_gc_step_rate = rate;
+    ESP_LOGI(TAG, "Berry GC step rate set to %d (default %d); use only for R5 experiments until benchmarked",
+             rate, BERRY_GC_STEP_RATE_DEFAULT);
     return ESP_OK;
 }

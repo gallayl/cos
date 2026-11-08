@@ -53,7 +53,7 @@
 | R2 | 2026-11-06 profiling + regression matrix (P7) | P0 | ✅ Done (follow-ups tracked) | M7a |
 | R3 | TS→Berry semantic conformance pass | P0 | ✅ Done | M7b |
 | R4 | `try`/`catch`/`throw` compiler lowering | P1 | ✅ Done | M7b |
-| R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ⬜ Not started | M7c |
+| R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | 🔄 In progress | M7c |
 | R6 | Firmware on-demand native module loading | P1 | ⬜ Not started | M7c |
 | R7 | Fetch `include_body` option (P3) | P1 | ⬜ Not started | M7d |
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
@@ -159,11 +159,12 @@
   - GC step-rate experiments (200/150/125) benchmarked; default unchanged until evidence supports it.
   - Host-side CI target compiles all existing `.be` apps as a regression gate.
 - **Progress:**
-  - [ ] Instrumentation added.
-  - [ ] Source-buffer lifetime fixed/verified.
-  - [ ] Restart-loop regression tests added.
-  - [ ] GC benchmarks recorded.
-  - [ ] Host `.be` compile validation added to CI/local workflow.
+  - [x] Instrumentation added. `[R5]` lifecycle checkpoints in `berry_runtime.cpp` report `be_gc_memcount()`, total/default heap free, min watermark, largest default block, internal free/min/largest at VM init, source load, compilation, app construction, setup, teardown, and GC completion. `berry_runtime_memory_info_t`/`berry profile` extended with GC step rate and heap/internal snapshot.
+  - [x] Source-buffer lifetime verified. `BerrySourceBuffer` + `compile_and_release_source` release source immediately after `be_loadbuffer()` (success/failure); ownership clarified in `berry_runtime.cpp`. Host helper test `test_berry_source_buffer` passes.
+  - [x] Repeatable restart/churn regression assets added. `storage/flash_data/tests/r5/memory_churn.be` plus hardware restart-loop procedure in `docs/reports/2026-11-08-r5-hardware-validation-guide.md`.
+  - [~] Hardware validation **partial** (`docs/reports/2026-11-08-r5-hardware-results-partial.md`, 2026-11-08): `memory_churn.be` stable (managed 3883 before/after/GC). Breakout 4 open/close cycles: after warm-up, cycles 2–4 stable (free 14916→14920, min 6420, managed 4358, largest 3328→5632 stabilized). **New finding diagnosed:** Breakout reload/source load failed with `ESP_ERR_NO_MEM` (8224-byte buffer; default largest fragmented to 4608/6400 while `internal_largest` remained 22528). **Fixes applied (reflash + retest pending):** `read_virtual_file()` now uses `vfs_stat` + read, and tries `malloc` then `heap_caps_malloc(..., MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT)` for the short-lived buffer (freed after compile). **Still pending:** hardware revalidation, full `[R5]` checkpoint log capture, 10–25 cycle confidence + second app, GC step-rate benchmarks (200/150/125).
+  - [~] GC step-rate experiment support added (`berry gc-step <rate>`, `berry_runtime_set_gc_step_rate`, default 200 unchanged). **Benchmarks pending hardware** — do not change default.
+  - [x] Host `.be` compile validation added. `scripts/validate-berry-scripts.ps1` compiles `storage/flash_data/**/*.be` (22 files) using pinned Berry host compiler with COS global prelude; `scripts/berry_conf.host_validation.h` provided for COS-compatible host builds. Local run passed with `build/berry-host-cos/bin/berry.exe`.
 
 ### R6 — Firmware on-demand native module loading
 - **Priority:** P1 | **Complexity:** M–L | **ROI:** High | **Risk:** Medium–High
@@ -310,6 +311,7 @@
 | 2026-11-08 | R3 implementation complete; hardware validation pending. | TS→Berry compiler fixes in `frontend/src/ide/berry/*` (`.length` → `size(expr)`, numeric literal source preservation, int-literal division / unary + / typeof/void/delete diagnostics). SDK numeric harmonization in `frontend/src/cos-sdk/language.d.ts` and `modules/math.d.ts`. Regenerated `storage/flash_data/*.be` outputs. Added `docs/2026-11-08-ts-berry-semantic-conformance.md` and `docs/reports/2026-11-08-r3-hardware-checklist.md`. Frontend tests: `npx vitest run` → 82 passed, 16 files. |
 | 2026-11-08 | R3 completed. | User validated what was possible; R3 marked complete. Follow-up: IDE/Monaco SDK registration updated for `@cos/*` module paths (`frontend/src/ide/register-cos-sdk.ts`) to resolve imports such as `@cos/math`. |
 | 2026-11-08 | R4 complete: `try`/`catch`/`throw` compiler lowering. | `frontend/src/ide/berry/statement-generator.ts` lowers `throw`→`raise` and `try/catch`→Berry `try/except .. [as e]/end`; `finally` and destructuring catch bindings diagnosed. Berry exception syntax confirmed from pinned tests (`build/berry-source/tests/exceptions.be`, `class.be`, `compiler.be`, `division_by_zero.be`). R4 unit tests added in `frontend/src/ide/ast-to-berry.test.ts` (37 passed). User hardware validation: `berry run /sdcard/tests/trycatch.be` produced expected output ending with `R4 OK`. Checklist: `docs/reports/2026-11-08-r4-hardware-checklist.md`. |
+| 2026-11-08 | R5 implementation/harness in progress (hardware pending). | `[R5]` lifecycle checkpoints in `components/berry_lang/src/berry_runtime.cpp` report `be_gc_memcount`, free/total/min/largest default heap and internal heap metrics at VM init, source load, compilation, app construction, setup, teardown, and GC completion. `berry_runtime_memory_info_t` extended; `berry_runtime_set_gc_step_rate` + shell `berry gc-step <rate>` added for experiments (default 200 unchanged). `berry profile` shows GC step rate/snapshot. Source-buffer ownership clarified/verified (`compile_and_release_source` releases after `be_loadbuffer`; `test_berry_source_buffer` 2/2). Added `storage/flash_data/tests/r5/memory_churn.be`, `scripts/validate-berry-scripts.ps1`, `scripts/berry_conf.host_validation.h`, `docs/reports/2026-11-08-r5-hardware-validation-guide.md`. Host tests: `test_shell_berry` 26/26, `test_berry_source_buffer` 2/2, `test_shell` 63/63. Host Berry validation: 22/22 `.be` files. **Partial hardware (2026-11-08):** churn probe stable; Breakout 4 open/close cycles stable after warm-up (no progressive leak in sample) — `docs/reports/2026-11-08-r5-hardware-results-partial.md`. **Still pending:** full `[R5]` checkpoint logs, 10–25 cycles + second app, first-cycle drop/fragmentation follow-up, GC step-rate benchmarks (200/150/125). |
 
 ## Validation checklist (use when closing items)
 

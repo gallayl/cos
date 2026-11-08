@@ -181,6 +181,36 @@ static void test_gc_reports_collect_failure(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
 }
 
+static void test_gc_step_sets_rate(void)
+{
+    char *argv[] = {"berry", "gc-step", "150"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 3, argv));
+}
+
+static void test_gc_step_accepts_experiment_values(void)
+{
+    char *argv125[] = {"berry", "gc-step", "125"};
+    char *argv200[] = {"berry", "gc-step", "200"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 3, argv125));
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 3, argv200));
+}
+
+static void test_gc_step_rejects_missing_arg(void)
+{
+    char *argv[] = {"berry", "gc-step"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_gc_step_rejects_invalid_rate(void)
+{
+    char *argv_abc[] = {"berry", "gc-step", "abc"};
+    char *argv_low[] = {"berry", "gc-step", "50"};
+    char *argv_high[] = {"berry", "gc-step", "501"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv_abc));
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv_low));
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv_high));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -206,5 +236,9 @@ int main(void)
     RUN_TEST(test_gc_collects_and_reports);
     RUN_TEST(test_gc_reports_init_failure);
     RUN_TEST(test_gc_reports_collect_failure);
+    RUN_TEST(test_gc_step_sets_rate);
+    RUN_TEST(test_gc_step_accepts_experiment_values);
+    RUN_TEST(test_gc_step_rejects_missing_arg);
+    RUN_TEST(test_gc_step_rejects_invalid_rate);
     return UNITY_END();
 }

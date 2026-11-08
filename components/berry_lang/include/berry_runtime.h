@@ -57,6 +57,22 @@ extern "C"
     {
         bool initialized;
         size_t gc_managed_bytes;
+        /** Berry GC step rate (be_gc_setsteprate value; Berry default is 200). 0 if unavailable. */
+        int gc_step_rate;
+        /** Total free heap bytes (all capabilities/default). */
+        size_t heap_free;
+        /** Total heap size bytes (default capability). */
+        size_t heap_total;
+        /** Largest free block in default heap (fragmentation indicator). */
+        size_t heap_largest_block;
+        /** Minimum free heap watermark since boot (default heap). */
+        size_t heap_min_free;
+        /** Free internal heap bytes. */
+        size_t internal_free;
+        /** Largest free internal heap block. */
+        size_t internal_largest_block;
+        /** Minimum free internal heap watermark since boot. */
+        size_t internal_min_free;
     } berry_runtime_memory_info_t;
 
     esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info);
@@ -66,6 +82,13 @@ extern "C"
      * Out parameters may be NULL. Returns ESP_ERR_INVALID_STATE if the VM is not initialized.
      */
     esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes);
+
+    /**
+     * Set Berry GC step rate for experiments (Berry default 200; lower = more aggressive).
+     * Production default must remain unchanged unless measurements justify it (R5).
+     * Returns ESP_ERR_INVALID_STATE if the VM is not initialized, ESP_ERR_INVALID_ARG for invalid rate.
+     */
+    esp_err_t berry_runtime_set_gc_step_rate(int rate);
 
 #ifdef __cplusplus
 }

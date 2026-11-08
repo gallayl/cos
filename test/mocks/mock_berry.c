@@ -174,8 +174,17 @@ esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info)
     {
         return ESP_ERR_INVALID_ARG;
     }
+    memset(info, 0, sizeof(*info));
     info->initialized = s_memory_initialized;
     info->gc_managed_bytes = s_gc_managed_bytes;
+    info->gc_step_rate = 200;
+    info->heap_free = 200000;
+    info->heap_total = 300000;
+    info->heap_largest_block = 120000;
+    info->heap_min_free = 180000;
+    info->internal_free = 180000;
+    info->internal_largest_block = 100000;
+    info->internal_min_free = 160000;
     return ESP_OK;
 }
 
@@ -194,4 +203,10 @@ esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes)
         s_gc_managed_bytes = s_gc_after;
     }
     return s_gc_collect_result;
+}
+
+esp_err_t berry_runtime_set_gc_step_rate(int rate)
+{
+    (void)rate;
+    return ESP_OK;
 }

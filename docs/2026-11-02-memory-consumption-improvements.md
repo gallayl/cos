@@ -4,27 +4,48 @@
 
 ### Status
 
-**Proposed / largely not started** (as of 2026-11-08). Related but separate
-network/Berry memory work landed in `e0bf05b` (see
-[2026-11-06-memory-pressure-fixes.md](./2026-11-06-memory-pressure-fixes.md));
-it does not satisfy the Phase 1 acceptance criteria below.
+**Implementation in progress / hardware validation pending** (as of 2026-11-08).
+R5 code changes add lifecycle checkpoint instrumentation, extended runtime
+memory/profile APIs, GC step-rate experiment support, source-buffer ownership
+clarification, a Berry churn probe, host compile validation, and a hardware
+validation guide. Final acceptance requires on-target measurements/benchmarks
+(see `docs/reports/2026-11-08-r5-hardware-validation-guide.md`).
 
 ### Progress
 
-- [ ] **Instrumentation baseline:** no `be_gc_memcount()`/watermark/heap-block
-      reporting integrated into the lifecycle checkpoints described here was
-      found in `berry_runtime`/shell diagnostics during this review.
-- [ ] **Release source buffers immediately:** `read_virtual_file()` /
-      `execute_app_source()` ownership still needs verification/change against
-      the pinned Berry implementation.
-- [ ] **Lifecycle cleanup audit:** teardown, callback/timer/UI cleanup, and
-      post-GC leak checks need focused regression tests (repeated start/stop).
-- [ ] **GC tuning experiment:** `be_gc_setsteprate()` benchmarks (200/150/125)
-      not recorded; production default unchanged.
+- [x] **Instrumentation baseline:** `berry_runtime.cpp` logs `[R5]` lifecycle
+      checkpoints with `be_gc_memcount()`, total/default heap free, min
+      watermark, largest default block, internal free/min/largest at VM init,
+      source load, compilation, app construction, setup, teardown, and GC
+      completion. `berry profile` / `berry_runtime_get_memory_info()` expose
+      GC managed bytes, GC step rate, and heap/internal snapshots.
+- [x] **Release source buffers immediately:** `BerrySourceBuffer` +
+      `compile_and_release_source` release owned source immediately after
+      `be_loadbuffer()` on success and failure. `load_owned_source` documents
+      that Berry copies/parses during load. Host helper test
+      `test/test_berry_source_buffer.cpp` still passes.
+- [~] **Lifecycle cleanup audit:** `close_active_app()` / `berry_ui_end_app()`
+      clear app globals, module cache, callbacks, timers, and UI handles; GC
+      runs after cleanup with checkpoint logging. Repeatable on-device
+      restart-loop/churn procedure added (`storage/flash_data/tests/r5/` +
+      hardware guide). **Partial hardware (2026-11-08):** `memory_churn.be`
+      stable; Breakout 4 open/close cycles stable after warm-up (cycles 2–4:
+      free/min/managed stable, largest block stabilized) — see
+      `docs/reports/2026-11-08-r5-hardware-results-partial.md`. Still need
+      10–25 cycles, second app, `[R5]` checkpoint log capture, and
+      first-cycle drop/fragmentation investigation.
+- [~] **GC tuning experiment:** `berry gc-step <rate>` /
+      `berry_runtime_set_gc_step_rate()` added for experiments (default remains
+      200). **Benchmarks for 200/150/125 pending hardware** (user indicated
+      coming soon); do not change production default without evidence.
 - [x] **Preserve existing optimizations:** precompiled objects / constrained
-      stack settings remain in place unless measurements justify changes.
-- [ ] **Host-side Berry validation:** no dedicated CI target found that compiles
-      all existing `.be` applications as a compiler regression gate.
+      stack settings remain unchanged.
+- [x] **Host-side Berry validation:** `scripts/validate-berry-scripts.ps1`
+      compiles all `.be` files under `storage/flash_data` (22 files) using a
+      pinned Berry host compiler with COS global prelude; local run passed with
+      `build/berry-host-cos/bin/berry.exe`. `scripts/berry_conf.host_validation.h`
+      documents a COS-compatible host config (note: host CLI needs bytecode
+      saver/loader/file system enabled).
 
 ### Follow-ups
 

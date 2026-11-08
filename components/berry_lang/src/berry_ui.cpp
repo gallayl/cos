@@ -671,11 +671,14 @@ void berry_ui_end_app(void)
 {
     s_app_active = false;
     std::fill(s_key_down, s_key_down + sizeof(s_key_down) / sizeof(s_key_down[0]), false);
-    for (const std::string &name : s_callback_globals)
+    if (s_vm != nullptr)
     {
-        be_pushnil(s_vm);
-        be_setglobal(s_vm, name.c_str());
-        be_pop(s_vm, 1);
+        for (const std::string &name : s_callback_globals)
+        {
+            be_pushnil(s_vm);
+            be_setglobal(s_vm, name.c_str());
+            be_pop(s_vm, 1);
+        }
     }
     s_callback_globals.clear();
     s_timers.clear();

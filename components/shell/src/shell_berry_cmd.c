@@ -45,7 +45,7 @@ static void print_profile(void)
     network_http_worker_stack_info_t http_stack;
     const esp_err_t http_err = network_http_get_worker_stack_info(&http_stack);
 
-    printf("R2 profile\n");
+    printf("Berry memory profile (R2/R5)\n");
     if (sys_err == ESP_OK)
     {
         printf("  System heap:   free=%u min=%u total=%u largest=%u\n", (unsigned)info.free_heap,
@@ -60,8 +60,12 @@ static void print_profile(void)
     }
     if (berry_err == ESP_OK)
     {
-        printf("  Berry GC:      initialized=%s managed=%u bytes\n", berry_info.initialized ? "yes" : "no",
-               (unsigned)berry_info.gc_managed_bytes);
+        printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n",
+               berry_info.initialized ? "yes" : "no", (unsigned)berry_info.gc_managed_bytes, berry_info.gc_step_rate);
+        printf("  Heap snapshot: free=%u min=%u largest=%u internal_free=%u internal_min=%u internal_largest=%u\n",
+               (unsigned)berry_info.heap_free, (unsigned)berry_info.heap_min_free,
+               (unsigned)berry_info.heap_largest_block, (unsigned)berry_info.internal_free,
+               (unsigned)berry_info.internal_min_free, (unsigned)berry_info.internal_largest_block);
     }
     else
     {
@@ -89,7 +93,7 @@ static int cmd_berry(int argc, char **argv)
     if (argc < 2)
     {
         printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
-               "profile | berry gc\n");
+               "profile | berry gc | berry gc-step <rate>\n");
         return 1;
     }
 
@@ -129,6 +133,36 @@ static int cmd_berry(int argc, char **argv)
         printf("Berry GC: before=%u after=%u reclaimed=%u bytes\n", (unsigned)before, (unsigned)after,
                (unsigned)reclaimed);
         print_profile();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "gc-step") == 0)
+    {
+        if (argc != 3)
+        {
+            printf("Usage: berry gc-step <rate>  (200=default; try 150/125 for R5 experiments)\n");
+            return 1;
+        }
+        esp_err_t err = berry_runtime_init();
+        if (err != ESP_OK)
+        {
+            printf("berry: initialization failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        char *end = NULL;
+        const long rate = strtol(argv[2], &end, 10);
+        if (end == argv[2] || *end != '\0' || rate < 100 || rate > 500)
+        {
+            printf("berry: gc-step rate must be an integer in [100,500] (default 200)\n");
+            return 1;
+        }
+        err = berry_runtime_set_gc_step_rate((int)rate);
+        if (err != ESP_OK)
+        {
+            printf("berry: gc-step failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        printf("Berry GC step rate: %d (default 200; keep default unless R5 benchmarks justify change)\n", (int)rate);
         return 0;
     }
 
@@ -228,7 +262,7 @@ static int cmd_berry(int argc, char **argv)
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
         printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
-               "profile | berry gc\n");
+               "profile | berry gc | berry gc-step <rate>\n");
         return 1;
     }
 
@@ -245,7 +279,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run/exec/eval Berry scripts; profile or gc memory (R2)",
+        .help = "Run/exec/eval Berry scripts; profile/gc memory; gc-step experiments (R2/R5)",
         .hint = NULL,
         .func = &cmd_berry,
     };
