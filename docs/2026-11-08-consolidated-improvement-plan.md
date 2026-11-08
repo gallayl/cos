@@ -50,7 +50,7 @@
 | ID | Item | Priority | Status | Target milestone |
 |---|---|---:|---|---|
 | R1 | Finish lazy JSON / startup module hygiene | P0 | ✅ Done | M7a |
-| R2 | 2026-11-06 profiling + regression matrix (P7) | P0 | 🔄 In progress | M7a |
+| R2 | 2026-11-06 profiling + regression matrix (P7) | P0 | ✅ Done (follow-ups tracked) | M7a |
 | R3 | TS→Berry semantic conformance pass | P0 | ⬜ Not started | M7b |
 | R4 | `try`/`catch`/`throw` compiler lowering | P1 | ⬜ Not started | M7b |
 | R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ⬜ Not started | M7c |
@@ -91,13 +91,19 @@
 
 ### R2 — 2026-11-06 profiling + regression matrix (P7)
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Low–Medium
+- **Status:** ✅ **Completed as tracker item (2026-11-08)** — R2 deliverables committed and hardware profiling surfaced actionable issues. Remaining validation/fixes are tracked as follow-ups below (primarily R8 and network/runtime hardening).
 - **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P7
 - **Spec / acceptance criteria:** Record measurements at the checkpoints defined in P7 (startup/before Berry init/after init/app open/FS text/FS JSON/HTTP GET/HTTPS GET/max response/after GC/repeated requests). Capture `free`, `largest block`, `minimum free`; compare `idf.py size`/`size-components` and `.bss` impact in `berry_lang`/`network`. Run required regression cases (JSON lazy behavior, FS text/JSON, HTTP/HTTPS, large body, max response, timeout safety, repeated requests, worker stack sanity).
 - **Progress:**
   - [x] Measurement method/script/checklist committed. Added `docs/reports/2026-11-08-r2-profiling-checklist.md`, shell profiling commands (`berry profile`, `berry gc`), and deployable Berry regression scripts under `storage/flash_data/tests/r2/`.
-  - [~] Baseline numbers recorded in this doc or a linked report. Initial `idf.py size`/`size-components` and boot/runtime measurements recorded in `docs/reports/2026-11-08-r2-profiling-checklist.md`; key P7 checkpoints (#1/#3/#8/#10 success path, etc.) still need isolated clean-boot captures.
-  - [~] Regressions executed/passed. Partial: FS text/JSON pass; HTTP success path functional but high memory/fragmentation cost; HTTPS fails (`-0x008D`/connect alloc failures) on clean boot; timeout/error paths can collapse heap to `min 24-76`/`largest 384-1920`; repeated successful HTTP stability and large body/max response not validated.
-  - [~] Follow-up issues filed for anomalies. Anomalies documented in report (HTTPS/TLS alloc failure, timeout/error cleanup/native heap collapse, BT coexistence pressure, largest-block fragmentation). Formal issue filing still pending if tracked outside docs.
+  - [x] Baseline numbers recorded in linked report. Initial `idf.py size`/`size-components` and boot/runtime measurements recorded in `docs/reports/2026-11-08-r2-profiling-checklist.md`.
+  - [~] Regression matrix executed (partial) — follow-up. FS text/JSON pass; HTTP success path functional but costly; HTTPS progressed from TLS alloc `-0x008D` to PSA cert-verify OOM `-141` after memory tuning (`sdkconfig.defaults` mbedTLS 4KB/variable buffers, `HTTP_TASK_STACK` 6144, smaller `libnetwork` buffers/client I/O). Timeout/error paths can still collapse native heap (`min` very low, BT alloc failures, post-timeout `esp-tls`/`HTTP_CLIENT` errors). Repeated successful HTTP, HTTPS success on valid endpoint with cert verification, large body, max response, and isolated clean-boot P7 checkpoints still need follow-up runs.
+  - [x] Anomalies documented as follow-ups in report (formal external issue filing optional).
+- **Follow-ups (not blocking R2 closure):**
+  - [ ] **HTTPS memory (R8/P5):** resolve PSA/X.509 verification `PSA_ERROR_INSUFFICIENT_MEMORY` (`-141`) on constrained target while keeping certificate verification enabled; validate with `https://example.com/` (or known-good endpoint) from clean boot. Investigate BT coexistence RAM, mbedTLS client-only/PSA options for ESP-IDF 6.1, and any safe peak-heap reductions.
+  - [ ] **Timeout/abandon cleanup:** audit `network_http` so caller timeout does not leave dangerous follow-on heap collapse or block normal operation unexpectedly; preserve worker/request-buffer lifetime safety.
+  - [ ] **Regression completion:** isolated clean-boot runs for P7 checkpoints #1/#3/#8/#10 (success path), repeated successful HTTP 200, HTTPS success, large body near `NETWORK_HTTP_BODY_MAX` (now 2048), max response, and timeout use-after-free/buffer-overwrite sanity.
+  - [ ] **BT coexistence:** measure/decide product behavior when BLE HID/BT and HTTPS/networking run together; consider runtime release/disable strategy if required.
 
 ### R3 — TS→Berry semantic conformance pass
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Medium
@@ -286,6 +292,7 @@
 | 2026-11-08 | R1 complete. | Successful `net.fetch(..., response_type="json")` after connectivity fix: `true, 200, true, {'slideshow': ...}` (parsed JSON returned). Acceptance criteria satisfied: no eager JSON load at startup; FS JSON works; fetch JSON works; repeated JSON ops supported by cached/lazy ensure path; VM recreate implies fresh globals; non-JSON scripts/apps unchanged. |
 | 2026-11-08 | R2 in progress: profiling implementation/checklist. | Added `berry profile` (system heap + Berry GC metrics) and `berry gc` shell commands, `berry_runtime_gc_collect()` API + host mock, P7 checklist/report template in `docs/reports/2026-11-08-r2-profiling-checklist.md`, and deployable Berry regression scripts in `storage/flash_data/tests/r2/`. Hardware/IDF measurements and regression execution remain pending (user validation). |
 | 2026-11-08 | R2 hardware analysis (partial). | User provided `idf.py size`/components and clean-boot reruns A–D in `docs/reports/2026-11-08-r2-profiling-checklist.md`. FS text/JSON pass. HTTP success is functional but costly (`min=3288`, `largest=6912` after 158 B). HTTPS fails from clean boot (`mbedtls_ssl_setup -0x008D` / connect alloc failure). Timeout/error paths can collapse native heap (`min 24–76`, `largest 384–1920`, BT malloc failures, `ESP_ERR_NO_MEM`), with no Berry GC recovery. Report updated with anomalies and prioritized improvements (R8/P4 stack HWM, R8/P5 mbedTLS peak, timeout/cleanup audit). |
+| 2026-11-08 | R2 completed as tracker item; remaining work moved to follow-ups. | Deliverables committed (`docs/reports/2026-11-08-r2-profiling-checklist.md`, `berry profile`/`berry gc`, `storage/flash_data/tests/r2/*`). Hardware runs showed HTTPS progressed (`-0x008D` TLS alloc → `-141` PSA insufficient memory during cert verification) after memory tuning (`sdkconfig.defaults` mbedTLS 4KB/variable buffers, `HTTP_TASK_STACK` 6144, `NETWORK_HTTP_BODY_MAX` 2048/headers reduced, smaller esp_http_client buffers) — committed in `6a48ecf` plus subsequent uncommitted tuning. Follow-ups: HTTPS PSA/RAM with verification, timeout/abandon cleanup, BT coexistence, and remaining P7 regression/clean-boot checkpoint runs (see R2 follow-ups, R8). |
 
 ## Validation checklist (use when closing items)
 
