@@ -88,8 +88,20 @@ void retain_app_script_path()
     s_app_script_set = true;
 }
 
+bool can_emit_r5_checkpoint_log()
+{
+    // Best-effort guard: formatted stdio logging can allocate/flush and has triggered
+    // heap-corruption panics in stdout_write_hook/fwrite under extreme fragmentation
+    // (R5-FU1). Skip verbose checkpoint formatting when contiguous heap is critically low.
+    return heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT) >= 1536;
+}
+
 void log_lifecycle_checkpoint(const char *phase)
 {
+    if (!can_emit_r5_checkpoint_log())
+    {
+        return;
+    }
     const size_t berry_gc = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
     ESP_LOGI(TAG,
              "[R5] %s | berry_gc=%u heap_free=%u heap_min=%u heap_largest=%u internal_free=%u internal_min=%u "
@@ -116,9 +128,21 @@ void collect_berry_garbage()
     }
     const size_t after = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
     const size_t reclaimed = before > after ? before - after : 0;
-    ESP_LOGI(TAG, "Berry GC complete (checkpoint 7): %u bytes in use (%u reclaimed from %u)",
-             static_cast<unsigned>(after), static_cast<unsigned>(reclaimed), static_cast<unsigned>(before));
-    log_lifecycle_checkpoint("GC completion");
+    if (!can_emit_r5_checkpoint_log())
+    {
+        return;
+    }
+    // Single R5 checkpoint log (reduces stdio pressure in low-heap/fragmented states).
+    ESP_LOGI(TAG,
+             "[R5] 7 GC complete | berry_gc=%u reclaimed=%u from=%u heap_free=%u heap_min=%u heap_largest=%u "
+             "internal_free=%u internal_min=%u internal_largest=%u",
+             static_cast<unsigned>(after), static_cast<unsigned>(reclaimed), static_cast<unsigned>(before),
+             static_cast<unsigned>(esp_get_free_heap_size()),
+             static_cast<unsigned>(esp_get_minimum_free_heap_size()),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+             static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
 }
 
 void clear_app_class_global(const char *class_name)

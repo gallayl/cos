@@ -206,14 +206,19 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
 {
     (void)cookie;
 
-    /* Forward to original UART stdout */
+    /* Forward to original UART stdout. Do not use ESP_LOG in this hook:
+       it re-enters stdout and can recurse or deadlock (mutex/stdio) under pressure. */
+    if (s_original_stdout == NULL)
+    {
+        return (ssize_t)size;
+    }
     size_t written = fwrite(buf, 1, size, s_original_stdout);
     fflush(s_original_stdout);
     notify_output_listener(buf, size);
 
     bool history_allocation_failed = false;
     bool should_notify_render = false;
-    if (s_initialized && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         if (s_screen_visible)
         {
@@ -222,14 +227,17 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
             should_notify_render = true;
         }
         xSemaphoreGive(s_mutex);
-        if (should_notify_render)
+        if (should_notify_render && s_render_task != NULL)
         {
             xTaskNotifyGive(s_render_task);
         }
     }
     if (history_allocation_failed)
     {
-        ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
+        static const char msg[] =
+            "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+        fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+        fflush(s_original_stdout);
     }
 
     return (ssize_t)written;
@@ -492,7 +500,7 @@ extern "C" void text_console_write(const char *data, size_t len)
         return;
     }
 
-    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         const bool screen_visible = s_screen_visible;
         if (screen_visible)
@@ -501,13 +509,17 @@ extern "C" void text_console_write(const char *data, size_t len)
         }
         const bool history_allocation_failed = screen_visible && text_buffer_take_scrollback_allocation_failure(&s_buf);
         xSemaphoreGive(s_mutex);
-        if (screen_visible)
+        if (screen_visible && s_render_task != NULL)
         {
             xTaskNotifyGive(s_render_task);
         }
-        if (history_allocation_failed)
+        if (history_allocation_failed && s_original_stdout != NULL)
         {
-            ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
+            /* Avoid ESP_LOG here: it re-enters stdout hook and can recurse if buffer writes keep failing. */
+            static const char msg[] =
+                "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+            fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+            fflush(s_original_stdout);
         }
     }
 }

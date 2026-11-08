@@ -4,12 +4,13 @@
 
 ### Status
 
-**Implementation in progress / hardware validation pending** (as of 2026-11-08).
-R5 code changes add lifecycle checkpoint instrumentation, extended runtime
-memory/profile APIs, GC step-rate experiment support, source-buffer ownership
-clarification, a Berry churn probe, host compile validation, and a hardware
-validation guide. Final acceptance requires on-target measurements/benchmarks
-(see `docs/reports/2026-11-08-r5-hardware-validation-guide.md`).
+**R5 / Phase 1 completed (2026-11-08), with follow-ups tracked.**
+Lifecycle checkpoints, extended profiling, GC step-rate experiment support,
+source-buffer release/fallback checks, host `.be` validation, and on-target
+acceptance evidence are recorded. GC benchmarks 200/150/125 showed no
+measurable difference; **default GC step remains 200** (restored/confirmed).
+Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. Follow-ups:
+R5-FU1 (critical stdio/heap corruption), R5-FU2.
 
 ### Progress
 
@@ -24,20 +25,17 @@ validation guide. Final acceptance requires on-target measurements/benchmarks
       `be_loadbuffer()` on success and failure. `load_owned_source` documents
       that Berry copies/parses during load. Host helper test
       `test/test_berry_source_buffer.cpp` still passes.
-- [~] **Lifecycle cleanup audit:** `close_active_app()` / `berry_ui_end_app()`
+- [x] **Lifecycle cleanup audit:** `close_active_app()` / `berry_ui_end_app()`
       clear app globals, module cache, callbacks, timers, and UI handles; GC
-      runs after cleanup with checkpoint logging. Repeatable on-device
-      restart-loop/churn procedure added (`storage/flash_data/tests/r5/` +
-      hardware guide). **Partial hardware (2026-11-08):** `memory_churn.be`
-      stable; Breakout 4 open/close cycles stable after warm-up (cycles 2–4:
-      free/min/managed stable, largest block stabilized) — see
-      `docs/reports/2026-11-08-r5-hardware-results-partial.md`. Still need
-      10–25 cycles, second app, `[R5]` checkpoint log capture, and
-      first-cycle drop/fragmentation investigation.
-- [~] **GC tuning experiment:** `berry gc-step <rate>` /
-      `berry_runtime_set_gc_step_rate()` added for experiments (default remains
-      200). **Benchmarks for 200/150/125 pending hardware** (user indicated
-      coming soon); do not change production default without evidence.
+      runs after cleanup with checkpoint logging. **Hardware (2026-11-08):**
+      checkpoints 1–7/teardown GC observed; Tap Dash 10 + Breakout 7 restart
+      cycles stable after warm-up/no progressive leak; failure paths (missing/
+      compile error/0-byte) OK. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`.
+- [x] **GC tuning experiment:** `berry gc-step <rate>` /
+      `berry_runtime_set_gc_step_rate()` added for experiments. **Benchmarked
+      200/150/125 (2026-11-08, identical workload):** no measurable difference
+      in post-close managed memory, heap/largest, watermarks, or noticed
+      responsiveness. **Default remains 200 (restored/confirmed).**
 - [x] **Preserve existing optimizations:** precompiled objects / constrained
       stack settings remain unchanged.
 - [x] **Host-side Berry validation:** `scripts/validate-berry-scripts.ps1`

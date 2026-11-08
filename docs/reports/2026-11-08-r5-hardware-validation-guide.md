@@ -53,7 +53,7 @@ Look for lines containing `[R5]` with fields:
 | 4 | `4 Berry app constructed` | After class instance construction, before setup |
 | 5 | `5 Berry app setup complete` | After `setup()` and UI start succeed |
 | 6 | `6 Before app teardown cleanup` or `6 Before app-state cleanup...` | Before teardown/UI stop/resource cleanup |
-| 7 | `GC completion` (also `Berry GC complete (checkpoint 7): ...`) | After `be_gc_collect()` during app cleanup paths |
+| 7 | `[R5] 7 GC complete | ...` (includes `reclaimed`/`from`/heap metrics) | After `be_gc_collect()` during app cleanup paths |
 
 ### Pass criteria
 
