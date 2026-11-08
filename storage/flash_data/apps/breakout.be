@@ -76,7 +76,7 @@ class Breakout
     end
     def draw_bricks()
         var index = 0
-        while index < self.bricks.size()
+        while index < size(self.bricks)
             var brick = self.bricks[index]
             if brick[2]
                 ui.fill_rect(brick[0], brick[1], 35, 11, brick[3])
@@ -86,7 +86,7 @@ class Breakout
     end
     def restore_bricks(x, y, width, height)
         var index = 0
-        while index < self.bricks.size()
+        while index < size(self.bricks)
             var brick = self.bricks[index]
             if brick[2] && x < brick[0] + 35 && x + width > brick[0] && y < brick[1] + 11 && y + height > brick[1]
                 ui.fill_rect(brick[0], brick[1], 35, 11, brick[3])
@@ -172,7 +172,7 @@ class Breakout
             end
         end
         var index = 0
-        while index < self.bricks.size()
+        while index < size(self.bricks)
             var brick = self.bricks[index]
             if brick[2] && self.ball_x + 6 > brick[0] && self.ball_x < brick[0] + 35 && self.ball_y + 6 > brick[1] && self.ball_y < brick[1] + 11
                 brick[2] = false

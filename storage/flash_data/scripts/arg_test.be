@@ -1,6 +1,6 @@
 def main(args)
     var index = 0
-    while index < args.size()
+    while index < size(args)
         print(str(index + 1) + ": " + args[index])
         index += 1
     end

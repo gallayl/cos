@@ -105,7 +105,7 @@ function lowerExpression(ctx: GenerationContext, node: ts.Expression): Emitted {
     if (node.text === "undefined" && !ctx.isDeclared("undefined")) return atom("nil");
     return atom(node.text);
   }
-  if (ts.isNumericLiteral(node)) return atom(node.text.replaceAll("_", ""));
+  if (ts.isNumericLiteral(node)) return atom(numericLiteralText(node));
   if (ts.isStringLiteral(node)) return atom(berryString(node.text));
   if (ts.isNoSubstitutionTemplateLiteral(node)) return atom(berryString(node.text));
   if (ts.isTemplateExpression(node)) return emitTemplate(ctx, node);
@@ -131,6 +131,18 @@ function lowerExpression(ctx: GenerationContext, node: ts.Expression): Emitted {
   }
   if (ts.isConditionalExpression(node)) {
     ctx.report(node, "Conditional expressions are not supported.");
+    return atom("nil");
+  }
+  if (ts.isTypeOfExpression(node)) {
+    ctx.report(node, "typeof is not supported. Use Berry type() or explicit checks.");
+    return atom("nil");
+  }
+  if (ts.isVoidExpression(node)) {
+    ctx.report(node, "The void operator is not supported.");
+    return atom("nil");
+  }
+  if (ts.isDeleteExpression(node)) {
+    ctx.report(node, "The delete operator is not supported.");
     return atom("nil");
   }
   if (node.kind === ts.SyntaxKind.SuperKeyword) {
@@ -183,6 +195,15 @@ function rejectFunctionOperand(ctx: GenerationContext, node: ts.Expression): voi
 function emitPrefix(ctx: GenerationContext, node: ts.PrefixUnaryExpression): Emitted {
   if (node.operator === ts.SyntaxKind.ExclamationToken) {
     if (!isStructurallyBoolean(node.operand)) ctx.report(node.operand, BOOLEAN_OPERAND_MESSAGE);
+  } else if (node.operator === ts.SyntaxKind.PlusToken) {
+    ctx.report(
+      node,
+      "Unary + is not supported. Use int(value) or real(value) to make numeric intent explicit.",
+    );
+    return atom("nil");
+  } else if (node.operator === ts.SyntaxKind.TildeToken) {
+    ctx.report(node, "Bitwise operators are not supported.");
+    return atom("nil");
   } else if (node.operator !== ts.SyntaxKind.MinusToken) {
     ctx.report(node, `Unsupported syntax: ${ts.SyntaxKind[node.operator]}.`);
     return atom("nil");
@@ -214,6 +235,16 @@ function emitBinary(ctx: GenerationContext, node: ts.BinaryExpression): Emitted 
   ) {
     ctx.report(node.left, BOOLEAN_OPERAND_MESSAGE);
   }
+  if (
+    kind === ts.SyntaxKind.SlashToken &&
+    isIntegerNumericLiteral(node.left) &&
+    isIntegerNumericLiteral(node.right)
+  ) {
+    ctx.report(
+      node,
+      "Integer literal division uses Berry integer division (1 / 2 is 0). Use real literals (1.0 / 2.0) or real(...) for TS/JS-style division.",
+    );
+  }
   rejectFunctionOperand(ctx, node.left);
   rejectFunctionOperand(ctx, node.right);
   const left = lowerExpression(ctx, node.left);
@@ -222,6 +253,22 @@ function emitBinary(ctx: GenerationContext, node: ts.BinaryExpression): Emitted 
     text: `${parenthesize(left, operator.precedence, "left", operator.associativity)} ${operator.berry} ${parenthesize(right, operator.precedence, "right", operator.associativity)}`,
     precedence: operator.precedence,
   };
+}
+
+function numericLiteralText(node: ts.NumericLiteral): string {
+  return node.getText().replaceAll("_", "");
+}
+
+function isIntegerNumericLiteral(node: ts.Expression): boolean {
+  const expression = unwrapTransparent(node);
+  if (!ts.isNumericLiteral(expression)) return false;
+  // Use source text: TS normalizes `2.0` -> text `2` and `1e3` -> `1000`, but
+  // Berry distinguishes int/real by lexical form (`.` / exponent => real).
+  const text = numericLiteralText(expression).trim();
+  if (text.startsWith("0x") || text.startsWith("0X") || text.startsWith("0b") || text.startsWith("0B") || text.startsWith("0o") || text.startsWith("0O")) {
+    return true;
+  }
+  return !text.includes(".") && !text.includes("e") && !text.includes("E");
 }
 
 function rejectedBinary(kind: ts.SyntaxKind): string | undefined {
@@ -289,7 +336,9 @@ function emitProperty(ctx: GenerationContext, node: ts.PropertyAccessExpression)
   const objectText = emitGrouped(ctx, node.expression, CALL_PRECEDENCE);
   const called = isCallee(node);
   if (node.name.text === "length" && !called) {
-    return { text: `${objectText}.size()`, precedence: CALL_PRECEDENCE };
+    // Berry global size() handles strings (byte length) and objects exposing size().
+    // `obj.size()` would fail for plain Berry strings, so prefer `size(obj)`.
+    return { text: `size(${objectText})`, precedence: CALL_PRECEDENCE };
   }
   return { text: `${objectText}.${node.name.text}`, precedence: CALL_PRECEDENCE };
 }

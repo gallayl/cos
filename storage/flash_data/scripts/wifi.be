@@ -18,11 +18,11 @@ def show_wifi()
     return 0
 end
 def main(args)
-    if args.size() == 0
+    if size(args) == 0
         return show_wifi()
     end
     if args[0] == "disconnect"
-        if args.size() != 1
+        if size(args) != 1
             print("usage: wifi disconnect")
             return 1
         end
@@ -35,12 +35,12 @@ def main(args)
         return 0
     end
     if args[0] == "connect"
-        if args.size() < 2 || args.size() > 3
+        if size(args) < 2 || size(args) > 3
             print("usage: wifi connect <ssid> [password]")
             return 1
         end
         var result = true
-        if args.size() == 3
+        if size(args) == 3
             result = net.wifi_connect(args[1], args[2])
         else
             result = net.wifi_connect(args[1])

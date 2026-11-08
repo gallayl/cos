@@ -1,7 +1,7 @@
 var __cos_mod_1 = cos_import("@cos/net")
 var net = __cos_mod_1.find("default")
 def main(args)
-    if args.size() != 1
+    if size(args) != 1
         print("usage: wget <url>")
         return 1
     end
@@ -13,7 +13,7 @@ def main(args)
     if !result.ok
         print(result.error)
     end
-    if result.body.size() > 0
+    if size(result.body) > 0
         print(result.body)
     end
     if result.ok

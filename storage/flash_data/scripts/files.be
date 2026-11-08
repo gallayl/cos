@@ -1,7 +1,7 @@
 var __cos_mod_1 = cos_import("@cos/fs")
 var fs = __cos_mod_1.find("default")
 def main(args)
-    if args.size() != 0
+    if size(args) != 0
         print("usage: files")
         return 1
     end

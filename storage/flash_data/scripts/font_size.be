@@ -1,7 +1,7 @@
 var __cos_mod_1 = cos_import("@cos/console")
 var console = __cos_mod_1.find("default")
 def main(args)
-    if args.size() != 1
+    if size(args) != 1
         print("usage: font_size 1|2|3")
         return 1
     end

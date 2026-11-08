@@ -160,12 +160,19 @@ function outputLines(output: string): string[] {
 function checkScripts(): ScriptCheck[] {
   const berry = collect(flashRoot, ".be");
   const typescript = collect(typescriptRoot, ".ts");
-  const names = [...new Set([...berry.keys(), ...typescript.keys()])].sort();
+  const names = [...new Set([...berry.keys(), ...typescript.keys()])]
+    .sort()
+    .filter((name) => typescript.has(name) || !name.startsWith("tests/"));
   return names.map((name) => checkOne(name, berry.get(name), typescript.get(name)));
 }
 
 function checkOne(name: string, berryPath: string | undefined, typescriptPath: string | undefined): ScriptCheck {
   if (!berryPath || !typescriptPath) {
+    // Hand-written Berry scripts under tests/ (e.g. R2 profiling/regression)
+    // are not compiled from storage TS sources.
+    if (!typescriptPath && berryPath && name.startsWith("tests/")) {
+      return { name, diagnostics: [], diff: "" };
+    }
     const missing = berryPath ? "TypeScript source" : "Berry script";
     return { name, diagnostics: [`Missing ${missing}`], diff: "" };
   }

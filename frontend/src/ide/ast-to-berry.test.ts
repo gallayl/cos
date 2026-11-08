@@ -152,7 +152,7 @@ end
         return "empty"
     end
     var point = {"x": 1, "y": 2}
-    var __cos_switch_1 = items.size()
+    var __cos_switch_1 = size(items)
     if (__cos_switch_1 == 0)
         return "none"
     elif (__cos_switch_1 == 1) || (__cos_switch_1 == 2)
@@ -447,5 +447,132 @@ ui.label(0, "hi")
     expect(result.code).toBe("");
     expect(result.diagnostics[0]?.message).toContain("expected");
     expect(result.diagnostics[0]?.line).toBe(1);
+  });
+});
+
+describe("astToBerry semantic conformance (R3)", () => {
+  it("lowers .length to Berry global size() for strings and containers", () => {
+    expectBerry(
+      `
+        function lengths(text: string, items: number[]): number {
+          const a = text.length;
+          const b = items.length;
+          return a + b;
+        }
+      `,
+      `def lengths(text, items)
+    var a = size(text)
+    var b = size(items)
+    return a + b
+end
+`,
+    );
+  });
+
+  it("preserves explicit boolean comparisons and nil mappings", () => {
+    expectBerry(
+      `
+        function ready(name: string | null, count: number): boolean {
+          if (name !== null && name !== undefined && count > 0) {
+            return true;
+          }
+          return false;
+        }
+      `,
+      `def ready(name, count)
+    if name != nil && name != nil && count > 0
+        return true
+    end
+    return false
+end
+`,
+    );
+  });
+
+  it("diagnoses integer literal division because Berry divides ints as integers", () => {
+    const result = compile(`const ratio = 1 / 2;`);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Integer literal division uses Berry integer division"),
+      ]),
+    );
+  });
+
+  it("allows real-literal division and variable division", () => {
+    expectBerry(`const a = 1.0 / 2;`, `var a = 1.0 / 2\n`);
+    expectBerry(`const b = 1 / 2.0;`, `var b = 1 / 2.0\n`);
+    expectBerry(
+      `
+        function half(n: number): number {
+          return n / 2;
+        }
+      `,
+      `def half(n)
+    return n / 2
+end
+`,
+    );
+  });
+
+  it("allows explicit numeric conversion around division", () => {
+    expectBerry(
+      `const ratio = int(1) / int(2);`,
+      `var ratio = int(1) / int(2)\n`,
+    );
+    expectBerry(
+      `const ratio = real(1) / real(2);`,
+      `var ratio = real(1) / real(2)\n`,
+    );
+  });
+
+  it("diagnoses unary + coercion", () => {
+    const result = compile(`const n = +value;`);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics[0]?.message).toContain("Unary + is not supported");
+  });
+
+  it("diagnoses typeof/void/delete as unsupported Berry mappings", () => {
+    const result = compile(`
+      const t = typeof value;
+      void value;
+      delete obj.key;
+    `);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("typeof is not supported"),
+        expect.stringContaining("void operator is not supported"),
+        expect.stringContaining("delete operator is not supported"),
+      ]),
+    );
+  });
+
+  it("preserves numeric literals and strips numeric separators", () => {
+    expectBerry(`const n = 1_000;`, `var n = 1000\n`);
+    expectBerry(`const r = 3.14;`, `var r = 3.14\n`);
+    expectBerry(`const e = 1e3;`, `var e = 1e3\n`);
+  });
+
+  it("keeps class field initialization in init", () => {
+    expectBerry(
+      `
+        export default class App {
+          private count = 1;
+          setup(): void {}
+        }
+      `,
+      `class App
+    var count
+    def init()
+        self.count = 1
+    end
+    def setup()
+    end
+end
+
+return App
+`,
+    );
   });
 });

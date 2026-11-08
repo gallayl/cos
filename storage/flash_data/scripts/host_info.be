@@ -1,7 +1,7 @@
 var __cos_mod_1 = cos_import("@cos/net")
 var net = __cos_mod_1.find("default")
 def main(args)
-    if args.size() != 0
+    if size(args) != 0
         print("usage: host_info")
         return 1
     end
@@ -16,7 +16,7 @@ def main(args)
     print("gateway " + info.gateway)
     print("mac " + info.mac)
     var index = 0
-    while index < info.dns.size()
+    while index < size(info.dns)
         print("dns " + info.dns[index])
         index += 1
     end
