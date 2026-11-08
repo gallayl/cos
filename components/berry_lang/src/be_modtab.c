@@ -31,11 +31,8 @@ BERRY_LOCAL const bntvmodule_t *const be_module_table[] = {
 #if BE_USE_INTROSPECT_MODULE
     &be_native_module(introspect),
 #endif
-    &be_native_module(console),
-    &be_native_module(fs),
-    &be_native_module(net),
-    &be_native_module(ui),
-    &be_native_module(undefined),  NULL,
+    &be_native_module(console),    &be_native_module(fs),        &be_native_module(net),
+    &be_native_module(ui),         &be_native_module(undefined), NULL,
 };
 
 BERRY_LOCAL bclass_array be_class_table = {

@@ -77,7 +77,8 @@ static bool call_json_method(bvm *vm, const char *method, int value_index)
 {
     value_index = be_absindex(vm, value_index);
     const int base = be_top(vm);
-    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
+    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) ||
+        be_isnil(vm, -1))
     {
         be_pop(vm, be_top(vm) - base);
         return false;

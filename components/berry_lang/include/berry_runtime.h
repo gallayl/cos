@@ -77,4 +77,5 @@ struct bvm;
 #ifdef __cplusplus
 extern "C"
 #endif
-bool berry_runtime_ensure_json(struct bvm *vm);
+    bool
+    berry_runtime_ensure_json(struct bvm *vm);

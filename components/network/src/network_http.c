@@ -13,7 +13,11 @@
 
 #include <string.h>
 
-#define HTTP_TASK_STACK 12288
+// R8/P4: ESP-IDF xTaskCreate takes stack depth in bytes on ESP32 targets used
+// here (log showed cfg=12288 unit=1). First hardware sample used ~1796 bytes
+// (HWM 10492). 6144 gives ~4KB margin while freeing 6KB vs 12288; remeasure
+// GET/POST/HTTPS/max-response/timeout/error before reducing further.
+#define HTTP_TASK_STACK 6144
 #define HTTP_TASK_PRIORITY 4
 
 static const char *TAG = "net_http";
@@ -86,9 +90,11 @@ static void log_http_worker_stack(const char *method, bool https, int status, es
     const uint32_t used_bytes = configured > hwm_bytes ? configured - hwm_bytes : 0;
 
     ESP_LOGI(TAG,
-             "R8/P4 stack: cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u min_free=%u method=%s scheme=%s status=%d err=%s",
+             "R8/P4 stack: cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u min_free=%u method=%s scheme=%s status=%d "
+             "err=%s",
              (unsigned)configured, (unsigned)stack_unit, (unsigned)hwm_words, (unsigned)hwm_bytes, (unsigned)used_bytes,
-             (unsigned)hwm_bytes, method != NULL ? method : "?", https ? "https" : "http", status, esp_err_to_name(err));
+             (unsigned)hwm_bytes, method != NULL ? method : "?", https ? "https" : "http", status,
+             esp_err_to_name(err));
 
     network_http_worker_stack_info_t sample = {0};
     sample.available = true;

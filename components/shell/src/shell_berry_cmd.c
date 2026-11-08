@@ -88,7 +88,8 @@ static int cmd_berry(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry profile | berry gc\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
+               "profile | berry gc\n");
         return 1;
     }
 
@@ -226,7 +227,8 @@ static int cmd_berry(int argc, char **argv)
     else
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry profile | berry gc\n");
+        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
+               "profile | berry gc\n");
         return 1;
     }
 

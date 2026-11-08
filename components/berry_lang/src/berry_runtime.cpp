@@ -392,7 +392,8 @@ bool call_json_method(bvm *vm, const char *method, int value_index)
 {
     value_index = be_absindex(vm, value_index);
     const int base = be_top(vm);
-    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
+    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) ||
+        be_isnil(vm, -1))
     {
         be_pop(vm, be_top(vm) - base);
         return false;
@@ -1077,11 +1078,15 @@ static bntvmodobj_t const console_attrs[] = {
     be_native_module_function("set_font_size", native_console_set_font_size),
     be_native_module_function("font_size", native_console_font_size),
 };
-} // namespace (console attrs)
+} // namespace
 extern "C" const bntvmodule_t be_native_module_console = {
-    "console", console_attrs, sizeof(console_attrs) / sizeof(console_attrs[0]), nullptr,
+    "console",
+    console_attrs,
+    sizeof(console_attrs) / sizeof(console_attrs[0]),
+    nullptr,
 };
-namespace {
+namespace
+{
 
 static bntvmodobj_t const fs_attrs[] = {
     be_native_module_function("list", native_fs_list),
@@ -1094,13 +1099,15 @@ static bntvmodobj_t const fs_attrs[] = {
     be_native_module_function("is_file", native_fs_is_file),
     be_native_module_function("size", native_fs_size),
 };
-} // namespace (fs attrs)
+} // namespace
 extern "C" const bntvmodule_t be_native_module_fs = {
-    "fs", fs_attrs, sizeof(fs_attrs) / sizeof(fs_attrs[0]), nullptr,
+    "fs",
+    fs_attrs,
+    sizeof(fs_attrs) / sizeof(fs_attrs[0]),
+    nullptr,
 };
-namespace {
-
-
+namespace
+{
 
 int load_owned_source(BerrySourceBuffer &source, size_t length, const char *source_name)
 {
@@ -1740,8 +1747,7 @@ int native_cos_import(bvm *vm)
     }
 
     const char *cos_module = resolve_cos_module_name(specifier);
-    const bool relative = specifier[0] == '.' &&
-                          (specifier[1] == '/' || (specifier[1] == '.' && specifier[2] == '/'));
+    const bool relative = specifier[0] == '.' && (specifier[1] == '/' || (specifier[1] == '.' && specifier[2] == '/'));
 
     if (cos_module == nullptr && !relative)
     {
@@ -1801,7 +1807,7 @@ int native_cos_import(bvm *vm)
         be_pushvalue(vm, module_index);
         be_data_insert(vm, dst);
         be_pop(vm, 2);
-        be_pop(vm, 1); // pop .p
+        be_pop(vm, 1);               // pop .p
         be_remove(vm, module_index); // remove native module, keep wrapper
         be_pushstring(vm, cache_key);
         be_pushvalue(vm, -2);

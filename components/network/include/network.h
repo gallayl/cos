@@ -190,16 +190,16 @@ extern "C"
     /** R8/P4: HTTP worker stack high-water-mark sample (best-effort). */
     typedef struct
     {
-        bool available;              /**< True after the worker has completed at least one request. */
-        uint32_t configured_stack;   /**< Stack passed to xTaskCreate (ESP-IDF units; bytes on ESP32). */
-        uint32_t stack_unit_bytes;   /**< sizeof(StackType_t) for interpreting HWM words. */
-        uint32_t hwm_words;          /**< uxTaskGetStackHighWaterMark() minimum remaining stack. */
-        uint32_t hwm_bytes;          /**< hwm_words * stack_unit_bytes. */
-        uint32_t used_bytes;         /**< configured_stack - hwm_bytes when comparable, else 0. */
-        bool https;                  /**< Last sampled request used https://. */
-        int last_status;             /**< HTTP status from last sample, or 0. */
-        esp_err_t last_error;        /**< Worker result from last sample. */
-        char last_method[8];         /**< Last sampled method name. */
+        bool available;            /**< True after the worker has completed at least one request. */
+        uint32_t configured_stack; /**< Stack passed to xTaskCreate (ESP-IDF units; bytes on ESP32). */
+        uint32_t stack_unit_bytes; /**< sizeof(StackType_t) for interpreting HWM words. */
+        uint32_t hwm_words;        /**< uxTaskGetStackHighWaterMark() minimum remaining stack. */
+        uint32_t hwm_bytes;        /**< hwm_words * stack_unit_bytes. */
+        uint32_t used_bytes;       /**< configured_stack - hwm_bytes when comparable, else 0. */
+        bool https;                /**< Last sampled request used https://. */
+        int last_status;           /**< HTTP status from last sample, or 0. */
+        esp_err_t last_error;      /**< Worker result from last sample. */
+        char last_method[8];       /**< Last sampled method name. */
     } network_http_worker_stack_info_t;
 
     /**
