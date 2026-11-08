@@ -591,18 +591,11 @@ void berry_ui_tick_impl()
     }
 }
 
-void register_function(bvm *vm, const char *name, bntvfunc function)
+int native_ui_init(bvm *vm)
 {
-    be_pushntvfunction(vm, function);
-    be_setmember(vm, -2, name);
-    be_pop(vm, 1);
-}
-
-void register_constant(bvm *vm, const char *name, int value)
-{
-    be_pushint(vm, value);
-    be_setmember(vm, -2, name);
-    be_pop(vm, 1);
+    s_vm = vm;
+    be_pushvalue(vm, 1);
+    be_return(vm);
 }
 } // namespace
 
@@ -611,55 +604,57 @@ void berry_ui_tick(void)
     berry_ui_tick_impl();
 }
 
-void berry_ui_register(bvm *vm)
-{
-    s_vm = vm;
-    be_newmodule(vm);
-    be_setname(vm, -1, "ui");
-    register_function(vm, "label", native_label);
-    register_function(vm, "button", native_button);
-    register_function(vm, "groupbox", native_groupbox);
-    register_function(vm, "checkbox", native_checkbox);
-    register_function(vm, "set_text", native_set_text);
-    register_function(vm, "set_text_color", native_set_text_color);
-    register_function(vm, "set_bounds", native_set_bounds);
-    register_function(vm, "bounds", native_bounds);
-    register_function(vm, "on_click", native_on_click);
-    register_function(vm, "on_change", native_on_change);
-    register_function(vm, "set_checked", native_set_checked);
-    register_function(vm, "get_checked", native_get_checked);
-    register_function(vm, "clear", native_clear);
-    register_function(vm, "color565", native_color565);
-    register_function(vm, "mark_dirty", native_mark_dirty);
-    register_function(vm, "random", native_random);
-    register_function(vm, "exit", native_exit);
-    register_function(vm, "fill_screen", native_fill_screen);
-    register_function(vm, "fill_rect", native_fill_rect);
-    register_function(vm, "draw_text", native_draw_text);
-    register_function(vm, "touch", native_touch);
-    register_function(vm, "key_down", native_key_down);
-    register_function(vm, "start_write", native_start_write);
-    register_function(vm, "end_write", native_end_write);
-    register_function(vm, "timer", native_timer);
-    register_constant(vm, "LEFT", 1);
-    register_constant(vm, "CENTER", 0);
-    register_constant(vm, "RIGHT", 2);
-    register_constant(vm, "KEY_ENTER", 0x28);
-    register_constant(vm, "KEY_ESCAPE", 0x29);
-    register_constant(vm, "KEY_SPACE", 0x2C);
-    register_constant(vm, "KEY_A", 0x04);
-    register_constant(vm, "KEY_D", 0x07);
-    register_constant(vm, "KEY_LEFT", 0x50);
-    register_constant(vm, "KEY_RIGHT", 0x4F);
-    register_constant(vm, "KEY_DOWN", 0x51);
-    register_constant(vm, "KEY_UP", 0x52);
-    register_constant(vm, "TEXT_COLOR", 0x0000);
-    register_constant(vm, "WINDOW_BG", 0xFFFF);
-    register_constant(vm, "BUTTON_HIGHLIGHT", 0xFFFF);
-    register_constant(vm, "BUTTON_SHADOW", 0x0000);
-    be_setglobal(vm, "ui");
-    be_pop(vm, 1);
-}
+static bntvmodobj_t const ui_attrs[] = {
+    be_native_module_function("init", native_ui_init),
+    be_native_module_function("label", native_label),
+    be_native_module_function("button", native_button),
+    be_native_module_function("groupbox", native_groupbox),
+    be_native_module_function("checkbox", native_checkbox),
+    be_native_module_function("set_text", native_set_text),
+    be_native_module_function("set_text_color", native_set_text_color),
+    be_native_module_function("set_bounds", native_set_bounds),
+    be_native_module_function("bounds", native_bounds),
+    be_native_module_function("on_click", native_on_click),
+    be_native_module_function("on_change", native_on_change),
+    be_native_module_function("set_checked", native_set_checked),
+    be_native_module_function("get_checked", native_get_checked),
+    be_native_module_function("clear", native_clear),
+    be_native_module_function("color565", native_color565),
+    be_native_module_function("mark_dirty", native_mark_dirty),
+    be_native_module_function("random", native_random),
+    be_native_module_function("exit", native_exit),
+    be_native_module_function("fill_screen", native_fill_screen),
+    be_native_module_function("fill_rect", native_fill_rect),
+    be_native_module_function("draw_text", native_draw_text),
+    be_native_module_function("touch", native_touch),
+    be_native_module_function("key_down", native_key_down),
+    be_native_module_function("start_write", native_start_write),
+    be_native_module_function("end_write", native_end_write),
+    be_native_module_function("timer", native_timer),
+    be_native_module_int("LEFT", 1),
+    be_native_module_int("CENTER", 0),
+    be_native_module_int("RIGHT", 2),
+    be_native_module_int("KEY_ENTER", 0x28),
+    be_native_module_int("KEY_ESCAPE", 0x29),
+    be_native_module_int("KEY_SPACE", 0x2C),
+    be_native_module_int("KEY_A", 0x04),
+    be_native_module_int("KEY_D", 0x07),
+    be_native_module_int("KEY_LEFT", 0x50),
+    be_native_module_int("KEY_RIGHT", 0x4F),
+    be_native_module_int("KEY_DOWN", 0x51),
+    be_native_module_int("KEY_UP", 0x52),
+    be_native_module_int("TEXT_COLOR", 0x0000),
+    be_native_module_int("WINDOW_BG", 0xFFFF),
+    be_native_module_int("BUTTON_HIGHLIGHT", 0xFFFF),
+    be_native_module_int("BUTTON_SHADOW", 0x0000),
+};
+
+extern "C" const bntvmodule_t be_native_module_ui = {
+    "ui",
+    ui_attrs,
+    sizeof(ui_attrs) / sizeof(ui_attrs[0]),
+    nullptr,
+};
 
 void berry_ui_begin_app(bvm *vm)
 {

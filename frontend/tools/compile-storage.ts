@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -51,8 +51,32 @@ export function verifyStorage(): StorageCheck {
   };
 }
 
+function writeCompiledBerry(): number {
+  const names = [...collect(typescriptRoot, ".ts").keys()].sort();
+  let written = 0;
+  for (const name of names) {
+    const typescriptPath = join(typescriptRoot, `${name}.ts`);
+    const berryPath = join(flashRoot, `${name}.be`);
+    const result = astToBerry(getAst(readFileSync(typescriptPath, "utf8")));
+    if (!result.ok) {
+      console.error(
+        `${name}: ${result.diagnostics.map((d) => `${d.line}:${d.column}: ${d.message}`).join("; ")}`,
+      );
+      return 1;
+    }
+    mkdirSync(join(berryPath, ".."), { recursive: true });
+    writeFileSync(berryPath, result.code.endsWith("\n") ? result.code : `${result.code}\n`);
+    written += 1;
+  }
+  console.log(`Wrote ${written} Berry files to storage/flash_data`);
+  return 0;
+}
+
 /** @returns Process exit code: `0` when every check passed. */
-export function main(): number {
+export function main(args: readonly string[] = process.argv.slice(2)): number {
+  if (args.includes("--write")) {
+    return writeCompiledBerry();
+  }
   const report = verifyStorage();
   const problems = reportProblems(report);
   if (problems.length === 0) {

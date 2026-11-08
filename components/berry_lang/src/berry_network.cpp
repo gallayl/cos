@@ -1,4 +1,5 @@
 #include "berry.h"
+#include "berry_runtime.h"
 #include "network.h"
 
 #include "esp_err.h"
@@ -26,6 +27,14 @@ static void map_set_int(bvm *vm, const char *key, bint value)
 {
     be_pushstring(vm, key);
     be_pushint(vm, value);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+}
+
+static void map_set_number(bvm *vm, const char *key, double value)
+{
+    be_pushstring(vm, key);
+    be_pushreal(vm, static_cast<breal>(value));
     be_data_insert(vm, -3);
     be_pop(vm, 2);
 }
@@ -68,7 +77,7 @@ static bool call_json_method(bvm *vm, const char *method, int value_index)
 {
     value_index = be_absindex(vm, value_index);
     const int base = be_top(vm);
-    if (!be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
+    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
     {
         be_pop(vm, be_top(vm) - base);
         return false;
@@ -645,27 +654,69 @@ static int native_net_fetch(bvm *vm)
                              json_index, error);
 }
 
-void berry_network_register(bvm *vm)
+static int native_net_ping(bvm *vm)
 {
-    be_pushntvfunction(vm, native_net_host);
-    be_setmember(vm, -2, "host");
+    const char *host = nullptr;
+    uint32_t timeout_ms = 1000;
+    esp_err_t err = ESP_OK;
+    network_ping_result_t result = {};
+
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        err = ESP_ERR_INVALID_ARG;
+    }
+    else
+    {
+        host = be_tostring(vm, 1);
+        if (be_top(vm) >= 2)
+        {
+            if (!be_isint(vm, 2))
+            {
+                err = ESP_ERR_INVALID_ARG;
+            }
+            else
+            {
+                const bint requested_timeout = be_toint(vm, 2);
+                if (requested_timeout < NETWORK_PING_TIMEOUT_MIN_MS || requested_timeout > NETWORK_PING_TIMEOUT_MAX_MS)
+                {
+                    err = ESP_ERR_INVALID_ARG;
+                }
+                else
+                {
+                    timeout_ms = static_cast<uint32_t>(requested_timeout);
+                }
+            }
+        }
+        if (err == ESP_OK)
+        {
+            err = network_ping(host, timeout_ms, &result);
+        }
+    }
+
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", err == ESP_OK);
+    map_set_string(vm, "host", host != nullptr ? host : "");
+    map_set_string(vm, "address", result.address);
+    map_set_number(vm, "rtt_ms", static_cast<double>(result.rtt_ms));
+    map_set_string(vm, "error", err == ESP_OK ? "" : esp_err_to_name(err));
     be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_wifi);
-    be_setmember(vm, -2, "wifi");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_wifi_connect);
-    be_setmember(vm, -2, "wifi_connect");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_wifi_disconnect);
-    be_setmember(vm, -2, "wifi_disconnect");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_set_base_url);
-    be_setmember(vm, -2, "set_base_url");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_base_url);
-    be_setmember(vm, -2, "base_url");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_net_fetch);
-    be_setmember(vm, -2, "fetch");
-    be_pop(vm, 1);
+    be_return(vm);
 }
+
+static bntvmodobj_t const net_attrs[] = {
+    be_native_module_function("ping", native_net_ping),
+    be_native_module_function("host", native_net_host),
+    be_native_module_function("wifi", native_net_wifi),
+    be_native_module_function("wifi_connect", native_net_wifi_connect),
+    be_native_module_function("wifi_disconnect", native_net_wifi_disconnect),
+    be_native_module_function("set_base_url", native_net_set_base_url),
+    be_native_module_function("base_url", native_net_base_url),
+    be_native_module_function("fetch", native_net_fetch),
+};
+
+extern "C" const bntvmodule_t be_native_module_net = {
+    "net",
+    net_attrs,
+    sizeof(net_attrs) / sizeof(net_attrs[0]),
+    nullptr,
+};

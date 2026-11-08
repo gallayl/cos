@@ -1,3 +1,5 @@
+import net from "@cos/net";
+
 function show_wifi(): number {
   const info = net.wifi();
   if (!info.ok) {

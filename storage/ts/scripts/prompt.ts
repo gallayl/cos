@@ -1,3 +1,5 @@
+import console from "@cos/console";
+
 function greet(name: string | null): void {
   if (name === null) {
     log("Input cancelled");

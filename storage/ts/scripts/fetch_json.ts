@@ -1,3 +1,5 @@
+import net from "@cos/net";
+
 function main(args: string[]): number {
   if (args.length !== 1) {
     print("usage: fetch_json <url>");

@@ -1,3 +1,5 @@
+import fs from "@cos/fs";
+
 function main(args: string[]): number {
   if (args.length !== 0) {
     print("usage: files");

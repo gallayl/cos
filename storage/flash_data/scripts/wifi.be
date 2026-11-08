@@ -1,18 +1,20 @@
+var __cos_mod_1 = cos_import("@cos/net")
+var net = __cos_mod_1.find("default")
 def show_wifi()
     var info = net.wifi()
-    if !info["ok"]
-        print(info["error"])
+    if !info.ok
+        print(info.error)
         return 1
     end
-    print("mode " + info["mode"])
-    print("connected " + str(info["connected"]))
-    print("ssid " + info["ssid"])
-    print("rssi " + str(info["rssi"]))
-    print("signal " + info["signal"])
-    print("auth " + info["auth"])
-    print("ip " + info["ip"])
-    print("ap " + info["ap_ip"])
-    print("mac " + info["mac"])
+    print("mode " + info.mode)
+    print("connected " + str(info.connected))
+    print("ssid " + info.ssid)
+    print("rssi " + str(info.rssi))
+    print("signal " + info.signal)
+    print("auth " + info.auth)
+    print("ip " + info.ip)
+    print("ap " + info.ap_ip)
+    print("mac " + info.mac)
     return 0
 end
 def main(args)

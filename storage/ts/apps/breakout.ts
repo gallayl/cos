@@ -1,3 +1,5 @@
+import ui from "@cos/ui";
+
 type Brick = [number, number, boolean, number];
 
 export default class Breakout implements CosApp {

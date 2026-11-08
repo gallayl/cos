@@ -369,16 +369,14 @@ return Counter
     expect(result.ok).toBe(false);
     expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
       "Side-effect imports are not supported.",
-      "Only relative imports are supported. COS APIs are available as globals.",
+      "Only relative imports and @cos/* module imports are supported.",
       "export * re-exports are not supported yet.",
-      "Only relative re-exports are supported. COS APIs are available as globals.",
     ]);
   });
 
   it("reports syntax the runtime cannot represent", () => {
     const result = compile(`
       import "./ui";
-      import ui from "@cos/ui";
       enum Color { Red }
       function same(a: number, b: number): boolean {
         return a == b;
@@ -408,7 +406,6 @@ return Counter
     expect(messages).toEqual(
       expect.arrayContaining([
         "Side-effect imports are not supported.",
-        "Only relative imports are supported. COS APIs are available as globals.",
         "Enums are not supported yet.",
         "Loose equality is not supported. Use === and !==.",
         "Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.",
@@ -416,6 +413,31 @@ return Counter
         "Single inheritance is not supported yet.",
         "Switch fallthrough is not supported.",
       ]),
+    );
+  });
+
+  it("lowers @cos module imports like relative imports", () => {
+    expectBerry(
+      `
+        import net from "@cos/net";
+        import { fetch } from "@cos/network";
+        import * as ui from "@cos/ui";
+
+        net.host();
+        fetch("/ping");
+        ui.label(0, "hi");
+      `,
+      `var __cos_mod_1 = cos_import("@cos/net")
+var net = __cos_mod_1.find("default")
+var __cos_mod_2 = cos_import("@cos/network")
+var __cos_def_3 = __cos_mod_2.find("default")
+var fetch = __cos_def_3.fetch
+var __cos_mod_4 = cos_import("@cos/ui")
+var ui = __cos_mod_4.find("default")
+net.host()
+fetch("/ping")
+ui.label(0, "hi")
+`,
     );
   });
 

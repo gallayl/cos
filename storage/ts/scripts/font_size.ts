@@ -1,3 +1,5 @@
+import console from "@cos/console";
+
 function main(args: string[]): number {
   if (args.length !== 1) {
     print("usage: font_size 1|2|3");

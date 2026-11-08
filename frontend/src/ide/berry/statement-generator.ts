@@ -117,10 +117,7 @@ export function emitStatement(
   }
   if (ts.isImportEqualsDeclaration(node)) {
     if (node.isTypeOnly) return;
-    ctx.report(
-      node,
-      "Imports are not supported. COS APIs are available as globals.",
-    );
+    ctx.report(node, "import = is not supported. Use ESM imports.");
     return;
   }
   if (ts.isExportDeclaration(node)) {
@@ -520,10 +517,16 @@ function emitExportDeclaration(
     ctx.report(node, "Only string module specifiers are supported.");
     return;
   }
-  if (specifier !== undefined && !specifier.startsWith("./") && !specifier.startsWith("../")) {
+  if (
+    specifier !== undefined &&
+    !specifier.startsWith("./") &&
+    !specifier.startsWith("../") &&
+    !specifier.startsWith("@cos/") &&
+    !specifier.startsWith("@berry/")
+  ) {
     ctx.report(
       node,
-      "Only relative re-exports are supported. COS APIs are available as globals.",
+      "Only relative re-exports and @cos/* module re-exports are supported.",
     );
     return;
   }
@@ -587,10 +590,15 @@ function emitImportDeclaration(
   }
 
   const specifier = node.moduleSpecifier.text;
-  if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
+  if (
+    !specifier.startsWith("./") &&
+    !specifier.startsWith("../") &&
+    !specifier.startsWith("@cos/") &&
+    !specifier.startsWith("@berry/")
+  ) {
     ctx.report(
       node,
-      "Only relative imports are supported. COS APIs are available as globals.",
+      "Only relative imports and @cos/* module imports are supported.",
     );
     return;
   }
@@ -609,7 +617,14 @@ function emitImportDeclaration(
   if (hasNamespace) {
     const local = namedBindings.name.text;
     ctx.declareName(local, namedBindings.name);
-    ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
+    if (specifier.startsWith("@cos/") || specifier.startsWith("@berry/")) {
+      const moduleTemp = ctx.nextTemp("__cos_mod_");
+      ctx.declareName(moduleTemp, node);
+      ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+      ctx.writeLine(`var ${local} = ${moduleTemp}.find("default")`);
+    } else {
+      ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
+    }
     if (clause.name) {
       ctx.report(
         clause.name,
@@ -631,6 +646,8 @@ function emitImportDeclaration(
   const moduleTemp = ctx.nextTemp("__cos_mod_");
   ctx.declareName(moduleTemp, node);
   ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+  const isCosModule =
+    specifier.startsWith("@cos/") || specifier.startsWith("@berry/");
 
   if (clause.name) {
     ctx.declareName(clause.name.text, clause.name);
@@ -638,12 +655,26 @@ function emitImportDeclaration(
   }
 
   if (namedBindings && ts.isNamedImports(namedBindings)) {
+    let defaultTemp: string | undefined;
+    if (isCosModule && (clause.name == null || namedBindings.elements.length > 0)) {
+      if (clause.name) {
+        defaultTemp = clause.name.text;
+      } else {
+        defaultTemp = ctx.nextTemp("__cos_def_");
+        ctx.declareName(defaultTemp, node);
+        ctx.writeLine(`var ${defaultTemp} = ${moduleTemp}.find("default")`);
+      }
+    }
     for (const element of namedBindings.elements) {
       if (element.isTypeOnly) continue;
       const imported = (element.propertyName ?? element.name).text;
       const local = element.name.text;
       ctx.declareName(local, element.name);
-      ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`);
+      if (isCosModule) {
+        ctx.writeLine(`var ${local} = ${defaultTemp}.${imported}`);
+      } else {
+        ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`);
+      }
     }
   }
 }

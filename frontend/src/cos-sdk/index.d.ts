@@ -3,6 +3,8 @@
 /// <reference path="./console.d.ts" />
 /// <reference path="./filesystem.d.ts" />
 /// <reference path="./network.d.ts" />
+/// <reference path="./json.d.ts" />
+/// <reference path="./berry-builtins.d.ts" />
 
 /**
  * Globals installed beside the `ui`, `console`, `fs`, and `net` modules.

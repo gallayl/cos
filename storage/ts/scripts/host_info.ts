@@ -1,3 +1,5 @@
+import net from "@cos/net";
+
 function main(args: string[]): number {
   if (args.length !== 0) {
     print("usage: host_info");

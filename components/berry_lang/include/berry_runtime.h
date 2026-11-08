@@ -63,3 +63,11 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+
+struct bvm;
+
+/** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
+#ifdef __cplusplus
+extern "C"
+#endif
+bool berry_runtime_ensure_json(struct bvm *vm);

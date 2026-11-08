@@ -1,3 +1,5 @@
+import ui from "@cos/ui";
+
 export default class TapDash implements CosApp {
   score!: number;
   seconds!: number;

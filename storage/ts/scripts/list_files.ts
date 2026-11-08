@@ -1,3 +1,5 @@
+import fs from "@cos/fs";
+
 const path = "/flash";
 const result = fs.list(path);
 

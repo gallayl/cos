@@ -27,8 +27,6 @@ extern "C"
 #include <string>
 #include <utility>
 
-void berry_ui_register(bvm *vm);
-void berry_network_register(bvm *vm);
 void berry_ui_begin_app(bvm *vm);
 void berry_ui_end_app(void);
 void berry_ui_set_key_state(uint8_t keycode, bool pressed);
@@ -372,11 +370,29 @@ bool berry_json_value(bvm *vm, int index)
            be_islist(vm, index) || be_islistinstance(vm, index) || be_ismap(vm, index) || be_ismapinstance(vm, index);
 }
 
+extern "C" bool berry_runtime_ensure_json(bvm *vm)
+{
+    if (be_getglobal(vm, "json") && !be_isnil(vm, -1))
+    {
+        be_pop(vm, 1);
+        return true;
+    }
+    be_pop(vm, 1);
+
+    if (!be_getmodule(vm, "json"))
+    {
+        return false;
+    }
+    be_setglobal(vm, "json");
+    be_pop(vm, 1);
+    return true;
+}
+
 bool call_json_method(bvm *vm, const char *method, int value_index)
 {
     value_index = be_absindex(vm, value_index);
     const int base = be_top(vm);
-    if (!be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
+    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) || be_isnil(vm, -1))
     {
         be_pop(vm, be_top(vm) - base);
         return false;
@@ -1047,145 +1063,44 @@ int native_fs_size(bvm *vm)
     be_return(vm);
 }
 
-int native_net_ping(bvm *vm)
-{
-    const char *host = nullptr;
-    uint32_t timeout_ms = 1000;
-    esp_err_t err = ESP_OK;
-    network_ping_result_t result = {};
+static bntvmodobj_t const console_attrs[] = {
+    be_native_module_function("read_line", native_console_read_line),
+    be_native_module_function("cancel_input", native_console_cancel_line),
+    be_native_module_function("read_key", native_console_read_key),
+    be_native_module_function("read_char", native_console_read_char),
+    be_native_module_function("move", native_console_move),
+    be_native_module_function("cursor", native_console_cursor),
+    be_native_module_function("size", native_console_size),
+    be_native_module_function("write", native_console_write),
+    be_native_module_function("write_at", native_console_write_at),
+    be_native_module_function("clear", native_console_clear),
+    be_native_module_function("set_font_size", native_console_set_font_size),
+    be_native_module_function("font_size", native_console_font_size),
+};
+} // namespace (console attrs)
+extern "C" const bntvmodule_t be_native_module_console = {
+    "console", console_attrs, sizeof(console_attrs) / sizeof(console_attrs[0]), nullptr,
+};
+namespace {
 
-    if (be_top(vm) < 1 || !be_isstring(vm, 1))
-    {
-        err = ESP_ERR_INVALID_ARG;
-    }
-    else
-    {
-        host = be_tostring(vm, 1);
-        if (be_top(vm) >= 2)
-        {
-            if (!be_isint(vm, 2))
-            {
-                err = ESP_ERR_INVALID_ARG;
-            }
-            else
-            {
-                const bint requested_timeout = be_toint(vm, 2);
-                if (requested_timeout < NETWORK_PING_TIMEOUT_MIN_MS || requested_timeout > NETWORK_PING_TIMEOUT_MAX_MS)
-                {
-                    err = ESP_ERR_INVALID_ARG;
-                }
-                else
-                {
-                    timeout_ms = static_cast<uint32_t>(requested_timeout);
-                }
-            }
-        }
-        if (err == ESP_OK)
-        {
-            err = network_ping(host, timeout_ms, &result);
-        }
-    }
+static bntvmodobj_t const fs_attrs[] = {
+    be_native_module_function("list", native_fs_list),
+    be_native_module_function("read_text", native_fs_read_text),
+    be_native_module_function("write_text", native_fs_write_text),
+    be_native_module_function("read_json", native_fs_read_json),
+    be_native_module_function("write_json", native_fs_write_json),
+    be_native_module_function("exists", native_fs_exists),
+    be_native_module_function("is_dir", native_fs_is_dir),
+    be_native_module_function("is_file", native_fs_is_file),
+    be_native_module_function("size", native_fs_size),
+};
+} // namespace (fs attrs)
+extern "C" const bntvmodule_t be_native_module_fs = {
+    "fs", fs_attrs, sizeof(fs_attrs) / sizeof(fs_attrs[0]), nullptr,
+};
+namespace {
 
-    be_newobject(vm, "map");
-    map_set_bool(vm, "ok", err == ESP_OK);
-    map_set_string(vm, "host", host != nullptr ? host : "");
-    map_set_string(vm, "address", result.address);
-    map_set_number(vm, "rtt_ms", static_cast<double>(result.rtt_ms));
-    map_set_string(vm, "error", err == ESP_OK ? "" : esp_err_to_name(err));
-    be_pop(vm, 1);
-    be_return(vm);
-}
 
-void register_console_module(bvm *vm)
-{
-    be_newmodule(vm);
-    be_setname(vm, -1, "console");
-    be_pushntvfunction(vm, native_console_read_line);
-    be_setmember(vm, -2, "read_line");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_cancel_line);
-    be_setmember(vm, -2, "cancel_input");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_read_key);
-    be_setmember(vm, -2, "read_key");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_read_char);
-    be_setmember(vm, -2, "read_char");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_move);
-    be_setmember(vm, -2, "move");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_cursor);
-    be_setmember(vm, -2, "cursor");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_size);
-    be_setmember(vm, -2, "size");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_write);
-    be_setmember(vm, -2, "write");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_write_at);
-    be_setmember(vm, -2, "write_at");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_clear);
-    be_setmember(vm, -2, "clear");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_set_font_size);
-    be_setmember(vm, -2, "set_font_size");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_console_font_size);
-    be_setmember(vm, -2, "font_size");
-    be_pop(vm, 1);
-    be_setglobal(vm, "console");
-    be_pop(vm, 1);
-}
-
-void register_filesystem_module(bvm *vm)
-{
-    be_newmodule(vm);
-    be_setname(vm, -1, "fs");
-    be_pushntvfunction(vm, native_fs_list);
-    be_setmember(vm, -2, "list");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_read_text);
-    be_setmember(vm, -2, "read_text");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_write_text);
-    be_setmember(vm, -2, "write_text");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_read_json);
-    be_setmember(vm, -2, "read_json");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_write_json);
-    be_setmember(vm, -2, "write_json");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_exists);
-    be_setmember(vm, -2, "exists");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_is_dir);
-    be_setmember(vm, -2, "is_dir");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_is_file);
-    be_setmember(vm, -2, "is_file");
-    be_pop(vm, 1);
-    be_pushntvfunction(vm, native_fs_size);
-    be_setmember(vm, -2, "size");
-    be_pop(vm, 1);
-    be_setglobal(vm, "fs");
-    be_pop(vm, 1);
-}
-
-void register_network_module(bvm *vm)
-{
-    be_newmodule(vm);
-    be_setname(vm, -1, "net");
-    be_pushntvfunction(vm, native_net_ping);
-    be_setmember(vm, -2, "ping");
-    be_pop(vm, 1);
-    berry_network_register(vm);
-    be_setglobal(vm, "net");
-    be_pop(vm, 1);
-}
 
 int load_owned_source(BerrySourceBuffer &source, size_t length, const char *source_name)
 {
@@ -1778,43 +1693,124 @@ int native_cos_module(bvm *vm)
     be_return(vm);
 }
 
+const char *resolve_cos_module_name(const char *specifier)
+{
+    if (specifier == nullptr)
+    {
+        return nullptr;
+    }
+    const char *name = nullptr;
+    const char cos_prefix[] = "@cos/";
+    const char berry_prefix[] = "@berry/";
+    if (std::strncmp(specifier, cos_prefix, sizeof(cos_prefix) - 1) == 0)
+    {
+        name = specifier + (sizeof(cos_prefix) - 1);
+    }
+    else if (std::strncmp(specifier, berry_prefix, sizeof(berry_prefix) - 1) == 0)
+    {
+        name = specifier + (sizeof(berry_prefix) - 1);
+    }
+    else
+    {
+        return nullptr;
+    }
+
+    if (std::strcmp(name, "network") == 0)
+    {
+        return "net";
+    }
+    if (std::strcmp(name, "filesystem") == 0)
+    {
+        return "fs";
+    }
+    return name;
+}
+
 int native_cos_import(bvm *vm)
 {
     if (be_top(vm) < 1 || !be_isstring(vm, 1))
     {
         be_raise(vm, "value_error", "module specifier must be a string");
     }
-    if (current_script_path() == nullptr)
+
+    const char *specifier = be_tostring(vm, 1);
+    if (specifier == nullptr)
+    {
+        be_raise(vm, "value_error", "module specifier must be a string");
+    }
+
+    const char *cos_module = resolve_cos_module_name(specifier);
+    const bool relative = specifier[0] == '.' &&
+                          (specifier[1] == '/' || (specifier[1] == '.' && specifier[2] == '/'));
+
+    if (cos_module == nullptr && !relative)
+    {
+        char message[128];
+        std::snprintf(message, sizeof(message), "unsupported module specifier: %s", specifier);
+        be_raise(vm, "import_error", message);
+    }
+
+    if (relative && current_script_path() == nullptr)
     {
         be_raise(vm, "import_error", "relative imports need a script file");
     }
 
-    const char *specifier = be_tostring(vm, 1);
-    const bool relative = specifier != nullptr && specifier[0] == '.' &&
-                          (specifier[1] == '/' || (specifier[1] == '.' && specifier[2] == '/'));
-    if (!relative)
-    {
-        be_raise(vm, "import_error", "only relative module specifiers are supported");
-    }
-
+    const char *cache_key = specifier;
     char resolved[VFS_PATH_MAX];
-    if (!resolve_module_path(specifier, resolved, sizeof(resolved)))
+    if (relative)
     {
-        char message[VFS_PATH_MAX + 32];
-        std::snprintf(message, sizeof(message), "module not found: %s", specifier);
-        be_raise(vm, "import_error", message);
+        if (!resolve_module_path(specifier, resolved, sizeof(resolved)))
+        {
+            char message[VFS_PATH_MAX + 32];
+            std::snprintf(message, sizeof(message), "module not found: %s", specifier);
+            be_raise(vm, "import_error", message);
+        }
+        cache_key = resolved;
     }
 
     ensure_module_cache(vm);
     be_getglobal(vm, MODULE_CACHE_GLOBAL);
     const int cache_index = be_absindex(vm, -1);
-    be_pushstring(vm, resolved);
+    be_pushstring(vm, cache_key);
     if (be_getindex(vm, cache_index) && !be_isnil(vm, -1))
     {
         be_remove(vm, cache_index);
         be_return(vm);
     }
     be_pop(vm, 1);
+
+    if (cos_module != nullptr)
+    {
+        if (!be_getmodule(vm, cos_module))
+        {
+            be_pop(vm, 1);
+            char message[128];
+            std::snprintf(message, sizeof(message), "module not found: %s", specifier);
+            be_raise(vm, "import_error", message);
+        }
+        const int module_index = be_absindex(vm, -1);
+        push_map_instance(vm);
+        const int inst_index = be_absindex(vm, -1);
+        be_getmember(vm, inst_index, ".p");
+        const int dst = be_absindex(vm, -1);
+        be_pushstring(vm, "__cos_module__");
+        be_pushbool(vm, true);
+        be_data_insert(vm, dst);
+        be_pop(vm, 2);
+        be_pushstring(vm, "default");
+        be_pushvalue(vm, module_index);
+        be_data_insert(vm, dst);
+        be_pop(vm, 2);
+        be_pop(vm, 1); // pop .p
+        be_remove(vm, module_index); // remove native module, keep wrapper
+        be_pushstring(vm, cache_key);
+        be_pushvalue(vm, -2);
+        be_data_insert(vm, cache_index);
+        be_pop(vm, 2);
+        be_remove(vm, cache_index);
+        (void)inst_index;
+        be_return(vm);
+    }
 
     BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
@@ -1869,6 +1865,7 @@ int native_cos_import(bvm *vm)
             be_pop(vm, 1);
             be_remove(vm, value_index);
             value_index = be_absindex(vm, -1);
+            (void)inst_index;
         }
     }
     if (!is_descriptor)
@@ -1891,11 +1888,26 @@ int native_cos_import(bvm *vm)
         (void)inst_index;
     }
 
-    be_pushstring(vm, resolved);
+    be_pushstring(vm, cache_key);
     be_pushvalue(vm, value_index);
     be_data_insert(vm, cache_index);
     be_remove(vm, cache_index);
     be_return(vm);
+}
+} // namespace
+
+namespace
+{
+bool install_module_global(bvm *vm, const char *name)
+{
+    if (!be_getmodule(vm, name))
+    {
+        ESP_LOGW(TAG, "Could not load native module '%s'", name);
+        return false;
+    }
+    be_setglobal(vm, name);
+    be_pop(vm, 1);
+    return true;
 }
 } // namespace
 
@@ -1918,26 +1930,14 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "action", native_action);
     be_regfunc(s_vm, "cos_import", native_cos_import);
     be_regfunc(s_vm, "cos_module", native_cos_module);
-    register_console_module(s_vm);
-    register_filesystem_module(s_vm);
-    register_network_module(s_vm);
-    berry_ui_register(s_vm);
-    const char json_import[] = "import json";
-    int json_result = be_loadbuffer(s_vm, "json", json_import, sizeof(json_import) - 1);
-    if (json_result == 0)
-    {
-        json_result = be_pcall(s_vm, 0);
-    }
-    if (json_result != 0)
-    {
-        const char *error = be_tostring(s_vm, -1);
-        ESP_LOGE(TAG, "Could not import json: %s", error != nullptr ? error : "unknown Berry error");
-        be_pop(s_vm, 1);
-        be_vm_delete(s_vm);
-        s_vm = nullptr;
-        return ESP_FAIL;
-    }
-    be_pop(s_vm, 1);
+
+    // Backward-compatible globals for existing scripts; modules are also
+    // available lazily via `import` / `cos_import('@cos/*')`.
+    install_module_global(s_vm, "console");
+    install_module_global(s_vm, "fs");
+    install_module_global(s_vm, "net");
+    install_module_global(s_vm, "ui");
+    install_module_global(s_vm, "json");
 
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);
