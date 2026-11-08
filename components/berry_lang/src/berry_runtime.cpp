@@ -1977,16 +1977,82 @@ int native_cos_import(bvm *vm)
 
 namespace
 {
-bool install_module_global(bvm *vm, const char *name)
+static int native_cos_lazy_member(bvm *vm)
 {
-    if (!be_getmodule(vm, name))
+    // Internal helper for R6 lazy proxy globals. Called as
+    // cos_lazy_member(module_name, attr_name) from a Berry closure installed as
+    // the proxy module's `member` hook. Loads the real native module on first
+    // access, replaces the global, and returns the requested attribute.
+    if (be_top(vm) < 2 || !be_isstring(vm, 1) || !be_isstring(vm, 2))
     {
-        ESP_LOGW(TAG, "Could not load native module '%s'", name);
-        return false;
+        be_return_nil(vm);
     }
+
+    const char *module_name = be_tostring(vm, 1);
+    const char *attr = be_tostring(vm, 2);
+    if (module_name == nullptr || attr == nullptr)
+    {
+        be_return_nil(vm);
+    }
+
+    if (!be_getmodule(vm, module_name))
+    {
+        char message[80];
+        std::snprintf(message, sizeof(message), "on-demand module load failed: %s", module_name);
+        be_raise(vm, "import_error", message);
+    }
+
+    // Stack: [..., real_module]
+    be_pushvalue(vm, -1);
+    be_setglobal(vm, module_name);
+    be_pop(vm, 1);
+
+    if (!be_getmember(vm, -1, attr))
+    {
+        // Do not mask a real module miss as nil for normal attributes; raise to
+        // preserve Berry's attribute_error semantics where possible.
+        be_pop(vm, 1);
+        char message[96];
+        std::snprintf(message, sizeof(message), "module '%s' has no member '%s'", module_name, attr);
+        be_raise(vm, "attribute_error", message);
+    }
+
+    be_remove(vm, -2); // keep attribute value
+    be_return(vm);
+}
+
+static void install_lazy_module_global(bvm *vm, const char *name)
+{
+    // Install a tiny proxy module whose `member` hook is a Berry closure.
+    // Using a closure (not a native function) avoids be_module_attr's low-level
+    // be_dofunc/ret_native interaction that is subtle for native member hooks.
+    // The closure calls cos_lazy_member(name, attr) which loads the real native
+    // module on demand and replaces this proxy global.
+    const int base = be_top(vm);
+    char source[128];
+    std::snprintf(source, sizeof(source), "return def(k) return cos_lazy_member('%s', k) end", name);
+
+    be_newmodule(vm); // stack: module
+
+    if (be_loadbuffer(vm, name, source, std::strlen(source)) != 0 || be_pcall(vm, 0) != 0)
+    {
+        if (be_isstring(vm, -1))
+        {
+            ESP_LOGW(TAG, "Lazy proxy init failed for '%s': %s", name, be_tostring(vm, -1));
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Lazy proxy init failed for '%s'", name);
+        }
+        be_pop(vm, be_top(vm) - base);
+        return;
+    }
+    // stack: module, closure
+    be_setmember(vm, -2, "member");
+    be_pop(vm, 1); // be_setmember does not pop value in Berry 1.x API
+    // stack: module
     be_setglobal(vm, name);
     be_pop(vm, 1);
-    return true;
 }
 } // namespace
 
@@ -2010,16 +2076,24 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "action", native_action);
     be_regfunc(s_vm, "cos_import", native_cos_import);
     be_regfunc(s_vm, "cos_module", native_cos_module);
+    be_regfunc(s_vm, "cos_lazy_member", native_cos_lazy_member);
 
-    // Backward-compatible globals for existing scripts; modules are also
-    // available lazily via `import` / `cos_import('@cos/*')`.
-    // `json` is intentionally not preloaded at startup (R1 / 2026-11-06 P2):
-    // it stays in the native module table for `import json` and is loaded on
-    // demand by berry_runtime_ensure_json() from FS JSON / net.fetch JSON paths.
-    install_module_global(s_vm, "console");
-    install_module_global(s_vm, "fs");
-    install_module_global(s_vm, "net");
-    install_module_global(s_vm, "ui");
+    // R6 (2026-11-08): COS native modules are not eagerly loaded at Berry
+    // startup. `console`, `fs`, `net`, and `ui` remain in be_modtab.c and are
+    // loaded on demand via Berry `import <module>`, `be_getmodule()`,
+    // `cos_import('@cos/*')` (TS-compiled COS apps/scripts), or first bare-global
+    // attribute access through lightweight lazy proxy globals installed below.
+    // `json` is also on-demand (R1): it stays in the native module table and is
+    // loaded by berry_runtime_ensure_json() for FS JSON / net.fetch JSON paths.
+    //
+    // Compatibility: existing bare-global Berry usage (`ui.*`, `net.*`, `fs.*`,
+    // `console.*`) still works, but the first attribute access loads the real
+    // module. Scripts that do not use a module avoid its load/allocation. New TS
+    // code should prefer explicit `import ... from '@cos/*'`.
+    install_lazy_module_global(s_vm, "console");
+    install_lazy_module_global(s_vm, "fs");
+    install_lazy_module_global(s_vm, "net");
+    install_lazy_module_global(s_vm, "ui");
 
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_ui_tick);

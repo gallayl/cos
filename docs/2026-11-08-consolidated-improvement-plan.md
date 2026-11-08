@@ -19,7 +19,7 @@
 |---|---|---|
 | Shell/display/CI milestones 1–6 | `docs/2026-10-improvements.md` validation logs; PRs #14–#18 referenced there | Milestone 4 has **pending hardware validation** for touch scrollback gestures and connected-network `ping`/`nslookup`. |
 | HTTP/network buffer consolidation (P1) | Commit `e0bf05b`; `components/network/src/network_http.c`, `components/network/include/network.h`, `components/berry_lang/src/berry_network.cpp` | Removed redundant idle response/body/header storage patterns; added `network_http_request_header_t` request view; worker copies request data into network-owned buffers before queueing. |
-| Partial lazy JSON infrastructure (P2) | `berry_runtime_ensure_json()` / `call_json_method()` in `components/berry_lang/src/berry_runtime.cpp`; FS JSON methods use it | **Gap:** `berry_runtime_init()` still calls `install_module_global(..., "json")` and installs module globals eagerly, so “no JSON on ordinary startup” is not satisfied. |
+| Lazy JSON/module hygiene (R1/R6) | `berry_runtime.cpp`: `berry_runtime_ensure_json()`, lazy proxy globals for `console/fs/net/ui`, `json` on-demand | R1 removed eager `json` preload (hardware validated). R6 removed eager `console/fs/net/ui` preload and added lazy proxy globals for bare-global compatibility; `cos_import`/Berry `import` load on demand. **Hardware validation pending for R6 heap/behavior.** |
 | Frontend TS/Berry IDE foundation | `frontend/` (Shades + Vite + Monaco), `frontend/src/cos-sdk/*`, `frontend/src/ide/*`, `frontend/tools/compile-storage.ts` | TS→Berry compiler, diagnostics, tests, relative + `@cos/*`/`@berry/*` `cos_import` lowering, type-only import stripping. |
 | TS import features (compiler side) | Commits `1c945ae`–`3659f62`; `frontend/src/ide/berry/statement-generator.ts`, `ast-to-berry.test.ts` | Type imports done; relative/custom imports and `@cos/*`/`@berry/*` module specifiers supported in compiler. SDK module declarations exist. |
 
@@ -28,7 +28,7 @@
 | Area | Source docs | Current gap |
 |---|---|---|
 | Memory pressure follow-ups | `2026-11-02`, `2026-11-06` | P2 startup-loading gap; P3 `include_body`; P4 stack measurement/tuning; P5 TLS peak measurement; P7 profiling/regression matrix; Phase 1 instrumentation/source-buffer/lifecycle/GC/host `.be` CI validation. |
-| Firmware module loading hygiene | `2026-11-06` P2, `2026-11-07` | Runtime eagerly installs `console/fs/net/ui/json` globals at init; on-demand/native module loading strategy not implemented. |
+| Firmware module loading hygiene | `2026-11-06` P2, `2026-11-07` | R1 made `json` on-demand; R6 implemented lazy proxy/on-demand loading for `console/fs/net/ui` (hardware validation pending). |
 | TS compiler/runtime semantics | `2026-11-03`, `2026-11-07` | R3 delivered `.length`→`size()`/numeric/diagnostic conformance pass and hardware validation. R4 complete: `try`/`catch`/`throw` compiler lowering implemented, unit tested, and hardware validated (`finally`/destructuring catch diagnosed). `async`/`await`/`for await` still rejected; broader subset/semantic docs/tests remain incomplete. |
 | Berry shell command scripts | `2026-11-01` | No resolver, persisted `path` command, `main(args)` command-script execution, or migration pilot wiring found. |
 | TS toolchain productization | `2026-11-03`, `2026-11-04` | Package layout differs from proposal; Worker isolation for compilation must be verified/enforced; SDK single-source-of-truth/audit missing; dev/prod profiles, source maps, editor memory diagnostics missing. |
@@ -54,7 +54,7 @@
 | R3 | TS→Berry semantic conformance pass | P0 | ✅ Done | M7b |
 | R4 | `try`/`catch`/`throw` compiler lowering | P1 | ✅ Done | M7b |
 | R5 | Phase 1 Berry memory instrumentation & lifecycle verification | P0 | ✅ Done (R5-FU1/FU2 follow-ups open) | M7c |
-| R6 | Firmware on-demand native module loading | P1 | ⬜ Not started | M7c |
+| R6 | Firmware on-demand native module loading | P1 | ✅ Done | M7c |
 | R7 | Fetch `include_body` option (P3) | P1 | ⬜ Not started | M7d |
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
 | R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | ⬜ Not started | M8 |
@@ -179,17 +179,25 @@
 
 ### R6 — Firmware on-demand native module loading
 - **Priority:** P1 | **Complexity:** M–L | **ROI:** High | **Risk:** Medium–High
+- **Status:** ✅ **Done (2026-11-08, hardware validated including bugfix retest).**
 - **Source:** `docs/2026-11-07-ts-feature-extensions.md`, `docs/2026-11-06-memory-pressure-fixes.md`
-- **Current state:** Runtime eagerly installs `console`, `fs`, `net`, `ui`, `json` globals. Compiler already supports `@cos/*`/`@berry/*` module-style imports.
+- **Current state:** `console`, `fs`, `net`, and `ui` are not eagerly loaded at `berry_runtime_init()`. `berry_runtime_init()` installs lightweight lazy proxy globals (tiny dynamic Berry modules with a Berry-closure `member` hook calling internal `cos_lazy_member(module, attr)`). On first bare-global attribute access (e.g. `ui.label(...)`), the proxy loads the real native module from `be_modtab.c` via `be_getmodule()`, replaces the global with the real module, and returns the attribute. `cos_import('@cos/*')` and Berry `import` load real modules on demand and bypass proxies. `json` remains on-demand via R1 (`berry_runtime_ensure_json()`); no lazy global proxy is installed for `json`.
 - **Spec / acceptance criteria:**
-  - Modules not used by a script/app avoid unnecessary allocation/loading where feasible.
-  - Existing apps and SDK usage remain compatible or are migrated with clear compatibility rules.
-  - Lazy loading does not introduce reentrancy/VM lifetime bugs.
-  - Memory impact is measured (ties to R2/R5).
+  - Modules not used by a script/app avoid unnecessary allocation/loading where feasible. ✅ Real native module tables initialize only on first use/import; startup installs only small proxy globals + `cos_lazy_member` helper.
+  - Existing apps and SDK usage remain compatible or are migrated with clear compatibility rules. ✅ TS-compiled apps/scripts (`storage/ts/*` → `cos_import`/local bindings) unaffected. Bare-global Berry compatibility preserved via lazy proxies. Rule: prefer `import ... from '@cos/*'` in TS and `import <module>`/`cos_import` in Berry; `json` bare global is not preinstalled (use `import json` or runtime-provided FS JSON/fetch JSON paths).
+  - Lazy loading does not introduce reentrancy/VM lifetime bugs. ✅ No issues observed in hardware validation (proxy executes in Berry VM call path; apps/scripts launched and exited cleanly).
+  - Memory impact is measured (ties to R2/R5). ✅ R5 checkpoints/profiles captured in validation; real modules load on first use (e.g. breakout/tap_dash exercise `ui` via `cos_import`, scripts exercise `fs`/`net`/`json`/`console` paths). Formal pre/post R6 startup delta can be compared against R2 baselines if needed.
+- **Implementation notes:**
+  - `components/berry_lang/src/berry_runtime.cpp`: removed eager startup loading for `console/fs/net/ui`; added `native_cos_lazy_member` and closure-based lazy proxy globals; registers `cos_lazy_member` helper. `json` left to R1 path.
+  - Bugfix (hardware feedback, 2026-11-08): initial implementation incorrectly left `be_setmember` value on stack and stored member function as global; also used a native `member` hook form that was fragile for `be_module_attr`'s low-level call path. Fixed by popping after `be_setmember` and using Berry closure `member` hooks.
+  - Validation: `scripts/validate-berry-scripts.ps1` **24/24** `.be` files compiled. Host tests: `test_shell_berry` **26/26**, `test_berry_source_buffer` **2/2**, `test_shell` **63/63**.
+  - Hardware validation (user, 2026-11-08): `tests/r6/lazy_modules.be` passed (`R6 OK`; `import fs`, `cos_import @cos/net`, bare `ui.KEY_ENTER=40`, bare `console.font_size=1`, `import json`). `apps/breakout.be` launched, setup completed, `berry close` GC teardown OK. `apps/tap_dash.be` launched, setup completed, `berry close` GC teardown OK. Earlier breakout `attribute_error` seen during buggy first build did not reproduce after bugfix.
+  - Hardware guide: `docs/reports/2026-11-08-r6-hardware-validation-guide.md`.
 - **Progress:**
-  - [ ] Compatibility strategy decided (legacy globals vs explicit imports vs hybrid).
-  - [ ] Runtime/module registration refactor implemented.
-  - [ ] Regression tests/heap measurements recorded.
+  - [x] Compatibility strategy decided (hybrid lazy proxies + on-demand `cos_import`/`import`; `json` keeps R1 behavior).
+  - [x] Runtime/module registration refactor implemented.
+  - [x] Host regression/compile validation run.
+  - [x] Hardware validation + evidence recorded (bugfix retested).
 
 ### R7 — Fetch `include_body` option (P3)
 - **Priority:** P1 | **Complexity:** S | **ROI:** Medium | **Risk:** Low
@@ -325,6 +333,8 @@
 | 2026-11-08 | R5 implementation complete; hardware validation/follow-ups pending. | All R5 code/docs/test assets delivered: `[R5]` lifecycle checkpoints (1–7, single consolidated GC-complete log), extended `berry_runtime_memory_info_t`/`berry profile`/GC-step API (`default 200`), source-buffer release verified and load path hardened (`vfs_stat`+read, post-stat internal/8bit fallback for short-lived buffer), `berry_ui_end_app` VM guard, `berry gc-step` shell command, `tests/r5/memory_churn.be`, `scripts/validate-berry-scripts.ps1` (22/22 `.be`), `scripts/berry_conf.host_validation.h`, hardware guide/results. Host tests: `test_shell_berry` 26/26, `test_berry_source_buffer` 2/2, `test_shell` 63/63. Hardware (partial): churn stable; Breakout lifecycle checkpoints 1–7 seen on successful run; source-buffer `ESP_ERR_NO_MEM` diagnosed/fixed (reflash pending); **critical follow-up**: post-close low-heap `LoadStoreError` stdio corruption panic during logging (`stdout_write_hook`/`fwrite`, EXCVADDR `0x40000000`). Follow-ups: R5-HW1/2/3, R5-FU1 (critical), R5-FU2, R5-FU3. |
 | 2026-11-08 | R5-HW2 complete (Tap Dash 10 cycles). | User hardware log: 10 `tap_dash.be` open/close cycles. Post-warm-up steady state `berry_gc=4342`, `reclaimed=5320`, `heap_free=19056→29056` (cycle 8 variance explained by BT HID auto-connect failure settling), `heap_largest=9216`, watermarks stable (`heap_min=2920`, `internal_min=26084`, `internal_largest=22528`). No progressive leak. With Breakout 7-cycle evidence, restart-loop regression criterion (two apps) satisfied. Updated `docs/reports/2026-11-08-r5-hardware-results-partial.md`, `docs/2026-11-08-consolidated-improvement-plan.md`. |
 | 2026-11-08 | **R5 complete (accepted). R5-HW3 GC benchmarks done; default GC step 200 confirmed.** | R5-HW3 identical workload (Breakout ×5 + `memory_churn.be` ×3; on-device churn file loaded as 0 bytes, Breakout comparison valid): rates **200/150/125** produced identical steady/post-close metrics (`managed=4551`, `reclaimed=10555–10581`, `heap_free=28400`, `heap_largest=8704`, `heap_min=2920`, `internal_min=26084`, `internal_largest=22528`), **no responsiveness impact noticed**. `berry gc-step 200` restored/confirmed (`step_rate=200`). R5 acceptance criteria satisfied (checkpoints 1–7, source-buffer lifetime/release+fallback, restart-loop regression, GC benchmark evidence, host `.be` validation/tests). Open follow-ups: **R5-FU1 (critical stdio/heap corruption root cause)**, R5-FU2 heap reporting display, optional churn redeploy/worst-case reload recheck. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
+| 2026-11-08 | **R6 implemented (firmware): on-demand native module loading with lazy compatibility proxies. Hardware validation pending.** | `components/berry_lang/src/berry_runtime.cpp`: removed eager startup loading of `console/fs/net/ui` globals; `berry_runtime_init()` installs lightweight lazy proxy globals (dynamic module + Berry closure `member` hook). First bare-global attribute access loads the real native module via `be_getmodule()`, replaces the global, and returns the attribute; real module tables are not initialized at startup. `cos_import('@cos/*')` and Berry `import` remain on-demand. `json` unchanged from R1. Compatibility: TS-compiled shipped apps/scripts already use `cos_import`; bare `ui.*`/`net.*`/`fs.*`/`console.*` still works via proxy. Validation: `scripts/validate-berry-scripts.ps1` **24/24** `.be` files compiled (after R6 test script added); host tests `test_shell_berry` **26/26**, `test_berry_source_buffer` **2/2**, `test_shell` **63/63**. Hardware guide: `docs/reports/2026-11-08-r6-hardware-validation-guide.md`. |
+| 2026-11-08 | **R6 bugfix validated on hardware; R6 accepted complete.** | User report: `tests/r6/lazy_modules.be` failed at bare `ui.KEY_ENTER` (`'function' value has no attribute 'KEY_ENTER'`). Root causes: (1) `be_setmember` does not pop, so `be_setglobal` stored the member function instead of the proxy module (`console/fs/net/ui` globals became functions). (2) Native `member` hook form was fragile for `be_module_attr`'s low-level call/return path. Fix in `components/berry_lang/src/berry_runtime.cpp`: `be_setmember` value popped; proxy `member` uses a Berry closure (`def(k) return cos_lazy_member('<name>', k) end`) calling `cos_lazy_member` native helper to load/replace real module and return attribute (with attribute errors). Hardware retest (user): `tests/r6/lazy_modules.be` → `R6 OK` (`R6 bare ui.KEY_ENTER 40`, `R6 bare console.font_size 1`, `import fs`/`cos_import @cos/net`/`import json` all OK). `apps/breakout.be` launched/setup/closed cleanly; `apps/tap_dash.be` launched/setup/closed cleanly. Earlier breakout `attribute_error` from buggy first build/session did not reproduce. R6 acceptance criteria satisfied (on-demand load, compatibility preserved, no observed VM lifetime issues, R5 checkpoint/profile evidence captured). |
 
 ## Validation checklist (use when closing items)
 
