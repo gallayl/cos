@@ -37,20 +37,37 @@ export const cosLibs: readonly CosSdkLib[] = [
 ]
 
 /**
- * `@cos/*` module declarations. `specifiers` include compatibility aliases
- * used by TS imports and by the Berry `@cos/*` runtime resolver.
+ * `@cos/*` and `@berry/*` module declarations. `specifiers` include
+ * compatibility aliases used by TS imports and by the Berry runtime resolver
+ * (`cos_import` accepts `@cos/*` and `@berry/*`).
  */
 export const cosModuleLibs: readonly CosSdkModuleLib[] = [
-  { content: consoleModuleTypes, filePath: `${modulesRoot}/console.d.ts`, specifiers: ['@cos/console'] },
-  { content: fsModuleTypes, filePath: `${modulesRoot}/fs.d.ts`, specifiers: ['@cos/fs', '@cos/filesystem'] },
-  { content: gcModuleTypes, filePath: `${modulesRoot}/gc.d.ts`, specifiers: ['@cos/gc'] },
-  { content: globalModuleTypes, filePath: `${modulesRoot}/global.d.ts`, specifiers: ['@cos/global'] },
-  { content: introspectModuleTypes, filePath: `${modulesRoot}/introspect.d.ts`, specifiers: ['@cos/introspect'] },
-  { content: jsonModuleTypes, filePath: `${modulesRoot}/json.d.ts`, specifiers: ['@cos/json'] },
-  { content: mathModuleTypes, filePath: `${modulesRoot}/math.d.ts`, specifiers: ['@cos/math'] },
-  { content: netModuleTypes, filePath: `${modulesRoot}/net.d.ts`, specifiers: ['@cos/net', '@cos/network'] },
-  { content: stringModuleTypes, filePath: `${modulesRoot}/string.d.ts`, specifiers: ['@cos/string'] },
-  { content: uiModuleTypes, filePath: `${modulesRoot}/ui.d.ts`, specifiers: ['@cos/ui'] },
+  {
+    content: consoleModuleTypes,
+    filePath: `${modulesRoot}/console.d.ts`,
+    specifiers: ['@cos/console', '@berry/console'],
+  },
+  {
+    content: fsModuleTypes,
+    filePath: `${modulesRoot}/fs.d.ts`,
+    specifiers: ['@cos/fs', '@cos/filesystem', '@berry/fs', '@berry/filesystem'],
+  },
+  { content: gcModuleTypes, filePath: `${modulesRoot}/gc.d.ts`, specifiers: ['@cos/gc', '@berry/gc'] },
+  { content: globalModuleTypes, filePath: `${modulesRoot}/global.d.ts`, specifiers: ['@cos/global', '@berry/global'] },
+  {
+    content: introspectModuleTypes,
+    filePath: `${modulesRoot}/introspect.d.ts`,
+    specifiers: ['@cos/introspect', '@berry/introspect'],
+  },
+  { content: jsonModuleTypes, filePath: `${modulesRoot}/json.d.ts`, specifiers: ['@cos/json', '@berry/json'] },
+  { content: mathModuleTypes, filePath: `${modulesRoot}/math.d.ts`, specifiers: ['@cos/math', '@berry/math'] },
+  {
+    content: netModuleTypes,
+    filePath: `${modulesRoot}/net.d.ts`,
+    specifiers: ['@cos/net', '@cos/network', '@berry/net', '@berry/network'],
+  },
+  { content: stringModuleTypes, filePath: `${modulesRoot}/string.d.ts`, specifiers: ['@cos/string', '@berry/string'] },
+  { content: uiModuleTypes, filePath: `${modulesRoot}/ui.d.ts`, specifiers: ['@cos/ui', '@berry/ui'] },
 ]
 
 export const cosPaths = Object.fromEntries(

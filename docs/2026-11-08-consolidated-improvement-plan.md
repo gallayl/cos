@@ -59,7 +59,7 @@
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
 | R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | ✅ Done (native `ping` migration pending decision) | M8 |
 | R10 | Frontend TS toolchain hardening (Worker deferred; layout/SDK registration/device API) | P1 | ✅ Done (Worker deferred) | M8 |
-| R11 | SDK single-source-of-truth / binding audit | P1 | ⬜ Not started | M8 |
+| R11 | SDK single-source-of-truth / binding audit | P1 | ✅ Done (pragmatic inventory + automated audit) | M8 |
 | R12 | Milestone 4 hardware validation (touch/network) | P1 | ⬜ Pending hardware | M8 |
 | R13 | Memory-conscious compiler rules + resource lifecycle contract | P2 | ⬜ Not started | M9 |
 | R14 | Compiler profiles, debug metadata, source maps, editor diagnostics | P2 | ⬜ Not started | M9 |
@@ -263,12 +263,14 @@
 
 ### R11 — SDK single-source-of-truth / binding audit
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium
+- **Status:** ✅ **Done (2026-11-09, pragmatic audit/validation).** No hardware validation required.
 - **Source:** `docs/2026-11-03-ts-sdk.md`, `docs/2026-11-07-ts-feature-extensions.md`
 - **Spec / acceptance criteria:** SDK declarations, module exports, and docs match actual Berry/COS bindings. Prefer generation or automated validation to prevent drift. Cover `ui`, `console`/`log`, `fs`, `net`, `action`, Berry built-ins, and `@cos/*` module semantics.
+- **Report:** `docs/reports/2026-11-08-r11-sdk-binding-audit.md`
 - **Progress:**
-  - [ ] API inventory created.
-  - [ ] Drift fixes/generation approach implemented.
-  - [ ] Validation added.
+  - [x] API inventory created. Explicit COS native binding/global/module-specifier inventory in `frontend/src/ide/cos-binding-inventory.ts`, derived from `components/berry_lang/src/berry_ui.cpp`, `berry_network.cpp`, and `berry_runtime.cpp`. `ui.init` and runtime helpers (`cos_import`/`cos_module`/`cos_lazy_member`) treated as internal/non-script-surface where appropriate.
+  - [x] Drift fixes/generation approach implemented (pragmatic). `frontend/src/ide/cos-sdk-manifest.ts` now registers `@berry/*` specifiers alongside `@cos/*` (runtime/compiler already supported them; Monaco paths did not). `frontend/src/cos-sdk/json.d.ts` documents R1/R6 lazy global/module availability. Full declaration generation deferred; inventory + automated audit chosen for maintainability now.
+  - [x] Validation added. `frontend/src/ide/cos-binding-audit.ts` + `cos-binding-audit.test.ts` cross-check C++ `be_native_module_*`/`be_regfunc` registrations against inventory and validate SDK global declarations/module wrappers/manifest specifiers. Updated `cos-sdk-manifest.test.ts`. Validation (2026-11-09): `npx vitest run src/ide/cos-binding-audit.test.ts src/ide/cos-sdk-manifest.test.ts` **10 passed / 2 files**; `npx tsc --noEmit` passed.
 
 ### R12 — Milestone 4 hardware validation
 - **Priority:** P1 | **Complexity:** S (effort) / M (logistics) | **ROI:** Medium | **Risk:** Low
@@ -381,6 +383,7 @@
 | 2026-11-09 | **R5-FU2 resolved (heap reporting display): code, host tests, and hardware verified.** | `components/system/src/system.c`: `system_get_info()` reports default heap via `MALLOC_CAP_DEFAULT` and internal via `MALLOC_CAP_INTERNAL\|MALLOC_CAP_8BIT`; `system.h` comments clarified. `components/berry_lang/src/berry_runtime.cpp`: `berry_runtime_get_memory_info()` uses `MALLOC_CAP_DEFAULT` for `heap_free/heap_min_free`. `components/shell/src/shell_berry_cmd.c`: `berry profile` prints `Default heap`/`Internal heap`. Host tests: cap-aware `test/mocks/mock_system.{h,c}` + `test/test_system.c` `test_get_info_distinguishes_default_and_internal_heap`; impacted run passed (`test_system` 12/12, `test_shell_berry` 26/26, `test_shell` 63/63). **Hardware verified (user, 2026-11-09):** `berry profile`/`mem` labels unambiguous; `memory_churn` + `berry profile` + `berry gc` behaved normally (managed 7288→2695, reclaimed 4593). Note: on this target `system_get_info` default/internal lines can be numerically identical (cap-query result) while Berry `Heap snapshot` internal metrics (`MALLOC_CAP_INTERNAL`) remain distinct; reporting no longer misleading. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
 | 2026-11-09 | **R10 complete (Web Worker compilation explicitly deferred).** | Frontend-only R10 hardening: verified compilation runs on main thread (`frontend/src/editor/editor-app.tsx` → `astToBerry(getAst(...))`) and recorded user-confirmed deferral of Worker isolation (simple COS web UI apps; avoid complexity). Recorded integrated package/layout decision (`frontend/src/cos-sdk` + `frontend/src/ide/*`). Added `frontend/src/ide/cos-sdk-manifest.ts` and `cos-sdk-manifest.test.ts` for Monaco SDK/addExtraLib coverage and `@cos/*` alias drift checks. Extended `frontend/src/ide/files/cos-files.test.ts` for predictable device API auth/error/path behavior. Updated `docs/2026-11-03-ts-sdk.md` status and added `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`. Validation: `cd frontend && npx vitest run src/ide/files/cos-files.test.ts src/ide/cos-sdk-manifest.test.ts src/ide/cos-sdk.test.ts` (**18 passed / 3 files**), `npx tsc --noEmit` passed. No hardware validation required. |
 | 2026-11-08 | **R21 added to plan: unify `berry run`/`exec` on `main(args)`.** | Added R21 (P2, M9, not started) as a follow-up to R9. Proposed contract (compatibility not top priority): require `main(args)` for all runnable `.be` entrypoints; unified `berry run <path> [args...]` with integer status; default command/non-intrusive execution; explicit runtime API for UI app launch/lifecycle; `berry exec` may remain a temporary alias. Dependencies: R9 stabilized/decided; coordinate with R10/R11/R14 as relevant. No code changes made. |
+| 2026-11-09 | **R11 complete (pragmatic SDK binding audit/validation).** | Added binding inventory `frontend/src/ide/cos-binding-inventory.ts` (COS `ui`/`console`/`fs`/`net`, public globals `log`/`action`, Berry built-in module specifiers) and pure audit helpers `frontend/src/ide/cos-binding-audit.ts`. New `cos-binding-audit.test.ts` cross-checks C++ `be_native_module_*`/`be_regfunc` registrations and validates SDK global declarations/module wrappers/manifest specifiers (`ui.init` treated as internal). Drift fix: `cos-sdk-manifest.ts` registers `@berry/*` aliases alongside `@cos/*` (runtime/compiler already supported). `json.d.ts` clarifies R1/R6 lazy global/module availability. Updated `cos-sdk-manifest.test.ts`, `docs/2026-11-03-ts-sdk.md`, and added `docs/reports/2026-11-08-r11-sdk-binding-audit.md`. Validation: `cd frontend && npx vitest run src/ide/cos-binding-audit.test.ts src/ide/cos-sdk-manifest.test.ts` (**10 passed / 2 files**); `npx tsc --noEmit` passed. No hardware validation required. |
 
 ## Validation checklist (use when closing items)
 
