@@ -11,11 +11,12 @@ static const char *const TAG = "flash";
 
 static void flash_log_partition_info(void)
 {
-    const esp_partition_t *part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, FLASH_PARTITION_LABEL);
+    const esp_partition_t *part =
+        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, FLASH_PARTITION_LABEL);
     if (part != NULL)
     {
-        ESP_LOGI(TAG, "Partition '%s': addr=0x%08" PRIx32 " size=0x%08" PRIx32 " type=%u subtype=0x%02x",
-                 part->label, part->address, part->size, part->type, part->subtype);
+        ESP_LOGI(TAG, "Partition '%s': addr=0x%08" PRIx32 " size=0x%08" PRIx32 " type=%u subtype=0x%02x", part->label,
+                 part->address, part->size, part->type, part->subtype);
     }
     else
     {

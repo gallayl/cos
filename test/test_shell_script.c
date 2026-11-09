@@ -206,18 +206,95 @@ static void test_command_name_with_be_extension_resolves(void)
     TEST_ASSERT_EQUAL_STRING("/flash/tool.be", mock_berry_last_path());
 }
 
+static void test_path_remove_non_configured_returns_error(void)
+{
+    mock_filesystem_add_directory("/flash/scripts");
+    char *add[] = {"path", "add", "/flash/scripts"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 3, add));
+
+    char *remove[] = {"path", "remove", "/flash/other"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 3, remove));
+
+    char contents[128];
+    size_t length = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/.cos_path", contents, sizeof(contents) - 1, &length));
+    contents[length] = '\0';
+    TEST_ASSERT_EQUAL_STRING("/flash/scripts\n", contents);
+}
+
+static void test_path_bad_arity_and_unknown_subcommand_return_error(void)
+{
+    char *bogus[] = {"path", "bogus"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 2, bogus));
+
+    char *add_missing[] = {"path", "add"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 2, add_missing));
+
+    char *remove_missing[] = {"path", "remove"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 2, remove_missing));
+
+    char *clear_extra[] = {"path", "clear", "extra"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 3, clear_extra));
+}
+
+static void test_path_max_eight_directories(void)
+{
+    char name[VFS_PATH_MAX];
+    for (int i = 0; i < 8; i++)
+    {
+        snprintf(name, sizeof(name), "/flash/d%d", i);
+        mock_filesystem_add_directory(name);
+        char *add[] = {"path", "add", name};
+        TEST_ASSERT_EQUAL_MESSAGE(0, mock_console_run_cmd("path", 3, add), name);
+    }
+
+    mock_filesystem_add_directory("/flash/d8");
+    char *add_ninth[] = {"path", "add", "/flash/d8"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("path", 3, add_ninth));
+
+    char contents[512];
+    size_t length = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/.cos_path", contents, sizeof(contents) - 1, &length));
+    contents[length] = '\0';
+    TEST_ASSERT_NOT_NULL(strstr(contents, "/flash/d0\n"));
+    TEST_ASSERT_NOT_NULL(strstr(contents, "/flash/d7\n"));
+    TEST_ASSERT_NULL(strstr(contents, "/flash/d8"));
+}
+
+static void test_explicit_path_to_directory_reports_error(void)
+{
+    mock_filesystem_add_directory("/flash/tools");
+    int ret = -1;
+    esp_err_t err = shell_dispatch_expanded_line("/flash/tools", &ret);
+    TEST_ASSERT_NOT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+}
+
+static void test_path_list_and_no_args_succeed(void)
+{
+    char *list[] = {"path", "list"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 2, list));
+    char *plain[] = {"path"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 1, plain));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_path_command_lists_adds_removes_and_persists);
     RUN_TEST(test_path_add_rejects_unavailable_directory);
     RUN_TEST(test_path_clear_persists_empty_list);
+    RUN_TEST(test_path_remove_non_configured_returns_error);
+    RUN_TEST(test_path_bad_arity_and_unknown_subcommand_return_error);
+    RUN_TEST(test_path_max_eight_directories);
+    RUN_TEST(test_path_list_and_no_args_succeed);
     RUN_TEST(test_bare_command_runs_script_from_cwd);
     RUN_TEST(test_bare_command_searches_configured_path_in_order);
     RUN_TEST(test_cwd_script_wins_over_path);
     RUN_TEST(test_native_command_wins_over_script);
     RUN_TEST(test_explicit_relative_script_path_runs_only_that_script);
     RUN_TEST(test_explicit_missing_script_reports_path_error);
+    RUN_TEST(test_explicit_path_to_directory_reports_error);
     RUN_TEST(test_quoted_arguments_preserved_for_script);
     RUN_TEST(test_script_status_propagated);
     RUN_TEST(test_script_runtime_error_reported);

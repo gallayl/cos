@@ -57,7 +57,7 @@
 | R6 | Firmware on-demand native module loading | P1 | ✅ Done | M7c |
 | R7 | Fetch `include_body` option (P3) | P1 | ✅ Done | M7d |
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
-| R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | 🔄 In progress (impl/host tests done; hardware partial) | M8 |
+| R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | ✅ Done (native `ping` migration pending decision) | M8 |
 | R10 | Frontend TS toolchain hardening (Worker/layout/device API) | P1 | ⬜ Not started | M8 |
 | R11 | SDK single-source-of-truth / binding audit | P1 | ⬜ Not started | M8 |
 | R12 | Milestone 4 hardware validation (touch/network) | P1 | ⬜ Pending hardware | M8 |
@@ -239,8 +239,8 @@
   - [x] `path` config/persistence implemented (`/flash/.cos_path`, normalized absolute dirs, max 8, CWD searched first but not stored).
   - [x] Script execution path implemented (`shell_script_try_exec` / `shell_dispatch_expanded_line`, `berry_runtime_exec_file`, `main(args)`, int status propagation).
   - [~] Host/QEMU tests added. Host unit tests: `test_shell_script` 14/0, `test_shell` 63/0, `test_shell_berry` 26/0 (`test/build-r9`, pre-hardware). QEMU/integration coverage for resolver/`path` not yet added.
-  - [~] Hardware validation partial (2026-11-08, user report): R9-HW5 ✅ native `ping` takes precedence. R9-HW6 partial: `path clear`, `be_ping` resolved from `/sdcard/scripts` CWD; from `/flash`, relative explicit paths `../sdcard/scripts/be_ping` and `../sdcard/scripts/be_ping.be` ran; missing-explicit-path/no-fallback still untested. R9-HW3 partial: `path add /sdcard/asdasd` rejected correctly. R9-HW9 partial: breakout `berry run`/close works with full/relative paths; command-script-while-UI-app-active not tested. R9-HW8 blocked by `net.ping` Berry binding bug (`native_net_ping` popped result map before `be_return(vm)` in `components/berry_lang/src/berry_network.cpp`, causing `map has no attribute 'ok'`) — **fixed in workspace, reflash+retest required**. Evidence/checklist: `docs/reports/2026-11-08-r9-hardware-validation-guide.md`.
-  - [ ] `ping` pilot fully hardware-validated; native `ping` migration decision recorded (remove/make unreachable native registration only after lookup active + pilot validated). Follow-up: audit other `berry_network` map-return paths for the same `be_pop`/`be_return` stack issue (not changed here except `native_net_ping`).
+  - [x] Hardware validation complete (2026-11-08, user report): R9-HW2 ✅ reboot persistence; R9-HW4 ✅ CWD-first/order/unknown; R9-HW5 ✅ native precedence; R9-HW6 ✅ explicit paths + missing explicit path `script not found` (no fallback); R9-HW8 ✅ `ping.be` pilot contract via explicit path (usage, success `Reply from <address>: time=<rtt> ms`, valid timeout `500`, invalid `99`/`3001`/non-numeric timeout, host failure `ESP_ERR_NOT_FOUND`); R9-HW9 ✅ command script while UI app active OK. R9-HW1/3/7 deterministic cases covered by host unit tests in `test/test_shell_script.c` (**19/19 pass**). Evidence/checklist: `docs/reports/2026-11-08-r9-hardware-validation-guide.md`.
+  - [ ] Native `ping` migration decision recorded/executed: native command still registered (bare `ping` remains native). Remove/make unreachable native registration only as a deliberate follow-up after script lookup active + pilot validated; update `README.md` if migrated. Follow-up: audit other `berry_network` map-return stack patterns (only `native_net_ping` restored/correct here). Also fixed in repo during validation: `native_net_ping` return stack, stock scripts `ping`/`list_files`/`fetch_json`/`wget` use bracket access for Berry map results.
 
 ### R10 — Frontend TS toolchain hardening
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium

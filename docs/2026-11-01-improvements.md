@@ -2,10 +2,11 @@
 
 ## Status
 
-**Implemented locally / hardware validation in progress** (as of 2026-11-08). The
-resolver, `path` command, `/flash/.cos_path` persistence, command-script
-execution path, and `ping.be` pilot are implemented in the workspace; full
-target/hardware acceptance and the native `ping` migration decision remain open.
+**Implemented and hardware-validated** (as of 2026-11-08). Resolver, `path`
+command, `/flash/.cos_path` persistence, command-script execution path, and
+`ping.be` pilot are implemented; R9 hardware checklist passed (core contract +
+pilot) with host unit tests 19/19 for deterministic cases. **Open deliberate
+follow-up:** native `ping` migration decision (native still registered).
 
 ### Current progress
 
@@ -17,16 +18,15 @@ target/hardware acceptance and the native `ping` migration decision remain open.
       (no fallback) and report `<token>: script not found` when missing.
 - [x] Host unit tests added/passing (pre-hardware, `test/build-r9`):
       `test_shell_script` 14/0, `test_shell` 63/0, `test_shell_berry` 26/0.
-- [~] Hardware validation partial (2026-11-08, user report): native `ping` takes
-      precedence (R9-HW5). `path add /sdcard/asdasd` correctly rejected (R9-HW3
-      partial). `path clear`; `be_ping` resolved from `/sdcard/scripts` CWD; from
-      `/flash`, relative explicit paths `../sdcard/scripts/be_ping` and
-      `../sdcard/scripts/be_ping.be` ran (R9-HW4/6 partial). Breakout starts/closes
-      with `berry run` full/relative path (R9-HW9 partial; script-while-UI-app-active
-      still needed). R9-HW8 blocked: `be_ping.be 127.0.0.1 1000` hit `map has no
-      attribute 'ok'` due to `native_net_ping` popping the result map before
-      `be_return(vm)` in `components/berry_lang/src/berry_network.cpp` — **fixed in
-      workspace, reflash+retest required**. Full checklist/evidence:
+- [x] Hardware validation complete (2026-11-08, user report): R9-HW2–HW6, HW8, HW9
+      passed (path persistence/add/remove validation/limits via unit tests + hw checks;
+      CWD/path order/unknown; native precedence; explicit paths including missing
+      explicit path `script not found` no fallback; command script while Berry UI app
+      active did not disturb app). HW8 pilot: `/sdcard/scripts/ping.be` usage/success
+      `Reply from <address>: time=<rtt> ms` (`127.0.0.1`, `127.0.0.1 500`), invalid
+      timeout `99`/non-numeric, host failure `ping: asd failed (ESP_ERR_NOT_FOUND)`;
+      `3001` not explicitly shown but same bounds logic. Native `ping` still registered.
+      invalid timeout `99`/`3001`/non-numeric; Host `test_shell_script` 19/19. Evidence:
       `docs/reports/2026-11-08-r9-hardware-validation-guide.md`.
 - [ ] Native commands such as `ping`/`nslookup` remain the active implementation
       until the pilot passes target+host validation and migration is a deliberate
@@ -34,14 +34,12 @@ target/hardware acceptance and the native `ping` migration decision remain open.
 
 ### Follow-ups
 
-- Reflash firmware with `native_net_ping` fix, then retest R9-HW8 (`ping.be`/pilot
-  via explicit path or `berry exec`, network) and complete remaining R9-HW items.
-- Complete hardware validation per `docs/reports/2026-11-08-r9-hardware-validation-guide.md`
-  and record evidence; then decide/record native `ping` migration (remove/make
-  native registration unreachable only when script lookup is active and pilot
-  validated) and update `README.md` if migrated.
+- Decide/record native `ping` migration (remove/make native registration unreachable
+  only when script lookup is active and pilot validated) and update `README.md` if
+  migrated.
 - Audit other `berry_network` map-return paths for the same `be_pop`/`be_return`
-  stack issue (only `native_net_ping` fixed in this pass).
+  stack issue (only `native_net_ping` corrected in this pass; earlier interim edit
+  was reverted).
 - Consider QEMU/integration coverage for lookup order, native precedence, explicit
   paths, quoting, status propagation, Berry errors, and VM/app lifecycle isolation
   (host unit tests already cover core resolver behavior).

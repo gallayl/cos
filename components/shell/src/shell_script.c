@@ -248,7 +248,8 @@ static int cmd_path(int argc, char **argv)
         char saved[PATH_MAX_ENTRIES][VFS_PATH_MAX];
         size_t saved_count = s_path_count;
         memcpy(saved, s_path_dirs, sizeof(saved));
-        memmove(&s_path_dirs[index], &s_path_dirs[index + 1], (s_path_count - (size_t)index - 1) * sizeof(s_path_dirs[0]));
+        memmove(&s_path_dirs[index], &s_path_dirs[index + 1],
+                (s_path_count - (size_t)index - 1) * sizeof(s_path_dirs[0]));
         memset(&s_path_dirs[s_path_count - 1], 0, sizeof(s_path_dirs[0]));
         s_path_count--;
         err = save_path_config();
@@ -485,6 +486,7 @@ esp_err_t shell_script_init(void)
     }
 
     load_path_config();
-    ESP_LOGI(TAG, "Script path ready (%u configured director%s)", (unsigned)s_path_count, s_path_count == 1 ? "y" : "ies");
+    ESP_LOGI(TAG, "Script path ready (%u configured director%s)", (unsigned)s_path_count,
+             s_path_count == 1 ? "y" : "ies");
     return ESP_OK;
 }

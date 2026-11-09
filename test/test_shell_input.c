@@ -14,6 +14,23 @@ const char *shell_get_prompt(void)
     return s_mock_prompt;
 }
 
+/* Stub: script resolver not exercised by shell_input unit tests. */
+esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *ret, bool *handled)
+{
+    (void)argc;
+    (void)argv;
+    (void)explicit_path;
+    if (ret != NULL)
+    {
+        *ret = 1;
+    }
+    if (handled != NULL)
+    {
+        *handled = false;
+    }
+    return ESP_OK;
+}
+
 static int s_completion_calls;
 static int s_line_callback_calls;
 static esp_err_t s_line_callback_result;
