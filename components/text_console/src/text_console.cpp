@@ -62,9 +62,9 @@ static bool valid_log_level(uint8_t level)
     return level <= TEXT_CONSOLE_LOG_INFO;
 }
 
-static void restore_log_level(void)
+extern "C" void text_console_apply_saved_log_level(void)
 {
-    s_log_level = TEXT_CONSOLE_LOG_WARN;
+    text_console_log_level_t level = TEXT_CONSOLE_LOG_WARN;
     nvs_handle_t handle;
     esp_err_t err = nvs_open(TEXT_CONSOLE_NVS_NAMESPACE, NVS_READONLY, &handle);
     if (err == ESP_OK)
@@ -76,7 +76,7 @@ static void restore_log_level(void)
         {
             if (valid_log_level(stored_level))
             {
-                s_log_level = static_cast<text_console_log_level_t>(stored_level);
+                level = static_cast<text_console_log_level_t>(stored_level);
             }
             else
             {
@@ -93,7 +93,13 @@ static void restore_log_level(void)
         ESP_LOGW(TAG, "Could not open console settings: %s", esp_err_to_name(err));
     }
 
-    esp_log_level_set("*", esp_log_level(s_log_level));
+    s_log_level = level;
+    esp_log_level_set("*", esp_log_level(level));
+}
+
+static void restore_log_level(void)
+{
+    text_console_apply_saved_log_level();
 }
 
 /* ── Rendering ─────────────────────────────────────────────── */

@@ -62,3 +62,6 @@ CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
 # Partition table (custom: factory + LittleFS)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# LittleFS: pet task watchdog during flash operations (avoids TWDT resets on slow ops)
+CONFIG_LITTLEFS_WDT_RESET=y

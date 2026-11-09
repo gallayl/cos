@@ -86,6 +86,16 @@ extern "C"
     const char *text_console_log_level_name(text_console_log_level_t level);
 
     /**
+     * @brief Apply the persisted global ESP log threshold.
+     *
+     * Reads the saved level from NVS and applies it with esp_log_level_set("*").
+     * Call after NVS is initialized and before components that may log, so a
+     * saved "error" level suppresses startup info messages. Safe to call more
+     * than once; text_console_init() applies the saved level again.
+     */
+    void text_console_apply_saved_log_level(void);
+
+    /**
      * @brief Resize the console to match the current display dimensions.
      *
      * Recalculates cols/rows from display width/height, clears the screen,

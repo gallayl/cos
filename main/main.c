@@ -81,9 +81,10 @@ static esp_err_t init_nvs(void)
 
 void app_main(void)
 {
+    ESP_ERROR_CHECK(init_nvs());
+    text_console_apply_saved_log_level();
     ESP_LOGI(TAG, "COS starting up...");
 
-    ESP_ERROR_CHECK(init_nvs());
     ESP_ERROR_CHECK(display_init());
     ESP_ERROR_CHECK(calibration_init());
     ESP_ERROR_CHECK(light_sensor_init());
