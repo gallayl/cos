@@ -1257,20 +1257,19 @@ void restore_command_main(int saved_main_index)
     be_pop(s_vm, 1);
 }
 
-esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const char *source_name, int argc,
-                                 char *const argv[], int *exit_status)
+esp_err_t execute_main_entry(BerrySourceBuffer source, size_t length, const char *source_name, int argc,
+                             char *const argv[], int *exit_status)
 {
-    static constexpr char COMMAND_EXEC_GLOBAL[] = "_cos_cmd_exec";
+    if (exit_status != nullptr)
+    {
+        *exit_status = 1;
+    }
     const ScriptPathScope script_path(source_name);
     (void)script_path;
     const int saved_main_index = be_top(s_vm) + 1;
     be_getglobal(s_vm, "main");
     be_pushnil(s_vm);
     be_setglobal(s_vm, "main");
-    be_pop(s_vm, 1);
-
-    be_pushbool(s_vm, true);
-    be_setglobal(s_vm, COMMAND_EXEC_GLOBAL);
     be_pop(s_vm, 1);
 
     esp_err_t err = execute_owned_source(std::move(source), length, source_name);
@@ -1288,7 +1287,7 @@ esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const 
             be_newobject(s_vm, "list");
             for (int index = 0; index < argc; ++index)
             {
-                be_pushstring(s_vm, argv[index]);
+                be_pushstring(s_vm, argv[index] != nullptr ? argv[index] : "");
                 be_data_push(s_vm, -2);
                 be_pop(s_vm, 1);
             }
@@ -1297,9 +1296,14 @@ esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const 
             if (be_pcall(s_vm, 1) != 0)
             {
                 const char *error = be_tostring(s_vm, -1);
-                ESP_LOGE(TAG, "%s: command failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
+                ESP_LOGE(TAG, "%s: main(args) failed: %s", source_name,
+                         error != nullptr ? error : "unknown Berry error");
                 be_pop(s_vm, 1);
                 err = ESP_FAIL;
+            }
+            else if (exit_status != nullptr && be_isnil(s_vm, -2))
+            {
+                *exit_status = 0;
             }
             else if (!be_isint(s_vm, -2) || be_toint(s_vm, -2) < std::numeric_limits<int>::min() ||
                      be_toint(s_vm, -2) > std::numeric_limits<int>::max())
@@ -1307,16 +1311,12 @@ esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const 
                 ESP_LOGE(TAG, "%s: main(args) must return an integer shell status", source_name);
                 err = ESP_ERR_INVALID_ARG;
             }
-            else
+            else if (exit_status != nullptr)
             {
                 *exit_status = static_cast<int>(be_toint(s_vm, -2));
             }
         }
     }
-
-    be_pushbool(s_vm, false);
-    be_setglobal(s_vm, COMMAND_EXEC_GLOBAL);
-    be_pop(s_vm, 1);
 
     be_pop(s_vm, be_top(s_vm) - saved_main_index);
     restore_command_main(saved_main_index);
@@ -1418,99 +1418,91 @@ void discard_app()
     ui::stop();
 }
 
-esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char *source_name, bool require_app)
+extern "C" esp_err_t berry_runtime_ui_launch(bvm *vm, int index)
 {
-    if (s_vm == nullptr)
+    if (vm == nullptr || vm != s_vm)
     {
         return ESP_ERR_INVALID_STATE;
     }
 
-    esp_err_t close_err = close_active_app();
-    if (close_err != ESP_OK)
+    be_pushvalue(vm, index);
+    const bool is_class = be_isclass(vm, -1);
+    const bool is_instance = be_isinstance(vm, -1);
+    if (!is_class && !is_instance)
     {
-        return close_err;
-    }
-    const esp_err_t history_err = text_console_release_scrollback();
-    if (history_err != ESP_OK)
-    {
-        return history_err;
-    }
-    const ScriptPathScope script_path(source_name);
-    (void)script_path;
-    log_heap_snapshot("Before Berry source execution");
-    berry_ui_begin_app(s_vm);
-
-    int result = load_owned_source(source, length, source_name);
-
-    if (result == 0)
-    {
-        result = be_pcall(s_vm, 0);
-    }
-    if (result != 0)
-    {
-        const char *error = be_tostring(s_vm, -1);
-        ESP_LOGE(TAG, "%s: %s", source_name, error != nullptr ? error : "unknown Berry error");
-        be_pop(s_vm, 1);
-        discard_app();
-        collect_berry_garbage();
-        return ESP_FAIL;
+        be_pop(vm, 1);
+        ESP_LOGE(TAG, "ui.launch: argument must be an app class or instance");
+        return ESP_ERR_INVALID_ARG;
     }
 
-    if (!be_isclass(s_vm, -1))
-    {
-        be_pop(s_vm, 1);
-        discard_app();
-        collect_berry_garbage();
-        return require_app ? ESP_ERR_INVALID_ARG : ESP_OK;
-    }
-
-    const char *app_class_name = be_classname(s_vm, -1);
+    const char *app_class_name = nullptr;
     bool app_class_is_global = false;
-    if (app_class_name != nullptr)
+    if (is_class)
     {
-        be_pushvalue(s_vm, -1);
-        be_getglobal(s_vm, app_class_name);
-        app_class_is_global = be_iseq(s_vm);
-        be_pop(s_vm, 2);
+        app_class_name = be_classname(vm, -1);
+        if (app_class_name != nullptr)
+        {
+            be_pushvalue(vm, -1);
+            be_getglobal(vm, app_class_name);
+            app_class_is_global = be_iseq(vm);
+            be_pop(vm, 2);
+        }
     }
 
-    esp_err_t err = text_console_release_scrollback();
-    if (err == ESP_OK)
+    esp_err_t err = close_active_app();
+    if (err != ESP_OK)
     {
-        err = text_console_set_visible(false);
+        be_pop(vm, 1);
+        return err;
     }
+    err = text_console_release_scrollback();
+    if (err != ESP_OK)
+    {
+        be_pop(vm, 1);
+        clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
+        return err;
+    }
+
+    berry_ui_begin_app(vm);
+
+    if (is_class)
+    {
+        if (be_pcall(vm, 0) != 0)
+        {
+            const char *error = be_tostring(vm, -1);
+            ESP_LOGE(TAG, "ui.launch: app construction failed: %s", error != nullptr ? error : "unknown Berry error");
+            be_pop(vm, 1);
+            discard_app();
+            clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
+            collect_berry_garbage();
+            return ESP_FAIL;
+        }
+        log_lifecycle_checkpoint("4 Berry app constructed");
+    }
+
+    if (!be_isinstance(vm, -1))
+    {
+        be_pop(vm, 1);
+        discard_app();
+        clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
+        collect_berry_garbage();
+        ESP_LOGE(TAG, "ui.launch: expected an app instance");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    err = text_console_set_visible(false);
     const bool console_hidden = err == ESP_OK;
     if (err != ESP_OK)
     {
-        be_pop(s_vm, 1);
+        be_pop(vm, 1);
         discard_app();
         clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
         collect_berry_garbage();
         return err;
     }
 
-    if (be_pcall(s_vm, 0) != 0)
-    {
-        const char *error = be_tostring(s_vm, -1);
-        ESP_LOGE(TAG, "%s: app construction failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
-        be_pop(s_vm, 1);
-        discard_app();
-        if (console_hidden)
-        {
-            const esp_err_t visible_err = text_console_set_visible(true);
-            if (visible_err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
-            }
-        }
-        clear_app_class_global(app_class_is_global ? app_class_name : nullptr);
-        collect_berry_garbage();
-        return ESP_FAIL;
-    }
-
-    log_lifecycle_checkpoint("4 Berry app constructed");
-    be_setglobal(s_vm, APP_GLOBAL);
-    be_pop(s_vm, 1);
+    be_setglobal(vm, APP_GLOBAL);
+    be_pop(vm, 1);
     s_app_class_global_name = app_class_is_global ? app_class_name : nullptr;
 
     err = invoke_app_method("setup", true);
@@ -1524,9 +1516,9 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
         discard_app();
         clear_app_class_global(s_app_class_global_name);
         s_app_class_global_name = nullptr;
-        be_pushnil(s_vm);
-        be_setglobal(s_vm, APP_GLOBAL);
-        be_pop(s_vm, 1);
+        be_pushnil(vm);
+        be_setglobal(vm, APP_GLOBAL);
+        be_pop(vm, 1);
         collect_berry_garbage();
         if (console_hidden)
         {
@@ -1536,12 +1528,13 @@ esp_err_t execute_app_source(BerrySourceBuffer source, size_t length, const char
                 ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
             }
         }
+        return err;
     }
-    if (err == ESP_OK && has_active_app())
+    if (has_active_app())
     {
         retain_app_script_path();
     }
-    return err;
+    return ESP_OK;
 }
 
 esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source, size_t *length)
@@ -2086,9 +2079,6 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "cos_import", native_cos_import);
     be_regfunc(s_vm, "cos_module", native_cos_module);
     be_regfunc(s_vm, "cos_lazy_member", native_cos_lazy_member);
-    be_pushbool(s_vm, false);
-    be_setglobal(s_vm, "_cos_cmd_exec");
-    be_pop(s_vm, 1);
 
     // R6 (2026-11-08): COS native modules are not eagerly loaded at Berry
     // startup. `console`, `fs`, `net`, and `ui` remain in be_modtab.c and are
@@ -2144,48 +2134,10 @@ extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_n
     return execute_source(source, std::strlen(source), source_name);
 }
 
-extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path)
+extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
 {
     std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
-    if (virtual_path == nullptr)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (s_vm == nullptr)
-    {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    esp_err_t err = text_console_release_scrollback();
-    if (err != ESP_OK)
-    {
-        return err;
-    }
-    log_lifecycle_checkpoint("Before Berry file load");
-    BerrySourceBuffer source(nullptr, &std::free);
-    size_t length = 0;
-    err = read_virtual_file(virtual_path, &source, &length);
-    if (err != ESP_OK)
-    {
-        if (err == ESP_ERR_NO_MEM)
-        {
-            ESP_LOGW(TAG, "Could not allocate Berry source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
-                     static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
-                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
-                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
-        }
-        return err;
-    }
-    ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
-    log_lifecycle_checkpoint("2 Berry source loaded");
-    return execute_app_source(std::move(source), length, virtual_path, false);
-}
-
-extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
-{
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
-    if (virtual_path == nullptr || argc < 0 || (argc > 0 && argv == nullptr) || exit_status == nullptr)
+    if (virtual_path == nullptr || argc < 0 || (argc > 0 && argv == nullptr))
     {
         return ESP_ERR_INVALID_ARG;
     }
@@ -2202,7 +2154,11 @@ extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc,
         return ESP_ERR_INVALID_STATE;
     }
 
-    *exit_status = 1;
+    if (exit_status != nullptr)
+    {
+        *exit_status = 1;
+    }
+
     BerrySourceBuffer source(nullptr, &std::free);
     size_t length = 0;
     esp_err_t err = read_virtual_file(virtual_path, &source, &length);
@@ -2210,53 +2166,27 @@ extern "C" esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc,
     {
         if (err == ESP_ERR_NO_MEM)
         {
-            ESP_LOGW(TAG, "Could not allocate Berry command source buffer (%u bytes); free=%u, largest block=%u",
-                     static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
-                     static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
-        }
-        return err;
-    }
-
-    return execute_command_source(std::move(source), length, virtual_path, argc, argv, exit_status);
-}
-
-extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
-{
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
-    if (virtual_path == nullptr)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
-    if (s_vm == nullptr)
-    {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    esp_err_t err = text_console_release_scrollback();
-    if (err != ESP_OK)
-    {
-        return err;
-    }
-    log_lifecycle_checkpoint("Before Berry app load");
-    BerrySourceBuffer source(nullptr, &std::free);
-    size_t length = 0;
-    err = read_virtual_file(virtual_path, &source, &length);
-    if (err != ESP_OK)
-    {
-        if (err == ESP_ERR_NO_MEM)
-        {
-            ESP_LOGW(TAG,
-                     "Could not allocate Berry app source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
+            ESP_LOGW(TAG, "Could not allocate Berry source buffer (%u bytes); free=%u, largest=%u, internal_largest=%u",
                      static_cast<unsigned>(length + 1), static_cast<unsigned>(esp_get_free_heap_size()),
                      static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)),
                      static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
         }
         return err;
     }
-    ESP_LOGI(TAG, "Loaded Berry app file (%u bytes)", static_cast<unsigned>(length));
+    ESP_LOGI(TAG, "Loaded Berry file (%u bytes)", static_cast<unsigned>(length));
     log_lifecycle_checkpoint("2 Berry source loaded");
+    return execute_main_entry(std::move(source), length, virtual_path, argc, argv, exit_status);
+}
 
-    return execute_app_source(std::move(source), length, virtual_path, true);
+extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
+{
+    int exit_status = 1;
+    esp_err_t err = berry_runtime_run_file(virtual_path, 0, nullptr, &exit_status);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    return exit_status == 0 ? ESP_OK : ESP_FAIL;
 }
 
 extern "C" esp_err_t berry_runtime_close_app(void)

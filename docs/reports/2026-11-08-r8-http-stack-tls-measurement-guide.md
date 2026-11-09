@@ -96,7 +96,7 @@ For each HTTPS case (prefer clean boot, note BT/Wi-Fi state):
 `storage/flash_data/tests/r8/http_validation.be` runs an automatable R8 subset and prints snapshots (`mem`, `berry http-stack`, `berry profile`) around each case. Deploy it to the device (`/flash` or `/sdcard`) and capture full serial output, including `R8/P4 stack:` lines.
 
 ```text
-berry exec /flash/tests/r8/http_validation.be [http_get_url] [https_url] [post_url] [max_body_url]
+berry run /flash/tests/r8/http_validation.be [http_get_url] [https_url] [post_url] [max_body_url]
 ```
 
 Defaults: `http_get_url=http://example.com/`, `https_url=https://example.com/`. Pass `-` to skip optional positional args. `post_url`/`max_body_url` are skipped unless provided (use controlled endpoints).

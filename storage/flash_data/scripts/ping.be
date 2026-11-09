@@ -38,6 +38,3 @@ def main(args)
     end
     return __cos_r
 end
-if !(_cos_cmd_exec == true)
-    main([])
-end

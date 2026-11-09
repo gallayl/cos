@@ -7,18 +7,19 @@
 /// <reference path="./berry-builtins.d.ts" />
 
 /**
- * COS application entrypoints (R13). All runnable TS sources export a default
- * class implementing {@link CosApplication} or {@link CosUiApplication}.
+ * COS application entrypoints (R13, unified by R21). All runnable TS sources
+ * export a default class implementing {@link CosApplication} or
+ * {@link CosUiApplication}.
  *
  * Detection is method-based (no path conventions):
- * - `setup(...)` present => UI app. May also declare `run(args)` for future
- *   CLI/R21 launch compatibility; under the current runtime, `berry run`
- *   starts the UI via `setup`.
+ * - `setup(...)` present => UI app.
  * - `run(args)` present and no `setup(...)` => console/command app.
+ * - Both present: UI entrypoint; `run(args)` may be used for CLI args.
  *
- * The compiler lowers to Berry in a way that remains compatible with current
- * firmware commands (`berry run`, `berry exec`, R9 command scripts, autoexec)
- * until R21 unifies the runtime contract.
+ * R21: `berry run <path> [args...]` executes `main(args)` for all entrypoints.
+ * UI entrypoints lower to `main(args)` calling `ui.launch(AppClass)`. Console
+ * entrypoints lower to `main(args)` calling `app.run(args)`. R9-resolved
+ * command scripts use the same contract.
  */
 
 declare global {
@@ -37,8 +38,10 @@ declare global {
   }
 
   /**
-   * UI application entrypoint. `berry run` constructs the class and calls
-   * `setup` with the display size. `content` is reserved (device passes 0).
+   * UI application entrypoint. `berry run` executes `main(args)`, which (as
+   * lowered by the TS compiler) calls `ui.launch(AppClass)`. `ui.launch`
+   * constructs the class if needed and calls `setup` with the display size.
+   * `content` is reserved (device passes 0).
    */
   abstract class CosUiApplication extends CosApplication {
     abstract setup(content: unknown, width: number, height: number): void;

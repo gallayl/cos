@@ -223,6 +223,17 @@ declare global {
      */
     function exit(): void;
 
+    /**
+     * Explicitly launch a UI app (R21). Closes/replaces the active UI app,
+     * constructs the app if a class is passed, calls `setup(0, width, height)`,
+     * and starts the UI. Intended to be called from `main(args)` in a Berry
+     * entrypoint (TS UI entrypoints lower to `return ui.launch(AppClass)`).
+     *
+     * @param app UI app class or instance.
+     * @returns 0 on success. Raises on failure.
+     */
+    function launch(app: unknown): number;
+
     /** Fill the framebuffer with one color. The console renderer stays paused. */
     function fill_screen(color: Color): void;
 

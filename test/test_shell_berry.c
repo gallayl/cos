@@ -25,6 +25,7 @@ static void test_run_resolves_relative_path_from_shell_directory(void)
     char *argv[] = {"berry", "run", "apps/demo.be"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 3, argv));
     TEST_ASSERT_EQUAL_STRING("/flash/apps/demo.be", mock_berry_last_path());
+    TEST_ASSERT_EQUAL(0, mock_berry_run_argc());
 }
 
 static void test_run_preserves_absolute_sdcard_path(void)
@@ -34,28 +35,28 @@ static void test_run_preserves_absolute_sdcard_path(void)
     TEST_ASSERT_EQUAL_STRING("/sdcard/berry/demo.be", mock_berry_last_path());
 }
 
-static void test_exec_resolves_path_and_forwards_arguments(void)
+static void test_run_forwards_arguments(void)
 {
-    char *argv[] = {"berry", "exec", "scripts/ping.be", "example.com", "two words", ""};
+    char *argv[] = {"berry", "run", "scripts/ping.be", "example.com", "two words", ""};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 6, argv));
     TEST_ASSERT_EQUAL_STRING("/flash/scripts/ping.be", mock_berry_last_path());
-    TEST_ASSERT_EQUAL(3, mock_berry_exec_argc());
-    TEST_ASSERT_EQUAL_STRING("example.com", mock_berry_exec_arg(0));
-    TEST_ASSERT_EQUAL_STRING("two words", mock_berry_exec_arg(1));
-    TEST_ASSERT_EQUAL_STRING("", mock_berry_exec_arg(2));
+    TEST_ASSERT_EQUAL(3, mock_berry_run_argc());
+    TEST_ASSERT_EQUAL_STRING("example.com", mock_berry_run_arg(0));
+    TEST_ASSERT_EQUAL_STRING("two words", mock_berry_run_arg(1));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_run_arg(2));
 }
 
-static void test_exec_returns_script_status(void)
+static void test_run_returns_script_status(void)
 {
-    mock_berry_set_exec_status(7);
-    char *argv[] = {"berry", "exec", "tool.be", "arg"};
+    mock_berry_set_run_status(7);
+    char *argv[] = {"berry", "run", "tool.be", "arg"};
     TEST_ASSERT_EQUAL(7, mock_console_run_cmd("berry", 4, argv));
 }
 
-static void test_exec_runtime_error_fails_command(void)
+static void test_run_runtime_error_fails_command(void)
 {
-    mock_berry_set_exec_result(ESP_FAIL);
-    char *argv[] = {"berry", "exec", "tool.be"};
+    mock_berry_set_run_result(ESP_FAIL);
+    char *argv[] = {"berry", "run", "tool.be"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
 }
 
@@ -85,21 +86,15 @@ static void test_execution_error_fails_command(void)
 
 static void test_unknown_operation_fails_command(void)
 {
-    char *argv[] = {"berry", "open", "demo.be"};
+    char *argv[] = {"berry", "exec", "demo.be"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 
 static void test_missing_arguments_fails_command(void)
 {
     char *argv[] = {"berry", "run"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
-}
-
-static void test_exec_requires_script_path(void)
-{
-    char *argv[] = {"berry", "exec"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 2, argv));
-    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 
 static void test_close_stops_active_app(void)
@@ -236,15 +231,14 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_run_resolves_relative_path_from_shell_directory);
     RUN_TEST(test_run_preserves_absolute_sdcard_path);
-    RUN_TEST(test_exec_resolves_path_and_forwards_arguments);
-    RUN_TEST(test_exec_returns_script_status);
-    RUN_TEST(test_exec_runtime_error_fails_command);
+    RUN_TEST(test_run_forwards_arguments);
+    RUN_TEST(test_run_returns_script_status);
+    RUN_TEST(test_run_runtime_error_fails_command);
     RUN_TEST(test_eval_joins_source_arguments);
     RUN_TEST(test_init_error_fails_command);
     RUN_TEST(test_execution_error_fails_command);
     RUN_TEST(test_unknown_operation_fails_command);
     RUN_TEST(test_missing_arguments_fails_command);
-    RUN_TEST(test_exec_requires_script_path);
     RUN_TEST(test_close_stops_active_app);
     RUN_TEST(test_autoexec_runs_startup_script);
     RUN_TEST(test_autoexec_missing_script_is_not_an_error);

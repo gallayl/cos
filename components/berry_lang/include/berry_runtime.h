@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+struct bvm;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -26,16 +28,23 @@ extern "C"
     /** Compile and execute Berry source code in the shared VM. */
     esp_err_t berry_runtime_eval(const char *source, const char *source_name);
 
-    /** Load and execute a Berry script from a COS virtual filesystem path. */
-    esp_err_t berry_runtime_run_file(const char *virtual_path);
+    /**
+     * Unified Berry entrypoint execution (R21).
+     * Loads and executes the script, then calls main(args) where args is a Berry list of
+     * command arguments (excluding the script path). Default execution is non-intrusive:
+     * it does not close/disturb an active UI app. UI apps must launch explicitly from
+     * main(args) via ui.launch(AppClass).
+     *
+     * On ESP_OK, *exit_status receives the integer status returned by main(args) (nil -> 0).
+     * Missing/non-integer main return values, missing main, and runtime errors return a
+     * non-OK esp_err_t; callers should map execution failures to status 1.
+     */
+    esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
 
     /**
-     * Execute a Berry command script without changing UI app state.
-     * The script must define main(args), returning an integer shell status.
+     * Compatibility wrapper (R21): executes main(args) with no arguments.
+     * Prefer berry_runtime_run_file for new code.
      */
-    esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
-
-    /** Load a class-based Berry UI app and invoke its setup method. */
     esp_err_t berry_runtime_open_app(const char *virtual_path);
 
     /** Invoke the current app's teardown method and release its UI resources. */
@@ -90,15 +99,17 @@ extern "C"
      */
     esp_err_t berry_runtime_set_gc_step_rate(int rate);
 
+    /**
+     * Launch a Berry UI app explicitly (R21). Called by ui.launch(app).
+     * `index` is the Berry stack index of a class (instantiated) or instance.
+     * Performs full UI lifecycle: closes active app, hides console, calls setup(0,w,h),
+     * starts UI. Returns ESP_OK on success.
+     */
+    esp_err_t berry_runtime_ui_launch(struct bvm *vm, int index);
+
+    /** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
+    bool berry_runtime_ensure_json(struct bvm *vm);
+
 #ifdef __cplusplus
 }
 #endif
-
-struct bvm;
-
-/** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
-#ifdef __cplusplus
-extern "C"
-#endif
-    bool
-    berry_runtime_ensure_json(struct bvm *vm);

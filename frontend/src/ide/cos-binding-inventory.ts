@@ -59,6 +59,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'mark_dirty' },
       { kind: 'function', name: 'random' },
       { kind: 'function', name: 'exit' },
+      { kind: 'function', name: 'launch' },
       { kind: 'function', name: 'fill_screen' },
       { kind: 'function', name: 'fill_rect' },
       { kind: 'function', name: 'draw_text' },

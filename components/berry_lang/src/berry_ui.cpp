@@ -469,6 +469,22 @@ int native_exit(bvm *vm)
     be_return_nil(vm);
 }
 
+int native_launch(bvm *vm)
+{
+    if (be_top(vm) < 1)
+    {
+        be_raise(vm, "value_error", "ui.launch(app) requires an app class or instance");
+    }
+
+    esp_err_t err = berry_runtime_ui_launch(vm, 1);
+    if (err != ESP_OK)
+    {
+        be_raise(vm, "runtime_error", "ui.launch failed");
+    }
+    be_pushint(vm, 0);
+    be_return(vm);
+}
+
 int native_fill_screen(bvm *vm)
 {
     if (be_top(vm) < 1)
@@ -623,6 +639,7 @@ static bntvmodobj_t const ui_attrs[] = {
     be_native_module_function("mark_dirty", native_mark_dirty),
     be_native_module_function("random", native_random),
     be_native_module_function("exit", native_exit),
+    be_native_module_function("launch", native_launch),
     be_native_module_function("fill_screen", native_fill_screen),
     be_native_module_function("fill_rect", native_fill_rect),
     be_native_module_function("draw_text", native_draw_text),

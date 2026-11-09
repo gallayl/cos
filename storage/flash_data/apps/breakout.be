@@ -222,7 +222,5 @@ class Breakout
 end
 
 def main(args)
-    print("UI app: launch with \"berry run <path>\" (CLI args via run(args) are unified in R21)")
-    return 1
+    return ui.launch(Breakout)
 end
-return Breakout

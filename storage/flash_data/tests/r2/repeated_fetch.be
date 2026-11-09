@@ -1,6 +1,6 @@
 # R2/P7: repeated fetch regression/profiling.
-# Run: berry exec /flash/tests/r2/repeated_fetch.be <url> [count] [text|json]
-# Example: berry exec /flash/tests/r2/repeated_fetch.be http://example.com/ 5 text
+# Run: berry run /flash/tests/r2/repeated_fetch.be <url> [count] [text|json]
+# Example: berry run /flash/tests/r2/repeated_fetch.be http://example.com/ 5 text
 # Then: berry profile  and/or  berry gc
 import net
 

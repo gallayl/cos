@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-08  
 **Item:** R7 — Fetch `include_body` option for `net.fetch` (`docs/2026-11-08-consolidated-improvement-plan.md`, `docs/2026-11-06-memory-pressure-fixes.md` P3)  
-**Status:** Implementation, SDK/docs update, Berry syntax validation, and user hardware validation complete (2026-11-08). Live check: `berry exec body.be http://ip-api.com/json` reported good. Optional heap comparison still useful if deeper memory evidence is needed.
+**Status:** Implementation, SDK/docs update, Berry syntax validation, and user hardware validation complete (2026-11-08). Live check (historical, pre-R21): `berry run body.be http://ip-api.com/json` (formerly `berry run`) reported good. Optional heap comparison still useful if deeper memory evidence is needed.
 
 ## What changed
 
@@ -34,12 +34,12 @@ Firmware/network runtime behavior cannot be fully validated on the host. Hardwar
 
 ## Procedure
 
-`include_body.be` is a **command script** (`def main(args)`). Use `berry exec` so arguments are passed to `main(args)`.
+`include_body.be` is a **command script** (`def main(args)`). R21: use `berry run` (unified; passes args to `main(args)`).
 
 ### 1. Offline argument validation (no network required)
 
 ```text
-berry exec /sdcard/tests/r7/include_body.be
+berry run /sdcard/tests/r7/include_body.be
 ```
 
 Use `/flash/tests/r7/include_body.be` if deployed to flash. No URL argument is needed; the script still rejects invalid `include_body` types before making network requests.
@@ -56,7 +56,7 @@ Use `/flash/tests/r7/include_body.be` if deployed to flash. No URL argument is n
 Choose a stable JSON endpoint you can reach from the device. Example (only if reachable on your network):
 
 ```text
-berry exec /sdcard/tests/r7/include_body.be https://httpbin.org/json
+berry run /sdcard/tests/r7/include_body.be https://httpbin.org/json
 ```
 
 Or use a local/LAN HTTP endpoint returning `application/json`.
@@ -101,7 +101,7 @@ Compare runs with and without `include_body: false` on the same endpoint/payload
 
 ## If issues occur
 
-Record serial logs, the exact `berry exec` command, URL class (HTTP/HTTPS/local), and `berry profile` if relevant.
+Record serial logs, the exact `berry run` command, URL class (HTTP/HTTPS/local), and `berry profile` if relevant.
 
 - **Option rejected:** confirm firmware has R7 `known_fetch_field`/`include_body` parsing in `berry_network.cpp`.
 - **Body still present with `include_body=false`:** check final result path after JSON parsing and `push_fetch_result` arguments.

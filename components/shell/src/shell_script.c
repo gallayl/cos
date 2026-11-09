@@ -417,7 +417,7 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
     }
 
     int exit_status = 1;
-    err = berry_runtime_exec_file(resolved, argc - 1, argv + 1, &exit_status);
+    err = berry_runtime_run_file(resolved, argc - 1, argv + 1, &exit_status);
     *handled = true;
     if (err == ESP_OK)
     {

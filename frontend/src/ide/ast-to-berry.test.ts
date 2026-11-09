@@ -765,8 +765,8 @@ return App
   })
 })
 
-describe('astToBerry R13 entrypoints', () => {
-  it('lowers a UI app entrypoint with berry-run compatibility and exec guard main()', () => {
+describe('astToBerry R13/R21 entrypoints', () => {
+  it('lowers a UI app entrypoint to main(args) calling ui.launch (R21)', () => {
     const result = compileEntrypoint(`
       export default class Counter implements CosUiApplication {
         setup(_content: unknown, _width: number, _height: number): void {}
@@ -779,14 +779,12 @@ describe('astToBerry R13 entrypoints', () => {
 end
 
 def main(args)
-    print("UI app: launch with \\"berry run <path>\\" (CLI args via run(args) are unified in R21)")
-    return 1
+    return ui.launch(Counter)
 end
-return Counter
 `)
   })
 
-  it('allows UI apps to declare run(args) for future compatibility', () => {
+  it('allows UI apps to declare run(args) for compatibility', () => {
     const result = compileEntrypoint(`
       export default class App implements CosUiApplication {
         run(_args: string[]): number { return 0 }
@@ -795,11 +793,11 @@ return Counter
     `)
     expect(result.ok).toBe(true)
     expect(result.diagnostics).toEqual([])
-    expect(result.code).toContain('return App')
+    expect(result.code).toContain('return ui.launch(App)')
     expect(result.code).toContain('def main(args)')
   })
 
-  it('lowers a console app entrypoint to main(args) bridge with auto-run guard', () => {
+  it('lowers a console app entrypoint to main(args) bridge (R21, runtime invokes main)', () => {
     const result = compileEntrypoint(`
       export default class Hello implements CosApplication {
         run(args: string[]): number {
@@ -823,9 +821,6 @@ def main(args)
         return 0
     end
     return __cos_r
-end
-if !(_cos_cmd_exec == true)
-    main([])
 end
 `)
   })

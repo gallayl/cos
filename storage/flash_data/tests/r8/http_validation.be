@@ -6,8 +6,8 @@
 # - compare `idf.py size` when evaluating stack/buffer changes
 # - use controlled endpoints for POST/max-body where needed
 #
-# Usage (command script):
-#   berry exec /flash/tests/r8/http_validation.be [http_get_url] [https_url] [post_url] [max_body_url]
+# Usage (R21 unified command script):
+#   berry run /flash/tests/r8/http_validation.be [http_get_url] [https_url] [post_url] [max_body_url]
 #
 # Defaults:
 #   http_get_url = http://example.com/

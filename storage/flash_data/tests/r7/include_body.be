@@ -1,7 +1,7 @@
 # R7/P3: net.fetch include_body option.
-# Usage (command script; pass args with `berry exec`):
-#   berry exec /sdcard/tests/r7/include_body.be                  # arg-validation only (no network)
-#   berry exec /sdcard/tests/r7/include_body.be <json-url>       # also checks live JSON fetch behavior
+# Usage (command script, R21 unified main(args)):
+#   berry run /sdcard/tests/r7/include_body.be                  # arg-validation only (no network)
+#   berry run /sdcard/tests/r7/include_body.be <json-url>       # also checks live JSON fetch behavior
 #
 # Expected arg-validation: prints R7 ARG OK.
 # Expected live check with a URL returning JSON: body omitted when include_body=false,
@@ -46,7 +46,7 @@ def main(args)
 
     if size(args) < 1
         print("R7 ARG OK (no URL provided; network behavior not checked)")
-        print("next: berry exec /sdcard/tests/r7/include_body.be https://httpbin.org/json")
+        print("next: berry run /sdcard/tests/r7/include_body.be https://httpbin.org/json")
         return 0
     end
 

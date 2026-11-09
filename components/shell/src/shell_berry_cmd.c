@@ -28,12 +28,18 @@ esp_err_t shell_berry_run_autoexec(void)
         return err;
     }
 
-    err = berry_runtime_run_file("/flash/autoexec.be");
+    int exit_status = 0;
+    err = berry_runtime_run_file("/flash/autoexec.be", 0, NULL, &exit_status);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not run /flash/autoexec.be: %s", esp_err_to_name(err));
+        return err;
     }
-    return err;
+    if (exit_status != 0)
+    {
+        ESP_LOGW(TAG, "/flash/autoexec.be returned status %d", exit_status);
+    }
+    return ESP_OK;
 }
 
 static void print_http_stack(void)
@@ -118,7 +124,7 @@ static int cmd_berry(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
+        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry "
                "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
@@ -224,21 +230,7 @@ static int cmd_berry(int argc, char **argv)
     {
         if (argc < 3)
         {
-            printf("Usage: berry run <path>\n");
-            return 1;
-        }
-        char path[VFS_PATH_MAX];
-        err = shell_resolve_relative(argv[2], path, sizeof(path));
-        if (err == ESP_OK)
-        {
-            err = berry_runtime_run_file(path);
-        }
-    }
-    else if (strcmp(argv[1], "exec") == 0)
-    {
-        if (argc < 3)
-        {
-            printf("Usage: berry exec <path> [args...]\n");
+            printf("Usage: berry run <path> [args...]\n");
             return 1;
         }
         char path[VFS_PATH_MAX];
@@ -246,7 +238,7 @@ static int cmd_berry(int argc, char **argv)
         if (err == ESP_OK)
         {
             int exit_status = 1;
-            err = berry_runtime_exec_file(path, argc - 3, argv + 3, &exit_status);
+            err = berry_runtime_run_file(path, argc - 3, argv + 3, &exit_status);
             if (err == ESP_OK)
             {
                 return exit_status;
@@ -298,7 +290,7 @@ static int cmd_berry(int argc, char **argv)
     else
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
-        printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
+        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry "
                "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
@@ -316,7 +308,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run/exec/eval Berry scripts; profile/http-stack/gc memory tools (R2/R5/R8)",
+        .help = "Run/eval Berry scripts (main(args), R21); profile/http-stack/gc tools",
         .hint = NULL,
         .func = &cmd_berry,
     };

@@ -29,11 +29,14 @@ def churn_once(n)
     return total
 end
 
-var round = 0
-while round < 5
-    var bytes = churn_once(80)
-    print("R5 churn round", round + 1, "chars", bytes)
-    round += 1
-end
+def main(args)
+    var round = 0
+    while round < 5
+        var bytes = churn_once(80)
+        print("R5 churn round", round + 1, "chars", bytes)
+        round += 1
+    end
 
-print("R5 memory_churn done; run `berry gc` then `berry profile`")
+    print("R5 memory_churn done; run `berry gc` then `berry profile`")
+    return 0
+end

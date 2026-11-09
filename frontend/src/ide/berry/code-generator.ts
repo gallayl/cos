@@ -147,20 +147,17 @@ class GenerationSession implements GenerationContext {
     }
 
     if (info.hasSetup) {
-      // UI app: return class for berry_runtime run/open path. Also define main(args)
-      // for berry exec compatibility with a clear message (R21 will unify launch).
+      // R21: unified berry run executes main(args); UI apps launch explicitly via ui.launch.
       this.writeLine('')
       this.writeLine('def main(args)')
       this.indent()
-      this.writeLine('print("UI app: launch with \\"berry run <path>\\" (CLI args via run(args) are unified in R21)")')
-      this.writeLine('return 1')
+      this.writeLine(`return ui.launch(${info.name})`)
       this.dedent()
       this.writeLine('end')
-      this.writeLine(`return ${info.name}`)
       return
     }
 
-    // Console/command app: bridge run(args) to firmware main(args) contract.
+    // Console/command app (R21): unified main(args) contract; runtime invokes main.
     this.writeLine('')
     this.writeLine(`var __cos_app = ${info.name}()`)
     this.writeLine('def main(args)')
@@ -172,12 +169,6 @@ class GenerationSession implements GenerationContext {
     this.dedent()
     this.writeLine('end')
     this.writeLine('return __cos_r')
-    this.dedent()
-    this.writeLine('end')
-    // Auto-run for berry run/autoexec path unless berry exec is invoking (avoids double run).
-    this.writeLine('if !(_cos_cmd_exec == true)')
-    this.indent()
-    this.writeLine('main([])')
     this.dedent()
     this.writeLine('end')
   }
