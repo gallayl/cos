@@ -73,7 +73,7 @@ build:
 	$(IDF_PY) build
 
 flash:
-	$(IDF_PY) -p COM3 -b 115200 flash
+	$(IDF_PY) flash
 
 flash-data: build
 	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
