@@ -36,6 +36,32 @@ esp_err_t shell_berry_run_autoexec(void)
     return err;
 }
 
+static void print_http_stack(void)
+{
+    network_http_worker_stack_info_t http_stack;
+    const esp_err_t http_err = network_http_get_worker_stack_info(&http_stack);
+
+    if (http_err != ESP_OK)
+    {
+        printf("HTTP worker stack (R8/P4): unavailable (%s)\n", esp_err_to_name(http_err));
+        return;
+    }
+    if (http_stack.available)
+    {
+        printf("HTTP worker stack (R8/P4): cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u method=%s scheme=%s "
+               "status=%d err=%s\n",
+               (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
+               (unsigned)http_stack.hwm_words, (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes,
+               http_stack.last_method, http_stack.https ? "https" : "http", http_stack.last_status,
+               esp_err_to_name(http_stack.last_error));
+    }
+    else
+    {
+        printf("HTTP worker stack (R8/P4): not started (cfg=%u unit=%u)\n", (unsigned)http_stack.configured_stack,
+               (unsigned)http_stack.stack_unit_bytes);
+    }
+}
+
 static void print_profile(void)
 {
     system_info_t info;
@@ -45,7 +71,7 @@ static void print_profile(void)
     network_http_worker_stack_info_t http_stack;
     const esp_err_t http_err = network_http_get_worker_stack_info(&http_stack);
 
-    printf("Berry memory profile (R2/R5)\n");
+    printf("Berry memory profile (R2/R5/R8)\n");
     if (sys_err == ESP_OK)
     {
         printf("  Default heap:  free=%u min=%u total=%u largest=%u\n", (unsigned)info.free_heap,
@@ -93,7 +119,7 @@ static int cmd_berry(int argc, char **argv)
     if (argc < 2)
     {
         printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
-               "profile | berry gc | berry gc-step <rate>\n");
+               "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
 
@@ -105,6 +131,17 @@ static int cmd_berry(int argc, char **argv)
             return 1;
         }
         print_profile();
+        return 0;
+    }
+
+    if (strcmp(argv[1], "http-stack") == 0 || strcmp(argv[1], "net-stack") == 0)
+    {
+        if (argc != 2)
+        {
+            printf("Usage: berry http-stack\n");
+            return 1;
+        }
+        print_http_stack();
         return 0;
     }
 
@@ -262,7 +299,7 @@ static int cmd_berry(int argc, char **argv)
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
         printf("Usage: berry run <path> | berry exec <path> [args...] | berry eval <source> | berry close | berry "
-               "profile | berry gc | berry gc-step <rate>\n");
+               "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
 
@@ -279,7 +316,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run/exec/eval Berry scripts; profile/gc memory; gc-step experiments (R2/R5)",
+        .help = "Run/exec/eval Berry scripts; profile/http-stack/gc memory tools (R2/R5/R8)",
         .hint = NULL,
         .func = &cmd_berry,
     };

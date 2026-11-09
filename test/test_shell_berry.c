@@ -3,6 +3,7 @@
 #include "mock_berry.h"
 #include "mock_console.h"
 #include "mock_filesystem.h"
+#include "mock_network.h"
 #include "mock_system.h"
 #include "shell.h"
 #include "shell_cmds.h"
@@ -12,6 +13,7 @@ void setUp(void)
     mock_console_reset();
     mock_filesystem_reset();
     mock_berry_reset();
+    mock_network_reset();
     mock_system_reset();
     shell_register_berry_commands();
 }
@@ -211,6 +213,24 @@ static void test_gc_step_rejects_invalid_rate(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv_high));
 }
 
+static void test_http_stack_reports_sample(void)
+{
+    char *argv[] = {"berry", "http-stack"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_http_stack_accepts_net_stack_alias(void)
+{
+    char *argv[] = {"berry", "net-stack"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_http_stack_rejects_extra_args(void)
+{
+    char *argv[] = {"berry", "http-stack", "extra"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -240,5 +260,8 @@ int main(void)
     RUN_TEST(test_gc_step_accepts_experiment_values);
     RUN_TEST(test_gc_step_rejects_missing_arg);
     RUN_TEST(test_gc_step_rejects_invalid_rate);
+    RUN_TEST(test_http_stack_reports_sample);
+    RUN_TEST(test_http_stack_accepts_net_stack_alias);
+    RUN_TEST(test_http_stack_rejects_extra_args);
     return UNITY_END();
 }

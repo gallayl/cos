@@ -34,6 +34,7 @@ typedef struct
 
 typedef struct
 {
+    uint32_t request_id;
     int64_t deadline_us;
     esp_err_t error;
     size_t header_count;
@@ -60,6 +61,25 @@ static const char s_empty_body[] = "";
 static network_http_response_t s_response;
 
 static network_http_worker_stack_info_t s_http_stack_info;
+
+static bool http_request_abandoned(uint32_t request_id)
+{
+    bool abandoned = false;
+    if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(20)) == pdTRUE)
+    {
+        abandoned = s_http_abandoned && s_http_active && s_active_request_id == request_id;
+        xSemaphoreGive(s_http_mutex);
+    }
+    return abandoned;
+}
+
+static void http_clear_public_response(void)
+{
+    s_response.status = 0;
+    s_response.header_count = 0;
+    s_response.body_len = 0;
+    s_response.body = s_empty_body;
+}
 
 static const char *http_method_name(esp_http_client_method_t method)
 {
@@ -203,6 +223,11 @@ static esp_err_t http_event(esp_http_client_event_t *event)
     {
         return context->error;
     }
+    if (http_request_abandoned(context->request_id))
+    {
+        context->error = ESP_ERR_TIMEOUT;
+        return ESP_ERR_TIMEOUT;
+    }
     if (esp_timer_get_time() >= context->deadline_us)
     {
         context->error = ESP_ERR_TIMEOUT;
@@ -217,6 +242,11 @@ static esp_err_t http_event(esp_http_client_event_t *event)
         s_resp_body[0] = '\0';
         break;
     case HTTP_EVENT_ON_HEADER:
+        if (http_request_abandoned(context->request_id))
+        {
+            context->error = ESP_ERR_TIMEOUT;
+            return ESP_ERR_TIMEOUT;
+        }
         if (event->header_key != NULL && event->header_value != NULL &&
             context->header_count < NETWORK_HTTP_RESPONSE_HEADER_MAX &&
             strlen(event->header_key) <= NETWORK_HTTP_HEADER_NAME_MAX &&
@@ -236,6 +266,11 @@ static esp_err_t http_event(esp_http_client_event_t *event)
             s_resp_body[0] = '\0';
             return ESP_ERR_INVALID_SIZE;
         }
+        if (http_request_abandoned(context->request_id))
+        {
+            context->error = ESP_ERR_TIMEOUT;
+            return ESP_ERR_TIMEOUT;
+        }
         if (event->data_len > 0 && event->data != NULL)
         {
             memcpy(s_resp_body + context->body_len, event->data, (size_t)event->data_len);
@@ -252,19 +287,24 @@ static esp_err_t http_event(esp_http_client_event_t *event)
 static esp_err_t perform_request(const http_message_t *message)
 {
     http_event_ctx_t context = {
+        .request_id = message->request_id,
         .deadline_us = message->deadline_us,
         .error = ESP_OK,
         .header_count = 0,
         .body_len = 0,
     };
     s_resp_body[0] = '\0';
-    s_response.status = 0;
-    s_response.header_count = 0;
+    http_clear_public_response();
     s_response.body = s_resp_body;
-    s_response.body_len = 0;
 
+    if (http_request_abandoned(message->request_id))
+    {
+        http_clear_public_response();
+        return ESP_ERR_TIMEOUT;
+    }
     if (esp_timer_get_time() >= message->deadline_us)
     {
+        http_clear_public_response();
         return ESP_ERR_TIMEOUT;
     }
 
@@ -310,6 +350,12 @@ static esp_err_t perform_request(const http_message_t *message)
     {
         err = context.error;
     }
+    if (http_request_abandoned(message->request_id))
+    {
+        esp_http_client_cleanup(client);
+        http_clear_public_response();
+        return ESP_ERR_TIMEOUT;
+    }
 
     if (err == ESP_OK)
     {
@@ -328,9 +374,7 @@ static esp_err_t perform_request(const http_message_t *message)
     }
     if (err != ESP_OK)
     {
-        s_response.status = 0;
-        s_response.header_count = 0;
-        s_response.body_len = 0;
+        http_clear_public_response();
         s_resp_body[0] = '\0';
         s_response.body = s_resp_body;
     }
@@ -540,7 +584,12 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     }
     else if (s_http_active && s_active_request_id == message.request_id)
     {
+        // R8/R2: the worker may still be inside esp_http_client_perform. Mark
+        // abandoned so worker/event paths stop mutating the public response, and
+        // expose a stable empty snapshot to the caller (body points to shared
+        // static storage and must not be treated as live after timeout).
         s_http_abandoned = true;
+        http_clear_public_response();
     }
     xSemaphoreGive(s_http_mutex);
     return err;

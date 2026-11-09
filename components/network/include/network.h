@@ -217,7 +217,11 @@ extern "C"
      * ESP_OK means an HTTP status was received, including statuses outside
      * 200–299. The caller decides how to treat that status.
      * A timed-out call may leave the worker busy; the next call then returns
-     * ESP_ERR_INVALID_STATE until the worker finishes.
+     * ESP_ERR_INVALID_STATE until the worker finishes. On timeout, the returned
+     * response is a safe empty snapshot (status/header/body cleared, body points
+     * to stable empty storage). The worker may continue in the background until
+     * esp_http_client_perform completes; callers must not treat timeout response
+     * data as live worker state.
      * @param url Absolute or base-relative URL.
      * @param request Method, headers, body, and timeouts.
      * @param response Receives the exchange. Never NULL on return when this
