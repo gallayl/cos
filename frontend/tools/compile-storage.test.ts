@@ -1,45 +1,45 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest'
 
-import { main, verifyStorage } from "./compile-storage";
+import { main, verifyStorage } from './compile-storage'
 
-describe("storage TypeScript scripts", () => {
-  const report = verifyStorage();
+describe('storage TypeScript scripts', () => {
+  const report = verifyStorage()
 
-  it("uses the COS SDK without JavaScript libraries", () => {
-    expect(report.optionProblems).toEqual([]);
-    const messages = report.nonSdk.join("\n");
-    expect(messages).toContain("console");
-    expect(messages).toContain("setTimeout");
-    expect(messages).toContain("Math");
-  });
+  it('uses the COS SDK without JavaScript libraries', () => {
+    expect(report.optionProblems).toEqual([])
+    const messages = report.nonSdk.join('\n')
+    expect(messages).toContain('console')
+    expect(messages).toContain('setTimeout')
+    expect(messages).toContain('Math')
+  })
 
-  it("typechecks every storage script", () => {
-    expect(report.typecheck).toEqual([]);
-  });
+  it('typechecks every storage script', () => {
+    expect(report.typecheck).toEqual([])
+  })
 
-  it("compiles every script to the device Berry program", () => {
-    expect(main()).toBe(0);
+  it('compiles every script to the device Berry program', () => {
+    expect(main()).toBe(0)
     expect(report.scripts.map((script) => script.name)).toEqual([
-      "apps/breakout",
-      "apps/tap_dash",
-      "autoexec",
-      "scripts/arg_test",
-      "scripts/clear",
-      "scripts/fetch_json",
-      "scripts/files",
-      "scripts/font_size",
-      "scripts/hello",
-      "scripts/host_info",
-      "scripts/list_files",
-      "scripts/ping",
-      "scripts/prompt",
-      "scripts/set_base",
-      "scripts/wget",
-      "scripts/wifi",
-    ]);
+      'apps/breakout',
+      'apps/tap_dash',
+      'autoexec',
+      'scripts/arg_test',
+      'scripts/clear',
+      'scripts/fetch_json',
+      'scripts/files',
+      'scripts/font_size',
+      'scripts/hello',
+      'scripts/host_info',
+      'scripts/list_files',
+      'scripts/ping',
+      'scripts/prompt',
+      'scripts/set_base',
+      'scripts/wget',
+      'scripts/wifi',
+    ])
     for (const script of report.scripts) {
-      expect(script.diagnostics, script.name).toEqual([]);
-      expect(script.diff, script.name).toBe("");
+      expect(script.diagnostics, script.name).toEqual([])
+      expect(script.diff, script.name).toBe('')
     }
-  });
-});
+  })
+})

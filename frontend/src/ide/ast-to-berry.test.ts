@@ -1,21 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest'
 
-import { astToBerry } from "./ast-to-berry";
-import { getAst } from "./get-ast";
+import { astToBerry } from './ast-to-berry'
+import { getAst } from './get-ast'
 
 function compile(source: string) {
-  return astToBerry(getAst(source));
+  return astToBerry(getAst(source))
 }
 
 function expectBerry(source: string, code: string) {
-  const result = compile(source);
-  expect(result.diagnostics).toEqual([]);
-  expect(result.ok).toBe(true);
-  expect(result.code).toBe(code);
+  const result = compile(source)
+  expect(result.diagnostics).toEqual([])
+  expect(result.ok).toBe(true)
+  expect(result.code).toBe(code)
 }
 
-describe("astToBerry", () => {
-  it("lowers a default-exported COS application class", () => {
+describe('astToBerry', () => {
+  it('lowers a default-exported COS application class', () => {
     expectBerry(
       `
         export default class Counter {
@@ -47,10 +47,10 @@ end
 
 return Counter
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers functions, branches, loops, and constructors", () => {
+  it('lowers functions, branches, loops, and constructors', () => {
     expectBerry(
       `
         class Box {
@@ -125,10 +125,10 @@ def make()
     return Box(1)
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers templates, nil, collections, length, and switch", () => {
+  it('lowers templates, nil, collections, length, and switch', () => {
     expectBerry(
       `
         function describe(name: string | null, items: string[]): string {
@@ -162,10 +162,10 @@ end
     end
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers block arrows and keeps sibling bindings distinct", () => {
+  it('lowers block arrows and keeps sibling bindings distinct', () => {
     expectBerry(
       `
         function run(): void {
@@ -192,10 +192,10 @@ end
     log(value)
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("erases types and comments", () => {
+  it('erases types and comments', () => {
     expectBerry(
       `
         interface Point { x: number }
@@ -205,10 +205,10 @@ end
       `,
       `var value = 1
 `,
-    );
-  });
+    )
+  })
 
-  it("erases type-only imports", () => {
+  it('erases type-only imports', () => {
     expectBerry(
       `
         import type { MyCustomType } from "./formSomewhere";
@@ -218,15 +218,15 @@ end
       `,
       `var value = 1
 `,
-    );
-  });
+    )
+  })
 
-  it("returns an empty program for type-only source", () => {
-    expectBerry(`interface Only { value: number }`, "");
-    expectBerry(`import type { Only } from "./types";`, "");
-  });
+  it('returns an empty program for type-only source', () => {
+    expectBerry(`interface Only { value: number }`, '')
+    expectBerry(`import type { Only } from "./types";`, '')
+  })
 
-  it("lowers default imports from relative modules", () => {
+  it('lowers default imports from relative modules', () => {
     expectBerry(
       `
         import myCustomStuff from "./myCustomModule";
@@ -241,10 +241,10 @@ var Widget = __cos_mod_2.find("default")
 myCustomStuff()
 return Widget
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers named and namespace imports from relative modules", () => {
+  it('lowers named and namespace imports from relative modules', () => {
     expectBerry(
       `
         import { add, sub as minus } from "./math";
@@ -267,10 +267,10 @@ minus(3, 1)
 util.run()
 main(helper)
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers named exports as a module descriptor", () => {
+  it('lowers named exports as a module descriptor', () => {
     expectBerry(
       `
         export const answer = 42;
@@ -285,10 +285,10 @@ end
 
 return cos_module(nil, "answer", answer, "add", add)
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers default and named exports together", () => {
+  it('lowers default and named exports together', () => {
     expectBerry(
       `
         export const version = 1;
@@ -303,10 +303,10 @@ end
 
 return cos_module(main, "version", version)
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers local re-export declarations", () => {
+  it('lowers local re-export declarations', () => {
     expectBerry(
       `
         const internal = 1;
@@ -322,10 +322,10 @@ end
 
 return cos_module(nil, "value", internal, "helper", helper)
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers relative module re-exports", () => {
+  it('lowers relative module re-exports', () => {
     expectBerry(
       `
         export { add, sub as minus } from "./math";
@@ -338,10 +338,10 @@ var __cos_re_4 = cos_import("./math")
 
 return cos_module(nil, "add", __cos_export_2, "minus", __cos_export_3, "math", __cos_re_4)
 `,
-    );
-  });
+    )
+  })
 
-  it("keeps default-only app exports as raw returns", () => {
+  it('keeps default-only app exports as raw returns', () => {
     expectBerry(
       `
         export default class Counter {
@@ -355,26 +355,26 @@ end
 
 return Counter
 `,
-    );
-  });
+    )
+  })
 
-  it("reports unsupported import and export forms", () => {
+  it('reports unsupported import and export forms', () => {
     const result = compile(`
       import "./side-effect";
       import { named } from "json";
       export * from "./all";
       export { x } from "@cos/x";
-    `);
+    `)
 
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
-      "Side-effect imports are not supported.",
-      "Only relative imports and @cos/* module imports are supported.",
-      "export * re-exports are not supported yet.",
-    ]);
-  });
+      'Side-effect imports are not supported.',
+      'Only relative imports and @cos/* module imports are supported.',
+      'export * re-exports are not supported yet.',
+    ])
+  })
 
-  it("reports syntax the runtime cannot represent", () => {
+  it('reports syntax the runtime cannot represent', () => {
     const result = compile(`
       import "./ui";
       enum Color { Red }
@@ -399,24 +399,24 @@ return Counter
             return "done";
         }
       }
-    `);
+    `)
 
-    expect(result.ok).toBe(false);
-    const messages = result.diagnostics.map((diagnostic) => diagnostic.message);
+    expect(result.ok).toBe(false)
+    const messages = result.diagnostics.map((diagnostic) => diagnostic.message)
     expect(messages).toEqual(
       expect.arrayContaining([
-        "Side-effect imports are not supported.",
-        "Enums are not supported yet.",
-        "Loose equality is not supported. Use === and !==.",
-        "Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.",
+        'Side-effect imports are not supported.',
+        'Enums are not supported yet.',
+        'Loose equality is not supported. Use === and !==.',
+        'Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.',
         'Redeclaring "i" is not supported.',
-        "Single inheritance is not supported yet.",
-        "Switch fallthrough is not supported.",
+        'Single inheritance is not supported yet.',
+        'Switch fallthrough is not supported.',
       ]),
-    );
-  });
+    )
+  })
 
-  it("lowers @cos module imports like relative imports", () => {
+  it('lowers @cos module imports like relative imports', () => {
     expectBerry(
       `
         import net from "@cos/net";
@@ -438,20 +438,20 @@ net.host()
 fetch("/ping")
 ui.label(0, "hi")
 `,
-    );
-  });
+    )
+  })
 
-  it("reports parse errors and emits no code", () => {
-    const result = compile("const value =");
-    expect(result.ok).toBe(false);
-    expect(result.code).toBe("");
-    expect(result.diagnostics[0]?.message).toContain("expected");
-    expect(result.diagnostics[0]?.line).toBe(1);
-  });
-});
+  it('reports parse errors and emits no code', () => {
+    const result = compile('const value =')
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('')
+    expect(result.diagnostics[0]?.message).toContain('expected')
+    expect(result.diagnostics[0]?.line).toBe(1)
+  })
+})
 
-describe("astToBerry try/catch/throw (R4)", () => {
-  it("lowers try/catch with a bound exception variable", () => {
+describe('astToBerry try/catch/throw (R4)', () => {
+  it('lowers try/catch with a bound exception variable', () => {
     expectBerry(
       `
         function parse(): string {
@@ -472,10 +472,10 @@ describe("astToBerry try/catch/throw (R4)", () => {
     end
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers catch without a binding", () => {
+  it('lowers catch without a binding', () => {
     expectBerry(
       `
         function safe(): void {
@@ -494,10 +494,10 @@ end
     end
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers throw to Berry raise", () => {
+  it('lowers throw to Berry raise', () => {
     expectBerry(
       `
         function fail(message: string): void {
@@ -508,14 +508,14 @@ end
     raise message
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers throw of a string literal", () => {
-    expectBerry(`throw "stop_iteration";`, `raise "stop_iteration"\n`);
-  });
+  it('lowers throw of a string literal', () => {
+    expectBerry(`throw "stop_iteration";`, `raise "stop_iteration"\n`)
+  })
 
-  it("lowers nested try/catch and rethrow", () => {
+  it('lowers nested try/catch and rethrow', () => {
     expectBerry(
       `
         function guarded(): void {
@@ -542,10 +542,10 @@ end
     end
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("accepts typed catch bindings and erases the type", () => {
+  it('accepts typed catch bindings and erases the type', () => {
     expectBerry(
       `
         try {
@@ -560,10 +560,10 @@ except .. as e
     handle(e)
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("lowers control flow inside try and catch blocks", () => {
+  it('lowers control flow inside try and catch blocks', () => {
     expectBerry(
       `
         function find(items: number[]): number {
@@ -594,26 +594,24 @@ end
     return -1
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("diagnoses try/finally because Berry has no finally clause", () => {
+  it('diagnoses try/finally because Berry has no finally clause', () => {
     const result = compile(`
       try {
         work();
       } finally {
         cleanup();
       }
-    `);
-    expect(result.ok).toBe(false);
+    `)
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("try/finally is not supported"),
-      ]),
-    );
-  });
+      expect.arrayContaining([expect.stringContaining('try/finally is not supported')]),
+    )
+  })
 
-  it("diagnoses try/catch/finally", () => {
+  it('diagnoses try/catch/finally', () => {
     const result = compile(`
       try {
         work();
@@ -622,34 +620,30 @@ end
       } finally {
         cleanup();
       }
-    `);
-    expect(result.ok).toBe(false);
+    `)
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("try/finally is not supported"),
-      ]),
-    );
-  });
+      expect.arrayContaining([expect.stringContaining('try/finally is not supported')]),
+    )
+  })
 
-  it("diagnoses destructuring in catch bindings", () => {
+  it('diagnoses destructuring in catch bindings', () => {
     const result = compile(`
       try {
         work();
       } catch ({ message }) {
         log(message);
       }
-    `);
-    expect(result.ok).toBe(false);
+    `)
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("Destructuring in catch bindings is not supported"),
-      ]),
-    );
-  });
-});
+      expect.arrayContaining([expect.stringContaining('Destructuring in catch bindings is not supported')]),
+    )
+  })
+})
 
-describe("astToBerry semantic conformance (R3)", () => {
-  it("lowers .length to Berry global size() for strings and containers", () => {
+describe('astToBerry semantic conformance (R3)', () => {
+  it('lowers .length to Berry global size() for strings and containers', () => {
     expectBerry(
       `
         function lengths(text: string, items: number[]): number {
@@ -664,10 +658,10 @@ describe("astToBerry semantic conformance (R3)", () => {
     return a + b
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("preserves explicit boolean comparisons and nil mappings", () => {
+  it('preserves explicit boolean comparisons and nil mappings', () => {
     expectBerry(
       `
         function ready(name: string | null, count: number): boolean {
@@ -684,22 +678,20 @@ end
     return false
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("diagnoses integer literal division because Berry divides ints as integers", () => {
-    const result = compile(`const ratio = 1 / 2;`);
-    expect(result.ok).toBe(false);
+  it('diagnoses integer literal division because Berry divides ints as integers', () => {
+    const result = compile(`const ratio = 1 / 2;`)
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("Integer literal division uses Berry integer division"),
-      ]),
-    );
-  });
+      expect.arrayContaining([expect.stringContaining('Integer literal division uses Berry integer division')]),
+    )
+  })
 
-  it("allows real-literal division and variable division", () => {
-    expectBerry(`const a = 1.0 / 2;`, `var a = 1.0 / 2\n`);
-    expectBerry(`const b = 1 / 2.0;`, `var b = 1 / 2.0\n`);
+  it('allows real-literal division and variable division', () => {
+    expectBerry(`const a = 1.0 / 2;`, `var a = 1.0 / 2\n`)
+    expectBerry(`const b = 1 / 2.0;`, `var b = 1 / 2.0\n`)
     expectBerry(
       `
         function half(n: number): number {
@@ -710,49 +702,43 @@ end
     return n / 2
 end
 `,
-    );
-  });
+    )
+  })
 
-  it("allows explicit numeric conversion around division", () => {
-    expectBerry(
-      `const ratio = int(1) / int(2);`,
-      `var ratio = int(1) / int(2)\n`,
-    );
-    expectBerry(
-      `const ratio = real(1) / real(2);`,
-      `var ratio = real(1) / real(2)\n`,
-    );
-  });
+  it('allows explicit numeric conversion around division', () => {
+    expectBerry(`const ratio = int(1) / int(2);`, `var ratio = int(1) / int(2)\n`)
+    expectBerry(`const ratio = real(1) / real(2);`, `var ratio = real(1) / real(2)\n`)
+  })
 
-  it("diagnoses unary + coercion", () => {
-    const result = compile(`const n = +value;`);
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics[0]?.message).toContain("Unary + is not supported");
-  });
+  it('diagnoses unary + coercion', () => {
+    const result = compile(`const n = +value;`)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics[0]?.message).toContain('Unary + is not supported')
+  })
 
-  it("diagnoses typeof/void/delete as unsupported Berry mappings", () => {
+  it('diagnoses typeof/void/delete as unsupported Berry mappings', () => {
     const result = compile(`
       const t = typeof value;
       void value;
       delete obj.key;
-    `);
-    expect(result.ok).toBe(false);
+    `)
+    expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message)).toEqual(
       expect.arrayContaining([
-        expect.stringContaining("typeof is not supported"),
-        expect.stringContaining("void operator is not supported"),
-        expect.stringContaining("delete operator is not supported"),
+        expect.stringContaining('typeof is not supported'),
+        expect.stringContaining('void operator is not supported'),
+        expect.stringContaining('delete operator is not supported'),
       ]),
-    );
-  });
+    )
+  })
 
-  it("preserves numeric literals and strips numeric separators", () => {
-    expectBerry(`const n = 1_000;`, `var n = 1000\n`);
-    expectBerry(`const r = 3.14;`, `var r = 3.14\n`);
-    expectBerry(`const e = 1e3;`, `var e = 1e3\n`);
-  });
+  it('preserves numeric literals and strips numeric separators', () => {
+    expectBerry(`const n = 1_000;`, `var n = 1000\n`)
+    expectBerry(`const r = 3.14;`, `var r = 3.14\n`)
+    expectBerry(`const e = 1e3;`, `var e = 1e3\n`)
+  })
 
-  it("keeps class field initialization in init", () => {
+  it('keeps class field initialization in init', () => {
     expectBerry(
       `
         export default class App {
@@ -771,6 +757,6 @@ end
 
 return App
 `,
-    );
-  });
-});
+    )
+  })
+})

@@ -1,15 +1,15 @@
-import ts from "@typescript/typescript6";
+import ts from '@typescript/typescript6'
 
 /** Berry treats only `false` and `nil` as falsy, so truthy numbers and strings are rejected. */
 export const BOOLEAN_CONDITION_MESSAGE =
-  "Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.";
+  'Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.'
 
 export const BOOLEAN_OPERAND_MESSAGE =
-  "This operator needs a boolean operand. Compare values explicitly; Berry treats only false and nil as falsy.";
+  'This operator needs a boolean operand. Compare values explicitly; Berry treats only false and nil as falsy.'
 
 /** Strip groupings and type syntax that have no runtime value. */
 export function unwrapTransparent(node: ts.Expression): ts.Expression {
-  let current = node;
+  let current = node
   while (
     ts.isParenthesizedExpression(current) ||
     ts.isAsExpression(current) ||
@@ -17,9 +17,9 @@ export function unwrapTransparent(node: ts.Expression): ts.Expression {
     ts.isSatisfiesExpression(current) ||
     ts.isNonNullExpression(current)
   ) {
-    current = current.expression;
+    current = current.expression
   }
-  return current;
+  return current
 }
 
 /**
@@ -30,7 +30,7 @@ export function unwrapTransparent(node: ts.Expression): ts.Expression {
  * A later type checker can tighten references that are not actually boolean.
  */
 export function isStructurallyBoolean(node: ts.Expression): boolean {
-  const expression = unwrapTransparent(node);
+  const expression = unwrapTransparent(node)
   if (
     expression.kind === ts.SyntaxKind.TrueKeyword ||
     expression.kind === ts.SyntaxKind.FalseKeyword ||
@@ -39,18 +39,15 @@ export function isStructurallyBoolean(node: ts.Expression): boolean {
     ts.isNewExpression(expression) ||
     ts.isElementAccessExpression(expression)
   ) {
-    return true;
+    return true
   }
   if (ts.isPropertyAccessExpression(expression)) {
-    return !ts.isIdentifier(expression.name) || expression.name.text !== "length";
+    return !ts.isIdentifier(expression.name) || expression.name.text !== 'length'
   }
-  if (
-    ts.isPrefixUnaryExpression(expression) &&
-    expression.operator === ts.SyntaxKind.ExclamationToken
-  ) {
-    return isStructurallyBoolean(expression.operand);
+  if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.ExclamationToken) {
+    return isStructurallyBoolean(expression.operand)
   }
-  if (!ts.isBinaryExpression(expression)) return false;
+  if (!ts.isBinaryExpression(expression)) return false
 
   switch (expression.operatorToken.kind) {
     case ts.SyntaxKind.EqualsEqualsEqualsToken:
@@ -59,14 +56,11 @@ export function isStructurallyBoolean(node: ts.Expression): boolean {
     case ts.SyntaxKind.GreaterThanToken:
     case ts.SyntaxKind.LessThanEqualsToken:
     case ts.SyntaxKind.GreaterThanEqualsToken:
-      return true;
+      return true
     case ts.SyntaxKind.AmpersandAmpersandToken:
     case ts.SyntaxKind.BarBarToken:
-      return (
-        isStructurallyBoolean(expression.left) &&
-        isStructurallyBoolean(expression.right)
-      );
+      return isStructurallyBoolean(expression.left) && isStructurallyBoolean(expression.right)
     default:
-      return false;
+      return false
   }
 }

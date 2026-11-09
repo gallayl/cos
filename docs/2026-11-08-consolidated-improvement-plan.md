@@ -58,7 +58,7 @@
 | R7 | Fetch `include_body` option (P3) | P1 | ✅ Done | M7d |
 | R8 | HTTP worker stack/TLS measurement & safe tuning (P4/P5) | P1 | 🔄 In progress | M7d |
 | R9 | Berry command-script resolver + `path` + `ping` pilot | P1 | ✅ Done (native `ping` migration pending decision) | M8 |
-| R10 | Frontend TS toolchain hardening (Worker/layout/device API) | P1 | ⬜ Not started | M8 |
+| R10 | Frontend TS toolchain hardening (Worker deferred; layout/SDK registration/device API) | P1 | ✅ Done (Worker deferred) | M8 |
 | R11 | SDK single-source-of-truth / binding audit | P1 | ⬜ Not started | M8 |
 | R12 | Milestone 4 hardware validation (touch/network) | P1 | ⬜ Pending hardware | M8 |
 | R13 | Memory-conscious compiler rules + resource lifecycle contract | P2 | ⬜ Not started | M9 |
@@ -245,16 +245,20 @@
 
 ### R10 — Frontend TS toolchain hardening
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium
+- **Status:** ✅ **Done (2026-11-09, Web Worker compilation explicitly deferred by user decision).**
 - **Source:** `docs/2026-11-03-ts-sdk.md`
 - **Spec / acceptance criteria:**
-  - Compilation runs in a dedicated Web Worker (or existing behavior is verified and documented).
-  - Package/layout decision recorded (`frontend/*` integrated vs `packages/cos-sdk` + `packages/cos-typescript`).
-  - Monaco language features and SDK `addExtraLib()` registration are minimal/correct.
-  - Device filesystem read/write/deploy flows handle auth and errors predictably.
+  - Compilation runs in a dedicated Web Worker (or existing behavior is verified and documented). ✅ Verified: `frontend/src/editor/editor-app.tsx` compiles synchronously via `astToBerry(getAst(...))` on the main thread. Worker isolation intentionally deferred (COS web UI apps are simple; avoid added complexity until compile latency/multi-file needs justify it).
+  - Package/layout decision recorded (`frontend/*` integrated vs `packages/cos-sdk` + `packages/cos-typescript`). ✅ Keep integrated `frontend/src/cos-sdk` + `frontend/src/ide/*` for now; extract to packages when reuse/publication needs arise.
+  - Monaco language features and SDK `addExtraLib()` registration are minimal/correct. ✅ Audited. Added `frontend/src/ide/cos-sdk-manifest.ts` + manifest test; registration applies all global/module libs and `@cos/*` path mappings (including `fs/filesystem`, `net/network` aliases). Monaco language imports are minimal for supported editor file types.
+  - Device filesystem read/write/deploy flows handle auth and errors predictably. ✅ Audited existing flows (`cos-files`, `device-access`, editor save/deploy, file tree). Extended `frontend/src/ide/files/cos-files.test.ts` for predictable error/auth/path cases.
+- **Report:** `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`
 - **Progress:**
-  - [ ] Worker isolation verified/implemented.
-  - [ ] Layout decision documented.
-  - [ ] Frontend tests/CI checks updated.
+  - [x] Worker isolation verified and explicitly deferred (documented).
+  - [x] Layout decision documented.
+  - [x] SDK registration refactored for testability; manifest drift test added.
+  - [x] Device API error/auth tests extended; targeted frontend tests and `tsc --noEmit` passed.
+  - [ ] Optional follow-up: move compilation to a Vite Web Worker if latency/multi-file compilation becomes a concern.
 
 ### R11 — SDK single-source-of-truth / binding audit
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium
@@ -353,6 +357,7 @@
 | 2026-11-08 | **R9 HW8 diagnosis corrected; `native_net_ping` restored.** | Pingprobe (after script updated to bracket access): `print(r)=(unknown value)`, `type(r)=map`, `r["ok"]` → "value 'map' does not support subscriptable". Diagnosis: original `native_net_ping` was correct (`be_newobject` → `[instance,.p]`, populate `.p`, `be_pop(1)` remove `.p`, return instance); my interim "fix" removed `be_pop` and returned raw `.p` (broken). Reverted/restored correct `be_pop` in `components/berry_lang/src/berry_network.cpp`. User needs rebuild+reflash with restored C++ and bracket-access script, then retest HW8. |
 | 2026-11-08 | **R9 interactive dispatch unified (small follow-up).** | `components/shell/src/shell_input.c` now dispatches expanded lines via `shell_dispatch_expanded_line()` (removes duplicated native-to-script fallback/handled mapping). Clarified `shell_dispatch_expanded_line()` contract in `components/shell/src/shell_script.h/.c`: returns `ESP_OK` when handled (native command or script ran/reported; `*ret` carries status, 1 for resolver-reported errors) and `ESP_ERR_NOT_FOUND` only when nothing matched, avoiding ambiguous handled+error codes and preventing "Unknown command" on explicit-path/script-reported errors. Updated `test/test_shell_script.c` expectations for handled explicit-missing/directory/runtime-error cases. Host tests rebuilt/passed in `test/build`: `test_shell_script` 19/19, `test_shell` 63/63, `test_shell_berry` 26/26. No firmware/hardware build run here; interactive behavior unchanged in intent but should be sanity-checked on device if convenient (explicit missing script should still print only resolver message; unknown bare command still prints `Unknown command`). |
 | 2026-11-09 | **R5-FU2 resolved (heap reporting display): code, host tests, and hardware verified.** | `components/system/src/system.c`: `system_get_info()` reports default heap via `MALLOC_CAP_DEFAULT` and internal via `MALLOC_CAP_INTERNAL\|MALLOC_CAP_8BIT`; `system.h` comments clarified. `components/berry_lang/src/berry_runtime.cpp`: `berry_runtime_get_memory_info()` uses `MALLOC_CAP_DEFAULT` for `heap_free/heap_min_free`. `components/shell/src/shell_berry_cmd.c`: `berry profile` prints `Default heap`/`Internal heap`. Host tests: cap-aware `test/mocks/mock_system.{h,c}` + `test/test_system.c` `test_get_info_distinguishes_default_and_internal_heap`; impacted run passed (`test_system` 12/12, `test_shell_berry` 26/26, `test_shell` 63/63). **Hardware verified (user, 2026-11-09):** `berry profile`/`mem` labels unambiguous; `memory_churn` + `berry profile` + `berry gc` behaved normally (managed 7288→2695, reclaimed 4593). Note: on this target `system_get_info` default/internal lines can be numerically identical (cap-query result) while Berry `Heap snapshot` internal metrics (`MALLOC_CAP_INTERNAL`) remain distinct; reporting no longer misleading. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
+| 2026-11-09 | **R10 complete (Web Worker compilation explicitly deferred).** | Frontend-only R10 hardening: verified compilation runs on main thread (`frontend/src/editor/editor-app.tsx` → `astToBerry(getAst(...))`) and recorded user-confirmed deferral of Worker isolation (simple COS web UI apps; avoid complexity). Recorded integrated package/layout decision (`frontend/src/cos-sdk` + `frontend/src/ide/*`). Added `frontend/src/ide/cos-sdk-manifest.ts` and `cos-sdk-manifest.test.ts` for Monaco SDK/addExtraLib coverage and `@cos/*` alias drift checks. Extended `frontend/src/ide/files/cos-files.test.ts` for predictable device API auth/error/path behavior. Updated `docs/2026-11-03-ts-sdk.md` status and added `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`. Validation: `cd frontend && npx vitest run src/ide/files/cos-files.test.ts src/ide/cos-sdk-manifest.test.ts src/ide/cos-sdk.test.ts` (**18 passed / 3 files**), `npx tsc --noEmit` passed. No hardware validation required. |
 
 ## Validation checklist (use when closing items)
 

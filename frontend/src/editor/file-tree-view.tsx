@@ -1,4 +1,4 @@
-import { createComponent, Shade } from "@furystack/shades";
+import { createComponent, Shade } from '@furystack/shades'
 import {
   ContextMenu,
   ContextMenuManager,
@@ -8,7 +8,7 @@ import {
   TreeService,
   cssVariableTheme,
   icons,
-} from "@furystack/shades-common-components";
+} from '@furystack/shades-common-components'
 
 import {
   CosFilesError,
@@ -19,13 +19,13 @@ import {
   uploadFile,
   writeTextFile,
   type CosDirEntry,
-} from "../ide/files/cos-files";
-import { joinPath } from "../ide/files/paths";
-import { DeviceAccess } from "./device-access";
-import { DirectoryLoadError } from "./directory-load-error";
-import { collectDrop, entriesFromDataTransfer } from "./file-drop";
-import { FileCache } from "./file-cache";
-import { FileNameField } from "./file-name-field";
+} from '../ide/files/cos-files'
+import { joinPath } from '../ide/files/paths'
+import { DeviceAccess } from './device-access'
+import { DirectoryLoadError } from './directory-load-error'
+import { collectDrop, entriesFromDataTransfer } from './file-drop'
+import { FileCache } from './file-cache'
+import { FileNameField } from './file-name-field'
 import {
   FileTreeStore,
   childPath,
@@ -36,401 +36,400 @@ import {
   shouldReleaseTreeFocus,
   type FileMenuAction,
   type FileNode,
-} from "./file-tree";
+} from './file-tree'
 
 export interface FileTreeViewProps {
-  activePath: string;
-  onOpenFile: (path: string) => void;
-  onMoved: (from: string, to: string) => void;
-  onActivity: (message: string) => void;
+  activePath: string
+  onOpenFile: (path: string) => void
+  onMoved: (from: string, to: string) => void
+  onActivity: (message: string) => void
 }
 
 const actionLabel: Record<FileMenuAction, string> = {
-  "new-file": "New File",
-  "new-folder": "New Folder",
-  rename: "Rename",
-  delete: "Delete",
-};
+  'new-file': 'New File',
+  'new-folder': 'New Folder',
+  rename: 'Rename',
+  delete: 'Delete',
+}
 
 /** Expandable device filesystem. Listings load when a folder is opened. */
 export const FileTreeView = Shade<FileTreeViewProps>({
-  customElementName: "cos-file-tree-view",
+  customElementName: 'cos-file-tree-view',
   css: {
-    display: "flex",
-    flexDirection: "column",
-    minHeight: "0",
-    height: "100%",
-    "& .tree": {
-      flex: "1",
-      minHeight: "0",
-      display: "flex",
-      flexDirection: "column",
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '0',
+    height: '100%',
+    '& .tree': {
+      flex: '1',
+      minHeight: '0',
+      display: 'flex',
+      flexDirection: 'column',
     },
-    "& shade-tree": {
-      flex: "1",
-      minHeight: "0",
+    '& shade-tree': {
+      flex: '1',
+      minHeight: '0',
     },
-    "& .name": {
-      display: "block",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+    '& .name': {
+      display: 'block',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       fontSize: cssVariableTheme.typography.fontSize.sm,
     },
-    "& .name[data-active]": {
+    '& .name[data-active]': {
       fontWeight: cssVariableTheme.typography.fontWeight.bold,
     },
-    "& .name[data-drop]": {
+    '& .name[data-drop]': {
       outline: `1px solid ${cssVariableTheme.palette.primary.main}`,
       borderRadius: cssVariableTheme.shape.borderRadius.sm,
     },
-    "& .pending": {
-      display: "block",
-      height: "1.25rem",
+    '& .pending': {
+      display: 'block',
+      height: '1.25rem',
     },
-    "&[data-drop]": {
+    '&[data-drop]': {
       background: cssVariableTheme.action.hoverBackground,
     },
   },
   render: ({ props, injector, useDisposable, useObservable, useState, useHostProps }) => {
-    const access = injector.get(DeviceAccess);
-    const cache = injector.get(FileCache);
-    const store = useDisposable("store", () => new FileTreeStore());
-    const treeService = useDisposable("tree", () => {
-      const service = new TreeService<FileNode>({ getChildren: store.getChildren });
-      service.rootItems.setValue(store.roots);
-      service.expand(store.roots[0]);
-      service.updateFlattenedNodes();
-      return service;
-    });
-    const menu = useDisposable("menu", () => new ContextMenuManager<FileMenuAction>());
-    const menuNode = useDisposable("menu-node", () => ({
+    const access = injector.get(DeviceAccess)
+    const cache = injector.get(FileCache)
+    const store = useDisposable('store', () => new FileTreeStore())
+    const treeService = useDisposable('tree', () => {
+      const service = new TreeService<FileNode>({ getChildren: store.getChildren })
+      service.rootItems.setValue(store.roots)
+      service.expand(store.roots[0])
+      service.updateFlattenedNodes()
+      return service
+    })
+    const menu = useDisposable('menu', () => new ContextMenuManager<FileMenuAction>())
+    const menuNode = useDisposable('menu-node', () => ({
       current: undefined as FileNode | undefined,
       [Symbol.dispose]() {},
-    }));
-    const resync = useDisposable("resync", () => ({
+    }))
+    const resync = useDisposable('resync', () => ({
       current: () => {},
       [Symbol.dispose]() {},
-    }));
-    const [revision] = useObservable("revision", store.revision);
-    const [dropPath, setDropPath] = useState("drop-path", "");
-    void revision;
+    }))
+    const [revision] = useObservable('revision', store.revision)
+    const [dropPath, setDropPath] = useState('drop-path', '')
+    void revision
 
     const fail = (error: unknown) => {
       if (error instanceof CosFilesError && error.status === 401) {
-        access.markUnauthorized();
+        access.markUnauthorized()
       }
-      props.onActivity(describeCosError(error));
-    };
+      props.onActivity(describeCosError(error))
+    }
 
-    useDisposable("release-tree-focus", () => {
+    useDisposable('release-tree-focus', () => {
       const listener = (event: Event) => {
         const path = event.composedPath().flatMap((entry) => {
           if (!(entry instanceof HTMLElement)) {
-            return [];
+            return []
           }
-          return [{ tagName: entry.tagName, isContentEditable: entry.isContentEditable }];
-        });
+          return [{ tagName: entry.tagName, isContentEditable: entry.isContentEditable }]
+        })
         if (!shouldReleaseTreeFocus(path)) {
-          return;
+          return
         }
         if (treeService.focusedItem.getValue() !== undefined) {
-          treeService.focusedItem.setValue(undefined);
+          treeService.focusedItem.setValue(undefined)
         }
         if (treeService.hasFocus.getValue()) {
-          treeService.hasFocus.setValue(false);
+          treeService.hasFocus.setValue(false)
         }
-      };
-      window.addEventListener("pointerdown", listener, true);
-      window.addEventListener("focusin", listener, true);
+      }
+      window.addEventListener('pointerdown', listener, true)
+      window.addEventListener('focusin', listener, true)
       return {
         [Symbol.dispose]() {
-          window.removeEventListener("pointerdown", listener, true);
-          window.removeEventListener("focusin", listener, true);
+          window.removeEventListener('pointerdown', listener, true)
+          window.removeEventListener('focusin', listener, true)
         },
-      };
-    });
+      }
+    })
 
-    useDisposable("listings", () => {
-      let authorization = access.authorization.getValue();
-      const watchers = new Map<string, { [Symbol.dispose](): void }>();
+    useDisposable('listings', () => {
+      let authorization = access.authorization.getValue()
+      const watchers = new Map<string, { [Symbol.dispose](): void }>()
 
       const apply = (path: string, result: { status: string; value?: CosDirEntry[]; error?: unknown }) => {
-        if (result.status === "failed" && result.value === undefined) {
+        if (result.status === 'failed' && result.value === undefined) {
           if (result.error instanceof CosFilesError && result.error.status === 401) {
-            access.markUnauthorized();
+            access.markUnauthorized()
           }
-          store.setError(path, describeCosError(result.error));
-          treeService.updateFlattenedNodes();
-          return;
+          store.setError(path, describeCosError(result.error))
+          treeService.updateFlattenedNodes()
+          return
         }
         const showsEntries =
           result.value !== undefined &&
-          (result.status === "loaded" || result.status === "obsolete" || result.status === "loading");
+          (result.status === 'loaded' || result.status === 'obsolete' || result.status === 'loading')
         if (showsEntries && result.value) {
-          store.setListing(path, result.value);
-          treeService.updateFlattenedNodes();
+          store.setListing(path, result.value)
+          treeService.updateFlattenedNodes()
         }
-      };
+      }
 
       const watch = (path: string) => {
-        const observable = cache.directories.getObservable(path, authorization);
-        apply(path, observable.getValue());
-        return observable.subscribe(() => apply(path, observable.getValue()));
-      };
+        const observable = cache.directories.getObservable(path, authorization)
+        apply(path, observable.getValue())
+        return observable.subscribe(() => apply(path, observable.getValue()))
+      }
 
       const sync = () => {
-        const wanted = new Set<string>();
+        const wanted = new Set<string>()
         for (const node of treeService.expandedNodes.getValue()) {
-          if (node.kind === "directory") {
-            wanted.add(node.path);
+          if (node.kind === 'directory') {
+            wanted.add(node.path)
           }
         }
         for (const [path, watcher] of watchers) {
           if (!wanted.has(path)) {
-            watcher[Symbol.dispose]();
-            watchers.delete(path);
+            watcher[Symbol.dispose]()
+            watchers.delete(path)
           }
         }
         for (const path of wanted) {
           if (!watchers.has(path)) {
-            watchers.set(path, watch(path));
+            watchers.set(path, watch(path))
           }
         }
-      };
+      }
 
       resync.current = () => {
         for (const watcher of watchers.values()) {
-          watcher[Symbol.dispose]();
+          watcher[Symbol.dispose]()
         }
-        watchers.clear();
-        sync();
-      };
+        watchers.clear()
+        sync()
+      }
 
-      const expanded = treeService.expandedNodes.subscribe(() => sync());
+      const expanded = treeService.expandedNodes.subscribe(() => sync())
       const authorizationChanges = access.authorization.subscribe((next) => {
-        authorization = next;
-        store.clearListings();
-        treeService.updateFlattenedNodes();
-        resync.current();
-      });
-      sync();
+        authorization = next
+        store.clearListings()
+        treeService.updateFlattenedNodes()
+        resync.current()
+      })
+      sync()
 
       return {
         [Symbol.dispose]() {
-          resync.current = () => {};
-          expanded[Symbol.dispose]();
-          authorizationChanges[Symbol.dispose]();
+          resync.current = () => {}
+          expanded[Symbol.dispose]()
+          authorizationChanges[Symbol.dispose]()
           for (const watcher of watchers.values()) {
-            watcher[Symbol.dispose]();
+            watcher[Symbol.dispose]()
           }
         },
-      };
-    });
+      }
+    })
 
     const refreshTree = () => {
-      store.notify();
-      treeService.updateFlattenedNodes();
-    };
+      store.notify()
+      treeService.updateFlattenedNodes()
+    }
 
-    const startCreate = async (directory: string, draftKind: "file" | "directory") => {
-      const folder = store.findByPath(directory);
-      if (folder?.kind === "directory") {
-        treeService.expand(folder);
+    const startCreate = async (directory: string, draftKind: 'file' | 'directory') => {
+      const folder = store.findByPath(directory)
+      if (folder?.kind === 'directory') {
+        treeService.expand(folder)
       }
       try {
-        const entries = await cache.directories.get(directory, access.authorization.getValue());
-        store.setListing(directory, entries);
-        store.insertDraft(directory, draftKind);
-        treeService.updateFlattenedNodes();
+        const entries = await cache.directories.get(directory, access.authorization.getValue())
+        store.setListing(directory, entries)
+        store.insertDraft(directory, draftKind)
+        treeService.updateFlattenedNodes()
       } catch (error) {
-        fail(error);
+        fail(error)
       }
-    };
+    }
 
     const commitName = async (node: FileNode, name: string) => {
-      const previousName = node.name;
-      node.editing = false;
-      if (node.kind === "draft") {
-        node.name = name;
+      const previousName = node.name
+      node.editing = false
+      if (node.kind === 'draft') {
+        node.name = name
       }
-      refreshTree();
-      const authorization = access.authorization.getValue();
-      const options = { authorization };
+      refreshTree()
+      const authorization = access.authorization.getValue()
+      const options = { authorization }
       try {
-        if (node.kind === "draft") {
-          const path = joinPath(node.parentPath, name);
-          if (node.draftKind === "directory") {
-            await createDirectory(path, options);
+        if (node.kind === 'draft') {
+          const path = joinPath(node.parentPath, name)
+          if (node.draftKind === 'directory') {
+            await createDirectory(path, options)
           } else {
-            await writeTextFile(path, "", options);
+            await writeTextFile(path, '', options)
           }
-          store.removeDraft(node);
-          cache.refreshDirectory(node.parentPath, authorization);
-          treeService.updateFlattenedNodes();
-          props.onActivity(`Created ${path}`);
-          if (node.draftKind !== "directory") {
-            props.onOpenFile(path);
+          store.removeDraft(node)
+          cache.refreshDirectory(node.parentPath, authorization)
+          treeService.updateFlattenedNodes()
+          props.onActivity(`Created ${path}`)
+          if (node.draftKind !== 'directory') {
+            props.onOpenFile(path)
           }
-          return;
+          return
         }
         if (name === previousName) {
-          return;
+          return
         }
-        const to = joinPath(node.parentPath, name);
-        const from = node.path;
-        await renameEntry(from, to, options);
-        store.applyRename(node, name);
-        cache.refreshDirectory(node.parentPath, authorization);
-        resync.current();
-        treeService.updateFlattenedNodes();
-        props.onMoved(from, to);
-        props.onActivity(`Renamed to ${to}`);
+        const to = joinPath(node.parentPath, name)
+        const from = node.path
+        await renameEntry(from, to, options)
+        store.applyRename(node, name)
+        cache.refreshDirectory(node.parentPath, authorization)
+        resync.current()
+        treeService.updateFlattenedNodes()
+        props.onMoved(from, to)
+        props.onActivity(`Renamed to ${to}`)
       } catch (error) {
-        if (node.kind === "draft") {
-          node.name = name;
-          node.editing = true;
-          store.notify();
+        if (node.kind === 'draft') {
+          node.name = name
+          node.editing = true
+          store.notify()
         } else {
-          node.name = previousName;
-          store.beginRename(node);
+          node.name = previousName
+          store.beginRename(node)
         }
-        treeService.updateFlattenedNodes();
-        fail(error);
+        treeService.updateFlattenedNodes()
+        fail(error)
       }
-    };
+    }
 
     const removeNode = async (node: FileNode) => {
-      const label =
-        node.kind === "directory" ? `Delete folder ${node.name}? It must be empty.` : `Delete ${node.name}?`;
+      const label = node.kind === 'directory' ? `Delete folder ${node.name}? It must be empty.` : `Delete ${node.name}?`
       if (!window.confirm(label)) {
-        return;
+        return
       }
-      const authorization = access.authorization.getValue();
+      const authorization = access.authorization.getValue()
       try {
-        await deleteEntry(node.path, { authorization });
-        treeService.collapse(node);
-        store.removeLocal(node);
+        await deleteEntry(node.path, { authorization })
+        treeService.collapse(node)
+        store.removeLocal(node)
         if (node.parentPath) {
-          cache.refreshDirectory(node.parentPath, authorization);
+          cache.refreshDirectory(node.parentPath, authorization)
         }
-        treeService.updateFlattenedNodes();
-        props.onActivity(`Deleted ${node.path}`);
+        treeService.updateFlattenedNodes()
+        props.onActivity(`Deleted ${node.path}`)
       } catch (error) {
-        fail(error);
+        fail(error)
       }
-    };
+    }
 
     const uploadTo = async (directory: string, data: DataTransfer) => {
-      const folder = store.findByPath(directory);
-      if (folder?.kind === "directory") {
-        treeService.expand(folder);
+      const folder = store.findByPath(directory)
+      if (folder?.kind === 'directory') {
+        treeService.expand(folder)
       }
-      let collected;
+      let collected
       try {
-        collected = await collectDrop(entriesFromDataTransfer(data));
+        collected = await collectDrop(entriesFromDataTransfer(data))
       } catch (error) {
-        fail(error);
-        return;
+        fail(error)
+        return
       }
       const relativeDirectories = directoriesToCreate(
         collected.directories,
         collected.files.map((file) => file.relativePath),
-      );
+      )
       const files = collected.files.flatMap((file) => {
-        const path = childPath(directory, file.relativePath);
-        return path ? [{ path, blob: file.blob }] : [];
-      });
+        const path = childPath(directory, file.relativePath)
+        return path ? [{ path, blob: file.blob }] : []
+      })
       if (relativeDirectories.length === 0 && files.length === 0) {
-        props.onActivity("Nothing to upload");
-        return;
+        props.onActivity('Nothing to upload')
+        return
       }
-      const authorization = access.authorization.getValue();
-      const options = { authorization };
+      const authorization = access.authorization.getValue()
+      const options = { authorization }
       try {
         for (const relative of relativeDirectories) {
-          const path = childPath(directory, relative);
+          const path = childPath(directory, relative)
           if (!path) {
-            continue;
+            continue
           }
           try {
-            await createDirectory(path, options);
+            await createDirectory(path, options)
           } catch (error) {
-            if (!(error instanceof CosFilesError) || error.message !== "Already exists") {
-              throw error;
+            if (!(error instanceof CosFilesError) || error.message !== 'Already exists') {
+              throw error
             }
           }
         }
         for (let index = 0; index < files.length; index += 1) {
-          const file = files[index];
+          const file = files[index]
           if (!file) {
-            continue;
+            continue
           }
-          props.onActivity(`Uploading ${index + 1}/${files.length} ${file.path}`);
-          await uploadFile(file.path, file.blob, options);
+          props.onActivity(`Uploading ${index + 1}/${files.length} ${file.path}`)
+          await uploadFile(file.path, file.blob, options)
         }
-        cache.refreshDirectory(directory, authorization);
+        cache.refreshDirectory(directory, authorization)
         props.onActivity(
           files.length > 0 ? `Uploaded ${files.length} to ${directory}` : `Created folders in ${directory}`,
-        );
+        )
       } catch (error) {
-        cache.refreshDirectory(directory, authorization);
-        fail(error);
+        cache.refreshDirectory(directory, authorization)
+        fail(error)
       }
-    };
+    }
 
     const runAction = (action: FileMenuAction) => {
-      const node = menuNode.current;
-      const directory = commandDirectory(node);
-      if (action === "new-file" || action === "new-folder") {
-        void startCreate(directory, action === "new-folder" ? "directory" : "file");
-        return;
+      const node = menuNode.current
+      const directory = commandDirectory(node)
+      if (action === 'new-file' || action === 'new-folder') {
+        void startCreate(directory, action === 'new-folder' ? 'directory' : 'file')
+        return
       }
-      if (!node || node.kind === "pending" || node.kind === "error" || node.kind === "draft") {
-        return;
+      if (!node || node.kind === 'pending' || node.kind === 'error' || node.kind === 'draft') {
+        return
       }
-      if (action === "rename") {
-        store.beginRename(node);
-        treeService.updateFlattenedNodes();
-        return;
+      if (action === 'rename') {
+        store.beginRename(node)
+        treeService.updateFlattenedNodes()
+        return
       }
-      void removeNode(node);
-    };
+      void removeNode(node)
+    }
 
     const nodeAt = (event: Event): FileNode | undefined => {
       const row = event.composedPath().find((entry): entry is HTMLElement => {
-        return entry instanceof HTMLElement && entry.tagName === "SHADE-TREE-ITEM";
-      });
+        return entry instanceof HTMLElement && entry.tagName === 'SHADE-TREE-ITEM'
+      })
       if (!row?.parentElement) {
-        return undefined;
+        return undefined
       }
-      const rows = [...row.parentElement.children].filter((entry) => entry.tagName === "SHADE-TREE-ITEM");
-      return treeService.flattenedNodes.getValue()[rows.indexOf(row)]?.item;
-    };
+      const rows = [...row.parentElement.children].filter((entry) => entry.tagName === 'SHADE-TREE-ITEM')
+      return treeService.flattenedNodes.getValue()[rows.indexOf(row)]?.item
+    }
 
     const openMenu = (event: MouseEvent) => {
-      event.preventDefault();
-      const node = nodeAt(event);
-      menuNode.current = node;
-      treeService.hasFocus.setValue(false);
-      const actions = menuActions(node);
+      event.preventDefault()
+      const node = nodeAt(event)
+      menuNode.current = node
+      treeService.hasFocus.setValue(false)
+      const actions = menuActions(node)
       menu.open({
         position: { x: event.clientX, y: event.clientY },
         items: actions.flatMap((action) => [
-          ...(action === "rename" ? [{ type: "separator" as const }] : []),
+          ...(action === 'rename' ? [{ type: 'separator' as const }] : []),
           {
-            type: "item" as const,
+            type: 'item' as const,
             data: action,
             label: actionLabel[action],
             icon: (
               <Icon
                 icon={
-                  action === "new-folder"
+                  action === 'new-folder'
                     ? icons.folder
-                    : action === "rename"
+                    : action === 'rename'
                       ? icons.edit
-                      : action === "delete"
+                      : action === 'delete'
                         ? icons.trash
                         : icons.file
                 }
@@ -439,131 +438,131 @@ export const FileTreeView = Shade<FileTreeViewProps>({
             ),
           },
         ]),
-      });
-    };
+      })
+    }
 
-    useHostProps(dropPath ? { "data-drop": "" } : {});
+    useHostProps(dropPath ? { 'data-drop': '' } : {})
 
     return (
       <div
         className="tree"
         ondragover={(event) => {
-          event.preventDefault();
+          event.preventDefault()
           if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = "copy";
+            event.dataTransfer.dropEffect = 'copy'
           }
-          setDropPath(commandDirectory(nodeAt(event)));
+          setDropPath(commandDirectory(nodeAt(event)))
         }}
         ondragleave={(event) => {
-          const next = event.relatedTarget;
-          const host = event.currentTarget as HTMLElement;
+          const next = event.relatedTarget
+          const host = event.currentTarget as HTMLElement
           if (!(next instanceof Node) || !host.contains(next)) {
-            setDropPath("");
+            setDropPath('')
           }
         }}
         ondrop={(event) => {
-          event.preventDefault();
-          const data = event.dataTransfer;
-          const directory = commandDirectory(nodeAt(event));
-          setDropPath("");
+          event.preventDefault()
+          const data = event.dataTransfer
+          const directory = commandDirectory(nodeAt(event))
+          setDropPath('')
           if (data) {
-            void uploadTo(directory, data);
+            void uploadTo(directory, data)
           }
         }}
         onclick={(event) => {
-          const target = event.target;
-          if (target instanceof Element && target.closest("cos-file-name-field, shade-button")) {
-            return;
+          const { target } = event
+          if (target instanceof Element && target.closest('cos-file-name-field, shade-button')) {
+            return
           }
-          const node = nodeAt(event);
-          if (node?.kind === "directory") {
-            treeService.toggleExpanded(node);
-            return;
+          const node = nodeAt(event)
+          if (node?.kind === 'directory') {
+            treeService.toggleExpanded(node)
+            return
           }
-          if (node?.kind === "file") {
-            props.onOpenFile(node.path);
+          if (node?.kind === 'file') {
+            props.onOpenFile(node.path)
           }
         }}
-        oncontextmenu={(event) => openMenu(event as MouseEvent)}
+        oncontextmenu={(event) => openMenu(event)}
       >
         <Tree
           rootItems={store.roots}
           treeService={treeService}
           onItemActivate={(node) => {
-            if (node.kind === "file") {
-              props.onOpenFile(node.path);
+            if (node.kind === 'file') {
+              props.onOpenFile(node.path)
             }
           }}
           renderIcon={(node, expanded) => {
-            const directory = node.kind === "directory" || (node.kind === "draft" && node.draftKind === "directory");
+            const directory = node.kind === 'directory' || (node.kind === 'draft' && node.draftKind === 'directory')
             if (directory) {
               return (
                 <Icon
-                  icon={expanded && node.kind === "directory" ? icons.folderOpen : icons.folder}
+                  icon={expanded && node.kind === 'directory' ? icons.folderOpen : icons.folder}
                   size="small"
                   color="info"
                 />
-              );
+              )
             }
-            if (node.kind === "file" || node.kind === "draft") {
-              return <Icon icon={icons.file} size="small" />;
+            if (node.kind === 'file' || node.kind === 'draft') {
+              return <Icon icon={icons.file} size="small" />
             }
-            return <span />;
+            return <span />
           }}
           renderItem={(node) => {
-            if (node.kind === "pending") {
+            if (node.kind === 'pending') {
               return (
                 <div className="pending">
                   <Skeleton delay={0} />
                 </div>
-              );
+              )
             }
-            if (node.kind === "error") {
+            if (node.kind === 'error') {
               return (
                 <DirectoryLoadError
-                  error={node.message ?? "Request failed"}
+                  error={node.message ?? 'Request failed'}
                   onRetry={() => cache.refreshDirectory(node.parentPath, access.authorization.getValue())}
                 />
-              );
+              )
             }
             if (node.editing) {
-              const directory = node.kind === "directory" || node.draftKind === "directory";
-              const selection = nameSelection(node.name, directory);
+              const directory = node.kind === 'directory' || node.draftKind === 'directory'
+              const selection = nameSelection(node.name, directory)
               return (
                 <FileNameField
                   initialValue={node.name}
-                  placeholder={directory ? "folder name" : "file name"}
+                  placeholder={directory ? 'folder name' : 'file name'}
                   selectFrom={selection.start}
                   selectTo={selection.end}
                   validate={(name) => {
-                    if (store.hasChildName(node.parentPath, name, node.kind === "draft" ? undefined : node)) {
-                      return "That name already exists";
+                    if (store.hasChildName(node.parentPath, name, node.kind === 'draft' ? undefined : node)) {
+                      return 'That name already exists'
                     }
-                    return null;
+                    return null
                   }}
                   onInvalid={props.onActivity}
                   onCancel={() => {
-                    store.cancelEdit();
-                    treeService.updateFlattenedNodes();
+                    store.cancelEdit()
+                    treeService.updateFlattenedNodes()
                   }}
                   onCommit={(name) => void commitName(node, name)}
                 />
-              );
+              )
             }
             return (
               <span
                 className="name"
                 title={node.path}
-                {...(node.path === props.activePath ? { "data-active": "" } : {})}
-                {...(node.kind === "directory" && node.path === dropPath ? { "data-drop": "" } : {})}
+                {...(node.path === props.activePath ? { 'data-active': '' } : {})}
+                {...(node.kind === 'directory' && node.path === dropPath ? { 'data-drop': '' } : {})}
               >
                 {node.name}
               </span>
-            );
+            )
           }}
         />
         <ContextMenu manager={menu} onItemSelect={(action) => runAction(action)} />
       </div>
-    );
+    )
   },
-});
+})

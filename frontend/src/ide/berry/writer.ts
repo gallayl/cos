@@ -1,21 +1,21 @@
 /** Indent-aware Berry source buffer. Berry statements are separated by newlines. */
 export class BerryWriter {
-  private lines: string[] = [];
-  private level = 0;
+  private lines: string[] = []
+  private level = 0
 
-  writeLine(text = ""): void {
-    const pad = "    ".repeat(this.level);
-    for (const line of text.split("\n")) {
-      this.lines.push(line.length === 0 ? "" : `${pad}${line}`);
+  writeLine(text = ''): void {
+    const pad = '    '.repeat(this.level)
+    for (const line of text.split('\n')) {
+      this.lines.push(line.length === 0 ? '' : `${pad}${line}`)
     }
   }
 
   indent(): void {
-    this.level += 1;
+    this.level += 1
   }
 
   dedent(): void {
-    if (this.level > 0) this.level -= 1;
+    if (this.level > 0) this.level -= 1
   }
 
   /**
@@ -24,19 +24,19 @@ export class BerryWriter {
    * statement indent is applied once.
    */
   capture(build: () => void): string {
-    const lines = this.lines;
-    const level = this.level;
-    this.lines = [];
-    this.level = 0;
-    build();
-    const captured = this.lines.join("\n");
-    this.lines = lines;
-    this.level = level;
-    return captured;
+    const { lines } = this
+    const { level } = this
+    this.lines = []
+    this.level = 0
+    build()
+    const captured = this.lines.join('\n')
+    this.lines = lines
+    this.level = level
+    return captured
   }
 
   toString(): string {
-    if (this.lines.length === 0) return "";
-    return `${this.lines.join("\n")}\n`;
+    if (this.lines.length === 0) return ''
+    return `${this.lines.join('\n')}\n`
   }
 }

@@ -7,10 +7,10 @@ export function main(args: string[]): int {
   }
 
   var timeout_ms = 1000;
-  if (size(args) == 2) {
+  if (size(args) === 2) {
     try {
       var parsed = int(args[1]);
-      if (str(parsed) != args[1] || parsed < 100 || parsed > 3000) {
+      if (str(parsed) !== args[1] || parsed < 100 || parsed > 3000) {
         print("ping: timeout must be 100-3000 ms");
         return 1;
       }
@@ -22,7 +22,7 @@ export function main(args: string[]): int {
   }
 
   const result = net.ping(args[0], timeout_ms);
-  if (result["ok"]) {
+  if (result["ok"] === true) {
     print("Reply from " + result["address"] + ": time=" + str(result["rtt_ms"]) + " ms");
     return 0;
   }

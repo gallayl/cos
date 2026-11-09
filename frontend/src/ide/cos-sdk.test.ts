@@ -1,17 +1,17 @@
-import ts from "@typescript/typescript6";
-import { describe, expect, it } from "vitest";
+import ts from '@typescript/typescript6'
+import { describe, expect, it } from 'vitest'
 
-import berryBuiltinsTypes from "../cos-sdk/berry-builtins.d.ts?raw" with { type: "text" };
-import consoleTypes from "../cos-sdk/console.d.ts?raw" with { type: "text" };
-import filesystemTypes from "../cos-sdk/filesystem.d.ts?raw" with { type: "text" };
-import indexTypes from "../cos-sdk/index.d.ts?raw" with { type: "text" };
-import jsonTypes from "../cos-sdk/json.d.ts?raw" with { type: "text" };
-import languageTypes from "../cos-sdk/language.d.ts?raw" with { type: "text" };
-import networkTypes from "../cos-sdk/network.d.ts?raw" with { type: "text" };
-import uiTypes from "../cos-sdk/ui.d.ts?raw" with { type: "text" };
+import berryBuiltinsTypes from '../cos-sdk/berry-builtins.d.ts?raw' with { type: 'text' }
+import consoleTypes from '../cos-sdk/console.d.ts?raw' with { type: 'text' }
+import filesystemTypes from '../cos-sdk/filesystem.d.ts?raw' with { type: 'text' }
+import indexTypes from '../cos-sdk/index.d.ts?raw' with { type: 'text' }
+import jsonTypes from '../cos-sdk/json.d.ts?raw' with { type: 'text' }
+import languageTypes from '../cos-sdk/language.d.ts?raw' with { type: 'text' }
+import networkTypes from '../cos-sdk/network.d.ts?raw' with { type: 'text' }
+import uiTypes from '../cos-sdk/ui.d.ts?raw' with { type: 'text' }
 
-const sdkRoot = "file:///cos-sdk";
-const appFile = "file:///app.ts";
+const sdkRoot = 'file:///cos-sdk'
+const appFile = 'file:///app.ts'
 
 const sdkFiles = new Map<string, string>([
   [`${sdkRoot}/language.d.ts`, languageTypes],
@@ -22,26 +22,26 @@ const sdkFiles = new Map<string, string>([
   [`${sdkRoot}/json.d.ts`, jsonTypes],
   [`${sdkRoot}/berry-builtins.d.ts`, berryBuiltinsTypes],
   [`${sdkRoot}/index.d.ts`, indexTypes],
-]);
+])
 
 function diagnosticsFor(source: string): { app: string[]; sdk: string[] } {
-  const files = new Map(sdkFiles);
-  files.set(appFile, source);
+  const files = new Map(sdkFiles)
+  files.set(appFile, source)
   const host: ts.CompilerHost = {
     getSourceFile(fileName) {
-      const text = files.get(fileName);
-      if (text === undefined) return undefined;
-      return ts.createSourceFile(fileName, text, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
+      const text = files.get(fileName)
+      if (text === undefined) return undefined
+      return ts.createSourceFile(fileName, text, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS)
     },
-    getDefaultLibFileName: () => "lib.d.ts",
+    getDefaultLibFileName: () => 'lib.d.ts',
     writeFile() {},
-    getCurrentDirectory: () => "/",
+    getCurrentDirectory: () => '/',
     getCanonicalFileName: (fileName) => fileName,
     useCaseSensitiveFileNames: () => true,
-    getNewLine: () => "\n",
+    getNewLine: () => '\n',
     fileExists: (fileName) => files.has(fileName),
     readFile: (fileName) => files.get(fileName),
-  };
+  }
   const program = ts.createProgram({
     rootNames: [appFile, ...sdkFiles.keys()],
     options: {
@@ -51,16 +51,16 @@ function diagnosticsFor(source: string): { app: string[]; sdk: string[] } {
       module: ts.ModuleKind.ESNext,
     },
     host,
-  });
-  const app: string[] = [];
-  const sdk: string[] = [];
+  })
+  const app: string[] = []
+  const sdk: string[] = []
   for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
-    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-    const where = diagnostic.file ? `${diagnostic.file.fileName}: ${message}` : message;
-    if (diagnostic.file?.fileName === appFile) app.push(message);
-    else sdk.push(where);
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+    const where = diagnostic.file ? `${diagnostic.file.fileName}: ${message}` : message
+    if (diagnostic.file?.fileName === appFile) app.push(message)
+    else sdk.push(where)
   }
-  return { app, sdk };
+  return { app, sdk }
 }
 
 const counter = `export default class Counter {
@@ -75,10 +75,10 @@ const counter = `export default class Counter {
     log("ticks: " + this.ticks);
   }
 }
-`;
+`
 
-describe("COS TypeScript SDK", () => {
-  it("accepts the editor sample and the device APIs", () => {
+describe('COS TypeScript SDK', () => {
+  it('accepts the editor sample and the device APIs', () => {
     const result = diagnosticsFor(`
       ${counter}
 
@@ -104,12 +104,12 @@ describe("COS TypeScript SDK", () => {
           log("tap");
         }
       }
-    `);
-    expect(result.sdk).toEqual([]);
-    expect(result.app).toEqual([]);
-  });
+    `)
+    expect(result.sdk).toEqual([])
+    expect(result.app).toEqual([])
+  })
 
-  it("accepts a character-grid console application", () => {
+  it('accepts a character-grid console application', () => {
     const result = diagnosticsFor(`
       const screen = console.size();
       if (typeof screen !== "string") {
@@ -125,12 +125,12 @@ describe("COS TypeScript SDK", () => {
       console.read_key((key) => {
         if (key === "up" || key === "down") console.write_at(0, 2, key);
       });
-    `);
-    expect(result.sdk).toEqual([]);
-    expect(result.app).toEqual([]);
-  });
+    `)
+    expect(result.sdk).toEqual([])
+    expect(result.app).toEqual([])
+  })
 
-  it("rejects JavaScript defaults and mismatched widget handles", () => {
+  it('rejects JavaScript defaults and mismatched widget handles', () => {
     const result = diagnosticsFor(`
       console.log("nope");
       setTimeout(() => {}, 1);
@@ -139,17 +139,17 @@ describe("COS TypeScript SDK", () => {
       const label = ui.label(0, "Score", 0, 0, 10, 10);
       if (label !== null) ui.on_click(label, () => {});
       log(pending);
-    `);
-    const messages = result.app.join("\n");
-    expect(result.sdk).toEqual([]);
-    expect(messages).toContain("console");
-    expect(messages).toContain("setTimeout");
-    expect(messages).toContain("Promise");
-    expect(messages).toContain("Math");
-    expect(messages).toContain("ButtonHandle");
-  });
+    `)
+    const messages = result.app.join('\n')
+    expect(result.sdk).toEqual([])
+    expect(messages).toContain('console')
+    expect(messages).toContain('setTimeout')
+    expect(messages).toContain('Promise')
+    expect(messages).toContain('Math')
+    expect(messages).toContain('ButtonHandle')
+  })
 
-  it("accepts Berry print, str, and list push", () => {
+  it('accepts Berry print, str, and list push', () => {
     const result = diagnosticsFor(`
       function main(args: string[]): number {
         const items: number[] = [];
@@ -157,12 +157,12 @@ describe("COS TypeScript SDK", () => {
         print(str(args.length) + ": " + args[0]);
         return 0;
       }
-    `);
-    expect(result.sdk).toEqual([]);
-    expect(result.app).toEqual([]);
-  });
+    `)
+    expect(result.sdk).toEqual([])
+    expect(result.app).toEqual([])
+  })
 
-  it("accepts filesystem reads, writes, and relative paths", () => {
+  it('accepts filesystem reads, writes, and relative paths', () => {
     const result = diagnosticsFor(`
       function main(args: string[]): number {
         const written = fs.write_text("./note.txt", "hello");
@@ -184,19 +184,19 @@ describe("COS TypeScript SDK", () => {
         log(text.text + record.label + bytes.size + args.length);
         return 0;
       }
-    `);
-    expect(result.sdk).toEqual([]);
-    expect(result.app).toEqual([]);
-  });
+    `)
+    expect(result.sdk).toEqual([])
+    expect(result.app).toEqual([])
+  })
 
-  it("type-checks for-of over arrays without a DOM library", () => {
+  it('type-checks for-of over arrays without a DOM library', () => {
     const result = diagnosticsFor(`
       const values = [1, 2, 3];
       let total = 0;
       for (const value of values) total += value;
       log("total " + total + " len " + values.length);
-    `);
-    expect(result.sdk).toEqual([]);
-    expect(result.app).toEqual([]);
-  });
-});
+    `)
+    expect(result.sdk).toEqual([])
+    expect(result.app).toEqual([])
+  })
+})

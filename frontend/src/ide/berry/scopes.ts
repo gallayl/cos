@@ -3,14 +3,14 @@
  * single function scope is rejected instead of silently overwritten.
  */
 export class ScopeTracker {
-  private readonly stack: Array<Set<string>> = [new Set()];
+  private readonly stack: Array<Set<string>> = [new Set()]
 
   push(): void {
-    this.stack.push(new Set());
+    this.stack.push(new Set())
   }
 
   pop(): void {
-    if (this.stack.length > 1) this.stack.pop();
+    if (this.stack.length > 1) this.stack.pop()
   }
 
   /**
@@ -19,13 +19,13 @@ export class ScopeTracker {
    */
   declare(name: string): boolean {
     for (const scope of this.stack) {
-      if (scope.has(name)) return false;
+      if (scope.has(name)) return false
     }
-    this.stack[this.stack.length - 1]?.add(name);
-    return true;
+    this.stack[this.stack.length - 1]?.add(name)
+    return true
   }
 
   isDeclared(name: string): boolean {
-    return this.stack.some((scope) => scope.has(name));
+    return this.stack.some((scope) => scope.has(name))
   }
 }

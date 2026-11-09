@@ -1,91 +1,91 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest'
 
-import { consoleSocketText, consoleWebSocketUrl, openConsoleLink, type ConsoleSocket } from "./console-link";
+import { consoleSocketText, consoleWebSocketUrl, openConsoleLink, type ConsoleSocket } from './console-link'
 
-const authorization = `Basic ${btoa("cos:cos12345")}`;
+const authorization = `Basic ${btoa('cos:cos12345')}`
 
 class FakeSocket implements ConsoleSocket {
-  static latest: FakeSocket | undefined;
-  readyState = 0;
-  onopen: ConsoleSocket["onopen"] = null;
-  onmessage: ConsoleSocket["onmessage"] = null;
-  onerror: ConsoleSocket["onerror"] = null;
-  onclose: ConsoleSocket["onclose"] = null;
-  sent: string[] = [];
-  url: string;
+  static latest: FakeSocket | undefined
+  readyState = 0
+  onopen: ConsoleSocket['onopen'] = null
+  onmessage: ConsoleSocket['onmessage'] = null
+  onerror: ConsoleSocket['onerror'] = null
+  onclose: ConsoleSocket['onclose'] = null
+  sent: string[] = []
+  url: string
 
   constructor(url: string) {
-    this.url = url;
-    FakeSocket.latest = this;
+    this.url = url
+    FakeSocket.latest = this
   }
 
   send(data: string) {
-    this.sent.push(data);
+    this.sent.push(data)
   }
 
   close() {
-    this.readyState = 3;
-    this.onclose?.({} as CloseEvent);
+    this.readyState = 3
+    this.onclose?.({} as CloseEvent)
   }
 }
 
-describe("console link", () => {
-  it("reads text and binary websocket payloads", async () => {
-    expect(await consoleSocketText("COS/flash> ls\n")).toBe("COS/flash> ls\n");
-    expect(await consoleSocketText(new Blob(["apps\n"]))).toBe("apps\n");
-    expect(await consoleSocketText(new TextEncoder().encode("ok\n").buffer)).toBe("ok\n");
-    expect(await consoleSocketText(1)).toBeNull();
-  });
+describe('console link', () => {
+  it('reads text and binary websocket payloads', async () => {
+    expect(await consoleSocketText('COS/flash> ls\n')).toBe('COS/flash> ls\n')
+    expect(await consoleSocketText(new Blob(['apps\n']))).toBe('apps\n')
+    expect(await consoleSocketText(new TextEncoder().encode('ok\n').buffer)).toBe('ok\n')
+    expect(await consoleSocketText(1)).toBeNull()
+  })
 
-  it("puts the device credentials in the websocket URL", () => {
-    expect(consoleWebSocketUrl("http://localhost:5173/console", authorization)).toBe(
-      "ws://cos:cos12345@localhost:5173/ws",
-    );
-    expect(consoleWebSocketUrl("https://cos.local/console", authorization)).toBe("wss://cos:cos12345@cos.local/ws");
-    expect(consoleWebSocketUrl("http://localhost/", "")).toBeNull();
-  });
+  it('puts the device credentials in the websocket URL', () => {
+    expect(consoleWebSocketUrl('http://localhost:5173/console', authorization)).toBe(
+      'ws://cos:cos12345@localhost:5173/ws',
+    )
+    expect(consoleWebSocketUrl('https://cos.local/console', authorization)).toBe('wss://cos:cos12345@cos.local/ws')
+    expect(consoleWebSocketUrl('http://localhost/', '')).toBeNull()
+  })
 
-  it("does not open a socket when the device rejects the credentials", async () => {
-    FakeSocket.latest = undefined;
-    const phases: string[] = [];
-    const fetchImpl = vi.fn(async () => new Response("Unauthorized", { status: 401 }));
+  it('does not open a socket when the device rejects the credentials', async () => {
+    FakeSocket.latest = undefined
+    const phases: string[] = []
+    const fetchImpl = vi.fn(async () => new Response('Unauthorized', { status: 401 }))
     const link = await openConsoleLink({
       authorization,
-      pageUrl: "http://localhost/",
+      pageUrl: 'http://localhost/',
       fetchImpl,
       webSocket: FakeSocket,
       onChunk: () => {},
       onPhase: (phase) => phases.push(phase),
-    });
+    })
 
-    expect(fetchImpl).toHaveBeenCalledOnce();
-    expect(FakeSocket.latest).toBeUndefined();
-    expect(phases).toEqual(["connecting", "unauthorized"]);
-    expect(link.send("help")).toBe(false);
-  });
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    expect(FakeSocket.latest).toBeUndefined()
+    expect(phases).toEqual(['connecting', 'unauthorized'])
+    expect(link.send('help')).toBe(false)
+  })
 
-  it("forwards one text frame and reports socket output", async () => {
-    const chunks: string[] = [];
-    const phases: string[] = [];
-    const fetchImpl = vi.fn(async () => new Response("200000", { status: 200 }));
+  it('forwards one text frame and reports socket output', async () => {
+    const chunks: string[] = []
+    const phases: string[] = []
+    const fetchImpl = vi.fn(async () => new Response('200000', { status: 200 }))
     const link = await openConsoleLink({
       authorization,
-      pageUrl: "http://localhost/console",
+      pageUrl: 'http://localhost/console',
       fetchImpl,
       webSocket: FakeSocket,
       onChunk: (chunk) => chunks.push(chunk),
       onPhase: (phase) => phases.push(phase),
-    });
+    })
 
-    const socket = FakeSocket.latest;
-    expect(socket?.url).toBe("ws://cos:cos12345@localhost/ws");
-    socket!.readyState = 1;
-    socket!.onopen?.({} as Event);
-    socket!.onmessage?.({ data: "I (1) main: ready\n" } as MessageEvent);
-    expect(link.send("help")).toBe(true);
-    expect(socket!.sent).toEqual(["help"]);
-    await Promise.resolve();
-    expect(chunks).toEqual(["I (1) main: ready\n"]);
-    expect(phases).toEqual(["connecting", "open"]);
-  });
-});
+    const socket = FakeSocket.latest
+    expect(socket?.url).toBe('ws://cos:cos12345@localhost/ws')
+    socket!.readyState = 1
+    socket!.onopen?.({} as Event)
+    socket!.onmessage?.({ data: 'I (1) main: ready\n' } as MessageEvent)
+    expect(link.send('help')).toBe(true)
+    expect(socket!.sent).toEqual(['help'])
+    await Promise.resolve()
+    expect(chunks).toEqual(['I (1) main: ready\n'])
+    expect(phases).toEqual(['connecting', 'open'])
+  })
+})

@@ -1,4 +1,4 @@
-import { createComponent, NestedRouteLink, Shade } from "@furystack/shades";
+import { createComponent, NestedRouteLink, Shade } from '@furystack/shades'
 import {
   Card,
   CardContent,
@@ -6,44 +6,44 @@ import {
   PageContainer,
   PageHeader,
   cssVariableTheme,
-} from "@furystack/shades-common-components";
+} from '@furystack/shades-common-components'
 
 const features = [
   {
-    path: "/editor",
-    title: "Editor",
-    description: "Edit device files and compile TypeScript to Berry.",
+    path: '/editor',
+    title: 'Editor',
+    description: 'Edit device files and compile TypeScript to Berry.',
   },
   {
-    path: "/console",
-    title: "Console",
-    description: "Send commands and follow device logs.",
+    path: '/console',
+    title: 'Console',
+    description: 'Send commands and follow device logs.',
   },
-] as const;
+] as const
 
 /** Landing page that links to the main features. */
 export const HomePage = Shade({
-  customElementName: "cos-home-page",
+  customElementName: 'cos-home-page',
   css: {
-    display: "block",
-    width: "100%",
-    height: "100%",
-    minHeight: "0",
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    minHeight: '0',
     background: cssVariableTheme.background.default,
     color: cssVariableTheme.text.primary,
-    "& .cards": {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
+    '& .cards': {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))',
       gap: cssVariableTheme.spacing.lg,
     },
-    "& nested-route-link": {
-      display: "block",
-      height: "100%",
-      color: "inherit",
-      textDecoration: "none",
+    '& nested-route-link': {
+      display: 'block',
+      height: '100%',
+      color: 'inherit',
+      textDecoration: 'none',
     },
-    "& shade-card": {
-      height: "100%",
+    '& shade-card': {
+      height: '100%',
     },
   },
   render: () => (
@@ -63,4 +63,4 @@ export const HomePage = Shade({
       </div>
     </PageContainer>
   ),
-});
+})

@@ -1,48 +1,48 @@
-import { createComponent, NestedRouteLink, Shade } from "@furystack/shades";
-import { Button, ButtonGroup, Typography, cssVariableTheme } from "@furystack/shades-common-components";
+import { createComponent, NestedRouteLink, Shade } from '@furystack/shades'
+import { Button, ButtonGroup, Typography, cssVariableTheme } from '@furystack/shades-common-components'
 
 export interface EditorToolbarProps {
-  canCreateBerry: boolean;
-  onOpen: () => void;
-  onSave: () => void;
-  onCreateBerry: () => void;
-  onCompile: () => void;
-  onReset: () => void;
+  canCreateBerry: boolean
+  onOpen: () => void
+  onSave: () => void
+  onCreateBerry: () => void
+  onCompile: () => void
+  onReset: () => void
 }
 
 /** Primary editor actions. */
 export const EditorToolbar = Shade<EditorToolbarProps>({
-  customElementName: "cos-editor-toolbar",
+  customElementName: 'cos-editor-toolbar',
   css: {
-    display: "block",
-    width: "100%",
-    "& header": {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
+    display: 'block',
+    width: '100%',
+    '& header': {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       gap: cssVariableTheme.spacing.md,
-      minHeight: "3rem",
+      minHeight: '3rem',
       padding: `${cssVariableTheme.spacing.sm} ${cssVariableTheme.spacing.md}`,
       background: cssVariableTheme.background.paper,
       borderBottom: `${cssVariableTheme.shape.borderWidth} solid ${cssVariableTheme.divider}`,
     },
-    "& .title": {
-      display: "flex",
-      alignItems: "center",
+    '& .title': {
+      display: 'flex',
+      alignItems: 'center',
       gap: cssVariableTheme.spacing.md,
-      minWidth: "0",
+      minWidth: '0',
     },
-    "& shade-typography": {
-      margin: "0",
+    '& shade-typography': {
+      margin: '0',
     },
-    "& nested-route-link": {
+    '& nested-route-link': {
       color: cssVariableTheme.text.secondary,
       fontSize: cssVariableTheme.typography.fontSize.sm,
-      whiteSpace: "nowrap",
+      whiteSpace: 'nowrap',
     },
-    "& shade-button-group": {
-      flexWrap: "wrap",
-      justifyContent: "flex-end",
+    '& shade-button-group': {
+      flexWrap: 'wrap',
+      justifyContent: 'flex-end',
     },
   },
   render: ({ props }) => (
@@ -62,11 +62,11 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
           type="button"
           size="small"
           onclick={props.onCreateBerry}
-          aria-disabled={props.canCreateBerry ? "false" : "true"}
+          aria-disabled={props.canCreateBerry ? 'false' : 'true'}
           style={
             props.canCreateBerry
               ? undefined
-              : { opacity: cssVariableTheme.action.disabledOpacity, pointerEvents: "none" }
+              : { opacity: cssVariableTheme.action.disabledOpacity, pointerEvents: 'none' }
           }
         >
           Create Berry
@@ -80,4 +80,4 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
       </ButtonGroup>
     </header>
   ),
-});
+})

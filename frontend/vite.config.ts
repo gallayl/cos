@@ -1,22 +1,22 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  const device = env.COS_DEVICE || "http://192.168.0.187/";
+  const env = loadEnv(mode, process.cwd(), '')
+  const device = env.COS_DEVICE || 'http://192.168.0.187/'
 
   return {
     server: {
       proxy: {
-        "/api": {
+        '/api': {
           target: device,
           changeOrigin: true,
         },
-        "/ws": {
+        '/ws': {
           target: device,
           ws: true,
           changeOrigin: true,
         },
       },
     },
-  };
-});
+  }
+})

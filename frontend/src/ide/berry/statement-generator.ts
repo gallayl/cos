@@ -1,17 +1,10 @@
-import ts from "@typescript/typescript6";
+import ts from '@typescript/typescript6'
 
-import {
-  BOOLEAN_CONDITION_MESSAGE,
-  isStructurallyBoolean,
-} from "./boolean-expression";
-import { emitClass } from "./class-generator";
-import type { GenerationContext } from "./context";
-import { CALL_PRECEDENCE, emitGrouped } from "./expression-generator";
-import {
-  beginFunction,
-  endFunction,
-  hasUnsupportedFunctionModifiers,
-} from "./function-emitter";
+import { BOOLEAN_CONDITION_MESSAGE, isStructurallyBoolean } from './boolean-expression'
+import { emitClass } from './class-generator'
+import type { GenerationContext } from './context'
+import { CALL_PRECEDENCE, emitGrouped } from './expression-generator'
+import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from './function-emitter'
 import {
   hasDecorators,
   hasModifier,
@@ -20,286 +13,258 @@ import {
   isIncrement,
   isLexicalBinding,
   isNamedExport,
-} from "./syntax";
+} from './syntax'
 
-const LOOP_CLOSURE_MESSAGE =
-  "Closures that capture for-loop bindings are not supported.";
+const LOOP_CLOSURE_MESSAGE = 'Closures that capture for-loop bindings are not supported.'
 
 /**
  * @brief Lower one TypeScript statement to Berry statements.
  */
-export function emitStatement(
-  ctx: GenerationContext,
-  node: ts.Statement,
-): void {
-  if (isAmbient(node)) return;
-  if (ts.isEmptyStatement(node)) return;
+export function emitStatement(ctx: GenerationContext, node: ts.Statement): void {
+  if (isAmbient(node)) return
+  if (ts.isEmptyStatement(node)) return
 
   if (ts.isBlock(node)) {
-    ctx.pushScope();
-    for (const statement of node.statements) ctx.emitStatement(statement);
-    ctx.popScope();
-    return;
+    ctx.pushScope()
+    for (const statement of node.statements) ctx.emitStatement(statement)
+    ctx.popScope()
+    return
   }
   if (ts.isVariableStatement(node)) {
-    emitVariableDeclarationList(ctx, node.declarationList);
+    emitVariableDeclarationList(ctx, node.declarationList)
     if (hasModifier(node, ts.SyntaxKind.ExportKeyword)) {
       for (const declaration of node.declarationList.declarations) {
         if (ts.isIdentifier(declaration.name)) {
-          ctx.noteNamedExport(declaration.name.text, declaration.name.text, declaration);
+          ctx.noteNamedExport(declaration.name.text, declaration.name.text, declaration)
         }
       }
     }
-    return;
+    return
   }
   if (ts.isFunctionDeclaration(node)) {
-    emitFunctionDeclaration(ctx, node);
-    return;
+    emitFunctionDeclaration(ctx, node)
+    return
   }
   if (ts.isClassDeclaration(node)) {
-    emitClassDeclaration(ctx, node);
-    return;
+    emitClassDeclaration(ctx, node)
+    return
   }
   if (ts.isIfStatement(node)) {
-    emitIf(ctx, node, "if");
-    return;
+    emitIf(ctx, node, 'if')
+    return
   }
   if (ts.isWhileStatement(node)) {
-    emitWhile(ctx, node);
-    return;
+    emitWhile(ctx, node)
+    return
   }
   if (ts.isForStatement(node)) {
-    emitFor(ctx, node);
-    return;
+    emitFor(ctx, node)
+    return
   }
   if (ts.isForOfStatement(node)) {
-    emitForOf(ctx, node);
-    return;
+    emitForOf(ctx, node)
+    return
   }
   if (ts.isForInStatement(node)) {
-    ctx.report(node, "for-in is not supported. Use for-of.");
-    return;
+    ctx.report(node, 'for-in is not supported. Use for-of.')
+    return
   }
   if (ts.isSwitchStatement(node)) {
-    emitSwitch(ctx, node);
-    return;
+    emitSwitch(ctx, node)
+    return
   }
   if (ts.isExpressionStatement(node)) {
-    if (isIncrement(node.expression)) writeUpdate(ctx, node.expression);
-    else ctx.writeLine(ctx.emitExpression(node.expression));
-    return;
+    if (isIncrement(node.expression)) writeUpdate(ctx, node.expression)
+    else ctx.writeLine(ctx.emitExpression(node.expression))
+    return
   }
   if (ts.isReturnStatement(node)) {
-    ctx.writeLine(
-      node.expression
-        ? `return ${ctx.emitExpression(node.expression)}`
-        : "return",
-    );
-    return;
+    ctx.writeLine(node.expression ? `return ${ctx.emitExpression(node.expression)}` : 'return')
+    return
   }
   if (ts.isBreakStatement(node) || ts.isContinueStatement(node)) {
     if (node.label) {
-      ctx.report(node, "Labels are not supported.");
-      return;
+      ctx.report(node, 'Labels are not supported.')
+      return
     }
-    ctx.writeLine(ts.isBreakStatement(node) ? "break" : "continue");
-    return;
+    ctx.writeLine(ts.isBreakStatement(node) ? 'break' : 'continue')
+    return
   }
   if (ts.isEnumDeclaration(node)) {
-    ctx.report(node, "Enums are not supported yet.");
-    return;
+    ctx.report(node, 'Enums are not supported yet.')
+    return
   }
-  if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node))
-    return;
+  if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return
   if (ts.isImportDeclaration(node)) {
-    emitImportDeclaration(ctx, node);
-    return;
+    emitImportDeclaration(ctx, node)
+    return
   }
   if (ts.isImportEqualsDeclaration(node)) {
-    if (node.isTypeOnly) return;
-    ctx.report(node, "import = is not supported. Use ESM imports.");
-    return;
+    if (node.isTypeOnly) return
+    ctx.report(node, 'import = is not supported. Use ESM imports.')
+    return
   }
   if (ts.isExportDeclaration(node)) {
-    emitExportDeclaration(ctx, node);
-    return;
+    emitExportDeclaration(ctx, node)
+    return
   }
   if (ts.isExportAssignment(node)) {
-    emitExportAssignment(ctx, node);
-    return;
+    emitExportAssignment(ctx, node)
+    return
   }
   if (ts.isModuleDeclaration(node)) {
-    ctx.report(node, "Namespaces are not supported.");
-    return;
+    ctx.report(node, 'Namespaces are not supported.')
+    return
   }
   if (ts.isThrowStatement(node)) {
-    emitThrow(ctx, node);
-    return;
+    emitThrow(ctx, node)
+    return
   }
   if (ts.isTryStatement(node)) {
-    emitTry(ctx, node);
-    return;
+    emitTry(ctx, node)
+    return
   }
   if (ts.isDoStatement(node)) {
-    ctx.report(node, "Do-while loops are not supported.");
-    return;
+    ctx.report(node, 'Do-while loops are not supported.')
+    return
   }
   if (node.kind === ts.SyntaxKind.DebuggerStatement) {
-    ctx.report(node, "Debugger statements are not supported.");
-    return;
+    ctx.report(node, 'Debugger statements are not supported.')
+    return
   }
 
-  ctx.report(node, `Unsupported syntax: ${ts.SyntaxKind[node.kind]}.`);
+  ctx.report(node, `Unsupported syntax: ${ts.SyntaxKind[node.kind]}.`)
 }
 
-function emitFunctionDeclaration(
-  ctx: GenerationContext,
-  node: ts.FunctionDeclaration,
-): void {
-  if (hasDecorators(node)) ctx.report(node, "Decorators are not supported.");
-  if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return;
-  const name =
-    node.name?.text ??
-    (isDefaultExport(node) ? ctx.nextTemp("__cos_default_") : undefined);
+function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclaration): void {
+  if (hasDecorators(node)) ctx.report(node, 'Decorators are not supported.')
+  if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return
+  const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp('__cos_default_') : undefined)
   if (!name) {
-    ctx.report(node, "Functions must be named.");
-    return;
+    ctx.report(node, 'Functions must be named.')
+    return
   }
-  if (node.name) ctx.declareName(node.name.text, node.name);
-  else ctx.declareName(name, node);
-  if (!beginFunction(ctx, `def ${name}`, node.parameters)) return;
-  for (const statement of node.body.statements) ctx.emitStatement(statement);
-  endFunction(ctx);
-  if (isDefaultExport(node)) ctx.noteDefaultExport(name, node);
-  else if (isNamedExport(node) && node.name) ctx.noteNamedExport(node.name.text, node.name.text, node);
+  if (node.name) ctx.declareName(node.name.text, node.name)
+  else ctx.declareName(name, node)
+  if (!beginFunction(ctx, `def ${name}`, node.parameters)) return
+  for (const statement of node.body.statements) ctx.emitStatement(statement)
+  endFunction(ctx)
+  if (isDefaultExport(node)) ctx.noteDefaultExport(name, node)
+  else if (isNamedExport(node) && node.name) ctx.noteNamedExport(node.name.text, node.name.text, node)
 }
 
-function emitExportAssignment(
-  ctx: GenerationContext,
-  node: ts.ExportAssignment,
-): void {
+function emitExportAssignment(ctx: GenerationContext, node: ts.ExportAssignment): void {
   if (node.isExportEquals) {
-    ctx.report(node, "export = is not supported.");
-    return;
+    ctx.report(node, 'export = is not supported.')
+    return
   }
   if (ts.isIdentifier(node.expression)) {
-    ctx.noteDefaultExport(node.expression.text, node);
-    return;
+    ctx.noteDefaultExport(node.expression.text, node)
+    return
   }
   if (
     ts.isFunctionExpression(node.expression) ||
     ts.isArrowFunction(node.expression) ||
     ts.isClassExpression(node.expression)
   ) {
-    const name = ctx.nextTemp("__cos_default_");
-    ctx.declareName(name, node);
-    ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`);
-    ctx.noteDefaultExport(name, node);
-    return;
+    const name = ctx.nextTemp('__cos_default_')
+    ctx.declareName(name, node)
+    ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
+    ctx.noteDefaultExport(name, node)
+    return
   }
-  const name = ctx.nextTemp("__cos_default_");
-  ctx.declareName(name, node);
-  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`);
-  ctx.noteDefaultExport(name, node);
+  const name = ctx.nextTemp('__cos_default_')
+  ctx.declareName(name, node)
+  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
+  ctx.noteDefaultExport(name, node)
 }
 
-function emitVariableDeclarationList(
-  ctx: GenerationContext,
-  list: ts.VariableDeclarationList,
-): void {
+function emitVariableDeclarationList(ctx: GenerationContext, list: ts.VariableDeclarationList): void {
   if (list.flags & ts.NodeFlags.Using) {
-    ctx.report(list, "using declarations are not supported.");
-    return;
+    ctx.report(list, 'using declarations are not supported.')
+    return
   }
   for (const declaration of list.declarations) {
     if (!ts.isIdentifier(declaration.name)) {
-      ctx.report(declaration, "Destructuring is not supported.");
-      continue;
+      ctx.report(declaration, 'Destructuring is not supported.')
+      continue
     }
-    ctx.declareName(declaration.name.text, declaration.name);
+    ctx.declareName(declaration.name.text, declaration.name)
     if (declaration.initializer) {
-      ctx.writeLine(
-        `var ${declaration.name.text} = ${ctx.emitExpression(declaration.initializer)}`,
-      );
+      ctx.writeLine(`var ${declaration.name.text} = ${ctx.emitExpression(declaration.initializer)}`)
     } else {
-      ctx.writeLine(`var ${declaration.name.text}`);
+      ctx.writeLine(`var ${declaration.name.text}`)
     }
   }
 }
 
-function emitIf(
-  ctx: GenerationContext,
-  node: ts.IfStatement,
-  keyword: "if" | "elif",
-): void {
+function emitIf(ctx: GenerationContext, node: ts.IfStatement, keyword: 'if' | 'elif'): void {
   if (!isStructurallyBoolean(node.expression)) {
-    ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE);
+    ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE)
   }
-  ctx.writeLine(`${keyword} ${ctx.emitExpression(node.expression)}`);
-  ctx.indent();
-  ctx.emitStatement(node.thenStatement);
-  ctx.dedent();
+  ctx.writeLine(`${keyword} ${ctx.emitExpression(node.expression)}`)
+  ctx.indent()
+  ctx.emitStatement(node.thenStatement)
+  ctx.dedent()
   if (node.elseStatement && ts.isIfStatement(node.elseStatement)) {
-    emitIf(ctx, node.elseStatement, "elif");
+    emitIf(ctx, node.elseStatement, 'elif')
   } else if (node.elseStatement) {
-    ctx.writeLine("else");
-    ctx.indent();
-    ctx.emitStatement(node.elseStatement);
-    ctx.dedent();
+    ctx.writeLine('else')
+    ctx.indent()
+    ctx.emitStatement(node.elseStatement)
+    ctx.dedent()
   }
-  if (keyword === "if") ctx.writeLine("end");
+  if (keyword === 'if') ctx.writeLine('end')
 }
 
 function emitWhile(ctx: GenerationContext, node: ts.WhileStatement): void {
   if (!isStructurallyBoolean(node.expression)) {
-    ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE);
+    ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE)
   }
-  ctx.writeLine(`while ${ctx.emitExpression(node.expression)}`);
-  ctx.indent();
-  ctx.emitStatement(node.statement);
-  ctx.dedent();
-  ctx.writeLine("end");
+  ctx.writeLine(`while ${ctx.emitExpression(node.expression)}`)
+  ctx.indent()
+  ctx.emitStatement(node.statement)
+  ctx.dedent()
+  ctx.writeLine('end')
 }
 
 function emitFor(ctx: GenerationContext, node: ts.ForStatement): void {
-  if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE);
-  ctx.pushScope();
+  if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE)
+  ctx.pushScope()
   if (node.initializer) {
     if (ts.isVariableDeclarationList(node.initializer)) {
-      emitVariableDeclarationList(ctx, node.initializer);
+      emitVariableDeclarationList(ctx, node.initializer)
     } else {
-      ctx.writeLine(ctx.emitExpression(node.initializer));
+      ctx.writeLine(ctx.emitExpression(node.initializer))
     }
   }
   if (node.condition && !isStructurallyBoolean(node.condition)) {
-    ctx.report(node.condition, BOOLEAN_CONDITION_MESSAGE);
+    ctx.report(node.condition, BOOLEAN_CONDITION_MESSAGE)
   }
-  const condition = node.condition
-    ? ctx.emitExpression(node.condition)
-    : "true";
-  ctx.writeLine(`while ${condition}`);
-  ctx.indent();
-  ctx.emitStatement(node.statement);
-  if (node.incrementor) writeStep(ctx, node.incrementor);
-  ctx.dedent();
-  ctx.writeLine("end");
-  ctx.popScope();
+  const condition = node.condition ? ctx.emitExpression(node.condition) : 'true'
+  ctx.writeLine(`while ${condition}`)
+  ctx.indent()
+  ctx.emitStatement(node.statement)
+  if (node.incrementor) writeStep(ctx, node.incrementor)
+  ctx.dedent()
+  ctx.writeLine('end')
+  ctx.popScope()
 }
 
 function emitForOf(ctx: GenerationContext, node: ts.ForOfStatement): void {
-  if (node.awaitModifier) ctx.report(node, "for-await is not supported.");
-  const binding = forOfBinding(ctx, node.initializer);
-  if (!binding) return;
-  if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE);
-  const target = emitGrouped(ctx, node.expression, CALL_PRECEDENCE);
-  ctx.pushScope();
-  ctx.declareName(binding.name, binding.node);
-  ctx.writeLine(`for ${binding.name}: ${target}`);
-  ctx.indent();
-  ctx.emitStatement(node.statement);
-  ctx.dedent();
-  ctx.writeLine("end");
-  ctx.popScope();
+  if (node.awaitModifier) ctx.report(node, 'for-await is not supported.')
+  const binding = forOfBinding(ctx, node.initializer)
+  if (!binding) return
+  if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE)
+  const target = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
+  ctx.pushScope()
+  ctx.declareName(binding.name, binding.node)
+  ctx.writeLine(`for ${binding.name}: ${target}`)
+  ctx.indent()
+  ctx.emitStatement(node.statement)
+  ctx.dedent()
+  ctx.writeLine('end')
+  ctx.popScope()
 }
 
 function forOfBinding(
@@ -308,428 +273,376 @@ function forOfBinding(
 ): { name: string; node: ts.Node } | undefined {
   if (ts.isVariableDeclarationList(initializer)) {
     if (initializer.declarations.length !== 1) {
-      ctx.report(initializer, "for-of must declare a single variable.");
-      return undefined;
+      ctx.report(initializer, 'for-of must declare a single variable.')
+      return undefined
     }
-    const declaration = initializer.declarations[0];
+    const declaration = initializer.declarations[0]
     if (!declaration || !ts.isIdentifier(declaration.name)) {
-      ctx.report(initializer, "Destructuring is not supported.");
-      return undefined;
+      ctx.report(initializer, 'Destructuring is not supported.')
+      return undefined
     }
-    return { name: declaration.name.text, node: declaration.name };
+    return { name: declaration.name.text, node: declaration.name }
   }
-  if (ts.isIdentifier(initializer))
-    return { name: initializer.text, node: initializer };
-  ctx.report(initializer, "Destructuring is not supported.");
-  return undefined;
+  if (ts.isIdentifier(initializer)) return { name: initializer.text, node: initializer }
+  ctx.report(initializer, 'Destructuring is not supported.')
+  return undefined
 }
 
-function capturesLoopBinding(
-  node: ts.ForStatement | ts.ForOfStatement,
-): boolean {
-  if (
-    !node.initializer ||
-    !ts.isVariableDeclarationList(node.initializer) ||
-    !isLexicalBinding(node.initializer)
-  ) {
-    return false;
+function capturesLoopBinding(node: ts.ForStatement | ts.ForOfStatement): boolean {
+  if (!node.initializer || !ts.isVariableDeclarationList(node.initializer) || !isLexicalBinding(node.initializer)) {
+    return false
   }
-  if (containsNewClosure(node.statement)) return true;
-  return (
-    ts.isForStatement(node) &&
-    !!node.incrementor &&
-    containsNewClosure(node.incrementor)
-  );
+  if (containsNewClosure(node.statement)) return true
+  return ts.isForStatement(node) && !!node.incrementor && containsNewClosure(node.incrementor)
 }
 
 function containsNewClosure(node: ts.Node): boolean {
-  if (ts.isFunctionLike(node)) return true;
-  let found = false;
+  if (ts.isFunctionLike(node)) return true
+  let found = false
   const visit = (current: ts.Node): void => {
-    if (found) return;
+    if (found) return
     if (ts.isFunctionLike(current)) {
-      found = true;
-      return;
+      found = true
+      return
     }
-    ts.forEachChild(current, visit);
-  };
-  ts.forEachChild(node, visit);
-  return found;
+    ts.forEachChild(current, visit)
+  }
+  ts.forEachChild(node, visit)
+  return found
 }
 
 function writeStep(ctx: GenerationContext, expression: ts.Expression): void {
-  if (isIncrement(expression)) writeUpdate(ctx, expression);
-  else ctx.writeLine(ctx.emitExpression(expression));
+  if (isIncrement(expression)) writeUpdate(ctx, expression)
+  else ctx.writeLine(ctx.emitExpression(expression))
 }
 
-function writeUpdate(
-  ctx: GenerationContext,
-  node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression,
-): void {
-  const operator = node.operator === ts.SyntaxKind.PlusPlusToken ? "+=" : "-=";
-  ctx.writeLine(`${ctx.emitExpression(node.operand)} ${operator} 1`);
+function writeUpdate(ctx: GenerationContext, node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression): void {
+  const operator = node.operator === ts.SyntaxKind.PlusPlusToken ? '+=' : '-='
+  ctx.writeLine(`${ctx.emitExpression(node.operand)} ${operator} 1`)
 }
 
 interface SwitchArm {
-  tests: readonly ts.Expression[];
-  isDefault: boolean;
-  statements: readonly ts.Statement[];
+  tests: readonly ts.Expression[]
+  isDefault: boolean
+  statements: readonly ts.Statement[]
 }
 
 function emitSwitch(ctx: GenerationContext, node: ts.SwitchStatement): void {
-  const arms = collectSwitchArms(ctx, node);
-  if (!arms) return;
+  const arms = collectSwitchArms(ctx, node)
+  if (!arms) return
 
-  const name = ctx.nextTemp("__cos_switch_");
-  ctx.declareName(name, node);
-  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`);
+  const name = ctx.nextTemp('__cos_switch_')
+  ctx.declareName(name, node)
+  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
 
-  const conditional = arms.filter((arm) => !arm.isDefault);
-  const defaultArm = arms.find((arm) => arm.isDefault);
-  ctx.pushScope();
+  const conditional = arms.filter((arm) => !arm.isDefault)
+  const defaultArm = arms.find((arm) => arm.isDefault)
+  ctx.pushScope()
   if (conditional.length === 0) {
-    for (const statement of defaultArm?.statements ?? [])
-      ctx.emitStatement(statement);
-    ctx.popScope();
-    return;
+    for (const statement of defaultArm?.statements ?? []) ctx.emitStatement(statement)
+    ctx.popScope()
+    return
   }
 
   conditional.forEach((arm, index) => {
-    const keyword = index === 0 ? "if" : "elif";
+    const keyword = index === 0 ? 'if' : 'elif'
     const test = arm.tests
-      .map(
-        (expression) =>
-          `(${name} == ${emitGrouped(ctx, expression, CALL_PRECEDENCE)})`,
-      )
-      .join(" || ");
-    ctx.writeLine(`${keyword} ${test}`);
-    ctx.indent();
-    for (const statement of arm.statements) ctx.emitStatement(statement);
-    ctx.dedent();
-  });
+      .map((expression) => `(${name} == ${emitGrouped(ctx, expression, CALL_PRECEDENCE)})`)
+      .join(' || ')
+    ctx.writeLine(`${keyword} ${test}`)
+    ctx.indent()
+    for (const statement of arm.statements) ctx.emitStatement(statement)
+    ctx.dedent()
+  })
   if (defaultArm) {
-    ctx.writeLine("else");
-    ctx.indent();
-    for (const statement of defaultArm.statements) ctx.emitStatement(statement);
-    ctx.dedent();
+    ctx.writeLine('else')
+    ctx.indent()
+    for (const statement of defaultArm.statements) ctx.emitStatement(statement)
+    ctx.dedent()
   }
-  ctx.writeLine("end");
-  ctx.popScope();
+  ctx.writeLine('end')
+  ctx.popScope()
 }
 
-function collectSwitchArms(
-  ctx: GenerationContext,
-  node: ts.SwitchStatement,
-): readonly SwitchArm[] | undefined {
-  const arms: SwitchArm[] = [];
-  let tests: ts.Expression[] = [];
-  let isDefault = false;
-  const clauses = node.caseBlock.clauses;
+function collectSwitchArms(ctx: GenerationContext, node: ts.SwitchStatement): readonly SwitchArm[] | undefined {
+  const arms: SwitchArm[] = []
+  let tests: ts.Expression[] = []
+  let isDefault = false
+  const { clauses } = node.caseBlock
 
   for (let index = 0; index < clauses.length; index += 1) {
-    const clause = clauses[index];
-    if (!clause) continue;
-    if (ts.isDefaultClause(clause)) isDefault = true;
-    else tests.push(clause.expression);
+    const clause = clauses[index]
+    if (!clause) continue
+    if (ts.isDefaultClause(clause)) isDefault = true
+    else tests.push(clause.expression)
 
-    const split = splitCaseStatements(clause.statements);
+    const split = splitCaseStatements(clause.statements)
     if (split.illegal) {
-      ctx.report(clause, "Switch fallthrough is not supported.");
-      return undefined;
+      ctx.report(clause, 'Switch fallthrough is not supported.')
+      return undefined
     }
-    const isLast = index === clauses.length - 1;
-    const terminated =
-      split.explicitBreak ||
-      terminatesClause(split.statements[split.statements.length - 1]);
-    if (split.statements.length === 0 && !terminated && !isLast) continue;
+    const isLast = index === clauses.length - 1
+    const terminated = split.explicitBreak || terminatesClause(split.statements[split.statements.length - 1])
+    if (split.statements.length === 0 && !terminated && !isLast) continue
     if (split.statements.length > 0 && !terminated && !isLast) {
-      ctx.report(clause, "Switch fallthrough is not supported.");
-      return undefined;
+      ctx.report(clause, 'Switch fallthrough is not supported.')
+      return undefined
     }
     arms.push({
       tests: tests.slice(),
       isDefault,
       statements: split.statements,
-    });
-    tests = [];
-    isDefault = false;
+    })
+    tests = []
+    isDefault = false
   }
-  return arms;
+  return arms
 }
 
 function splitCaseStatements(statements: readonly ts.Statement[]): {
-  statements: ts.Statement[];
-  explicitBreak: boolean;
-  illegal: boolean;
+  statements: ts.Statement[]
+  explicitBreak: boolean
+  illegal: boolean
 } {
-  const body: ts.Statement[] = [];
+  const body: ts.Statement[] = []
   for (let index = 0; index < statements.length; index += 1) {
-    const statement = statements[index];
-    if (!statement || statement.kind === ts.SyntaxKind.EmptyStatement) continue;
+    const statement = statements[index]
+    if (!statement || statement.kind === ts.SyntaxKind.EmptyStatement) continue
     if (!ts.isBreakStatement(statement)) {
-      body.push(statement);
-      continue;
+      body.push(statement)
+      continue
     }
-    if (statement.label)
-      return { statements: body, explicitBreak: true, illegal: true };
-    const trailing = statements
-      .slice(index + 1)
-      .some((item) => item.kind !== ts.SyntaxKind.EmptyStatement);
-    return { statements: body, explicitBreak: true, illegal: trailing };
+    if (statement.label) return { statements: body, explicitBreak: true, illegal: true }
+    const trailing = statements.slice(index + 1).some((item) => item.kind !== ts.SyntaxKind.EmptyStatement)
+    return { statements: body, explicitBreak: true, illegal: trailing }
   }
-  return { statements: body, explicitBreak: false, illegal: false };
+  return { statements: body, explicitBreak: false, illegal: false }
 }
 
 function terminatesClause(statement: ts.Statement | undefined): boolean {
-  if (!statement) return false;
+  if (!statement) return false
   if (
     ts.isReturnStatement(statement) ||
     ts.isThrowStatement(statement) ||
     ts.isBreakStatement(statement) ||
     ts.isContinueStatement(statement)
   ) {
-    return true;
+    return true
   }
-  if (!ts.isBlock(statement)) return false;
-  const last = [...statement.statements]
-    .reverse()
-    .find((item) => item.kind !== ts.SyntaxKind.EmptyStatement);
-  return terminatesClause(last);
+  if (!ts.isBlock(statement)) return false
+  const last = [...statement.statements].reverse().find((item) => item.kind !== ts.SyntaxKind.EmptyStatement)
+  return terminatesClause(last)
 }
 
 function emitThrow(ctx: GenerationContext, node: ts.ThrowStatement): void {
-  ctx.writeLine(`raise ${ctx.emitExpression(node.expression)}`);
+  ctx.writeLine(`raise ${ctx.emitExpression(node.expression)}`)
 }
 
 function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
   if (node.finallyBlock) {
     ctx.report(
       node.finallyBlock,
-      "try/finally is not supported. Berry has no finally clause; restructure cleanup explicitly (e.g. duplicate cleanup or helper functions).",
-    );
-    return;
+      'try/finally is not supported. Berry has no finally clause; restructure cleanup explicitly (e.g. duplicate cleanup or helper functions).',
+    )
+    return
   }
 
-  const catchClause = node.catchClause;
+  const { catchClause } = node
   if (!catchClause) {
-    ctx.report(node, "A try statement must have a catch clause.");
-    return;
+    ctx.report(node, 'A try statement must have a catch clause.')
+    return
   }
 
-  ctx.writeLine("try");
-  ctx.indent();
-  ctx.pushScope();
-  for (const statement of node.tryBlock.statements) ctx.emitStatement(statement);
-  ctx.popScope();
-  ctx.dedent();
+  ctx.writeLine('try')
+  ctx.indent()
+  ctx.pushScope()
+  for (const statement of node.tryBlock.statements) ctx.emitStatement(statement)
+  ctx.popScope()
+  ctx.dedent()
 
-  const binding = catchClause.variableDeclaration;
+  const binding = catchClause.variableDeclaration
   if (!binding) {
-    ctx.writeLine("except ..");
+    ctx.writeLine('except ..')
   } else if (!ts.isIdentifier(binding.name)) {
     ctx.report(
       binding.name,
-      "Destructuring in catch bindings is not supported. Use a single identifier, e.g. catch (e).",
-    );
-    ctx.writeLine("except ..");
+      'Destructuring in catch bindings is not supported. Use a single identifier, e.g. catch (e).',
+    )
+    ctx.writeLine('except ..')
   } else {
-    const name = binding.name.text;
-    ctx.writeLine(`except .. as ${name}`);
-    ctx.indent();
-    ctx.pushScope();
-    ctx.declareName(name, binding.name);
-    for (const statement of catchClause.block.statements) ctx.emitStatement(statement);
-    ctx.popScope();
-    ctx.dedent();
-    ctx.writeLine("end");
-    return;
+    const name = binding.name.text
+    ctx.writeLine(`except .. as ${name}`)
+    ctx.indent()
+    ctx.pushScope()
+    ctx.declareName(name, binding.name)
+    for (const statement of catchClause.block.statements) ctx.emitStatement(statement)
+    ctx.popScope()
+    ctx.dedent()
+    ctx.writeLine('end')
+    return
   }
 
-  ctx.indent();
-  ctx.pushScope();
-  for (const statement of catchClause.block.statements) ctx.emitStatement(statement);
-  ctx.popScope();
-  ctx.dedent();
-  ctx.writeLine("end");
+  ctx.indent()
+  ctx.pushScope()
+  for (const statement of catchClause.block.statements) ctx.emitStatement(statement)
+  ctx.popScope()
+  ctx.dedent()
+  ctx.writeLine('end')
 }
 
-function emitClassDeclaration(
-  ctx: GenerationContext,
-  node: ts.ClassDeclaration,
-): void {
-  emitClass(ctx, node);
+function emitClassDeclaration(ctx: GenerationContext, node: ts.ClassDeclaration): void {
+  emitClass(ctx, node)
 }
 
-function emitExportDeclaration(
-  ctx: GenerationContext,
-  node: ts.ExportDeclaration,
-): void {
-  if (node.isTypeOnly) return;
+function emitExportDeclaration(ctx: GenerationContext, node: ts.ExportDeclaration): void {
+  if (node.isTypeOnly) return
 
-  const specifierNode = node.moduleSpecifier;
-  const specifier =
-    specifierNode && ts.isStringLiteral(specifierNode) ? specifierNode.text : undefined;
+  const specifierNode = node.moduleSpecifier
+  const specifier = specifierNode && ts.isStringLiteral(specifierNode) ? specifierNode.text : undefined
   if (specifierNode && specifier === undefined) {
-    ctx.report(node, "Only string module specifiers are supported.");
-    return;
+    ctx.report(node, 'Only string module specifiers are supported.')
+    return
   }
   if (
     specifier !== undefined &&
-    !specifier.startsWith("./") &&
-    !specifier.startsWith("../") &&
-    !specifier.startsWith("@cos/") &&
-    !specifier.startsWith("@berry/")
+    !specifier.startsWith('./') &&
+    !specifier.startsWith('../') &&
+    !specifier.startsWith('@cos/') &&
+    !specifier.startsWith('@berry/')
   ) {
-    ctx.report(
-      node,
-      "Only relative re-exports and @cos/* module re-exports are supported.",
-    );
-    return;
+    ctx.report(node, 'Only relative re-exports and @cos/* module re-exports are supported.')
+    return
   }
 
-  const exportClause = node.exportClause;
+  const { exportClause } = node
   if (!exportClause) {
-    ctx.report(node, "export * re-exports are not supported yet.");
-    return;
+    ctx.report(node, 'export * re-exports are not supported yet.')
+    return
   }
 
   if (ts.isNamespaceExport(exportClause)) {
     if (specifier === undefined) {
-      ctx.report(node, "Namespace exports require a module specifier.");
-      return;
+      ctx.report(node, 'Namespace exports require a module specifier.')
+      return
     }
-    const moduleTemp = ctx.nextTemp("__cos_re_");
-    ctx.declareName(moduleTemp, node);
-    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
-    ctx.noteNamedExport(exportClause.name.text, moduleTemp, node);
-    return;
+    const moduleTemp = ctx.nextTemp('__cos_re_')
+    ctx.declareName(moduleTemp, node)
+    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
+    ctx.noteNamedExport(exportClause.name.text, moduleTemp, node)
+    return
   }
 
-  let moduleTemp: string | undefined;
+  let moduleTemp: string | undefined
   if (specifier !== undefined) {
-    moduleTemp = ctx.nextTemp("__cos_re_");
-    ctx.declareName(moduleTemp, node);
-    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
+    moduleTemp = ctx.nextTemp('__cos_re_')
+    ctx.declareName(moduleTemp, node)
+    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
   }
 
   for (const element of exportClause.elements) {
-    if (element.isTypeOnly) continue;
-    const exported = element.name.text;
+    if (element.isTypeOnly) continue
+    const exported = element.name.text
     if (moduleTemp) {
-      const source = (element.propertyName ?? element.name).text;
-      const localTemp = ctx.nextTemp("__cos_export_");
-      ctx.declareName(localTemp, element);
-      ctx.writeLine(`var ${localTemp} = ${moduleTemp}.find(${JSON.stringify(source)})`);
-      ctx.noteNamedExport(exported, localTemp, element);
+      const source = (element.propertyName ?? element.name).text
+      const localTemp = ctx.nextTemp('__cos_export_')
+      ctx.declareName(localTemp, element)
+      ctx.writeLine(`var ${localTemp} = ${moduleTemp}.find(${JSON.stringify(source)})`)
+      ctx.noteNamedExport(exported, localTemp, element)
     } else {
-      const local =
-        element.propertyName !== undefined
-          ? element.propertyName.text
-          : element.name.text;
-      if (exported === "default") {
-        ctx.noteDefaultExport(local, element);
+      const local = element.propertyName !== undefined ? element.propertyName.text : element.name.text
+      if (exported === 'default') {
+        ctx.noteDefaultExport(local, element)
       } else {
-        ctx.noteNamedExport(exported, local, element);
+        ctx.noteNamedExport(exported, local, element)
       }
     }
   }
 }
 
-function emitImportDeclaration(
-  ctx: GenerationContext,
-  node: ts.ImportDeclaration,
-): void {
-  if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return;
+function emitImportDeclaration(ctx: GenerationContext, node: ts.ImportDeclaration): void {
+  if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return
   if (!node.moduleSpecifier || !ts.isStringLiteral(node.moduleSpecifier)) {
-    ctx.report(node, "Only string module specifiers are supported.");
-    return;
+    ctx.report(node, 'Only string module specifiers are supported.')
+    return
   }
 
-  const specifier = node.moduleSpecifier.text;
+  const specifier = node.moduleSpecifier.text
   if (
-    !specifier.startsWith("./") &&
-    !specifier.startsWith("../") &&
-    !specifier.startsWith("@cos/") &&
-    !specifier.startsWith("@berry/")
+    !specifier.startsWith('./') &&
+    !specifier.startsWith('../') &&
+    !specifier.startsWith('@cos/') &&
+    !specifier.startsWith('@berry/')
   ) {
-    ctx.report(
-      node,
-      "Only relative imports and @cos/* module imports are supported.",
-    );
-    return;
+    ctx.report(node, 'Only relative imports and @cos/* module imports are supported.')
+    return
   }
 
-  const clause = node.importClause;
+  const clause = node.importClause
   if (!clause) {
-    ctx.report(node, "Side-effect imports are not supported.");
-    return;
+    ctx.report(node, 'Side-effect imports are not supported.')
+    return
   }
 
-  const namedBindings = clause.namedBindings;
-  const hasNamed =
-    !!namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length > 0;
-  const hasNamespace = !!namedBindings && ts.isNamespaceImport(namedBindings);
+  const { namedBindings } = clause
+  const hasNamed = !!namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length > 0
+  const hasNamespace = !!namedBindings && ts.isNamespaceImport(namedBindings)
 
   if (hasNamespace) {
-    const local = namedBindings.name.text;
-    ctx.declareName(local, namedBindings.name);
-    if (specifier.startsWith("@cos/") || specifier.startsWith("@berry/")) {
-      const moduleTemp = ctx.nextTemp("__cos_mod_");
-      ctx.declareName(moduleTemp, node);
-      ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
-      ctx.writeLine(`var ${local} = ${moduleTemp}.find("default")`);
+    const local = namedBindings.name.text
+    ctx.declareName(local, namedBindings.name)
+    if (specifier.startsWith('@cos/') || specifier.startsWith('@berry/')) {
+      const moduleTemp = ctx.nextTemp('__cos_mod_')
+      ctx.declareName(moduleTemp, node)
+      ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
+      ctx.writeLine(`var ${local} = ${moduleTemp}.find("default")`)
     } else {
-      ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`);
+      ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`)
     }
     if (clause.name) {
-      ctx.report(
-        clause.name,
-        "Default imports cannot be combined with namespace imports.",
-      );
+      ctx.report(clause.name, 'Default imports cannot be combined with namespace imports.')
     }
-    return;
+    return
   }
 
   if (!clause.name && !hasNamed) {
     if (namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length === 0) {
-      ctx.report(node, "Empty named imports are not supported.");
-      return;
+      ctx.report(node, 'Empty named imports are not supported.')
+      return
     }
-    ctx.report(node, "Only default, named, and namespace imports are supported.");
-    return;
+    ctx.report(node, 'Only default, named, and namespace imports are supported.')
+    return
   }
 
-  const moduleTemp = ctx.nextTemp("__cos_mod_");
-  ctx.declareName(moduleTemp, node);
-  ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`);
-  const isCosModule =
-    specifier.startsWith("@cos/") || specifier.startsWith("@berry/");
+  const moduleTemp = ctx.nextTemp('__cos_mod_')
+  ctx.declareName(moduleTemp, node)
+  ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
+  const isCosModule = specifier.startsWith('@cos/') || specifier.startsWith('@berry/')
 
   if (clause.name) {
-    ctx.declareName(clause.name.text, clause.name);
-    ctx.writeLine(`var ${clause.name.text} = ${moduleTemp}.find("default")`);
+    ctx.declareName(clause.name.text, clause.name)
+    ctx.writeLine(`var ${clause.name.text} = ${moduleTemp}.find("default")`)
   }
 
   if (namedBindings && ts.isNamedImports(namedBindings)) {
-    let defaultTemp: string | undefined;
+    let defaultTemp: string | undefined
     if (isCosModule && (clause.name == null || namedBindings.elements.length > 0)) {
       if (clause.name) {
-        defaultTemp = clause.name.text;
+        defaultTemp = clause.name.text
       } else {
-        defaultTemp = ctx.nextTemp("__cos_def_");
-        ctx.declareName(defaultTemp, node);
-        ctx.writeLine(`var ${defaultTemp} = ${moduleTemp}.find("default")`);
+        defaultTemp = ctx.nextTemp('__cos_def_')
+        ctx.declareName(defaultTemp, node)
+        ctx.writeLine(`var ${defaultTemp} = ${moduleTemp}.find("default")`)
       }
     }
     for (const element of namedBindings.elements) {
-      if (element.isTypeOnly) continue;
-      const imported = (element.propertyName ?? element.name).text;
-      const local = element.name.text;
-      ctx.declareName(local, element.name);
+      if (element.isTypeOnly) continue
+      const imported = (element.propertyName ?? element.name).text
+      const local = element.name.text
+      ctx.declareName(local, element.name)
       if (isCosModule) {
-        ctx.writeLine(`var ${local} = ${defaultTemp}.${imported}`);
+        ctx.writeLine(`var ${local} = ${defaultTemp}.${imported}`)
       } else {
-        ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`);
+        ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`)
       }
     }
   }

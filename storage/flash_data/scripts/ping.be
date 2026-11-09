@@ -1,3 +1,5 @@
+var __cos_mod_1 = cos_import("@cos/net")
+var net = __cos_mod_1.find("default")
 def main(args)
     if size(args) < 1 || size(args) > 2
         print("Usage: ping <host> [timeout_ms]")
@@ -19,10 +21,8 @@ def main(args)
         end
     end
 
-    var __cos_mod_1 = cos_import("@cos/net")
-    var net = __cos_mod_1.find("default")
     var result = net.ping(args[0], timeout_ms)
-    if result["ok"]
+    if result["ok"] == true
         print("Reply from " + result["address"] + ": time=" + str(result["rtt_ms"]) + " ms")
         return 0
     end
@@ -30,3 +30,4 @@ def main(args)
     print("ping: " + args[0] + " failed (" + result["error"] + ")")
     return 1
 end
+return cos_module(nil, "main", main)

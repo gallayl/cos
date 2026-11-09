@@ -1,0 +1,47 @@
+name: Frontend
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'storage/ts/**'
+      - 'storage/flash_data/**'
+      - '.github/workflows/frontend.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'storage/ts/**'
+      - 'storage/flash_data/**'
+      - '.github/workflows/frontend.yml'
+
+jobs:
+  check:
+    name: Lint, format, test, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Format check
+        run: yarn format:check
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Test
+        run: yarn test
+
+      - name: Build
+        run: yarn build
