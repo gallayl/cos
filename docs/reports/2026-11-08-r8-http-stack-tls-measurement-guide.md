@@ -1,8 +1,8 @@
 # R8 — HTTP Worker Stack/TLS Measurement & Safe Tuning Guide
 
 **Date:** 2026-11-08 (updated with software safety fix)  
-**Plan:** `docs/2026-11-08-consolidated-improvement-plan.md` R8  
-**Source:** `docs/2026-11-06-memory-pressure-fixes.md` P4/P5  
+**Plan:** `docs/plan/consolidated-improvement-plan.md` R8  
+**Source:** `docs/history/2026-11-06-memory-pressure-fixes.md` P4/P5  
 **Hardware:** CYD / ESP32-2432S028R (or equivalent supported board) with Wi-Fi; SD card optional for Berry test scripts.
 
 ## Scope

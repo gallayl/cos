@@ -1,7 +1,7 @@
 # R10 — Frontend TS toolchain hardening
 
 **Date:** 2026-11-09 (workspace date) / 2026-11-08 plan context  
-**Plan item:** `docs/2026-11-08-consolidated-improvement-plan.md` R10  
+**Plan item:** `docs/plan/consolidated-improvement-plan.md` R10  
 **Scope:** R10 acceptance criteria except dedicated Web Worker compilation, which is explicitly deferred by user decision.
 
 ## Summary

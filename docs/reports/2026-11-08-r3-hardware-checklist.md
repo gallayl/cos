@@ -1,7 +1,7 @@
 # R3 — TS→Berry Semantic Conformance Hardware Checklist
 
 **Date:** 2026-11-08  
-**Related:** `docs/2026-11-08-consolidated-improvement-plan.md` (R3), `docs/2026-11-08-ts-berry-semantic-conformance.md`  
+**Related:** `docs/plan/consolidated-improvement-plan.md` (R3), `docs/history/2026-11-08-ts-berry-semantic-conformance.md`  
 **Goal:** Validate that R3 compiler/SDK changes behave correctly on the target Berry VM/device, especially generated code that now uses Berry global `size(...)` and preserves numeric literal lexical form.
 
 ## What changed (why validate)

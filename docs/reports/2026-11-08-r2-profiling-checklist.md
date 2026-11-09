@@ -1,7 +1,7 @@
 # R2 / P7 Profiling & Regression Checklist (2026-11-06 memory pressure fixes)
 
 **Date:** 2026-11-08  
-**Scope:** Implements the R2 "measurement method/script/checklist committed" item from `docs/2026-11-08-consolidated-improvement-plan.md` (source: `docs/2026-11-06-memory-pressure-fixes.md` P7).  
+**Scope:** Implements the R2 "measurement method/script/checklist committed" item from `docs/plan/consolidated-improvement-plan.md` (source: `docs/history/2026-11-06-memory-pressure-fixes.md` P7).  
 **Status:** Checklist committed. Baseline numbers and regression execution must be recorded on hardware / with an ESP-IDF build.
 
 ## Prerequisites

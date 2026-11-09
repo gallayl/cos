@@ -1,12 +1,15 @@
 # COS Consolidated Improvement Plan
 
 **Created:** 2026-11-08  
-**Scope:** Consolidates `docs/2026-10-improvements.md` and `docs/2026-11-01`–`2026-11-07`  
+**Status:** Living cross-cutting tracker (planned/remaining work + delivered evidence)  
+**Scope:** Consolidates historical specs in [`docs/history/`](../history/) — from `2026-10-improvements.md` through `2026-11-08-ts-berry-semantic-conformance.md` — plus validation evidence in [`docs/reports/`](../reports/). New proposals live in [`docs/ideas/`](../ideas/).  
 **Purpose:** Single progress-tracked plan for remaining work, with priority, order, findings, specs/acceptance references, and follow-ups.
+
+> Docs navigation: see [`docs/README.md`](../README.md).
 
 ## How to use this document
 
-- Treat this as the **cross-cutting tracker**. Source documents remain the detailed design/spec history.
+- Treat this as the **cross-cutting tracker**. Detailed design/spec documents remain in [`docs/history/`](../history/) as **historical design records**; their current delivery status is tracked here.
 - Update status checkboxes and the **Progress log** when work lands.
 - Do not mark an item complete without validation evidence (tests, CI, `idf.py size`/heap measurements, or hardware validation where required).
 - Prefer small, independently testable changes. For memory/runtime work, **measure before and after**.
@@ -17,7 +20,7 @@
 
 | Area | Evidence | Notes |
 |---|---|---|
-| Shell/display/CI milestones 1–6 | `docs/2026-10-improvements.md` validation logs; PRs #14–#18 referenced there | Milestone 4 has **pending hardware validation** for touch scrollback gestures and connected-network `ping`/`nslookup`. |
+| Shell/display/CI milestones 1–6 | `docs/history/2026-10-improvements.md` validation logs; PRs #14–#18 referenced there | Milestone 4 has **pending hardware validation** for touch scrollback gestures and connected-network `ping`/`nslookup`. |
 | HTTP/network buffer consolidation (P1) | Commit `e0bf05b`; `components/network/src/network_http.c`, `components/network/include/network.h`, `components/berry_lang/src/berry_network.cpp` | Removed redundant idle response/body/header storage patterns; added `network_http_request_header_t` request view; worker copies request data into network-owned buffers before queueing. |
 | Lazy JSON/module hygiene (R1/R6) | `berry_runtime.cpp`: `berry_runtime_ensure_json()`, lazy proxy globals for `console/fs/net/ui`, `json` on-demand | R1 removed eager `json` preload (hardware validated). R6 removed eager `console/fs/net/ui` preload and added lazy proxy globals for bare-global compatibility; `cos_import`/Berry `import` load on demand. **Hardware validation pending for R6 heap/behavior.** |
 | Frontend TS/Berry IDE foundation | `frontend/` (Shades + Vite + Monaco), `frontend/src/cos-sdk/*`, `frontend/src/ide/*`, `frontend/tools/compile-storage.ts` | TS→Berry compiler, diagnostics, tests, relative + `@cos/*`/`@berry/*` `cos_import` lowering, type-only import stripping. |
@@ -75,7 +78,7 @@
 
 ### R1 — Finish lazy JSON / startup module hygiene
 - **Priority:** P0 | **Complexity:** S–M | **ROI:** High | **Risk:** Medium
-- **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P2, `docs/2026-11-07-ts-feature-extensions.md`
+- **Source:** `docs/history/2026-11-06-memory-pressure-fixes.md` P2, `docs/history/2026-11-07-ts-feature-extensions.md`
 - **Problem:** `berry_runtime_ensure_json()` exists, but `berry_runtime_init()` still eagerly installs/loads `json` (and other module globals). This prevents the intended startup memory win and conflicts with on-demand module goals.
 - **Spec / acceptance criteria:**
   - Ordinary Berry runtime startup does not load the JSON module.
@@ -93,7 +96,7 @@
 ### R2 — 2026-11-06 profiling + regression matrix (P7)
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Low–Medium
 - **Status:** ✅ **Completed as tracker item (2026-11-08)** — R2 deliverables committed and hardware profiling surfaced actionable issues. Remaining validation/fixes are tracked as follow-ups below (primarily R8 and network/runtime hardening).
-- **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P7
+- **Source:** `docs/history/2026-11-06-memory-pressure-fixes.md` P7
 - **Spec / acceptance criteria:** Record measurements at the checkpoints defined in P7 (startup/before Berry init/after init/app open/FS text/FS JSON/HTTP GET/HTTPS GET/max response/after GC/repeated requests). Capture `free`, `largest block`, `minimum free`; compare `idf.py size`/`size-components` and `.bss` impact in `berry_lang`/`network`. Run required regression cases (JSON lazy behavior, FS text/JSON, HTTP/HTTPS, large body, max response, timeout safety, repeated requests, worker stack sanity).
 - **Progress:**
   - [x] Measurement method/script/checklist committed. Added `docs/reports/2026-11-08-r2-profiling-checklist.md`, shell profiling commands (`berry profile`, `berry gc`), and deployable Berry regression scripts under `storage/flash_data/tests/r2/`.
@@ -108,7 +111,7 @@
 
 ### R3 — TS→Berry semantic conformance pass
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Medium
-- **Source:** `docs/2026-11-03-ts-sdk.md`, `docs/2026-11-07-ts-feature-extensions.md`
+- **Source:** `docs/history/2026-11-03-ts-sdk.md`, `docs/history/2026-11-07-ts-feature-extensions.md`
 - **Problem:** The compiler implements useful lowering, but some mappings need verification against actual Berry semantics (`.length` currently lowers to `.size()` method; doc flags a possible mismatch). `null/undefined`→`nil`, equality/truthiness, template strings, class property init, and container/string APIs need a documented conformance matrix.
 - **Spec / acceptance criteria:**
   - Every supported mapping has tests (compiler output +, where feasible, Berry/runtime behavior expectations).
@@ -120,9 +123,9 @@
   - Compiler: `.length` now lowers to `size(expr)`. Numeric literal emission preserves source lexical form (`2.0`, `1e3`) with `_` separators removed. Added diagnostics for `int-literal / int-literal` (Berry int-division ambiguity), unary `+`, and clearer `typeof`/`void`/`delete` messages.
   - SDK: `language.d.ts` documents Berry numeric model, adds `int`/`real` type aliases and global `int`/`real`/`bool`/`size`/`type` declarations; `modules/math.d.ts` now declares common Berry math functions/constants.
   - Storage: regenerated `storage/flash_data/*.be` from `storage/ts/*.ts` via `frontend/tools/compile-storage.ts --write` (length/size mapping). `compile-storage` ignores hand-written Berry scripts under `storage/flash_data/tests/`.
-  - Matrix/checklist: `docs/2026-11-08-ts-berry-semantic-conformance.md`, `docs/reports/2026-11-08-r3-hardware-checklist.md`.
+  - Matrix/checklist: `docs/history/2026-11-08-ts-berry-semantic-conformance.md`, `docs/reports/2026-11-08-r3-hardware-checklist.md`.
 - **Progress:**
-  - [x] Mapping matrix written. (`docs/2026-11-08-ts-berry-semantic-conformance.md`)
+  - [x] Mapping matrix written. (`docs/history/2026-11-08-ts-berry-semantic-conformance.md`)
   - [x] `.length`/`size()` behavior verified and fixed if needed. (Berry source/tests verified; compiler emits `size(expr)`.)
   - [x] Other semantic edge cases audited. (numeric literal preservation, int/int division diagnostic, unary +/typeof/void/delete diagnostics; null/undefined/equality/truthiness/template/class-init/import-export mappings documented)
   - [x] Tests/docs updated. (frontend tests: 82 passed / 16 files; storage TS→Berry outputs regenerated)
@@ -131,7 +134,7 @@
 ### R4 — `try`/`catch`/`throw` compiler lowering
 - **Priority:** P1 | **Complexity:** M | **ROI:** High | **Risk:** Medium
 - **Status:** ✅ **Done (2026-11-08)** — compiler lowering, diagnostics, frontend unit tests, and hardware/manual validation complete.
-- **Source:** `docs/2026-11-07-ts-feature-extensions.md`
+- **Source:** `docs/history/2026-11-07-ts-feature-extensions.md`
 - **Current state:** `frontend/src/ide/berry/statement-generator.ts` lowers `throw` to Berry `raise` and `try/catch` to Berry `try`/`except ..`/`end` (with optional `as <identifier>` binding). `finally` and destructuring catch bindings are diagnosed (no silent miscompile). Berry semantics confirmed against pinned source tests (`build/berry-source/tests/exceptions.be`, `tests/class.be`, `tests/compiler.be`, `tests/division_by_zero.be`). User hardware validation (2026-11-08): `berry run /sdcard/tests/trycatch.be` produced expected output ending with `R4 OK` (basic catch, no-binding catch, rethrow, control flow/return in try, break in catch) with no uncaught exception/crash.
 - **Spec / acceptance criteria:**
   - Standard TS `try/catch` lowers to Berry exception handling (`try`/`except`/`raise`) with predictable binding behavior.
@@ -152,7 +155,7 @@
 
 ### R5 — Phase 1 Berry memory instrumentation & lifecycle verification
 - **Priority:** P0 | **Complexity:** M | **ROI:** High | **Risk:** Medium
-- **Source:** `docs/2026-11-02-memory-consumption-improvements.md`
+- **Source:** `docs/history/2026-11-02-memory-consumption-improvements.md`
 - **Status:** ✅ **Done (2026-11-08).** Acceptance evidence recorded: checkpoint 1 (clean boot), checkpoints 2–7/teardown GC, source-buffer release + fragmented-heap fallback, R5-HW2 restart-loop regression (Tap Dash 10 + Breakout 7 cycles, no progressive leak), failure paths (missing/compile error/0-byte), and R5-HW3 GC benchmarks (200/150/125 identical workload, no measurable difference, no responsiveness impact noticed; **default remains 200, restored/confirmed**). Host validation/tests passed. Open follow-ups: **R5-FU1 (critical, stdio/heap corruption root cause)**, optional `memory_churn.be` redeploy/worst-case reload recheck. **R5-FU2 (heap reporting display): resolved (2026-11-09)** — code fix, cap-aware host tests (`test_system` 12/12, `test_shell_berry` 26/26 impacted run), and hardware verified (`berry profile`/`mem`/`memory_churn`/`berry gc`). Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`.
 - **Spec / acceptance criteria:**
   - Lifecycle checkpoints report `be_gc_memcount()`, free internal heap, largest internal block, minimum free heap (watermark), and total free heap where useful.
@@ -181,7 +184,7 @@
 ### R6 — Firmware on-demand native module loading
 - **Priority:** P1 | **Complexity:** M–L | **ROI:** High | **Risk:** Medium–High
 - **Status:** ✅ **Done (2026-11-08, hardware validated including bugfix retest).**
-- **Source:** `docs/2026-11-07-ts-feature-extensions.md`, `docs/2026-11-06-memory-pressure-fixes.md`
+- **Source:** `docs/history/2026-11-07-ts-feature-extensions.md`, `docs/history/2026-11-06-memory-pressure-fixes.md`
 - **Current state:** `console`, `fs`, `net`, and `ui` are not eagerly loaded at `berry_runtime_init()`. `berry_runtime_init()` installs lightweight lazy proxy globals (tiny dynamic Berry modules with a Berry-closure `member` hook calling internal `cos_lazy_member(module, attr)`). On first bare-global attribute access (e.g. `ui.label(...)`), the proxy loads the real native module from `be_modtab.c` via `be_getmodule()`, replaces the global with the real module, and returns the attribute. `cos_import('@cos/*')` and Berry `import` load real modules on demand and bypass proxies. `json` remains on-demand via R1 (`berry_runtime_ensure_json()`); no lazy global proxy is installed for `json`.
 - **Spec / acceptance criteria:**
   - Modules not used by a script/app avoid unnecessary allocation/loading where feasible. ✅ Real native module tables initialize only on first use/import; startup installs only small proxy globals + `cos_lazy_member` helper.
@@ -203,7 +206,7 @@
 ### R7 — Fetch `include_body` option (P3)
 - **Priority:** P1 | **Complexity:** S | **ROI:** Medium | **Risk:** Low
 - **Status:** ✅ **Done (2026-11-08, hardware validated).**
-- **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P3
+- **Source:** `docs/history/2026-11-06-memory-pressure-fixes.md` P3
 - **Current state:** `net.fetch` accepts optional `include_body: bool` (default `true`). When `false`, the returned `body` is an empty string, avoiding a Berry string copy of the raw HTTP response; JSON parsing and `json`/`json_ok` behavior are unchanged. Invalid `include_body` type is rejected as `ESP_ERR_INVALID_ARG` during option parsing (before queueing the request).
 - **Spec / acceptance criteria:** Add optional `include_body: bool` (default `true`). When `false` and JSON parsing succeeds, return parsed JSON but omit/empty raw body to avoid retaining the extra Berry string. Native parsing, `known_fetch_field`, TypeScript SDK, and docs updated. Existing scripts unchanged.
 - **Implementation notes:**
@@ -220,7 +223,7 @@
 ### R8 — HTTP worker stack/TLS measurement & safe tuning (P4/P5)
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Medium–High
 - **Status:** ✅ **Done (2026-11-09, evidence-based).** **Stack decision:** keep `HTTP_TASK_STACK=6144` (no reduction). Worst observed HWM **2184/6144** (`used~3960`, **~35.5% margin**, `unit=1`) on HTTPS POST/error paths; clean-boot HTTPS observed 2272/6144. Idle worker shutdown deferred. **Caller-abandon validated:** `delay/5` 300/300ms → `ESP_ERR_TIMEOUT`, immediate follow-up/retry `ESP_ERR_INVALID_STATE` while abandoned worker busy (post-completion retry not captured). **Open follow-ups:** HTTPS PSA/X.509 `-141` under heap pressure (R2/R8 P5), BT-state/`idf.py size` recording, optional post-completion retry capture.
-- **Source:** `docs/2026-11-06-memory-pressure-fixes.md` P4, P5
+- **Source:** `docs/history/2026-11-06-memory-pressure-fixes.md` P4, P5
 - **Spec / acceptance criteria:**
   - Add high-water-mark measurement for HTTP worker under GET/POST/HTTPS/max response/timeout/error cases; account for port stack units.
   - Reduce `HTTP_TASK_STACK` only with measured peak + >=25% margin.
@@ -236,7 +239,7 @@
 
 ### R9 — Berry command-script resolver + `path` + `ping` pilot
 - **Priority:** P1 | **Complexity:** M–L | **ROI:** Medium–High | **Risk:** High
-- **Source:** `docs/2026-11-01-improvements.md`
+- **Source:** `docs/history/2026-11-01-improvements.md`
 - **Spec / acceptance criteria (summary):** Resolve non-native commands to `.be` scripts (CWD, then configured path dirs); native commands always win; explicit path runs only that script; `main(args)` receives tokenized args and returns int status; scripts run in shared Berry VM without closing active UI app; `path` command list/add/remove/clear with normalized persisted config; `ping.be` pilot preserves existing `ping` contract before native registration is removed. Full spec in source doc.
 - **Progress:**
   - [x] Resolver/tokenization design finalized (interactive: alias → native `esp_console_run` → script resolver on `ESP_ERR_NOT_FOUND`; tokenization via `esp_console_split_argv`/existing quoting behavior).
@@ -250,7 +253,7 @@
 ### R10 — Frontend TS toolchain hardening
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium
 - **Status:** ✅ **Done (2026-11-09, Web Worker compilation explicitly deferred by user decision).**
-- **Source:** `docs/2026-11-03-ts-sdk.md`
+- **Source:** `docs/history/2026-11-03-ts-sdk.md`
 - **Spec / acceptance criteria:**
   - Compilation runs in a dedicated Web Worker (or existing behavior is verified and documented). ✅ Verified: `frontend/src/editor/editor-app.tsx` compiles synchronously via `astToBerry(getAst(...))` on the main thread. Worker isolation intentionally deferred (COS web UI apps are simple; avoid added complexity until compile latency/multi-file needs justify it).
   - Package/layout decision recorded (`frontend/*` integrated vs `packages/cos-sdk` + `packages/cos-typescript`). ✅ Keep integrated `frontend/src/cos-sdk` + `frontend/src/ide/*` for now; extract to packages when reuse/publication needs arise.
@@ -267,7 +270,7 @@
 ### R11 — SDK single-source-of-truth / binding audit
 - **Priority:** P1 | **Complexity:** M | **ROI:** Medium | **Risk:** Low–Medium
 - **Status:** ✅ **Done (2026-11-09, pragmatic audit/validation).** No hardware validation required.
-- **Source:** `docs/2026-11-03-ts-sdk.md`, `docs/2026-11-07-ts-feature-extensions.md`
+- **Source:** `docs/history/2026-11-03-ts-sdk.md`, `docs/history/2026-11-07-ts-feature-extensions.md`
 - **Spec / acceptance criteria:** SDK declarations, module exports, and docs match actual Berry/COS bindings. Prefer generation or automated validation to prevent drift. Cover `ui`, `console`/`log`, `fs`, `net`, `action`, Berry built-ins, and `@cos/*` module semantics.
 - **Report:** `docs/reports/2026-11-08-r11-sdk-binding-audit.md`
 - **Progress:**
@@ -277,7 +280,7 @@
 
 ### R12 — Milestone 4 hardware validation
 - **Priority:** P1 | **Complexity:** S (effort) / M (logistics) | **ROI:** Medium | **Risk:** Low
-- **Source:** `docs/2026-10-improvements.md` Milestone 4
+- **Source:** `docs/history/2026-10-improvements.md` Milestone 4
 - **Spec / acceptance criteria:** Validate touch scrollback gestures and connected-network `ping`/`nslookup` commands on supported CYD hardware; record results in the source milestone doc and here.
 - **Progress:**
   - [ ] Hardware test run completed.
@@ -286,7 +289,7 @@
 ### R13 — Memory-conscious compiler rules + resource lifecycle contract
 - **Priority:** P2 | **Complexity:** M–L | **ROI:** Medium | **Risk:** Medium
 - **Status:** ✅ **Done (2026-11-09).** Scope A delivered and hardware-validated: TS/SDK/compiler standardization + Monaco diagnostics + migrated TS sources/regenerated Berry with runtime-compatible lowering. R21 remains responsible for firmware `berry run`/`berry exec`/explicit UI-launch unification.
-- **Source:** `docs/2026-11-04-after-ts-optimizations.md`
+- **Source:** `docs/history/2026-11-04-after-ts-optimizations.md`
 - **Spec / acceptance criteria:** Configurable, documented diagnostics/rules for predictable app structure and cleanup (globals, lifecycle, hot callbacks, unsupported memory-sensitive patterns). Standardize `CosApplication`/resource cleanup patterns; native API support only where needed and measured.
 - **Design (implemented):**
   - Unified TS entrypoint contract: `CosApplication` (console/command, `run(args): number | void`, optional `teardown`) and `CosUiApplication extends CosApplication` (`setup(content,width,height)`, optional `run(args)` for future/R21 CLI args). SDK uses ambient `abstract class` declarations for `implements` ergonomics (`setup` enforced for `CosUiApplication`; `run` optional at TS type level, enforced for console entrypoints by compiler). No Berry inheritance emitted.
@@ -309,7 +312,7 @@
 
 ### R14 — Compiler profiles, debug metadata, source maps, editor diagnostics
 - **Priority:** P2 | **Complexity:** M–L | **ROI:** Medium | **Risk:** Medium
-- **Source:** `docs/2026-11-04-after-ts-optimizations.md`
+- **Source:** `docs/history/2026-11-04-after-ts-optimizations.md`
 - **Spec / acceptance criteria:** Dev/prod compiler profiles; production options evaluated (including `BE_DEBUG_RUNTIME_INFO` implications); source-map strategy for mapping Berry/runtime errors to TS; editor memory diagnostics surfaced from runtime metrics.
 - **Progress:**
   - [ ] Profile design.
@@ -318,13 +321,13 @@
 
 ### R15–R17 — Bytecode, UI allocation policy, solidification (experimental)
 - **Priority:** P2 | **Complexity:** L | **ROI:** Low–Medium/targeted | **Risk:** Medium–High
-- **Source:** `docs/2026-11-04-after-ts-optimizations.md`
+- **Source:** `docs/history/2026-11-04-after-ts-optimizations.md`
 - **Guardrails:** Each is a separate, benchmark-gated experiment. `.bec` must remain optional and version-tracked; UI allocation changes must compare retention vs fragmentation; solidification applies to firmware-bundled code, not general dynamic TS app deployment.
 - **Progress:** track individually when started.
 
 ### R18 — `async`/`await` runtime design + implementation
 - **Priority:** P2 | **Complexity:** XL | **ROI:** Medium–High | **Risk:** High
-- **Source:** `docs/2026-11-07-ts-feature-extensions.md`
+- **Source:** `docs/history/2026-11-07-ts-feature-extensions.md`
 - **Spec / acceptance criteria:** Design first: concurrency model on constrained hardware, interaction with Berry VM single-threading/tasking, cancellation, timers, networking callbacks, and memory/resource lifetime. Only then add compiler syntax lowering; no silent desugaring.
 - **Progress:**
   - [ ] Runtime/concurrency design doc approved.
@@ -333,7 +336,7 @@
 
 ### R19 — In-browser COS simulator
 - **Priority:** P3 | **Complexity:** XL | **ROI:** High (long-term DX) | **Risk:** High
-- **Source:** `docs/2026-11-05-in-browser-cos-simulator.md`
+- **Source:** `docs/history/2026-11-05-in-browser-cos-simulator.md`
 - **Spec / acceptance criteria (staged):** Pin Berry revision/config parity with firmware; build reproducible Berry WASM; run VM in dedicated Worker with watchdog/termination/recovery; define COS platform abstraction seam (display/input/clock/timers/filesystem/commands/logging); implement `Renderer`-backed canvas; add explicit capability labels for simulated/stubbed hardware features. Full spec in source doc.
 - **Progress:**
   - [ ] Berry parity/toolchain spike.
@@ -344,7 +347,7 @@
 
 ### R20 — 2026-10 deferred backlog
 - **Priority:** P3 | **Complexity:** M–XL | **ROI:** Mixed | **Risk:** Medium–High
-- **Source:** `docs/2026-10-improvements.md` deferred follow-ups
+- **Source:** `docs/history/2026-10-improvements.md` deferred follow-ups
 - **Items:**
   - [ ] Shell pipes/redirection (`>` / `>>`) — requires parsing/streaming/file-failure semantics design.
   - [ ] Shell line-editor refactor seam for testability and future input owners.
@@ -391,15 +394,15 @@
 | 2026-11-08 | R2 in progress: profiling implementation/checklist. | Added `berry profile` (system heap + Berry GC metrics) and `berry gc` shell commands, `berry_runtime_gc_collect()` API + host mock, P7 checklist/report template in `docs/reports/2026-11-08-r2-profiling-checklist.md`, and deployable Berry regression scripts in `storage/flash_data/tests/r2/`. Hardware/IDF measurements and regression execution remain pending (user validation). |
 | 2026-11-08 | R2 hardware analysis (partial). | User provided `idf.py size`/components and clean-boot reruns A–D in `docs/reports/2026-11-08-r2-profiling-checklist.md`. FS text/JSON pass. HTTP success is functional but costly (`min=3288`, `largest=6912` after 158 B). HTTPS fails from clean boot (`mbedtls_ssl_setup -0x008D` / connect alloc failure). Timeout/error paths can collapse native heap (`min 24–76`, `largest 384–1920`, BT malloc failures, `ESP_ERR_NO_MEM`), with no Berry GC recovery. Report updated with anomalies and prioritized improvements (R8/P4 stack HWM, R8/P5 mbedTLS peak, timeout/cleanup audit). |
 | 2026-11-08 | R2 completed as tracker item; remaining work moved to follow-ups. | Deliverables committed (`docs/reports/2026-11-08-r2-profiling-checklist.md`, `berry profile`/`berry gc`, `storage/flash_data/tests/r2/*`). Hardware runs showed HTTPS progressed (`-0x008D` TLS alloc → `-141` PSA insufficient memory during cert verification) after memory tuning (`sdkconfig.defaults` mbedTLS 4KB/variable buffers, `HTTP_TASK_STACK` 6144, `NETWORK_HTTP_BODY_MAX` 2048/headers reduced, smaller esp_http_client buffers) — committed in `6a48ecf` plus subsequent uncommitted tuning. Follow-ups: HTTPS PSA/RAM with verification, timeout/abandon cleanup, BT coexistence, and remaining P7 regression/clean-boot checkpoint runs (see R2 follow-ups, R8). |
-| 2026-11-08 | R3 implementation complete; hardware validation pending. | TS→Berry compiler fixes in `frontend/src/ide/berry/*` (`.length` → `size(expr)`, numeric literal source preservation, int-literal division / unary + / typeof/void/delete diagnostics). SDK numeric harmonization in `frontend/src/cos-sdk/language.d.ts` and `modules/math.d.ts`. Regenerated `storage/flash_data/*.be` outputs. Added `docs/2026-11-08-ts-berry-semantic-conformance.md` and `docs/reports/2026-11-08-r3-hardware-checklist.md`. Frontend tests: `npx vitest run` → 82 passed, 16 files. |
+| 2026-11-08 | R3 implementation complete; hardware validation pending. | TS→Berry compiler fixes in `frontend/src/ide/berry/*` (`.length` → `size(expr)`, numeric literal source preservation, int-literal division / unary + / typeof/void/delete diagnostics). SDK numeric harmonization in `frontend/src/cos-sdk/language.d.ts` and `modules/math.d.ts`. Regenerated `storage/flash_data/*.be` outputs. Added `docs/history/2026-11-08-ts-berry-semantic-conformance.md` and `docs/reports/2026-11-08-r3-hardware-checklist.md`. Frontend tests: `npx vitest run` → 82 passed, 16 files. |
 | 2026-11-08 | R3 completed. | User validated what was possible; R3 marked complete. Follow-up: IDE/Monaco SDK registration updated for `@cos/*` module paths (`frontend/src/ide/register-cos-sdk.ts`) to resolve imports such as `@cos/math`. |
 | 2026-11-08 | R4 complete: `try`/`catch`/`throw` compiler lowering. | `frontend/src/ide/berry/statement-generator.ts` lowers `throw`→`raise` and `try/catch`→Berry `try/except .. [as e]/end`; `finally` and destructuring catch bindings diagnosed. Berry exception syntax confirmed from pinned tests (`build/berry-source/tests/exceptions.be`, `class.be`, `compiler.be`, `division_by_zero.be`). R4 unit tests added in `frontend/src/ide/ast-to-berry.test.ts` (37 passed). User hardware validation: `berry run /sdcard/tests/trycatch.be` produced expected output ending with `R4 OK`. Checklist: `docs/reports/2026-11-08-r4-hardware-checklist.md`. |
 | 2026-11-08 | R5 implementation complete; hardware validation/follow-ups pending. | All R5 code/docs/test assets delivered: `[R5]` lifecycle checkpoints (1–7, single consolidated GC-complete log), extended `berry_runtime_memory_info_t`/`berry profile`/GC-step API (`default 200`), source-buffer release verified and load path hardened (`vfs_stat`+read, post-stat internal/8bit fallback for short-lived buffer), `berry_ui_end_app` VM guard, `berry gc-step` shell command, `tests/r5/memory_churn.be`, `scripts/validate-berry-scripts.ps1` (22/22 `.be`), `scripts/berry_conf.host_validation.h`, hardware guide/results. Host tests: `test_shell_berry` 26/26, `test_berry_source_buffer` 2/2, `test_shell` 63/63. Hardware (partial): churn stable; Breakout lifecycle checkpoints 1–7 seen on successful run; source-buffer `ESP_ERR_NO_MEM` diagnosed/fixed (reflash pending); **critical follow-up**: post-close low-heap `LoadStoreError` stdio corruption panic during logging (`stdout_write_hook`/`fwrite`, EXCVADDR `0x40000000`). Follow-ups: R5-HW1/2/3, R5-FU1 (critical), R5-FU2, R5-FU3. |
-| 2026-11-08 | R5-HW2 complete (Tap Dash 10 cycles). | User hardware log: 10 `tap_dash.be` open/close cycles. Post-warm-up steady state `berry_gc=4342`, `reclaimed=5320`, `heap_free=19056→29056` (cycle 8 variance explained by BT HID auto-connect failure settling), `heap_largest=9216`, watermarks stable (`heap_min=2920`, `internal_min=26084`, `internal_largest=22528`). No progressive leak. With Breakout 7-cycle evidence, restart-loop regression criterion (two apps) satisfied. Updated `docs/reports/2026-11-08-r5-hardware-results-partial.md`, `docs/2026-11-08-consolidated-improvement-plan.md`. |
+| 2026-11-08 | R5-HW2 complete (Tap Dash 10 cycles). | User hardware log: 10 `tap_dash.be` open/close cycles. Post-warm-up steady state `berry_gc=4342`, `reclaimed=5320`, `heap_free=19056→29056` (cycle 8 variance explained by BT HID auto-connect failure settling), `heap_largest=9216`, watermarks stable (`heap_min=2920`, `internal_min=26084`, `internal_largest=22528`). No progressive leak. With Breakout 7-cycle evidence, restart-loop regression criterion (two apps) satisfied. Updated `docs/reports/2026-11-08-r5-hardware-results-partial.md`, `docs/plan/consolidated-improvement-plan.md`. |
 | 2026-11-08 | **R5 complete (accepted). R5-HW3 GC benchmarks done; default GC step 200 confirmed.** | R5-HW3 identical workload (Breakout ×5 + `memory_churn.be` ×3; on-device churn file loaded as 0 bytes, Breakout comparison valid): rates **200/150/125** produced identical steady/post-close metrics (`managed=4551`, `reclaimed=10555–10581`, `heap_free=28400`, `heap_largest=8704`, `heap_min=2920`, `internal_min=26084`, `internal_largest=22528`), **no responsiveness impact noticed**. `berry gc-step 200` restored/confirmed (`step_rate=200`). R5 acceptance criteria satisfied (checkpoints 1–7, source-buffer lifetime/release+fallback, restart-loop regression, GC benchmark evidence, host `.be` validation/tests). Open follow-ups: **R5-FU1 (critical stdio/heap corruption root cause)**, R5-FU2 heap reporting display, optional churn redeploy/worst-case reload recheck. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
 | 2026-11-08 | **R6 implemented (firmware): on-demand native module loading with lazy compatibility proxies. Hardware validation pending.** | `components/berry_lang/src/berry_runtime.cpp`: removed eager startup loading of `console/fs/net/ui` globals; `berry_runtime_init()` installs lightweight lazy proxy globals (dynamic module + Berry closure `member` hook). First bare-global attribute access loads the real native module via `be_getmodule()`, replaces the global, and returns the attribute; real module tables are not initialized at startup. `cos_import('@cos/*')` and Berry `import` remain on-demand. `json` unchanged from R1. Compatibility: TS-compiled shipped apps/scripts already use `cos_import`; bare `ui.*`/`net.*`/`fs.*`/`console.*` still works via proxy. Validation: `scripts/validate-berry-scripts.ps1` **24/24** `.be` files compiled (after R6 test script added); host tests `test_shell_berry` **26/26**, `test_berry_source_buffer` **2/2**, `test_shell` **63/63**. Hardware guide: `docs/reports/2026-11-08-r6-hardware-validation-guide.md`. |
 | 2026-11-08 | **R6 bugfix validated on hardware; R6 accepted complete.** | User report: `tests/r6/lazy_modules.be` failed at bare `ui.KEY_ENTER` (`'function' value has no attribute 'KEY_ENTER'`). Root causes: (1) `be_setmember` does not pop, so `be_setglobal` stored the member function instead of the proxy module (`console/fs/net/ui` globals became functions). (2) Native `member` hook form was fragile for `be_module_attr`'s low-level call/return path. Fix in `components/berry_lang/src/berry_runtime.cpp`: `be_setmember` value popped; proxy `member` uses a Berry closure (`def(k) return cos_lazy_member('<name>', k) end`) calling `cos_lazy_member` native helper to load/replace real module and return attribute (with attribute errors). Hardware retest (user): `tests/r6/lazy_modules.be` → `R6 OK` (`R6 bare ui.KEY_ENTER 40`, `R6 bare console.font_size 1`, `import fs`/`cos_import @cos/net`/`import json` all OK). `apps/breakout.be` launched/setup/closed cleanly; `apps/tap_dash.be` launched/setup/closed cleanly. Earlier breakout `attribute_error` from buggy first build/session did not reproduce. R6 acceptance criteria satisfied (on-demand load, compatibility preserved, no observed VM lifetime issues, R5 checkpoint/profile evidence captured). |
-| 2026-11-08 | **R7 implemented (firmware/SDK/docs): fetch `include_body` option (P3). Hardware validation pending.** | `components/berry_lang/src/berry_network.cpp`: added `include_body` to `known_fetch_field`, parsed bool `include_body` (default `true`, invalid type → `ESP_ERR_INVALID_ARG` before fetch), and returns empty `body` when `include_body=false` while preserving JSON parse/`json_ok`/`json` behavior. `frontend/src/cos-sdk/network.d.ts`: added `FetchRequest.include_body?: boolean` and documented empty `body` cases. `docs/2026-11-06-memory-pressure-fixes.md` P3 marked implemented (hardware validation pending). Added `storage/flash_data/tests/r7/include_body.be` and `docs/reports/2026-11-08-r7-hardware-validation-guide.md`. Validation: `scripts/validate-berry-scripts.ps1` **25/25** `.be` files compiled; frontend `npx vitest run` **92 passed / 16 files**. ESP-IDF firmware build and live network/heap validation not run in this environment (hardware required). |
+| 2026-11-08 | **R7 implemented (firmware/SDK/docs): fetch `include_body` option (P3). Hardware validation pending.** | `components/berry_lang/src/berry_network.cpp`: added `include_body` to `known_fetch_field`, parsed bool `include_body` (default `true`, invalid type → `ESP_ERR_INVALID_ARG` before fetch), and returns empty `body` when `include_body=false` while preserving JSON parse/`json_ok`/`json` behavior. `frontend/src/cos-sdk/network.d.ts`: added `FetchRequest.include_body?: boolean` and documented empty `body` cases. `docs/history/2026-11-06-memory-pressure-fixes.md` P3 marked implemented (hardware validation pending). Added `storage/flash_data/tests/r7/include_body.be` and `docs/reports/2026-11-08-r7-hardware-validation-guide.md`. Validation: `scripts/validate-berry-scripts.ps1` **25/25** `.be` files compiled; frontend `npx vitest run` **92 passed / 16 files**. ESP-IDF firmware build and live network/heap validation not run in this environment (hardware required). |
 | 2026-11-08 | **R7 complete (hardware validated).** | User hardware validation: `berry exec body.be` (R7 command script; `_argv` fixed to `def main(args)`, use `berry exec`) passed offline arg validation (`invalid include_body type rejected`, `bool values accepted`, `R7 ARG OK`). Live check `berry exec body.be http://ip-api.com/json` reported good (JSON fetch/default-body vs `include_body:false` behavior validated per user report). R7/P3 acceptance criteria satisfied; plan/docs updated. |
 | 2026-11-08 | **R9 hardware validation partial.** | User report: created `/sdcard/scripts`, added to `path`, placed `be_ping.be` with custom message (confirmed Berry script executed, not native), ran successfully as `be_ping.be` and `be_ping`; path list persisted across restart; remove/clear succeeded. R9 moved to in-progress (impl/host tests done). Pending: R9-HW3–HW9 full coverage (`ping` pilot explicit-path/network contract, native precedence, explicit paths, quoting/status/errors, UI app isolation) and native `ping` migration decision. Guide: `docs/reports/2026-11-08-r9-hardware-validation-guide.md`. |
 | 2026-11-08 | **R9 hardware validation continued; `net.ping` Berry binding bug fixed.** | Results: R9-HW5 ✅ native `ping` precedence. R9-HW6/R9-HW4 partial: `path clear` + `be_ping` from `/sdcard/scripts` CWD; from `/flash` relative explicit `../sdcard/scripts/be_ping` and `../sdcard/scripts/be_ping.be` ran. R9-HW3 partial: `path add /sdcard/asdasd` correctly rejected. R9-HW9 partial: breakout `berry run`/close full+relative path OK; script-while-UI-app-active not tested. R9-HW8 blocked: `be_ping.be 127.0.0.1 1000` → `map has no attribute 'ok'` (`ESP_FAIL`). Root cause/fix (workspace): `native_net_ping` in `components/berry_lang/src/berry_network.cpp` removed erroneous `be_pop(vm,1)` before `be_return(vm)` (Berry `be_returnvalue` reads `top-1`). Reflash required; retest ping pilot + remaining HW items. Follow-up: audit other `berry_network` map-return stack paths. |
@@ -407,9 +410,9 @@
 | 2026-11-08 | **R9 HW8 diagnosis corrected; `native_net_ping` restored.** | Pingprobe (after script updated to bracket access): `print(r)=(unknown value)`, `type(r)=map`, `r["ok"]` → "value 'map' does not support subscriptable". Diagnosis: original `native_net_ping` was correct (`be_newobject` → `[instance,.p]`, populate `.p`, `be_pop(1)` remove `.p`, return instance); my interim "fix" removed `be_pop` and returned raw `.p` (broken). Reverted/restored correct `be_pop` in `components/berry_lang/src/berry_network.cpp`. User needs rebuild+reflash with restored C++ and bracket-access script, then retest HW8. |
 | 2026-11-08 | **R9 interactive dispatch unified (small follow-up).** | `components/shell/src/shell_input.c` now dispatches expanded lines via `shell_dispatch_expanded_line()` (removes duplicated native-to-script fallback/handled mapping). Clarified `shell_dispatch_expanded_line()` contract in `components/shell/src/shell_script.h/.c`: returns `ESP_OK` when handled (native command or script ran/reported; `*ret` carries status, 1 for resolver-reported errors) and `ESP_ERR_NOT_FOUND` only when nothing matched, avoiding ambiguous handled+error codes and preventing "Unknown command" on explicit-path/script-reported errors. Updated `test/test_shell_script.c` expectations for handled explicit-missing/directory/runtime-error cases. Host tests rebuilt/passed in `test/build`: `test_shell_script` 19/19, `test_shell` 63/63, `test_shell_berry` 26/26. No firmware/hardware build run here; interactive behavior unchanged in intent but should be sanity-checked on device if convenient (explicit missing script should still print only resolver message; unknown bare command still prints `Unknown command`). |
 | 2026-11-09 | **R5-FU2 resolved (heap reporting display): code, host tests, and hardware verified.** | `components/system/src/system.c`: `system_get_info()` reports default heap via `MALLOC_CAP_DEFAULT` and internal via `MALLOC_CAP_INTERNAL\|MALLOC_CAP_8BIT`; `system.h` comments clarified. `components/berry_lang/src/berry_runtime.cpp`: `berry_runtime_get_memory_info()` uses `MALLOC_CAP_DEFAULT` for `heap_free/heap_min_free`. `components/shell/src/shell_berry_cmd.c`: `berry profile` prints `Default heap`/`Internal heap`. Host tests: cap-aware `test/mocks/mock_system.{h,c}` + `test/test_system.c` `test_get_info_distinguishes_default_and_internal_heap`; impacted run passed (`test_system` 12/12, `test_shell_berry` 26/26, `test_shell` 63/63). **Hardware verified (user, 2026-11-09):** `berry profile`/`mem` labels unambiguous; `memory_churn` + `berry profile` + `berry gc` behaved normally (managed 7288→2695, reclaimed 4593). Note: on this target `system_get_info` default/internal lines can be numerically identical (cap-query result) while Berry `Heap snapshot` internal metrics (`MALLOC_CAP_INTERNAL`) remain distinct; reporting no longer misleading. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
-| 2026-11-09 | **R10 complete (Web Worker compilation explicitly deferred).** | Frontend-only R10 hardening: verified compilation runs on main thread (`frontend/src/editor/editor-app.tsx` → `astToBerry(getAst(...))`) and recorded user-confirmed deferral of Worker isolation (simple COS web UI apps; avoid complexity). Recorded integrated package/layout decision (`frontend/src/cos-sdk` + `frontend/src/ide/*`). Added `frontend/src/ide/cos-sdk-manifest.ts` and `cos-sdk-manifest.test.ts` for Monaco SDK/addExtraLib coverage and `@cos/*` alias drift checks. Extended `frontend/src/ide/files/cos-files.test.ts` for predictable device API auth/error/path behavior. Updated `docs/2026-11-03-ts-sdk.md` status and added `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`. Validation: `cd frontend && npx vitest run src/ide/files/cos-files.test.ts src/ide/cos-sdk-manifest.test.ts src/ide/cos-sdk.test.ts` (**18 passed / 3 files**), `npx tsc --noEmit` passed. No hardware validation required. |
+| 2026-11-09 | **R10 complete (Web Worker compilation explicitly deferred).** | Frontend-only R10 hardening: verified compilation runs on main thread (`frontend/src/editor/editor-app.tsx` → `astToBerry(getAst(...))`) and recorded user-confirmed deferral of Worker isolation (simple COS web UI apps; avoid complexity). Recorded integrated package/layout decision (`frontend/src/cos-sdk` + `frontend/src/ide/*`). Added `frontend/src/ide/cos-sdk-manifest.ts` and `cos-sdk-manifest.test.ts` for Monaco SDK/addExtraLib coverage and `@cos/*` alias drift checks. Extended `frontend/src/ide/files/cos-files.test.ts` for predictable device API auth/error/path behavior. Updated `docs/history/2026-11-03-ts-sdk.md` status and added `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`. Validation: `cd frontend && npx vitest run src/ide/files/cos-files.test.ts src/ide/cos-sdk-manifest.test.ts src/ide/cos-sdk.test.ts` (**18 passed / 3 files**), `npx tsc --noEmit` passed. No hardware validation required. |
 | 2026-11-08 | **R21 added to plan: unify `berry run`/`exec` on `main(args)`.** | Added R21 (P2, M9, not started) as a follow-up to R9. Proposed contract (compatibility not top priority): require `main(args)` for all runnable `.be` entrypoints; unified `berry run <path> [args...]` with integer status; default command/non-intrusive execution; explicit runtime API for UI app launch/lifecycle; `berry exec` may remain a temporary alias. Dependencies: R9 stabilized/decided; coordinate with R10/R11/R14 as relevant. No code changes made. |
-| 2026-11-09 | **R11 complete (pragmatic SDK binding audit/validation).** | Added binding inventory `frontend/src/ide/cos-binding-inventory.ts` (COS `ui`/`console`/`fs`/`net`, public globals `log`/`action`, Berry built-in module specifiers) and pure audit helpers `frontend/src/ide/cos-binding-audit.ts`. New `cos-binding-audit.test.ts` cross-checks C++ `be_native_module_*`/`be_regfunc` registrations and validates SDK global declarations/module wrappers/manifest specifiers (`ui.init` treated as internal). Drift fix: `cos-sdk-manifest.ts` registers `@berry/*` aliases alongside `@cos/*` (runtime/compiler already supported). `json.d.ts` clarifies R1/R6 lazy global/module availability. Updated `cos-sdk-manifest.test.ts`, `docs/2026-11-03-ts-sdk.md`, and added `docs/reports/2026-11-08-r11-sdk-binding-audit.md`. Validation: `cd frontend && npx vitest run src/ide/cos-binding-audit.test.ts src/ide/cos-sdk-manifest.test.ts` (**10 passed / 2 files**); `npx tsc --noEmit` passed. No hardware validation required. |
+| 2026-11-09 | **R11 complete (pragmatic SDK binding audit/validation).** | Added binding inventory `frontend/src/ide/cos-binding-inventory.ts` (COS `ui`/`console`/`fs`/`net`, public globals `log`/`action`, Berry built-in module specifiers) and pure audit helpers `frontend/src/ide/cos-binding-audit.ts`. New `cos-binding-audit.test.ts` cross-checks C++ `be_native_module_*`/`be_regfunc` registrations and validates SDK global declarations/module wrappers/manifest specifiers (`ui.init` treated as internal). Drift fix: `cos-sdk-manifest.ts` registers `@berry/*` aliases alongside `@cos/*` (runtime/compiler already supported). `json.d.ts` clarifies R1/R6 lazy global/module availability. Updated `cos-sdk-manifest.test.ts`, `docs/history/2026-11-03-ts-sdk.md`, and added `docs/reports/2026-11-08-r11-sdk-binding-audit.md`. Validation: `cd frontend && npx vitest run src/ide/cos-binding-audit.test.ts src/ide/cos-sdk-manifest.test.ts` (**10 passed / 2 files**); `npx tsc --noEmit` passed. No hardware validation required. |
 | 2026-11-09 | **R8 progress (software): timeout/abandon safety + measurement guide + `berry http-stack`.** | Implemented R8/R2 timeout-safety hardening in `components/network/src/network_http.c`: timed-out `network_http_fetch` marks request abandoned and returns a stable empty public response snapshot; `http_event`/`perform_request` check abandonment before mutating shared response buffers (request-id guarded, mutex-checked). `components/network/include/network.h` documents timeout response semantics. Added focused `berry http-stack` / `berry net-stack` command (`components/shell/src/shell_berry_cmd.c`) for R8 manual matrix capture; host tests `test_shell_berry` **29/29** pass. Added guided hardware checklist `docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md` (P4 HWM matrix, P5 HTTPS/TLS heap with cert verification, timeout/busy/retry checks, stack tuning rule >=25% margin) and all-in-one helper `storage/flash_data/tests/r8/http_validation.be` (Berry syntax validated 26/26 via `scripts/validate-berry-scripts.ps1`; automatable subset only). `HTTP_TASK_STACK` unchanged (6144) pending hardware evidence. **Not complete:** hardware measurements, safe tuning decision, and network regression validation remain pending. |
 | 2026-11-09 | **R8 hardware evidence (partial, Wi‑Fi connected).** | User ran `http_validation.be` after Wi‑Fi connect. HTTP GET `http://example.com/` 200 OK (`body_len=577`), stack HWM `4488/6144` (`used~1656`). HTTPS GET `https://example.com/` 200 OK with cert verification (no PSA/X.509 `-141` in this run), stack HWM `2280/6144` (`used~3864`, ~37% single-sample margin); heap watermark dipped to 2500/internal 25664 around HTTPS peak then recovered after GC, largest block 22528 stable. Repeated HTTP GET ×3 all 200, no progressive heap decrease after GC. Timeout case to `10.255.255.1` returned `ESP_ERR_HTTP_CONNECT` (transport connect failure) — **not** a true caller-timeout/worker-abandon case; immediate follow-up succeeded. Gaps remain: clean-boot P5/BT state, POST/HTTPS-POST/max/oversized-body, 3× worst-case repeats, true abandon path validation, `idf.py size`. Evidence appended to `docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md`; plan R8 marked partial. |
 | 2026-11-09 | **R8 hardware evidence extended (POST + max body, partial).** | Second run: `http_validation.be http://example.com/ https://example.com/ https://postman-echo.com/post https://httpbingo.org/bytes/2000`. HTTPS POST 200 OK (`body_len=322`), **worst stack HWM `2184/6144` (`used~3960`, ~35.5%)**; heap watermark dropped to **1272/internal min 24436** around HTTPS POST (severe peak, no OOM/crash, recovered after GC, largest 22528 stable). HTTPS GET 200 OK. Max HTTPS response 200 OK (`body_len=2000`). Repeated HTTP ×3 200 OK, stable after GC. Timeout still `ESP_ERR_HTTP_CONNECT` (not true caller abandon). Remaining: oversized (>2048) check, 3× worst-case repeats, clean-boot/BT-state P5, true abandon-path evidence, `idf.py size`. Docs updated: `docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md`. |

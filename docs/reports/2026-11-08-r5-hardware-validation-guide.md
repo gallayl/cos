@@ -1,7 +1,7 @@
 # R5 Hardware Validation Guide — Berry Memory Instrumentation & Lifecycle
 
 **Date:** 2026-11-08  
-**Scope:** `docs/2026-11-08-consolidated-improvement-plan.md` R5 / `docs/2026-11-02-memory-consumption-improvements.md` Phase 1  
+**Scope:** `docs/plan/consolidated-improvement-plan.md` R5 / `docs/history/2026-11-02-memory-consumption-improvements.md` Phase 1  
 **Why hardware is required:** R5 adds ESP32 heap/watermark/fragmentation reporting, Berry GC lifecycle checkpoints, app lifecycle cleanup behavior, and GC step-rate experiments. These depend on the real ESP32 heap, display/UI/VFS stack, and pinned Berry VM on target hardware. Host unit tests cover only the source-buffer ownership helper and shell/mock wiring.
 
 ## Prerequisites

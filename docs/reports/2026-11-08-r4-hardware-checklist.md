@@ -1,7 +1,7 @@
 # R4 — `try`/`catch`/`throw` Compiler Lowering Hardware Checklist
 
 **Date:** 2026-11-08  
-**Related:** `docs/2026-11-08-consolidated-improvement-plan.md` (R4), `docs/2026-11-07-ts-feature-extensions.md`, `frontend/src/ide/berry/statement-generator.ts`, `frontend/src/ide/ast-to-berry.test.ts`  
+**Related:** `docs/plan/consolidated-improvement-plan.md` (R4), `docs/history/2026-11-07-ts-feature-extensions.md`, `frontend/src/ide/berry/statement-generator.ts`, `frontend/src/ide/ast-to-berry.test.ts`  
 **Goal:** Validate that TypeScript `try`/`catch` and `throw` compile to Berry exception handling and behave correctly on the target Berry VM/device.
 
 ## What changed

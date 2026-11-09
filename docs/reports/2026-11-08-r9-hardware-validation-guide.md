@@ -1,7 +1,7 @@
 # R9 Hardware Validation Guide — Berry command-script resolver + `path` + `ping` pilot
 
 **Date:** 2026-11-08  
-**Scope:** R9 from `docs/2026-11-08-consolidated-improvement-plan.md` / spec in `docs/2026-11-01-improvements.md`  
+**Scope:** R9 from `docs/plan/consolidated-improvement-plan.md` / spec in `docs/history/2026-11-01-improvements.md`  
 **Status:** Implementation merged locally (uncommitted in workspace at time of writing); **real-hardware validation required** before closing R9 and before any native `ping` migration decision.
 
 ## Preconditions
@@ -204,8 +204,8 @@ This validates the spec requirement: command scripts run in shared Berry VM but 
 
 ## After hardware pass
 
-1. Update `docs/2026-11-08-consolidated-improvement-plan.md` (R9 row/progress, progress log) with results/evidence links.
-2. Update `docs/2026-11-01-improvements.md` R9 status/progress/follow-ups (mark implemented items, record hardware validation).
+1. Update `docs/plan/consolidated-improvement-plan.md` (R9 row/progress, progress log) with results/evidence links.
+2. Update `docs/history/2026-11-01-improvements.md` R9 status/progress/follow-ups (mark implemented items, record hardware validation).
 3. Decide and record native `ping` migration: remove or make unreachable native registration only when script lookup is active and pilot validated; update `README.md` command docs accordingly.
 4. Consider QEMU/integration coverage for resolver/`path` (seed a test `.be` command script in the integration app if useful).
 5. Re-run/record relevant host tests if code changes after hardware findings (`test_shell_script`, `test_shell`, `test_shell_berry`).

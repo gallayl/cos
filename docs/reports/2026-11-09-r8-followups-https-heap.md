@@ -1,7 +1,7 @@
 # R8 Follow-ups — HTTPS/PSA `-141` Heap Pressure (R2 P5)
 
 **Date:** 2026-11-09  
-**Source:** R8 hardware validation (`docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md`) and R2 follow-ups in `docs/2026-11-08-consolidated-improvement-plan.md`.  
+**Source:** R8 hardware validation (`docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md`) and R2 follow-ups in `docs/plan/consolidated-improvement-plan.md`.  
 **Priority:** High (correctness/reliability for HTTPS).  
 **Constraint:** **Do not disable certificate verification.**
 

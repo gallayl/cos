@@ -1,7 +1,7 @@
 # R6 Hardware Validation Guide — On-Demand Native Module Loading
 
 **Date:** 2026-11-08  
-**Item:** R6 — Firmware on-demand native module loading (`docs/2026-11-08-consolidated-improvement-plan.md`)  
+**Item:** R6 — Firmware on-demand native module loading (`docs/plan/consolidated-improvement-plan.md`)  
 **Status:** Implementation complete in firmware source; **hardware validation required before closing R6 acceptance**.
 
 ## What changed
@@ -158,4 +158,4 @@ Record serial logs, `berry profile` before/after, and the failing command/script
 - **VM lock/reentrancy:** proxy hook executes in Berry VM call path under existing runtime discipline; report deadlocks or races.
 - **SDK global declarations:** TS global `ui`/`net`/`fs`/`console` types still exist for compatibility; runtime now uses lazy proxies, so behavior should be preserved — report mismatches.
 
-After validation, update `docs/2026-11-08-consolidated-improvement-plan.md` R6 status/progress log and `docs/2026-11-07-ts-feature-extensions.md`.
+After validation, update `docs/plan/consolidated-improvement-plan.md` R6 status/progress log and `docs/history/2026-11-07-ts-feature-extensions.md`.

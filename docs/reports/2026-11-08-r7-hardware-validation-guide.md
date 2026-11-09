@@ -1,7 +1,7 @@
 # R7 Hardware Validation Guide — Fetch `include_body` (P3)
 
 **Date:** 2026-11-08  
-**Item:** R7 — Fetch `include_body` option for `net.fetch` (`docs/2026-11-08-consolidated-improvement-plan.md`, `docs/2026-11-06-memory-pressure-fixes.md` P3)  
+**Item:** R7 — Fetch `include_body` option for `net.fetch` (`docs/plan/consolidated-improvement-plan.md`, `docs/history/2026-11-06-memory-pressure-fixes.md` P3)  
 **Status:** Implementation, SDK/docs update, Berry syntax validation, and user hardware validation complete (2026-11-08). Live check (historical, pre-R21): `berry run body.be http://ip-api.com/json` (formerly `berry run`) reported good. Optional heap comparison still useful if deeper memory evidence is needed.
 
 ## What changed
@@ -108,4 +108,4 @@ Record serial logs, the exact `berry run` command, URL class (HTTP/HTTPS/local),
 - **JSON parsing regressed:** R7 must not change the JSON parse path; inspect trimmed-body parsing and `json_ok`/error handling.
 - **HTTPS/connectivity failures:** may be environmental or related to R2/R8 follow-ups (`PSA_ERROR_INSUFFICIENT_MEMORY`, timeout cleanup); distinguish from R7 option handling.
 
-After validation, update `docs/2026-11-08-consolidated-improvement-plan.md` R7 progress/log and, if desired, record evidence in `docs/reports/2026-11-08-r7-hardware-results.md`.
+After validation, update `docs/plan/consolidated-improvement-plan.md` R7 progress/log and, if desired, record evidence in `docs/reports/2026-11-08-r7-hardware-results.md`.
