@@ -18,6 +18,11 @@
 #define PING_TASK_STACK 4096
 #define PING_TASK_PRIORITY 4
 
+// Single-flight ping/resolve worker. DNS and ICMP run on the worker task; the
+// calling task waits up to timeout_ms. If the caller times out, the request is
+// marked abandoned and a new request is rejected until the worker finishes the
+// stale operation (DNS may still be in progress).
+
 typedef struct
 {
     SemaphoreHandle_t completed;

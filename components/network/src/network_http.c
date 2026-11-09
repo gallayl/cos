@@ -22,6 +22,14 @@
 
 static const char *TAG = "net_http";
 
+// Single-flight HTTP worker: one request at a time. Request/response buffers and
+// s_response are shared static state owned by the worker/request path while
+// active. On caller timeout the request is marked abandoned; the worker/event
+// handler stops mutating public response state and the caller receives a stable
+// empty snapshot, but the worker may continue until esp_http_client_perform
+// returns. A new request is rejected (ESP_ERR_INVALID_STATE) until the previous
+// worker invocation completes. s_http_mutex guards the handoff/state flags.
+
 typedef struct
 {
     uint32_t request_id;
@@ -175,6 +183,7 @@ static TickType_t time_until_deadline_ticks(int64_t deadline_us)
     return pdMS_TO_TICKS(remaining_ms);
 }
 
+/** Copy source to destination as lowercase ASCII, NUL-terminating within destination_size. */
 static void copy_lower(char *destination, size_t destination_size, const char *source)
 {
     size_t index = 0;
@@ -216,6 +225,8 @@ static esp_http_client_method_t method_from_name(const char *method)
     return HTTP_METHOD_GET;
 }
 
+/** esp_http_client event handler. Copies headers/body into shared buffers, enforces
+ *  size/deadline limits, and aborts the transfer when the caller has timed out. */
 static esp_err_t http_event(esp_http_client_event_t *event)
 {
     http_event_ctx_t *context = (http_event_ctx_t *)event->user_data;

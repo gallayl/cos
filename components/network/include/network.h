@@ -80,8 +80,8 @@ extern "C"
     /** One HTTP header name and value. Both strings are owned by the caller. */
     typedef struct
     {
-        const char *name;
-        const char *value;
+        const char *name;  /**< Header name (NUL-terminated, caller-owned). */
+        const char *value; /**< Header value (NUL-terminated, caller-owned). */
     } network_http_request_header_t;
 
     /** Inputs for one HTTP fetch. Pointers are only read during the call. */

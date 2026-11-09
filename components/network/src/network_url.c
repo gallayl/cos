@@ -377,6 +377,8 @@ static esp_err_t format_url(const url_parts_t *parts, char *out, size_t out_size
     return ESP_OK;
 }
 
+/** Normalize an absolute path by removing "." and ".." segments (RFC 3986 style).
+ *  Preserves a trailing slash when present. */
 static esp_err_t remove_dot_segments(const char *path, char *out, size_t out_size)
 {
     if (path == NULL || path[0] != '/')
@@ -483,6 +485,8 @@ static bool url_is_absolute(const char *url)
     return http_scheme(url, &https, &rest) || looks_like_host_url(url);
 }
 
+/** Resolve a relative reference against an absolute base URL. When the reference
+ *  has no path (query-only or empty), the base path is retained. */
 static esp_err_t join_relative(const char *base, const char *url, char *out, size_t out_size)
 {
     url_parts_t parts;
