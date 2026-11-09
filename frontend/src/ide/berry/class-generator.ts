@@ -59,7 +59,12 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): Co
       // Berry has no static; skip emitting but don't fail for simple metadata fields.
       if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name) && !member.initializer) continue
       if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name) && member.initializer) {
-        ctx.report(member, 'Static members with runtime initializers are not supported yet.', 'error', 'cos/no-static-runtime')
+        ctx.report(
+          member,
+          'Static members with runtime initializers are not supported yet.',
+          'error',
+          'cos/no-static-runtime',
+        )
       } else if (ts.isMethodDeclaration(member)) {
         ctx.report(member, 'Static methods are not supported yet.', 'error', 'cos/no-static-method')
       } else {

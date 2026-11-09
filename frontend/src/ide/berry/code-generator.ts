@@ -116,9 +116,7 @@ class GenerationSession implements GenerationContext {
     } else if (this.namedExports.length > 0) {
       this.writeLine('')
       const defaultValue = this.exportedName ?? 'nil'
-      const pairs = this.namedExports
-        .map(({ exported, local }) => `${JSON.stringify(exported)}, ${local}`)
-        .join(', ')
+      const pairs = this.namedExports.map(({ exported, local }) => `${JSON.stringify(exported)}, ${local}`).join(', ')
       const args = pairs.length > 0 ? `${defaultValue}, ${pairs}` : defaultValue
       this.writeLine(`return cos_module(${args})`)
     } else if (this.exportedName) {
@@ -224,7 +222,12 @@ function enforceTopLevelRules(session: GenerationSession, sourceFile: ts.SourceF
         defaultClassCount++
         continue
       }
-      session.report(statement, 'Top-level classes must be the default exported COS app class.', 'error', 'cos/top-level-class')
+      session.report(
+        statement,
+        'Top-level classes must be the default exported COS app class.',
+        'error',
+        'cos/top-level-class',
+      )
       continue
     }
 
@@ -310,5 +313,3 @@ function hasExportModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
   if (!ts.canHaveModifiers(node)) return false
   return !!ts.getModifiers(node)?.some((m) => m.kind === kind)
 }
-
-

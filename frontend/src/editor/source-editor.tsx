@@ -146,7 +146,7 @@ export const SourceEditor = Shade<SourceEditorProps>({
       [props.berryDiagnostics, props.language, props.path, props.revision],
     )
 
-  return <div ref={container} className="editor-container" data-spatial-nav-passthrough="" />
+    return <div ref={container} className="editor-container" data-spatial-nav-passthrough="" />
   },
 })
 
