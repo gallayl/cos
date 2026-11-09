@@ -1,7 +1,8 @@
 import { createComponent, Shade } from '@furystack/shades'
 import { cssVariableTheme } from '@furystack/shades-common-components'
-import { Uri, editor } from 'monaco-editor'
+import { MarkerSeverity, Uri, editor } from 'monaco-editor'
 
+import type { BerryDiagnostic } from '../ide/ast-to-berry'
 import { modelFilePath, registerWorkspaceTypeScriptFile } from '../ide/typescript-workspace'
 
 export interface SourceEditorProps {
@@ -12,6 +13,8 @@ export interface SourceEditorProps {
   /** Bumped when the buffer is replaced from outside Monaco. */
   revision: number
   onValueChange: (value: string) => void
+  /** Berry compiler diagnostics shown as Monaco markers (TS files). */
+  berryDiagnostics?: readonly BerryDiagnostic[]
 }
 
 /**
@@ -115,9 +118,50 @@ export const SourceEditor = Shade<SourceEditorProps>({
       [props.revision, props.language, props.path],
     )
 
-    return <div ref={container} className="editor-container" data-spatial-nav-passthrough="" />
+    useDisposable(
+      'berry-markers',
+      () => {
+        const model = editor.getModel(modelUri)
+        if (!model) return { [Symbol.dispose]() {} }
+        if (props.language !== 'typescript' || !props.berryDiagnostics) {
+          editor.setModelMarkers(model, 'cos-berry', [])
+          return { [Symbol.dispose]() {} }
+        }
+        editor.setModelMarkers(
+          model,
+          'cos-berry',
+          props.berryDiagnostics.map((d) => ({
+            startLineNumber: d.line,
+            startColumn: d.column,
+            endLineNumber: d.line,
+            endColumn: d.column + 1,
+            message: d.message,
+            severity: markerSeverity(d.severity),
+            code: d.code,
+            source: 'cos-berry',
+          })),
+        )
+        return { [Symbol.dispose]() {} }
+      },
+      [props.berryDiagnostics, props.language, props.path, props.revision],
+    )
+
+  return <div ref={container} className="editor-container" data-spatial-nav-passthrough="" />
   },
 })
+
+function markerSeverity(severity: BerryDiagnostic['severity']): MarkerSeverity {
+  switch (severity) {
+    case 'warning':
+      return MarkerSeverity.Warning
+    case 'info':
+      return MarkerSeverity.Info
+    case 'hint':
+      return MarkerSeverity.Hint
+    default:
+      return MarkerSeverity.Error
+  }
+}
 
 function modelUriForPath(path: string, language: string): Uri {
   if (path) {

@@ -1,6 +1,6 @@
 import ui from "@cos/ui";
 
-export default class TapDash implements CosApp {
+export default class TapDash implements CosUiApplication {
   score!: number;
   seconds!: number;
   screen_width!: number;

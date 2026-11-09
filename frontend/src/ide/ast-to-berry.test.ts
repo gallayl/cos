@@ -4,6 +4,10 @@ import { astToBerry } from './ast-to-berry'
 import { getAst } from './get-ast'
 
 function compile(source: string) {
+  return astToBerry(getAst(source), { entrypoint: false })
+}
+
+function compileEntrypoint(source: string) {
   return astToBerry(getAst(source))
 }
 
@@ -410,7 +414,7 @@ return Counter
         'Loose equality is not supported. Use === and !==.',
         'Conditions must be boolean. Compare values explicitly; Berry treats only false and nil as falsy.',
         'Redeclaring "i" is not supported.',
-        'Single inheritance is not supported yet.',
+        'Class inheritance is not supported in Berry output.',
         'Switch fallthrough is not supported.',
       ]),
     )
@@ -758,5 +762,99 @@ end
 return App
 `,
     )
+  })
+})
+
+describe('astToBerry R13 entrypoints', () => {
+  it('lowers a UI app entrypoint with berry-run compatibility and exec guard main()', () => {
+    const result = compileEntrypoint(`
+      export default class Counter implements CosUiApplication {
+        setup(_content: unknown, _width: number, _height: number): void {}
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.code).toBe(`class Counter
+    def setup(_content, _width, _height)
+    end
+end
+
+def main(args)
+    print("UI app: launch with \\"berry run <path>\\" (CLI args via run(args) are unified in R21)")
+    return 1
+end
+return Counter
+`)
+  })
+
+  it('allows UI apps to declare run(args) for future compatibility', () => {
+    const result = compileEntrypoint(`
+      export default class App implements CosUiApplication {
+        run(_args: string[]): number { return 0 }
+        setup(_content: unknown, _width: number, _height: number): void {}
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('return App')
+    expect(result.code).toContain('def main(args)')
+  })
+
+  it('lowers a console app entrypoint to main(args) bridge with auto-run guard', () => {
+    const result = compileEntrypoint(`
+      export default class Hello implements CosApplication {
+        run(args: string[]): number {
+          print(args.length)
+          return 0
+        }
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.code).toBe(`class Hello
+    def run(args)
+        print(size(args))
+        return 0
+    end
+end
+
+var __cos_app = Hello()
+def main(args)
+    var __cos_r = __cos_app.run(args)
+    if __cos_r == nil
+        return 0
+    end
+    return __cos_r
+end
+if !(_cos_cmd_exec == true)
+    main([])
+end
+`)
+  })
+
+  it('requires a default exported app class in entrypoint mode', () => {
+    const result = compileEntrypoint(`log("hello")`)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.code)).toEqual(
+      expect.arrayContaining(['cos/no-top-level-exec', 'cos/default-class-entrypoint']),
+    )
+  })
+
+  it('rejects module-scope variables and top-level functions in entrypoints', () => {
+    const result = compileEntrypoint(`
+      const x = 1
+      function helper() {}
+      export default class App implements CosApplication { run(): number { return x } }
+    `)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.code)).toEqual(
+      expect.arrayContaining(['cos/no-module-state', 'cos/no-top-level-function']),
+    )
+  })
+
+  it('rejects app classes without setup or run', () => {
+    const result = compileEntrypoint(`
+      export default class App implements CosApplication {}
+    `)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.code)).toContain('cos/entrypoint-contract')
   })
 })

@@ -1,35 +1,37 @@
 import net from "@cos/net";
 
-function main(args: string[]): number {
-  if (args.length !== 1) {
-    print("usage: fetch_json <url>");
+export default class FetchJson implements CosApplication {
+  run(args: string[]): number {
+    if (args.length !== 1) {
+      print("usage: fetch_json <url>");
+      return 1;
+    }
+
+    const result: any = net.fetch(args[0], {
+      headers: { Accept: "application/json" },
+      response_type: "json",
+      timeout_ms: 10000,
+    });
+    print("url " + result["url"]);
+    if (result["status"] !== 0) {
+      print("status " + str(result["status"]));
+    }
+    if (!result["ok"]) {
+      print(result["error"]);
+    }
+    if (result["json_ok"]) {
+      if (result["json"] === null) {
+        print("json null");
+      } else {
+        print("json parsed");
+      }
+    }
+    if (size(result["body"]) > 0) {
+      print(result["body"]);
+    }
+    if (result["ok"]) {
+      return 0;
+    }
     return 1;
   }
-
-  const result: any = net.fetch(args[0], {
-    headers: { Accept: "application/json" },
-    response_type: "json",
-    timeout_ms: 10000,
-  });
-  print("url " + result["url"]);
-  if (result["status"] !== 0) {
-    print("status " + str(result["status"]));
-  }
-  if (!result["ok"]) {
-    print(result["error"]);
-  }
-  if (result["json_ok"]) {
-    if (result["json"] === null) {
-      print("json null");
-    } else {
-      print("json parsed");
-    }
-  }
-  if (size(result["body"]) > 0) {
-    print(result["body"]);
-  }
-  if (result["ok"]) {
-    return 0;
-  }
-  return 1;
 }

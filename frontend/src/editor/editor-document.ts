@@ -14,11 +14,13 @@ export interface EditorDocument {
 }
 
 /** Scratch buffer shown at startup and after Reset. */
-export const initialSource = `export default class Counter {
+export const initialSource = `export default class Counter implements CosUiApplication {
   private ticks = 0;
 
-  setup(content: unknown, width: number, height: number): void {
-    ui.timer(1000, () => this.tick());
+  setup(_content: unknown, _width: number, _height: number): void {
+    ui.timer(1000, () => {
+      this.tick();
+    });
   }
 
   private tick(): void {
@@ -108,9 +110,15 @@ export function fileEntryLabel(name: string, isDirectory: boolean): string {
 
 /** Join compiler diagnostics into the output panel. */
 export function formatDiagnostics(
-  diagnostics: ReadonlyArray<{ line: number; column: number; message: string }>,
+  diagnostics: ReadonlyArray<{ line: number; column: number; message: string; severity?: string; code?: string }>,
 ): string {
-  return diagnostics.map((diagnostic) => `${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`).join('\n')
+  return diagnostics
+    .map((diagnostic) => {
+      const prefix = diagnostic.severity && diagnostic.severity !== 'error' ? `${diagnostic.severity}: ` : ''
+      const code = diagnostic.code ? ` [${diagnostic.code}]` : ''
+      return `${prefix}${diagnostic.line}:${diagnostic.column} ${diagnostic.message}${code}`
+    })
+    .join('\n')
 }
 
 /** True when Create Berry can compile the open buffer. */

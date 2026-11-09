@@ -63,10 +63,10 @@ function diagnosticsFor(source: string): { app: string[]; sdk: string[] } {
   return { app, sdk }
 }
 
-const counter = `export default class Counter {
+const counter = `export default class Counter implements CosUiApplication {
   private ticks = 0;
 
-  setup(content: unknown, width: number, height: number): void {
+  setup(_content: unknown, _width: number, _height: number): void {
     ui.timer(1000, () => this.tick());
   }
 
@@ -82,10 +82,10 @@ describe('COS TypeScript SDK', () => {
     const result = diagnosticsFor(`
       ${counter}
 
-      export class Tap implements CosApp {
+      export class Tap extends CosUiApplication {
         private target: ui.ButtonHandle | null = null;
 
-        setup(content: unknown, width: number, height: number): void {
+        setup(_content: unknown, _width: number, _height: number): void {
           this.target = ui.button(0, "TAP", 0, 0, 40, 20);
           if (this.target !== null) ui.on_click(this.target, () => this.hit());
           const listing = fs.list("/flash");

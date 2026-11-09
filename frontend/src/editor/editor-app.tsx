@@ -2,6 +2,7 @@ import { createComponent, Shade } from '@furystack/shades'
 import { cssVariableTheme } from '@furystack/shades-common-components'
 
 import { astToBerry } from '../ide/ast-to-berry'
+import type { BerryDiagnostic } from '../ide/ast-to-berry'
 import { CosFilesError, describeCosError, writeTextFile } from '../ide/files/cos-files'
 import { canOpenPath, languageForPath, parentPath } from '../ide/files/paths'
 import {
@@ -76,6 +77,7 @@ export const EditorApp = Shade({
     const [status, setStatus] = useState('status', 'TypeScript')
     const [localHandle, setLocalHandle] = useState<FileSystemFileHandle | null>('localHandle', null)
     const [revision, setRevision] = useState('revision', 0)
+    const [berryDiagnostics, setBerryDiagnostics] = useState<readonly BerryDiagnostic[]>('berryDiagnostics', [])
     const fileInput = useRef<HTMLInputElement>('file-input')
     const live = useDisposable('live-document', () => ({
       document,
@@ -113,6 +115,26 @@ export const EditorApp = Shade({
       [document.path, document.text, document.language],
     )
 
+    useDisposable(
+      'berry-live-diagnostics',
+      () => {
+        if (document.language !== 'typescript') {
+          setBerryDiagnostics([])
+          return { [Symbol.dispose]() {} }
+        }
+        const timeout = window.setTimeout(() => {
+          const result = astToBerry(getAst(live.document.text))
+          setBerryDiagnostics(result.diagnostics)
+        }, 700)
+        return {
+          [Symbol.dispose]() {
+            window.clearTimeout(timeout)
+          },
+        }
+      },
+      [document.path, document.text, document.language, revision],
+    )
+
     const discard = () => confirmDiscard(dirty, (message) => window.confirm(message))
 
     const noteFailure = (error: unknown) => {
@@ -126,6 +148,7 @@ export const EditorApp = Shade({
       setDocument(next)
       setLocalHandle(handle)
       setOutput('')
+      setBerryDiagnostics([])
       setRevision(revision + 1)
       setStatus(nextStatus)
     }
@@ -251,13 +274,15 @@ export const EditorApp = Shade({
 
     const showCompileResult = () => {
       const result = astToBerry(getAst(document.text))
+      setBerryDiagnostics(result.diagnostics)
       if (result.ok) {
         setOutput(result.code)
         setStatus('Compiled')
         return result
       }
       setOutput(formatDiagnostics(result.diagnostics))
-      setStatus(`${result.diagnostics.length} error(s)`)
+      const errorCount = result.diagnostics.filter((d) => d.severity === 'error').length
+      setStatus(`${errorCount} error(s)`)
       return result
     }
 
@@ -343,6 +368,7 @@ export const EditorApp = Shade({
               language={document.language}
               path={document.path}
               revision={revision}
+              berryDiagnostics={berryDiagnostics}
               onValueChange={(text) => {
                 const next = documentAfterEdit(live.document, text)
                 if (next) {

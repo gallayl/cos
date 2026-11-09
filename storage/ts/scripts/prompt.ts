@@ -1,14 +1,22 @@
 import console from "@cos/console";
 
-function greet(name: string | null): void {
-  if (name === null) {
-    log("Input cancelled");
-  } else {
-    log("Hello, " + name);
+export default class Prompt implements CosApplication {
+  greet(name: string | null): void {
+    if (name === null) {
+      log("Input cancelled");
+    } else {
+      log("Hello, " + name);
+    }
   }
-}
 
-const result = console.read_line("Name: ", greet);
-if (result !== true) {
-  log("Could not start input: " + str(result));
+  run(_args: string[]): number {
+    const result = console.read_line("Name: ", (name) => {
+      this.greet(name);
+    });
+    if (result !== true) {
+      log("Could not start input: " + str(result));
+      return 1;
+    }
+    return 0;
+  }
 }

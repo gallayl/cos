@@ -12,7 +12,7 @@ export interface GenerationContext {
   capture(build: () => void): string
   emitExpression(node: ts.Expression): string
   emitStatement(node: ts.Statement): void
-  report(node: ts.Node, message: string): void
+  report(node: ts.Node, message: string, severity?: 'error' | 'warning' | 'info' | 'hint', code?: string): void
   declareName(name: string, node: ts.Node): void
   isDeclared(name: string): boolean
   pushScope(): void

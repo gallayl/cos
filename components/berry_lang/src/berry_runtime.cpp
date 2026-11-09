@@ -1260,12 +1260,17 @@ void restore_command_main(int saved_main_index)
 esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const char *source_name, int argc,
                                  char *const argv[], int *exit_status)
 {
+    static constexpr char COMMAND_EXEC_GLOBAL[] = "_cos_cmd_exec";
     const ScriptPathScope script_path(source_name);
     (void)script_path;
     const int saved_main_index = be_top(s_vm) + 1;
     be_getglobal(s_vm, "main");
     be_pushnil(s_vm);
     be_setglobal(s_vm, "main");
+    be_pop(s_vm, 1);
+
+    be_pushbool(s_vm, true);
+    be_setglobal(s_vm, COMMAND_EXEC_GLOBAL);
     be_pop(s_vm, 1);
 
     esp_err_t err = execute_owned_source(std::move(source), length, source_name);
@@ -1308,6 +1313,10 @@ esp_err_t execute_command_source(BerrySourceBuffer source, size_t length, const 
             }
         }
     }
+
+    be_pushbool(s_vm, false);
+    be_setglobal(s_vm, COMMAND_EXEC_GLOBAL);
+    be_pop(s_vm, 1);
 
     be_pop(s_vm, be_top(s_vm) - saved_main_index);
     restore_command_main(saved_main_index);
@@ -2077,6 +2086,9 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "cos_import", native_cos_import);
     be_regfunc(s_vm, "cos_module", native_cos_module);
     be_regfunc(s_vm, "cos_lazy_member", native_cos_lazy_member);
+    be_pushbool(s_vm, false);
+    be_setglobal(s_vm, "_cos_cmd_exec");
+    be_pop(s_vm, 1);
 
     // R6 (2026-11-08): COS native modules are not eagerly loaded at Berry
     // startup. `console`, `fs`, `net`, and `ui` remain in be_modtab.c and are

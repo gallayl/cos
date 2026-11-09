@@ -2,7 +2,7 @@ import ui from "@cos/ui";
 
 type Brick = [number, number, boolean, number];
 
-export default class Breakout implements CosApp {
+export default class Breakout implements CosUiApplication {
   screen_width!: number;
   screen_height!: number;
   bricks!: Brick[];

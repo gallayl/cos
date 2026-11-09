@@ -7,22 +7,41 @@
 /// <reference path="./berry-builtins.d.ts" />
 
 /**
- * Globals installed beside the `ui`, `console`, `fs`, and `net` modules.
- * `console.log` is not part of this SDK; write device logs with {@link log}.
+ * COS application entrypoints (R13). All runnable TS sources export a default
+ * class implementing {@link CosApplication} or {@link CosUiApplication}.
+ *
+ * Detection is method-based (no path conventions):
+ * - `setup(...)` present => UI app. May also declare `run(args)` for future
+ *   CLI/R21 launch compatibility; under the current runtime, `berry run`
+ *   starts the UI via `setup`.
+ * - `run(args)` present and no `setup(...)` => console/command app.
+ *
+ * The compiler lowers to Berry in a way that remains compatible with current
+ * firmware commands (`berry run`, `berry exec`, R9 command scripts, autoexec)
+ * until R21 unifies the runtime contract.
  */
 
 declare global {
   /**
-   * Class returned to COS from `export default class`.
+   * Contract for COS applications. Console/command entrypoints implement
+   * `run(args)`. UI entrypoints implement {@link CosUiApplication}.
    *
-   * The runtime instantiates it and calls `setup` with the display size.
-   * `content` is reserved for a future container; the device currently passes `0`.
-   * `teardown` runs on `berry close` and after {@link ui.exit}.
-   * Either method may be omitted.
+   * Declared as an ambient abstract class for TypeScript ergonomics and
+   * `implements` checks; Berry output does not emit inheritance/implements.
    */
-  interface CosApp {
-    setup(content: unknown, width: number, height: number): void;
+  abstract class CosApplication {
+    /** Command/console entrypoint. `args` excludes the script path. */
+    run?(args: string[]): number | void;
+    /** Called when the application is torn down, when implemented. */
     teardown?(): void;
+  }
+
+  /**
+   * UI application entrypoint. `berry run` constructs the class and calls
+   * `setup` with the display size. `content` is reserved (device passes 0).
+   */
+  abstract class CosUiApplication extends CosApplication {
+    abstract setup(content: unknown, width: number, height: number): void;
   }
 
   /**
