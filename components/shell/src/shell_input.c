@@ -283,42 +283,14 @@ static void execute_line(void)
         esp_err_t err = shell_alias_expand(s_line, expanded_line, sizeof(expanded_line));
         if (err == ESP_OK)
         {
-            err = esp_console_run(expanded_line, &ret);
-            if (err == ESP_ERR_NOT_FOUND)
-            {
-                char script_line[INPUT_LINE_MAX];
-                strncpy(script_line, expanded_line, sizeof(script_line) - 1);
-                script_line[sizeof(script_line) - 1] = '\0';
-                char *argv[16];
-                size_t argc = esp_console_split_argv(script_line, argv, 16);
-                if (argc > 0)
-                {
-                    bool handled = false;
-                    err = shell_script_try_exec((int)argc, argv, strchr(argv[0], '/') != NULL, &ret, &handled);
-                    if (!handled)
-                    {
-                        err = ESP_ERR_NOT_FOUND;
-                    }
-                    else if (err != ESP_OK && err != ESP_ERR_NOT_FOUND)
-                    {
-                        err = ESP_OK; /* resolver reported the error */
-                    }
-                    else if (err == ESP_ERR_NOT_FOUND)
-                    {
-                        err = ESP_OK; /* explicit-path not-found reported by resolver */
-                    }
-                }
-                else
-                {
-                    err = ESP_ERR_INVALID_ARG;
-                }
-            }
+            err = shell_dispatch_expanded_line(expanded_line, &ret);
         }
         else if (err == ESP_ERR_INVALID_SIZE)
         {
             printf("Alias expansion exceeds the command-line limit\n");
             err = ESP_OK;
         }
+
         if (err == ESP_ERR_NOT_FOUND)
         {
             printf("Unknown command: %s\n", s_line);
@@ -329,7 +301,7 @@ static void execute_line(void)
         }
         else if (err != ESP_OK)
         {
-            /* Script/path errors are reported by the resolver; other dispatch errors here. */
+            /* Dispatch infrastructure errors (for example NO_MEM). */
         }
         (void)ret;
     }

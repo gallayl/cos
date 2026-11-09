@@ -159,7 +159,8 @@ static void test_explicit_relative_script_path_runs_only_that_script(void)
 static void test_explicit_missing_script_reports_path_error(void)
 {
     int ret = -1;
-    TEST_ASSERT_EQUAL(ESP_ERR_NOT_FOUND, shell_dispatch_expanded_line("./missing.be", &ret));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("./missing.be", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
     TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 
@@ -187,7 +188,7 @@ static void test_script_runtime_error_reported(void)
     mock_filesystem_add_file("/flash/bad.be");
     mock_berry_set_exec_result(ESP_FAIL);
     int ret = -1;
-    TEST_ASSERT_EQUAL(ESP_FAIL, shell_dispatch_expanded_line("bad", &ret));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("bad", &ret));
     TEST_ASSERT_EQUAL(1, ret);
 }
 
@@ -265,8 +266,8 @@ static void test_explicit_path_to_directory_reports_error(void)
 {
     mock_filesystem_add_directory("/flash/tools");
     int ret = -1;
-    esp_err_t err = shell_dispatch_expanded_line("/flash/tools", &ret);
-    TEST_ASSERT_NOT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("/flash/tools", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
     TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 

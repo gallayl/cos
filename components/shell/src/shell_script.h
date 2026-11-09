@@ -29,9 +29,14 @@ extern "C"
 
     /**
      * Dispatch one expanded command line through native commands, then script
-     * resolution. Returns ESP_OK when a command (native or script) ran; *ret
-     * receives its status. Returns ESP_ERR_NOT_FOUND when no command or script
-     * matched. Other errors indicate dispatch or reported script errors.
+     * resolution.
+     *
+     * Returns ESP_OK when the line was handled: a native command ran, or a
+     * Berry command script ran/reported an error. *ret receives the command or
+     * script status (1 for resolver-reported script/path errors).
+     * Returns ESP_ERR_NOT_FOUND when no native command or script matched.
+     * Other errors are dispatch infrastructure failures (for example memory
+     * allocation) or esp_console errors other than ESP_ERR_NOT_FOUND.
      */
     esp_err_t shell_dispatch_expanded_line(const char *line, int *ret);
 

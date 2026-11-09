@@ -461,11 +461,18 @@ esp_err_t shell_dispatch_expanded_line(const char *line, int *ret)
     bool handled = false;
     err = shell_script_try_exec((int)argc, argv, is_explicit_script_token(argv[0]), ret, &handled);
     free(copy);
-    if (handled)
+    if (!handled)
     {
-        return err == ESP_OK ? ESP_OK : err;
+        return ESP_ERR_NOT_FOUND;
     }
-    return ESP_ERR_NOT_FOUND;
+
+    /*
+     * Script execution or a resolver-reported error was handled. Return ESP_OK
+     * so callers do not print "Unknown command"; *ret carries status (1 for
+     * reported errors).
+     */
+    (void)err;
+    return ESP_OK;
 }
 
 esp_err_t shell_script_init(void)
