@@ -215,6 +215,17 @@ While a Berry UI app is active, its UI owns the display and the text-console ren
 
 Breakout supports both touch-drag paddle control and Bluetooth keyboard controls (left/right arrows or A/D); touch remains available and either input method can be used during play.
 
+## Documentation
+
+Project docs are organized by status under [`docs/`](./docs/README.md):
+
+- [`docs/plan/consolidated-improvement-plan.md`](./docs/plan/consolidated-improvement-plan.md) — **living tracker** for planned/remaining work, priorities, and validation evidence.
+- [`docs/history/`](./docs/history/) — historical design specs and improvement records (detailed background).
+- [`docs/ideas/`](./docs/ideas/) — draft proposals not yet committed to the main plan.
+- [`docs/reports/`](./docs/reports/) — hardware validation, profiling, audits, and focused evidence.
+
+API/code documentation can be checked with `make docs-check` (Doxygen).
+
 ## Development
 
 ```bash
