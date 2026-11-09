@@ -69,6 +69,7 @@
 | R18 | `async`/`await` runtime design + implementation | P2 | ⬜ Not started | M10 |
 | R19 | In-browser COS simulator (Berry WASM) | P3 | ⬜ Not started | M10 |
 | R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) | P3 | ⬜ Backlog | Backlog |
+| R21 | Unify `berry run`/`berry exec` on `main(args)` contract + explicit app launch | P2 | ⬜ Not started | M9 |
 
 ## Detailed plan
 
@@ -330,6 +331,27 @@
   - [ ] Larger apps: file manager, text editor, calendar, broader UI showcase (separately scoped).
   - [ ] Image preview / Berry image support — requires format, memory, decoder feasibility assessment.
 
+### R21 — Unify `berry run`/`berry exec` on `main(args)` contract
+- **Priority:** P2 | **Complexity:** L | **ROI:** Medium–High (DX/consistency) | **Risk:** High (breaking migration)
+- **Source:** follow-up to R9 command-script model; design discussion 2026-11-08
+- **Problem:** `berry run` and `berry exec` expose different execution/lifecycle contracts (app/script execution with active-app reset vs command-script `main(args)` without UI disturbance), causing UX confusion and duplicated mental models.
+- **Decision (proposed):** Compatibility is not the top priority. Unify on a single required `main(args)` entrypoint for runnable `.be` files. Default execution is command/non-intrusive; UI apps are launched explicitly from `main(args)` via a dedicated runtime API (exact API TBD). `berry exec` may remain a temporary alias to unified `berry run`.
+- **Spec / acceptance criteria:**
+  - `berry run <path> [args...]` is the unified command; args are passed as a list excluding the script path; `main(args)` returns an integer shell status.
+  - Missing `main`, non-integer/out-of-range return values, and runtime errors produce clear nonzero failures.
+  - The default path does not close/disturb an active UI app or alter UI/console app state.
+  - The explicit app-launch API performs documented app lifecycle (replacing/closing active app as specified, console/scrollback/UI setup, `setup`/`teardown` integration) and has defined status semantics.
+  - R9-resolved command scripts use the same execution contract/path.
+  - All in-repo `.be` entrypoints (`storage/flash_data`, tests/scripts/apps/autoexec) are migrated; TS compiler/templates/SDK docs emit or document the unified shape.
+  - Help/README/completion/tests/hardware validation are updated.
+- **Dependencies:** R9 stabilized/decided; coordinate with R10/R11 (and R14 if active). Prefer reusing R9's `main(args)` command-script foundation rather than widening R9 mid-validation.
+- **Progress:**
+  - [ ] Contract/spec approved (app-launch API, lifecycle/status semantics, alias/deprecation).
+  - [ ] Runtime + shell implementation.
+  - [ ] Repo `.be` entrypoints migrated.
+  - [ ] TS toolchain/SDK/templates updated.
+  - [ ] Tests/docs/hardware validation complete.
+
 ## Progress log
 
 | Date | Update | Evidence / notes |
@@ -358,6 +380,7 @@
 | 2026-11-08 | **R9 interactive dispatch unified (small follow-up).** | `components/shell/src/shell_input.c` now dispatches expanded lines via `shell_dispatch_expanded_line()` (removes duplicated native-to-script fallback/handled mapping). Clarified `shell_dispatch_expanded_line()` contract in `components/shell/src/shell_script.h/.c`: returns `ESP_OK` when handled (native command or script ran/reported; `*ret` carries status, 1 for resolver-reported errors) and `ESP_ERR_NOT_FOUND` only when nothing matched, avoiding ambiguous handled+error codes and preventing "Unknown command" on explicit-path/script-reported errors. Updated `test/test_shell_script.c` expectations for handled explicit-missing/directory/runtime-error cases. Host tests rebuilt/passed in `test/build`: `test_shell_script` 19/19, `test_shell` 63/63, `test_shell_berry` 26/26. No firmware/hardware build run here; interactive behavior unchanged in intent but should be sanity-checked on device if convenient (explicit missing script should still print only resolver message; unknown bare command still prints `Unknown command`). |
 | 2026-11-09 | **R5-FU2 resolved (heap reporting display): code, host tests, and hardware verified.** | `components/system/src/system.c`: `system_get_info()` reports default heap via `MALLOC_CAP_DEFAULT` and internal via `MALLOC_CAP_INTERNAL\|MALLOC_CAP_8BIT`; `system.h` comments clarified. `components/berry_lang/src/berry_runtime.cpp`: `berry_runtime_get_memory_info()` uses `MALLOC_CAP_DEFAULT` for `heap_free/heap_min_free`. `components/shell/src/shell_berry_cmd.c`: `berry profile` prints `Default heap`/`Internal heap`. Host tests: cap-aware `test/mocks/mock_system.{h,c}` + `test/test_system.c` `test_get_info_distinguishes_default_and_internal_heap`; impacted run passed (`test_system` 12/12, `test_shell_berry` 26/26, `test_shell` 63/63). **Hardware verified (user, 2026-11-09):** `berry profile`/`mem` labels unambiguous; `memory_churn` + `berry profile` + `berry gc` behaved normally (managed 7288→2695, reclaimed 4593). Note: on this target `system_get_info` default/internal lines can be numerically identical (cap-query result) while Berry `Heap snapshot` internal metrics (`MALLOC_CAP_INTERNAL`) remain distinct; reporting no longer misleading. Evidence: `docs/reports/2026-11-08-r5-hardware-results-partial.md`. |
 | 2026-11-09 | **R10 complete (Web Worker compilation explicitly deferred).** | Frontend-only R10 hardening: verified compilation runs on main thread (`frontend/src/editor/editor-app.tsx` → `astToBerry(getAst(...))`) and recorded user-confirmed deferral of Worker isolation (simple COS web UI apps; avoid complexity). Recorded integrated package/layout decision (`frontend/src/cos-sdk` + `frontend/src/ide/*`). Added `frontend/src/ide/cos-sdk-manifest.ts` and `cos-sdk-manifest.test.ts` for Monaco SDK/addExtraLib coverage and `@cos/*` alias drift checks. Extended `frontend/src/ide/files/cos-files.test.ts` for predictable device API auth/error/path behavior. Updated `docs/2026-11-03-ts-sdk.md` status and added `docs/reports/2026-11-08-r10-frontend-toolchain-hardening.md`. Validation: `cd frontend && npx vitest run src/ide/files/cos-files.test.ts src/ide/cos-sdk-manifest.test.ts src/ide/cos-sdk.test.ts` (**18 passed / 3 files**), `npx tsc --noEmit` passed. No hardware validation required. |
+| 2026-11-08 | **R21 added to plan: unify `berry run`/`exec` on `main(args)`.** | Added R21 (P2, M9, not started) as a follow-up to R9. Proposed contract (compatibility not top priority): require `main(args)` for all runnable `.be` entrypoints; unified `berry run <path> [args...]` with integer status; default command/non-intrusive execution; explicit runtime API for UI app launch/lifecycle; `berry exec` may remain a temporary alias. Dependencies: R9 stabilized/decided; coordinate with R10/R11/R14 as relevant. No code changes made. |
 
 ## Validation checklist (use when closing items)
 
