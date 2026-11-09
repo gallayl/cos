@@ -2,26 +2,59 @@
 
 ## Status
 
-**Proposed / not implemented** (as of 2026-11-08). This document describes the
-intended behavior for running Berry scripts as shell commands; it does not
-change the current command implementation.
+**Implemented locally / hardware validation in progress** (as of 2026-11-08). The
+resolver, `path` command, `/flash/.cos_path` persistence, command-script
+execution path, and `ping.be` pilot are implemented in the workspace; full
+target/hardware acceptance and the native `ping` migration decision remain open.
 
 ### Current progress
 
-- [ ] No resolver, `path` shell command, persistence file, or Berry `main(args)`
-      command-script execution path found in the firmware.
+- [x] Resolver, `path` shell command, `/flash/.cos_path` persistence, and Berry
+      `main(args)` command-script execution path implemented (`components/shell/src/shell_script.*`,
+      `shell_input.c` hook, `shell_script_init()` from shell init). Interactive
+      dispatch: alias expansion → native `esp_console_run` → script resolver on
+      `ESP_ERR_NOT_FOUND`; explicit tokens containing `/` resolve only that path
+      (no fallback) and report `<token>: script not found` when missing.
+- [x] Host unit tests added/passing (pre-hardware, `test/build-r9`):
+      `test_shell_script` 14/0, `test_shell` 63/0, `test_shell_berry` 26/0.
+- [~] Hardware validation partial (2026-11-08, user report): native `ping` takes
+      precedence (R9-HW5). `path add /sdcard/asdasd` correctly rejected (R9-HW3
+      partial). `path clear`; `be_ping` resolved from `/sdcard/scripts` CWD; from
+      `/flash`, relative explicit paths `../sdcard/scripts/be_ping` and
+      `../sdcard/scripts/be_ping.be` ran (R9-HW4/6 partial). Breakout starts/closes
+      with `berry run` full/relative path (R9-HW9 partial; script-while-UI-app-active
+      still needed). R9-HW8 blocked: `be_ping.be 127.0.0.1 1000` hit `map has no
+      attribute 'ok'` due to `native_net_ping` popping the result map before
+      `be_return(vm)` in `components/berry_lang/src/berry_network.cpp` — **fixed in
+      workspace, reflash+retest required**. Full checklist/evidence:
+      `docs/reports/2026-11-08-r9-hardware-validation-guide.md`.
 - [ ] Native commands such as `ping`/`nslookup` remain the active implementation
-      unless migrated deliberately after the resolver exists and tests pass.
+      until the pilot passes target+host validation and migration is a deliberate
+      follow-up (native `ping` still registered/wins bare `ping`).
 
 ### Follow-ups
 
-- Implement the resolver in the interactive shell path (after alias expansion,
-  before/alongside unknown-command handling) with the exact lookup/precedence
-  rules below.
-- Add a shared argument-tokenization path so script commands receive the same
-  parsed arguments as native commands.
-- Add host/QEMU coverage for lookup order, native precedence, explicit paths,
-  quoting, status propagation, Berry errors, and VM/app lifecycle isolation.
+- Reflash firmware with `native_net_ping` fix, then retest R9-HW8 (`ping.be`/pilot
+  via explicit path or `berry exec`, network) and complete remaining R9-HW items.
+- Complete hardware validation per `docs/reports/2026-11-08-r9-hardware-validation-guide.md`
+  and record evidence; then decide/record native `ping` migration (remove/make
+  native registration unreachable only when script lookup is active and pilot
+  validated) and update `README.md` if migrated.
+- Audit other `berry_network` map-return paths for the same `be_pop`/`be_return`
+  stack issue (only `native_net_ping` fixed in this pass).
+- Consider QEMU/integration coverage for lookup order, native precedence, explicit
+  paths, quoting, status propagation, Berry errors, and VM/app lifecycle isolation
+  (host unit tests already cover core resolver behavior).
+
+### Follow-ups
+
+- Complete hardware validation per `docs/reports/2026-11-08-r9-hardware-validation-guide.md`
+  and record evidence; then decide/record native `ping` migration (remove/make
+  native registration unreachable only when script lookup is active and pilot
+  validated) and update `README.md` if migrated.
+- Consider QEMU/integration coverage for lookup order, native precedence, explicit
+  paths, quoting, status propagation, Berry errors, and VM/app lifecycle isolation
+  (host unit tests already cover core resolver behavior).
 
 ## Summary
 

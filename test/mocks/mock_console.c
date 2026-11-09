@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define MOCK_MAX_COMMANDS 64
+#define MOCK_MAX_ARGS 16
 
 static struct
 {
@@ -93,4 +94,94 @@ int mock_console_run_cmd(const char *name, int argc, char **argv)
         }
     }
     return -1;
+}
+
+size_t esp_console_split_argv(char *line, char **argv, size_t argv_size)
+{
+    size_t argc = 0;
+    char *p = line;
+
+    while (*p != '\0')
+    {
+        while (*p == ' ' || *p == '\t')
+        {
+            p++;
+        }
+        if (*p == '\0')
+        {
+            break;
+        }
+        if (argc + 1 >= argv_size)
+        {
+            break;
+        }
+
+        char quote = '\0';
+        if (*p == '"' || *p == '\'')
+        {
+            quote = *p++;
+        }
+        argv[argc++] = p;
+
+        while (*p != '\0')
+        {
+            if (quote != '\0')
+            {
+                if (*p == quote)
+                {
+                    *p++ = '\0';
+                    break;
+                }
+            }
+            else if (*p == ' ' || *p == '\t')
+            {
+                *p++ = '\0';
+                break;
+            }
+            if (*p != '\0')
+            {
+                p++;
+            }
+        }
+    }
+
+    if (argc < argv_size)
+    {
+        argv[argc] = NULL;
+    }
+    return argc;
+}
+
+esp_err_t esp_console_run(const char *cmdline, int *cmd_ret)
+{
+    if (cmdline == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char *copy = strdup(cmdline);
+    if (copy == NULL)
+    {
+        return ESP_ERR_NO_MEM;
+    }
+
+    char *argv[MOCK_MAX_ARGS];
+    size_t argc = esp_console_split_argv(copy, argv, MOCK_MAX_ARGS);
+    if (argc == 0)
+    {
+        free(copy);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    int ret = mock_console_run_cmd(argv[0], (int)argc, argv);
+    free(copy);
+    if (ret < 0)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (cmd_ret != NULL)
+    {
+        *cmd_ret = ret;
+    }
+    return ESP_OK;
 }

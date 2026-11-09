@@ -76,7 +76,7 @@ flash:
 	$(IDF_PY) flash
 
 flash-data: build
-	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
+	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) write-flash @littlefs-flash_args
 
 erase-flash:
 	$(IDF_PY) erase-flash

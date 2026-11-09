@@ -5,6 +5,7 @@
 #include "filesystem.h"
 #include "shell_alias.h"
 #include "shell_cmds.h"
+#include "shell_script.h"
 
 #include "esp_console.h"
 #include "esp_log.h"
@@ -181,6 +182,13 @@ esp_err_t shell_init(void)
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not initialize shell aliases: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    err = shell_script_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not initialize shell scripts: %s", esp_err_to_name(err));
         return err;
     }
 

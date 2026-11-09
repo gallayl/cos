@@ -107,6 +107,7 @@ target_link_libraries(system_logic PRIVATE mock_esp)
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
+    ${COMPONENT_DIR}/components/shell/src/shell_script.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -176,6 +177,18 @@ target_include_directories(test_shell_berry PRIVATE
 )
 target_link_libraries(test_shell_berry PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell_berry COMMAND test_shell_berry)
+
+# --- Test: shell script resolver (R9) ---
+add_executable(test_shell_script test_shell_script.c)
+target_include_directories(test_shell_script PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/shell/src
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/berry_lang/include
+)
+target_link_libraries(test_shell_script PRIVATE unity shell_logic mock_esp)
+add_test(NAME test_shell_script COMMAND test_shell_script)
 
 # --- Test: Berry source buffer ownership ---
 add_executable(test_berry_source_buffer test_berry_source_buffer.cpp)
