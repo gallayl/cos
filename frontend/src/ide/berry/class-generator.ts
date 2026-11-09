@@ -53,10 +53,9 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): Co
     if (ts.isSemicolonClassElement(member) || ts.isIndexSignatureDeclaration(member)) continue
     if (isAmbient(member)) continue
     if (hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
-      const staticName = memberName(member)
-      if (staticName === 'setup') hasSetup = hasSetup // static setup not an entrypoint
       // Static members (metadata) are allowed as TS-only declarations if not executable in Berry?
       // Berry has no static; skip emitting but don't fail for simple metadata fields.
+      // Note: a static `setup` method is not treated as an application entrypoint.
       if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name) && !member.initializer) continue
       if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name) && member.initializer) {
         ctx.report(

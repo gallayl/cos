@@ -288,7 +288,7 @@ function enforceTopLevelRules(session: GenerationSession, sourceFile: ts.SourceF
 }
 
 function reportModuleScopeVariables(session: GenerationSession, statement: ts.VariableStatement): void {
-  const flags = statement.declarationList.flags
+  const {flags} = statement.declarationList
   if (flags & ts.NodeFlags.Const) {
     // const bindings: allow? Strict R13 says avoid mutable globals/state; const is not mutable binding.
     // But app state should live in class. Disallow module-scope variables to keep state local.
