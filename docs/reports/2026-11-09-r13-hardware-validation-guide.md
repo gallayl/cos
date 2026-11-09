@@ -1,7 +1,7 @@
 # R13 Hardware Validation Guide — Memory-conscious compiler rules / unified app entrypoints
 
 **Date:** 2026-11-09  
-**Status:** Pending hardware validation. Compiler/SDK/TS migration implemented and frontend unit tests pass; runtime-compatible Berry lowering and a minimal firmware hook must be validated on device.
+**Status:** ✅ **Hardware validation passed (2026-11-09, user report).** R13-HW1–HW7 passed. Detailed serial logs were not attached in chat; this record captures the user-confirmed pass and the expected checks.
 
 ## Scope
 
@@ -27,13 +27,13 @@ R13 (scope A, confirmed) standardizes COS app entrypoints in TypeScript and enfo
 
 | ID | Case | Steps | Pass criteria | Result | Notes |
 |---|---|---|---|---|---|
-| R13-HW1 | Autoexec boot (console bridge via `berry run` path) | Reboot device with regenerated `/flash/autoexec.be`. Observe startup. | Console clears/runs startup behavior once (same intent as before). No crash, no double execution, no "script must define main(args)" / unexpected Berry error in logs. | ⬜ | Autoexec is loaded via `berry_runtime_run_file`; console bridge auto-runs `main([])` only when `_cos_cmd_exec != true`. |
-| R13-HW2 | UI app via `berry run` | `berry run /flash/apps/breakout.be` (or tap_dash). Interact briefly, then `berry close` / app exit. Repeat once. | App launches normally, `setup` runs, UI responsive, teardown/close returns to console cleanly. No regression vs pre-R13 behavior. | ⬜ | UI lowering returns class for `execute_app_source`; also defines guarded `main(args)` misuse message for exec path. |
-| R13-HW3 | Console script via `berry exec` | `berry exec /flash/scripts/arg_test.be "argument 1" "asd asd asd argument 2"` | Prints args as before (`1: argument 1`, `2: asd asd asd argument 2`), exit status 0. Output appears once (no double-run). | ⬜ | Exercises `execute_command_source` + `_cos_cmd_exec` guard. |
-| R13-HW4 | Console script via `berry run` (compat) | `berry run /flash/scripts/hello.be` (or another no-arg console script). | Script executes its command behavior (hello logs) and returns to shell/app state as expected for a non-UI script (`run_file` require_app=false). No UI app started, no double-run. | ⬜ | Document if behavior differs from expectations; primary command-script path remains `berry exec`/R9 resolver. |
-| R13-HW5 | R9-resolved command script | Configure `path`/CWD as needed; run a migrated script by name or explicit path (e.g. `ping.be` pilot path previously validated). | Command resolves and runs with args; status/errors behave as before. No double-run. | ⬜ | Regression check for R9 + R13 lowering. |
-| R13-HW6 | UI app misuse via `berry exec` | `berry exec /flash/apps/breakout.be` | Fails clearly/non-destructively. Expected: prints `UI app: launch with "berry run <path>" ...` and returns nonzero status (generated `main` guard). No UI corruption/crash. | ⬜ | Confirms UI bridge `main(args)` guard. |
-| R13-HW7 | Generated file smoke checks | Optionally run `files`, `font_size 1`, `clear`, `wifi` (read-only/no destructive args), `ping` (with network) as appropriate. | Commands behave as before migration. | ⬜ | Spot-check class-wrapped console apps and method `this.*` usage. |
+| R13-HW1 | Autoexec boot (console bridge via `berry run` path) | Reboot device with regenerated `/flash/autoexec.be`. Observe startup. | Console clears/runs startup behavior once (same intent as before). No crash, no double execution, no "script must define main(args)" / unexpected Berry error in logs. | ✅ Pass (user, 2026-11-09) | Autoexec loaded via `berry_runtime_run_file`; console bridge auto-runs `main([])` only when `_cos_cmd_exec != true`. |
+| R13-HW2 | UI app via `berry run` | `berry run /flash/apps/breakout.be` (or tap_dash). Interact briefly, then `berry close` / app exit. Repeat once. | App launches normally, `setup` runs, UI responsive, teardown/close returns to console cleanly. No regression vs pre-R13 behavior. | ✅ Pass (user, 2026-11-09) | UI lowering returns class for `execute_app_source`; guarded `main(args)` for exec misuse. |
+| R13-HW3 | Console script via `berry exec` | `berry exec /flash/scripts/arg_test.be "argument 1" "asd asd asd argument 2"` | Prints args as before (`1: argument 1`, `2: asd asd asd argument 2`), exit status 0. Output appears once (no double-run). | ✅ Pass (user, 2026-11-09) | Exercises `execute_command_source` + `_cos_cmd_exec` guard. |
+| R13-HW4 | Console script via `berry run` (compat) | `berry run /flash/scripts/hello.be` (or another no-arg console script). | Script executes its command behavior (hello logs) and returns to shell/app state as expected for a non-UI script (`run_file` require_app=false). No UI app started, no double-run. | ✅ Pass (user, 2026-11-09) | Primary command-script path remains `berry exec`/R9 resolver. |
+| R13-HW5 | R9-resolved command script | Configure `path`/CWD as needed; run a migrated script by name or explicit path (e.g. `ping.be` pilot path previously validated). | Command resolves and runs with args; status/errors behave as before. No double-run. | ✅ Pass (user, 2026-11-09) | Regression check for R9 + R13 lowering. |
+| R13-HW6 | UI app misuse via `berry exec` | `berry exec /flash/apps/breakout.be` | Fails clearly/non-destructively. Expected: prints `UI app: launch with "berry run <path>" ...` and returns nonzero status (generated `main` guard). No UI corruption/crash. | ✅ Pass (user, 2026-11-09) | Confirms UI bridge `main(args)` guard. |
+| R13-HW7 | Generated file smoke checks | Optionally run `files`, `font_size 1`, `clear`, `wifi` (read-only/no destructive args), `ping` (with network) as appropriate. | Commands behave as before migration. | ✅ Pass (user, 2026-11-09) | Spot-check class-wrapped console apps and method `this.*` usage. |
 
 ## Monaco/editor smoke test (no hardware required, recommended)
 
