@@ -62,7 +62,7 @@ describe('console session', () => {
 
     expect(socket!.sent).toEqual(['ls'])
     expect(session.draft.getValue()).toBe('')
-    /* eslint-disable furystack/prefer-using-wrapper -- test disposes multiple observables after async assertions */
+    /* eslint-disable furystack/prefer-using-wrapper -- Resources are created across the test setup and disposed after async assertions; their lifetime is not a single same-scope create/dispose window that using() can wrap. */
     session[Symbol.dispose]()
     header[Symbol.dispose]()
     needsAuth[Symbol.dispose]()

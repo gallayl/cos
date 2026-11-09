@@ -120,7 +120,7 @@ export function createConsoleSession(options: ConsoleSessionOptions): ConsoleSes
     [Symbol.dispose]() {
       generation += 1
       link?.close()
-      /* eslint-disable furystack/prefer-using-wrapper -- composite disposal of owned subscriptions/state */
+      /* eslint-disable furystack/prefer-using-wrapper -- These subscriptions and ObservableValues are created here but owned by the returned session; disposal is deferred to the session's lifetime, so a same-scope using() wrapper cannot express this ownership transfer. */
       authorizationChanges[Symbol.dispose]()
       authStateChanges[Symbol.dispose]()
       phase[Symbol.dispose]()

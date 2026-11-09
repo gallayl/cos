@@ -58,7 +58,7 @@ export function createDeviceAccess(
       needsAuth.setValue(true)
     },
     [Symbol.dispose]() {
-      /* eslint-disable furystack/prefer-using-wrapper -- composite disposal of owned service state */
+      /* eslint-disable furystack/prefer-using-wrapper -- These ObservableValues are created here but owned by the returned service; disposal is deferred to the service's lifetime, so a same-scope using() wrapper cannot express this ownership transfer. */
       authorization[Symbol.dispose]()
       needsAuth[Symbol.dispose]()
       /* eslint-enable furystack/prefer-using-wrapper */

@@ -13,10 +13,8 @@ describe('dropped files', () => {
     return expect(collectDrop([tree, file('alone.txt', 'hi')])).resolves.toEqual({
       directories: ['notes'],
       files: [
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Vitest asymmetric matcher
-        { relativePath: 'notes/todo.txt', blob: expect.any(Blob), fileName: 'todo.txt' },
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Vitest asymmetric matcher
-        { relativePath: 'alone.txt', blob: expect.any(Blob), fileName: 'alone.txt' },
+        { relativePath: 'notes/todo.txt', blob: expect.any(Blob) as Blob, fileName: 'todo.txt' },
+        { relativePath: 'alone.txt', blob: expect.any(Blob) as Blob, fileName: 'alone.txt' },
       ],
     })
   })

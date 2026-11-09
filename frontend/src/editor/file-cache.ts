@@ -61,7 +61,7 @@ export function createFileCaches(options: FileCacheOptions = {}): FileCacheServi
       })
     },
     dispose() {
-      /* eslint-disable furystack/prefer-using-wrapper -- composite disposal of owned caches */
+      /* eslint-disable furystack/prefer-using-wrapper -- These caches are created here but owned by the returned service; disposal is deferred to the caller/service lifetime, so a same-scope using() wrapper cannot express this ownership transfer. */
       directories[Symbol.dispose]()
       contents[Symbol.dispose]()
       /* eslint-enable furystack/prefer-using-wrapper */
