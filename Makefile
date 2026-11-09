@@ -90,9 +90,6 @@ clean:
 fullclean:
 	$(IDF_PY) fullclean
 
-erase-flash:
-	$(IDF_PY) erase-flash
-
 menuconfig:
 	$(IDF_PY) menuconfig
 

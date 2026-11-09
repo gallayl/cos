@@ -59,15 +59,15 @@ extern "C"
         size_t gc_managed_bytes;
         /** Berry GC step rate (be_gc_setsteprate value; Berry default is 200). 0 if unavailable. */
         int gc_step_rate;
-        /** Total free heap bytes (all capabilities/default). */
+        /** Free heap in default capability (MALLOC_CAP_DEFAULT), bytes. */
         size_t heap_free;
-        /** Total heap size bytes (default capability). */
+        /** Total heap size in default capability, bytes. */
         size_t heap_total;
         /** Largest free block in default heap (fragmentation indicator). */
         size_t heap_largest_block;
-        /** Minimum free heap watermark since boot (default heap). */
+        /** Minimum free default-heap watermark since boot. */
         size_t heap_min_free;
-        /** Free internal heap bytes. */
+        /** Free internal heap (MALLOC_CAP_INTERNAL), bytes. */
         size_t internal_free;
         /** Largest free internal heap block. */
         size_t internal_largest_block;

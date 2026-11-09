@@ -27,7 +27,7 @@
 - Only 4 cycles captured; guide recommends **10–25 cycles** and a second representative app for stronger confidence.
 - Initial delta after first breakout run is large (~10.4 KB free, largest 19456→5376, min watermark 6420). Determine whether this is expected persistent UI/display/app runtime state, fragmentation, or reclaimable leakage.
 - Lifecycle `[R5]` serial checkpoint lines were not included in the pasted output; verify checkpoints 1–7 are emitted during open/close as per the guide.
-- `System heap` and `Internal heap` lines printed by `berry profile` appear identical in this output, while the R5 `Heap snapshot` line shows distinct internal metrics. This may be a `system_get_info` reporting issue (pre-existing/R2) and should be checked separately; R5 snapshot fields look plausible.
+- `System heap` and `Internal heap` lines printed by `berry profile` appeared identical in this output, while the R5 `Heap snapshot` line showed distinct internal metrics. **R5-FU2 fixed and hardware verified (2026-11-09):** `system_get_info`/`berry_runtime_get_memory_info` now use consistent default-cap fields; `berry profile` labels `Default heap` and `Internal heap` unambiguously. See §R5-FU2 hardware verification.
 
 ## 3. Post-restart fragmentation / `ESP_ERR_NO_MEM` on second Breakout run (2026-11-08)
 
@@ -128,6 +128,20 @@ I (2298) berry: [R5] 1 Berry VM initialized | berry_gc=3807 heap_free=55984 heap
   - **R5-HW3 GC step-rate benchmarks 200/150/125** ✅ (identical workload, no measurable difference, no responsiveness impact noticed). **Default unchanged (200) restored/confirmed.**
 - **Open follow-ups (not blocking R5 acceptance):**
   - **R5-FU1 (critical):** heap/stdio corruption panic root cause unresolved (`LoadStoreError`/`EXCVADDR 0x40000000` in `fwrite` → `stdout_write_hook` `text_console.cpp:210` during logging). Not reproduced in latest capture. Reproduce with `logging error`; enable heap poisoning/stack checks; audit stdout hook/fopencookie/buffer ownership.
-  - **R5-FU2:** `berry profile` `System heap`/`Internal heap` lines from `system_get_info` appeared identical while R5 snapshot shows distinct internal metrics (likely pre-existing display/reporting issue).
+  - **R5-FU2 resolved (2026-11-09, hardware verified):** `berry profile` previously showed confusing `System heap`/`Internal heap` labeling while R5 snapshot showed distinct internal metrics. Fixes: `components/system/src/system.c` reports `free/min/total/max_alloc` via `MALLOC_CAP_DEFAULT` and internal via `MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT`; `components/berry_lang/src/berry_runtime.cpp` `berry_runtime_get_memory_info()` uses `MALLOC_CAP_DEFAULT` for `heap_free/heap_min_free`; `components/shell/src/shell_berry_cmd.c` prints `Default heap`/`Internal heap`. Host tests: cap-aware `test/mocks/mock_system.{h,c}`, `test/test_system.c` adds `test_get_info_distinguishes_default_and_internal_heap` (`test_system` 12/12). Hardware evidence (user): `berry profile`/`mem` OK; `memory_churn` + `berry profile` + `berry gc` behaved normally with plausible movement (e.g. managed 7288→2695, reclaimed 4593, default heap 47236→53040 after GC, watermarks stable). `system_get_info` default/internal lines were numerically identical on this target (cap-query result), but labels are now unambiguous and Berry `Heap snapshot` internal metrics remain distinct (`MALLOC_CAP_INTERNAL`) — issue no longer misleading.
   - **Deployment note:** on-device `/flash/tests/r5/memory_churn.be` was 0 bytes during HW3; repo asset exists — re-deploy if churn benchmark should be rerun meaningfully.
   - **Optional:** worst-case `default largest < 8224` reload revalidation if reproducible.
+
+## R5-FU2 hardware verification
+
+**Status:** ✅ Passed (2026-11-09, user-provided serial output).
+
+**Goal:** confirm heap reporting is no longer confusing and that default/internal values are coherent.
+
+**Observed:**
+- `berry profile` printed `Default heap:` and `Internal heap:` (labels unambiguous) and `Heap snapshot:` remained coherent.
+- `mem` worked normally.
+- `memory_churn` (`R5 memory_churn done`), `berry profile`, and `berry gc` behaved normally. GC reclaimed 4593 bytes (7288→2695 managed); default heap recovered plausibly (47236→53040 after GC); watermarks/mins stable.
+- `system_get_info` default/internal lines were numerically identical on this target (e.g. `72352/58140/197960/65536`), which can occur with overlapping ESP heap cap queries on this configuration. Berry `Heap snapshot` internal metrics (`MALLOC_CAP_INTERNAL`) remained distinct from default-heap snapshot metrics (e.g. `free=72352` vs `internal_free=95548` before churn), and reporting is no longer misleading because labels/semantics are explicit.
+
+**Follow-up (optional, low priority):** if desired, align `system_get_info` internal caps with Berry snapshot internal caps (`MALLOC_CAP_INTERNAL`) for perfectly parallel comparisons; not required for R5-FU2 closure.

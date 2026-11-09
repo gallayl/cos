@@ -14,7 +14,7 @@ const char *shell_get_prompt(void)
     return s_mock_prompt;
 }
 
-/* Stub: script resolver not exercised by shell_input unit tests. */
+/* Stubs: command/script dispatch not exercised by shell_input unit tests. */
 esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *ret, bool *handled)
 {
     (void)argc;
@@ -29,6 +29,16 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
         *handled = false;
     }
     return ESP_OK;
+}
+
+esp_err_t shell_dispatch_expanded_line(const char *line, int *ret)
+{
+    (void)line;
+    if (ret != NULL)
+    {
+        *ret = 0;
+    }
+    return ESP_ERR_NOT_FOUND;
 }
 
 static int s_completion_calls;

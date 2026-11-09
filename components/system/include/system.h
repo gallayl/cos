@@ -16,14 +16,14 @@ extern "C"
         const char *idf_version;         /**< ESP-IDF SDK version string. */
         uint32_t cpu_freq_mhz;           /**< CPU frequency in MHz. */
         uint32_t flash_size;             /**< External flash size in bytes. */
-        size_t free_heap;                /**< Current free heap in bytes. */
-        size_t min_free_heap;            /**< Minimum free heap since boot. */
-        size_t total_heap;               /**< Total heap capacity in bytes. */
-        size_t max_alloc_block;          /**< Largest allocatable block in bytes. */
-        size_t internal_free_heap;       /**< Internal free heap in bytes. */
-        size_t internal_min_free_heap;   /**< Internal minimum free heap since boot. */
-        size_t internal_total_heap;      /**< Internal total heap capacity in bytes. */
-        size_t internal_max_alloc_block; /**< Internal largest allocatable block in bytes. */
+        size_t free_heap;                /**< Current free heap in default capability (MALLOC_CAP_DEFAULT), bytes. */
+        size_t min_free_heap;            /**< Minimum free default-capability heap since boot (watermark), bytes. */
+        size_t total_heap;               /**< Total default-capability heap capacity in bytes. */
+        size_t max_alloc_block;          /**< Largest allocatable default-capability block in bytes. */
+        size_t internal_free_heap;       /**< Free internal heap (MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT), bytes. */
+        size_t internal_min_free_heap;   /**< Minimum free internal heap since boot (watermark), bytes. */
+        size_t internal_total_heap;      /**< Total internal heap capacity in bytes. */
+        size_t internal_max_alloc_block; /**< Largest allocatable internal heap block in bytes. */
     } system_info_t;
 
     /**

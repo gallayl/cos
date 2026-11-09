@@ -2312,10 +2312,10 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
     info->initialized = (s_vm != nullptr);
     info->gc_managed_bytes = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
     info->gc_step_rate = s_vm != nullptr ? s_gc_step_rate : BERRY_GC_STEP_RATE_DEFAULT;
-    info->heap_free = esp_get_free_heap_size();
+    info->heap_free = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
     info->heap_total = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
     info->heap_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
-    info->heap_min_free = esp_get_minimum_free_heap_size();
+    info->heap_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
     info->internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     info->internal_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     info->internal_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);

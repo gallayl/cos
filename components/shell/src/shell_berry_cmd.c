@@ -48,7 +48,7 @@ static void print_profile(void)
     printf("Berry memory profile (R2/R5)\n");
     if (sys_err == ESP_OK)
     {
-        printf("  System heap:   free=%u min=%u total=%u largest=%u\n", (unsigned)info.free_heap,
+        printf("  Default heap:  free=%u min=%u total=%u largest=%u\n", (unsigned)info.free_heap,
                (unsigned)info.min_free_heap, (unsigned)info.total_heap, (unsigned)info.max_alloc_block);
         printf("  Internal heap: free=%u min=%u total=%u largest=%u\n", (unsigned)info.internal_free_heap,
                (unsigned)info.internal_min_free_heap, (unsigned)info.internal_total_heap,
@@ -56,7 +56,7 @@ static void print_profile(void)
     }
     else
     {
-        printf("  System heap:   unavailable (%s)\n", esp_err_to_name(sys_err));
+        printf("  Default heap:  unavailable (%s)\n", esp_err_to_name(sys_err));
     }
     if (berry_err == ESP_OK)
     {
