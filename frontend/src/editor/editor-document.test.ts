@@ -4,6 +4,7 @@ import {
   authorizationFromCredentials,
   berryPlan,
   canCreateBerry,
+  canSaveDocument,
   confirmDiscard,
   createScratchDocument,
   documentAfterEdit,
@@ -48,15 +49,20 @@ describe('editor document', () => {
 
   it('plans save and Berry targets', () => {
     const scratch = createScratchDocument()
+    expect(scratch.text).toBe('')
     expect(savePlan(scratch, false)).toEqual({ kind: 'save-as', suggestedName: 'script.ts' })
     expect(berryPlan(scratch)).toEqual({ kind: 'local', suggestedName: 'script.be' })
     expect(canCreateBerry('plaintext')).toBe(false)
+    expect(canSaveDocument(scratch)).toBe(false)
+    expect(canSaveDocument(null)).toBe(false)
 
     const device = documentFromFile('device', '/flash/app.ts', 'export {}\n')
+    expect(canSaveDocument(device)).toBe(true)
     expect(savePlan(device, false)).toEqual({ kind: 'device', path: '/flash/app.ts' })
     expect(berryPlan(device)).toEqual({ kind: 'device', path: '/flash/app.be' })
 
     const local = documentFromFile('local', 'notes.txt', 'hi')
+    expect(canSaveDocument(local)).toBe(false)
     expect(savePlan(local, true)).toEqual({ kind: 'handle' })
     expect(berryPlan(local)).toEqual({ kind: 'unsupported' })
     expect(fileEntryLabel('apps', true)).toBe('apps/')

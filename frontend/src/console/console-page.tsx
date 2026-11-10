@@ -10,8 +10,6 @@ import {
 
 import { annotateBerryErrorText } from '../ide/ast-to-berry'
 import { BerryCompileContext } from '../ide/berry-compile-context'
-import { DeviceAccess } from '../editor/device-access'
-import { DeviceSignIn } from '../editor/device-sign-in'
 import { consoleMessageLimit, lineVisible, severityOf, stripAnsi } from './console-lines'
 import { ConsoleSession, type ConsolePhase } from './console-session'
 
@@ -100,11 +98,8 @@ export const ConsolePage = Shade({
     },
   },
   render: ({ injector, useObservable, useDisposable, useRef }) => {
-    const access = injector.get(DeviceAccess)
     const session = injector.get(ConsoleSession)
     const compileContext = injector.get(BerryCompileContext)
-    const [authorization] = useObservable('authorization', access.authorization)
-    const [needsAuth] = useObservable('needs-auth', access.needsAuth)
     const [phase] = useObservable('phase', session.phase)
     const [transcript] = useObservable('transcript', session.transcript)
     const [level] = useObservable('level', session.level)
@@ -126,7 +121,6 @@ export const ConsolePage = Shade({
       log.current.scrollTop = log.current.scrollHeight
     }
 
-    const signedOut = !authorization || needsAuth
     const connected = phase === 'open'
 
     return (
@@ -154,7 +148,6 @@ export const ConsolePage = Shade({
             onValueChange={(value) => session.setLevel(value)}
           />
         </header>
-        {signedOut ? <DeviceSignIn /> : null}
         {phase === 'unreachable' || phase === 'closed' ? (
           <div className="notice">
             <Alert severity="error" variant="outlined" title={phaseText[phase]}>

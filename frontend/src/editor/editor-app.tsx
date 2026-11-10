@@ -1,18 +1,11 @@
 import { createComponent, Shade } from '@furystack/shades'
-import { cssVariableTheme } from '@furystack/shades-common-components'
+import { Button, NotyService, Typography, cssVariableTheme } from '@furystack/shades-common-components'
 
 import { astToBerry } from '../ide/ast-to-berry'
 import type { BerryCompileMetadata, BerryCompileProfile, BerryDiagnostic } from '../ide/ast-to-berry'
 import { BerryCompileContext } from '../ide/berry-compile-context'
 import { CosFilesError, describeCosError, writeTextFile } from '../ide/files/cos-files'
 import { canOpenPath, languageForPath, parentPath } from '../ide/files/paths'
-import {
-  isAbortError,
-  pickTextFile,
-  saveTextFile,
-  supportsFilePicker,
-  writeTextToHandle,
-} from '../ide/files/local-files'
 import { getAst } from '../ide/get-ast'
 import '../ide/monaco-languages'
 import '../ide/register-cos-sdk'
@@ -20,13 +13,11 @@ import { fetchReferencedWorkspaceTypes } from '../ide/import-resolution'
 import { registerWorkspaceTypeScriptFile } from '../ide/typescript-workspace'
 import { BerryErrorAnnotator } from './berry-error-annotator'
 import { CompileOutput } from './compile-output'
-import { RuntimeMemoryDiagnostics } from './runtime-memory-diagnostics'
 import { DeviceAccess } from './device-access'
 import {
   berryPlan,
-  canCreateBerry,
+  canSaveDocument,
   confirmDiscard,
-  createScratchDocument,
   documentAfterEdit,
   documentFromFile,
   formatCompileSummary,
@@ -45,9 +36,6 @@ import { movedPath } from './file-tree'
 import { SourceEditor } from './source-editor'
 
 const DEFAULT_COMPILE_PROFILE: BerryCompileProfile = 'dev'
-
-const textFileAccept =
-  '.ts,.tsx,.mts,.cts,.js,.jsx,.mjs,.cjs,.be,.berry,.txt,.json,.css,.html,.htm,.md,.xml,.yml,.yaml,.c,.h,.cpp,.hpp,.log'
 
 /** COS TypeScript editor shell. */
 export const EditorApp = Shade({
@@ -73,39 +61,65 @@ export const EditorApp = Shade({
       display: 'flex',
       flexDirection: 'column',
     },
-    '& .file-input': {
-      display: 'none',
+    '& .empty-state': {
+      flex: '1',
+      minHeight: '0',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: cssVariableTheme.spacing.sm,
+      color: cssVariableTheme.text.secondary,
+      padding: cssVariableTheme.spacing.xl,
+      textAlign: 'center',
+    },
+    '& .panels': {
+      borderTop: `${cssVariableTheme.shape.borderWidth} solid ${cssVariableTheme.divider}`,
+      background: cssVariableTheme.background.paper,
+      maxHeight: '18rem',
+      overflow: 'auto',
+    },
+    '& .panel-actions': {
+      display: 'flex',
+      gap: cssVariableTheme.spacing.sm,
+      padding: `${cssVariableTheme.spacing.xs} ${cssVariableTheme.spacing.md}`,
+      alignItems: 'center',
+      borderTop: `${cssVariableTheme.shape.borderWidth} solid ${cssVariableTheme.divider}`,
+      background: cssVariableTheme.background.paper,
+      flexWrap: 'wrap',
     },
   },
-  render: ({ useState, useDisposable, useRef, injector }) => {
-    const [document, setDocument] = useState<EditorDocument>('document', createScratchDocument())
+  render: ({ useState, useDisposable, injector }) => {
+    const [document, setDocument] = useState<EditorDocument | null>('document', null)
     const [output, setOutput] = useState('output', '')
-    const [status, setStatus] = useState('status', 'TypeScript')
-    const [localHandle, setLocalHandle] = useState<FileSystemFileHandle | null>('localHandle', null)
+    const [status, setStatus] = useState('status', 'No file open')
     const [revision, setRevision] = useState('revision', 0)
     const [berryDiagnostics, setBerryDiagnostics] = useState<readonly BerryDiagnostic[]>('berryDiagnostics', [])
     const [lastCompileMetadata, setLastCompileMetadata] = useState<BerryCompileMetadata | undefined>(
       'lastCompileMetadata',
       undefined,
     )
-    const fileInput = useRef<HTMLInputElement>('file-input')
+    const [showAnnotator, setShowAnnotator] = useState('showAnnotator', false)
     const live = useDisposable('live-document', () => ({
       document,
-      localHandle,
       [Symbol.dispose]() {},
     }))
     live.document = document
-    live.localHandle = localHandle
 
     const access = injector.get(DeviceAccess)
     const cache = injector.get(FileCache)
     const compileContext = injector.get(BerryCompileContext)
-    const dirty = isDirty(document)
+    const notyService = injector.get(NotyService)
+    const dirty = document ? isDirty(document) : false
+
+    const notify = (type: 'success' | 'error' | 'info' | 'warning', title: string, body?: string) => {
+      notyService.emit('onNotyAdded', { type, title, body: body ?? '' })
+    }
 
     useDisposable(
       'import-type-fetch',
       () => {
-        if (document.language !== 'typescript' || !document.path) {
+        if (!document || document.language !== 'typescript' || !document.path) {
           return { [Symbol.dispose]() {} }
         }
         const timeout = window.setTimeout(() => {
@@ -123,18 +137,20 @@ export const EditorApp = Shade({
           },
         }
       },
-      [document.path, document.text, document.language],
+      [document?.path, document?.text, document?.language],
     )
 
     useDisposable(
       'berry-live-diagnostics',
       () => {
-        if (document.language !== 'typescript') {
+        if (!document || document.language !== 'typescript') {
           setBerryDiagnostics([])
           return { [Symbol.dispose]() {} }
         }
         const timeout = window.setTimeout(() => {
-          const result = astToBerry(getAst(live.document.text), { profile: DEFAULT_COMPILE_PROFILE })
+          const current = live.document
+          if (!current) return
+          const result = astToBerry(getAst(current.text), { profile: DEFAULT_COMPILE_PROFILE })
           setBerryDiagnostics(result.diagnostics)
           setLastCompileMetadata(result.metadata)
           compileContext.setMetadata(result.metadata)
@@ -145,21 +161,22 @@ export const EditorApp = Shade({
           },
         }
       },
-      [document.path, document.text, document.language, revision],
+      [document?.path, document?.text, document?.language, revision],
     )
 
     const discard = () => confirmDiscard(dirty, (message) => window.confirm(message))
 
-    const noteFailure = (error: unknown) => {
+    const noteFailure = (error: unknown, title = 'Operation failed') => {
       if (error instanceof CosFilesError && error.status === 401) {
         access.markUnauthorized()
       }
-      setStatus(describeCosError(error))
+      const message = describeCosError(error)
+      setStatus(message)
+      notify('error', title, message)
     }
 
-    const replaceDocument = (next: EditorDocument, handle: FileSystemFileHandle | null, nextStatus: string) => {
+    const replaceDocument = (next: EditorDocument, nextStatus: string) => {
       setDocument(next)
-      setLocalHandle(handle)
       setOutput('')
       setBerryDiagnostics([])
       setLastCompileMetadata(undefined)
@@ -170,7 +187,9 @@ export const EditorApp = Shade({
 
     const openDeviceFile = async (path: string) => {
       if (!canOpenPath(path)) {
-        setStatus('That file type cannot be opened as text')
+        const msg = 'That file type cannot be opened as text'
+        setStatus(msg)
+        notify('warning', 'Cannot open file', msg)
         return
       }
       if (!discard()) {
@@ -188,226 +207,210 @@ export const EditorApp = Shade({
           fetcher: cache.contents,
           registerFile: registerWorkspaceTypeScriptFile,
         })
-        replaceDocument(documentFromFile('device', path, text), null, path)
+        replaceDocument(documentFromFile('device', path, text), path)
       } catch (error) {
-        noteFailure(error)
-      }
-    }
-
-    const openLocalFile = (name: string, text: string, handle: FileSystemFileHandle | null) => {
-      if (!canOpenPath(name)) {
-        setStatus('That file type cannot be opened as text')
-        return
-      }
-      registerWorkspaceTypeScriptFile(name, text)
-      replaceDocument(documentFromFile('local', name, text), handle, name)
-    }
-
-    const browseLocal = async () => {
-      if (!discard()) {
-        return
-      }
-      if (!supportsFilePicker()) {
-        fileInput.current?.click()
-        return
-      }
-      try {
-        const picked = await pickTextFile()
-        if (!picked) {
-          fileInput.current?.click()
-          return
-        }
-        openLocalFile(picked.name, picked.text, picked.handle)
-      } catch (error) {
-        if (!isAbortError(error)) {
-          setStatus(describeCosError(error))
-        }
+        noteFailure(error, 'Open failed')
       }
     }
 
     const save = async () => {
       const current = live.document
-      const handle = live.localHandle
-      const plan = savePlan(current, handle !== null)
+      if (!current) return
+      const plan = savePlan(current, false)
+      if (plan.kind !== 'device') {
+        const msg = 'Only opened device files can be saved'
+        setStatus(msg)
+        notify('warning', 'Save unavailable', msg)
+        return
+      }
       const written = current.text
       const authorization = access.authorization.getValue()
-      const keepSaved = (patch: Partial<EditorDocument> = {}) => {
-        setDocument({ ...live.document, ...patch, savedText: written })
-      }
-
-      if (plan.kind === 'device') {
-        setStatus(`Saving ${plan.path}`)
-        try {
-          await writeTextFile(plan.path, written, { authorization })
-          keepSaved()
-          registerWorkspaceTypeScriptFile(plan.path, written)
-          cache.rememberFile(plan.path, authorization, written)
-          const parent = parentPath(plan.path)
-          if (parent) {
-            cache.refreshDirectory(parent, authorization)
-          }
-          setStatus(`Saved ${plan.path}`)
-        } catch (error) {
-          noteFailure(error)
-        }
-        return
-      }
-
-      if (plan.kind === 'handle' && handle) {
-        setStatus(`Saving ${current.path}`)
-        try {
-          await writeTextToHandle(handle, written)
-          keepSaved()
-          registerWorkspaceTypeScriptFile(current.path, written)
-          setStatus(`Saved ${current.path}`)
-        } catch (error) {
-          if (!isAbortError(error)) {
-            setStatus(describeCosError(error))
-          }
-        }
-        return
-      }
-
-      const suggested = plan.kind === 'save-as' ? plan.suggestedName : current.path || 'script.ts'
+      setStatus(`Saving ${plan.path}`)
       try {
-        const savedHandle = await saveTextFile(suggested, written)
-        if (savedHandle) {
-          keepSaved({ origin: 'local', path: savedHandle.name })
-          setLocalHandle(savedHandle)
-          registerWorkspaceTypeScriptFile(savedHandle.name, written)
-        } else {
-          keepSaved()
-          registerWorkspaceTypeScriptFile(suggested, written)
+        await writeTextFile(plan.path, written, { authorization })
+        const latest = live.document
+        if (latest && latest.path === plan.path) {
+          setDocument({ ...latest, savedText: written })
         }
-        setStatus(`Saved ${savedHandle?.name ?? suggested}`)
+        registerWorkspaceTypeScriptFile(plan.path, written)
+        cache.rememberFile(plan.path, authorization, written)
+        const parent = parentPath(plan.path)
+        if (parent) {
+          cache.refreshDirectory(parent, authorization)
+        }
+        setStatus(`Saved ${plan.path}`)
+        notify('success', 'Saved', plan.path)
       } catch (error) {
-        if (!isAbortError(error)) {
-          setStatus(describeCosError(error))
-        }
+        noteFailure(error, 'Save failed')
       }
     }
 
-    const showCompileResult = () => {
-      const result = astToBerry(getAst(document.text), { profile: DEFAULT_COMPILE_PROFILE })
+    const preview = () => {
+      const current = live.document
+      if (!current) return undefined
+      const result = astToBerry(getAst(current.text), { profile: DEFAULT_COMPILE_PROFILE })
       setBerryDiagnostics(result.diagnostics)
       setLastCompileMetadata(result.metadata)
       compileContext.setMetadata(result.metadata)
       if (result.ok) {
         setOutput(result.code)
-        setStatus(formatCompileSummary(result))
+        const summary = formatCompileSummary(result)
+        setStatus(summary)
+        notify('success', 'Preview ready', summary)
         return result
       }
       setOutput(formatDiagnostics(result.diagnostics))
-      setStatus(formatCompileSummary(result))
+      const summary = formatCompileSummary(result)
+      setStatus(summary)
+      notify('error', 'Preview failed', summary)
       return result
     }
 
-    const createBerry = async () => {
-      const plan = berryPlan(document)
+    const saveBerry = async () => {
+      const current = live.document
+      if (!current) return
+      const plan = berryPlan(current)
       if (plan.kind === 'unsupported') {
-        setStatus('Open a TypeScript file to create a Berry script')
+        const msg = 'Open a TypeScript file to save a Berry script'
+        setStatus(msg)
+        notify('warning', 'Cannot save Berry', msg)
         return
       }
-      const result = showCompileResult()
-      if (!result.ok) {
-        return
-      }
-      if (plan.kind === 'device') {
-        try {
-          const authorization = access.authorization.getValue()
-          await writeTextFile(plan.path, result.code, { authorization })
-          const parent = parentPath(plan.path)
-          if (parent) {
-            cache.refreshDirectory(parent, authorization)
-          }
-          setStatus(`Wrote ${plan.path}`)
-        } catch (error) {
-          noteFailure(error)
-        }
+      const result = preview()
+      if (!result?.ok) return
+      if (plan.kind !== 'device') {
+        const msg = 'Berry output can only be saved for opened device TypeScript files'
+        setStatus(msg)
+        notify('warning', 'Save Berry unavailable', msg)
         return
       }
       try {
-        await saveTextFile(plan.suggestedName, result.code)
-        setStatus(`Created ${plan.suggestedName}`)
-      } catch (error) {
-        if (!isAbortError(error)) {
-          setStatus(describeCosError(error))
+        const authorization = access.authorization.getValue()
+        await writeTextFile(plan.path, result.code, { authorization })
+        const parent = parentPath(plan.path)
+        if (parent) {
+          cache.refreshDirectory(parent, authorization)
         }
+        setStatus(`Wrote ${plan.path}`)
+        notify('success', 'Berry script saved', plan.path)
+      } catch (error) {
+        noteFailure(error, 'Save Berry failed')
       }
     }
 
-    const reset = () => {
-      if (!discard()) {
-        return
-      }
-      replaceDocument(createScratchDocument(), null, 'TypeScript')
-    }
+    useDisposable(
+      'save-shortcut',
+      () => {
+        const onKeyDown = (event: KeyboardEvent) => {
+          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault()
+            if (canSaveDocument(live.document)) {
+              void save()
+            }
+          }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return {
+          [Symbol.dispose]() {
+            window.removeEventListener('keydown', onKeyDown)
+          },
+        }
+      },
+      [],
+    )
 
-    const onPickedFile = async (event: Event) => {
-      const input = event.target as HTMLInputElement
-      const file = input.files?.[0]
-      input.value = ''
-      if (!file) {
-        return
-      }
-      openLocalFile(file.name, await file.text(), null)
-    }
+    const hasMappings = (lastCompileMetadata?.mappings?.length ?? 0) > 0
+    const isTs = document?.language === 'typescript'
+    const canSave = canSaveDocument(document)
+    const canPreview = isTs
+    const canSaveBerry = isTs && document?.origin === 'device'
 
     return (
       <>
         <EditorToolbar
-          canCreateBerry={canCreateBerry(document.language)}
-          onOpen={() => void browseLocal()}
+          canSave={canSave}
+          canPreview={canPreview}
+          canSaveBerry={!!canSaveBerry}
           onSave={() => void save()}
-          onCreateBerry={() => void createBerry()}
-          onCompile={showCompileResult}
-          onReset={reset}
+          onPreview={preview}
+          onSaveBerry={() => void saveBerry()}
         />
         <div className="workspace">
           <FileBrowser
-            activePath={document.path}
+            activePath={document?.path ?? ''}
             onOpenFile={(path) => void openDeviceFile(path)}
             onActivity={setStatus}
             onMoved={(from, to) => {
-              const next = movedPath(live.document.path, from, to)
-              if (!next) {
-                return
-              }
-              cache.rememberFile(next, access.authorization.getValue(), live.document.text)
-              setDocument({ ...live.document, path: next, language: languageForPath(next) })
+              const current = live.document
+              if (!current) return
+              const next = movedPath(current.path, from, to)
+              if (!next) return
+              cache.rememberFile(next, access.authorization.getValue(), current.text)
+              setDocument({ ...current, path: next, language: languageForPath(next) })
               setStatus(next)
             }}
           />
           <div className="editor-column">
-            <SourceEditor
-              value={document.text}
-              language={document.language}
-              path={document.path}
-              revision={revision}
-              berryDiagnostics={berryDiagnostics}
-              onValueChange={(text) => {
-                const next = documentAfterEdit(live.document, text)
-                if (next) {
-                  setDocument(next)
-                }
-              }}
-            />
-            {output ? <CompileOutput text={output} /> : null}
-            {document.language === 'typescript' ? <BerryErrorAnnotator metadata={lastCompileMetadata} /> : null}
-            <RuntimeMemoryDiagnostics />
+            {document ? (
+              <>
+                <SourceEditor
+                  value={document.text}
+                  language={document.language}
+                  path={document.path}
+                  revision={revision}
+                  berryDiagnostics={berryDiagnostics}
+                  onValueChange={(text) => {
+                    const current = live.document
+                    if (!current) return
+                    const next = documentAfterEdit(current, text)
+                    if (next) {
+                      setDocument(next)
+                    }
+                  }}
+                />
+                {output || (isTs && showAnnotator) ? (
+                  <div className="panels">
+                    {output ? <CompileOutput text={output} /> : null}
+                    {isTs && showAnnotator ? <BerryErrorAnnotator metadata={lastCompileMetadata} /> : null}
+                  </div>
+                ) : null}
+                <div className="panel-actions">
+                  {output ? (
+                    <Button type="button" size="small" variant="text" onclick={() => setOutput('')}>
+                      Hide output
+                    </Button>
+                  ) : null}
+                  {isTs ? (
+                    <Button type="button" size="small" variant="text" onclick={() => setShowAnnotator(!showAnnotator)}>
+                      {showAnnotator ? 'Hide Berry mapping' : hasMappings ? 'Show Berry mapping' : 'Berry mapping'}
+                    </Button>
+                  ) : null}
+                  {hasMappings ? (
+                    <span
+                      style={{ fontSize: cssVariableTheme.typography.fontSize.xs, color: cssVariableTheme.text.secondary }}
+                    >
+                      {lastCompileMetadata?.mappings?.length} mapping(s)
+                    </span>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                <Typography variant="h6" color="textSecondary">
+                  No file open
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Select a device file from the browser to open it. Upload files or folders by dragging them onto a
+                  specific folder in the sidebar.
+                </Typography>
+              </div>
+            )}
           </div>
         </div>
         <EditorStatusBar
           status={status}
-          location={locationText(document.path, dirty)}
-          lines={lineCountLabel(document.text)}
-        />
-        <input
-          ref={fileInput}
-          className="file-input"
-          type="file"
-          accept={textFileAccept}
-          onchange={(event) => void onPickedFile(event)}
+          location={document ? locationText(document.path, dirty) : 'No file open'}
+          lines={document ? lineCountLabel(document.text) : ''}
         />
       </>
     )
