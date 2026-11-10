@@ -2079,16 +2079,16 @@ static int native_cos_lazy_member(bvm *vm)
 
 static void install_lazy_module_global(bvm *vm, const char *name)
 {
-    // Install a tiny proxy module whose `member` hook is a Berry closure.
-    // Using a closure (not a native function) avoids be_module_attr's low-level
-    // be_dofunc/ret_native interaction that is subtle for native member hooks.
-    // The closure calls cos_lazy_member(name, attr) which loads the real native
-    // module on demand and replaces this proxy global.
+    // Install a lazy proxy as a global that routes attribute access through
+    // cos_lazy_member, which loads the real native module on first access.
     const int base = be_top(vm);
-    char source[128];
-    std::snprintf(source, sizeof(source), "return def(k) return cos_lazy_member('%s', k) end", name);
-
-    be_newmodule(vm); // stack: module
+    char source[192];
+    std::snprintf(source, sizeof(source),
+                  "class %s_proxy\n"
+                  "  def member(k) return cos_lazy_member('%s', k) end\n"
+                  "end\n"
+                  "return %s_proxy()",
+                  name, name, name);
 
     if (be_loadbuffer(vm, name, source, std::strlen(source)) != 0 || be_pcall(vm, 0) != 0)
     {
@@ -2103,10 +2103,7 @@ static void install_lazy_module_global(bvm *vm, const char *name)
         be_pop(vm, be_top(vm) - base);
         return;
     }
-    // stack: module, closure
-    be_setmember(vm, -2, "member");
-    be_pop(vm, 1); // be_setmember does not pop value in Berry 1.x API
-    // stack: module
+    // stack has instance
     be_setglobal(vm, name);
     be_pop(vm, 1);
 }
