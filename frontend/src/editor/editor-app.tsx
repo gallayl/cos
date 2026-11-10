@@ -309,7 +309,7 @@ export const EditorApp = Shade({
           const beName = depBe.slice(depBe.lastIndexOf('/') + 1)
           const tsEntry = depDirEntries.find((e) => e.name === tsName && !e.is_dir)
           const beEntry = depDirEntries.find((e) => e.name === beName && !e.is_dir)
-          let depSource: string | null = null
+          let depSource: string
           try {
             depSource = await cache.contents.get(depTs, authorization)
           } catch {
