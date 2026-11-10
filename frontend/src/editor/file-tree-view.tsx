@@ -3,6 +3,7 @@ import {
   ContextMenu,
   ContextMenuManager,
   Icon,
+  NotyService,
   Skeleton,
   Tree,
   TreeService,
@@ -20,7 +21,12 @@ import {
   writeTextFile,
   type CosDirEntry,
 } from '../ide/files/cos-files'
-import { joinPath } from '../ide/files/paths'
+import { isTypeScriptPath, joinPath } from '../ide/files/paths'
+import {
+  moveWorkspaceTypeScriptTree,
+  registerWorkspaceTypeScriptFile,
+  unregisterWorkspaceTypeScriptTree,
+} from '../ide/typescript-workspace'
 import { DeviceAccess } from './device-access'
 import { DirectoryLoadError } from './directory-load-error'
 import { collectDrop, entriesFromDataTransfer } from './file-drop'
@@ -96,6 +102,7 @@ export const FileTreeView = Shade<FileTreeViewProps>({
   render: ({ props, injector, useDisposable, useObservable, useState, useHostProps }) => {
     const access = injector.get(DeviceAccess)
     const cache = injector.get(FileCache)
+    const notyService = injector.get(NotyService)
     const store = useDisposable('store', () => new FileTreeStore())
     const treeService = useDisposable('tree', () => {
       const service = new TreeService<FileNode>({ getChildren: store.getChildren })
@@ -117,11 +124,17 @@ export const FileTreeView = Shade<FileTreeViewProps>({
     const [dropPath, setDropPath] = useState('drop-path', '')
     void revision
 
-    const fail = (error: unknown) => {
+    const notify = (type: 'success' | 'error' | 'info' | 'warning', title: string, body?: string) => {
+      notyService.emit('onNotyAdded', { type, title, body: body ?? '' })
+    }
+
+    const fail = (error: unknown, title = 'Operation failed') => {
       if (error instanceof CosFilesError && error.status === 401) {
         access.markUnauthorized()
       }
-      props.onActivity(describeCosError(error))
+      const message = describeCosError(error)
+      props.onActivity(message)
+      notify('error', title, message)
     }
 
     useDisposable('release-tree-focus', () => {
@@ -265,11 +278,16 @@ export const FileTreeView = Shade<FileTreeViewProps>({
             await createDirectory(path, options)
           } else {
             await writeTextFile(path, '', options)
+            cache.rememberFile(path, authorization, '')
+            if (isTypeScriptPath(path)) {
+              registerWorkspaceTypeScriptFile(path, '')
+            }
           }
           store.removeDraft(node)
           cache.refreshDirectory(node.parentPath, authorization)
           treeService.updateFlattenedNodes()
           props.onActivity(`Created ${path}`)
+          notify('success', node.draftKind === 'directory' ? 'Folder created' : 'File created', path)
           if (node.draftKind !== 'directory') {
             props.onOpenFile(path)
           }
@@ -282,11 +300,14 @@ export const FileTreeView = Shade<FileTreeViewProps>({
         const from = node.path
         await renameEntry(from, to, options)
         store.applyRename(node, name)
+        cache.invalidatePathTree(from, authorization)
+        moveWorkspaceTypeScriptTree(from, to)
         cache.refreshDirectory(node.parentPath, authorization)
         resync.current()
         treeService.updateFlattenedNodes()
         props.onMoved(from, to)
         props.onActivity(`Renamed to ${to}`)
+        notify('success', 'Renamed', `${from} → ${to}`)
       } catch (error) {
         if (node.kind === 'draft') {
           node.name = name
@@ -297,7 +318,7 @@ export const FileTreeView = Shade<FileTreeViewProps>({
           store.beginRename(node)
         }
         treeService.updateFlattenedNodes()
-        fail(error)
+        fail(error, node.kind === 'draft' ? 'Create failed' : 'Rename failed')
       }
     }
 
@@ -309,6 +330,8 @@ export const FileTreeView = Shade<FileTreeViewProps>({
       const authorization = access.authorization.getValue()
       try {
         await deleteEntry(node.path, { authorization })
+        cache.invalidatePathTree(node.path, authorization)
+        unregisterWorkspaceTypeScriptTree(node.path)
         treeService.collapse(node)
         store.removeLocal(node)
         if (node.parentPath) {
@@ -316,8 +339,9 @@ export const FileTreeView = Shade<FileTreeViewProps>({
         }
         treeService.updateFlattenedNodes()
         props.onActivity(`Deleted ${node.path}`)
+        notify('success', node.kind === 'directory' ? 'Folder deleted' : 'File deleted', node.path)
       } catch (error) {
-        fail(error)
+        fail(error, 'Delete failed')
       }
     }
 
@@ -330,7 +354,7 @@ export const FileTreeView = Shade<FileTreeViewProps>({
       try {
         collected = await collectDrop(entriesFromDataTransfer(data))
       } catch (error) {
-        fail(error)
+        fail(error, 'Upload failed')
         return
       }
       const relativeDirectories = directoriesToCreate(
@@ -343,6 +367,7 @@ export const FileTreeView = Shade<FileTreeViewProps>({
       })
       if (relativeDirectories.length === 0 && files.length === 0) {
         props.onActivity('Nothing to upload')
+        notify('info', 'Nothing to upload', directory)
         return
       }
       const authorization = access.authorization.getValue()
@@ -368,14 +393,25 @@ export const FileTreeView = Shade<FileTreeViewProps>({
           }
           props.onActivity(`Uploading ${index + 1}/${files.length} ${file.path}`)
           await uploadFile(file.path, file.blob, options)
+          cache.invalidateFile(file.path, authorization)
+          if (isTypeScriptPath(file.path) && isProbablyTextBlob(file.blob)) {
+            try {
+              const text = await file.blob.text()
+              cache.rememberFile(file.path, authorization, text)
+              registerWorkspaceTypeScriptFile(file.path, text)
+            } catch {
+              // Best-effort: binary or unreadable uploads still succeed on device.
+            }
+          }
         }
         cache.refreshDirectory(directory, authorization)
-        props.onActivity(
-          files.length > 0 ? `Uploaded ${files.length} to ${directory}` : `Created folders in ${directory}`,
-        )
+        const message =
+          files.length > 0 ? `Uploaded ${files.length} to ${directory}` : `Created folders in ${directory}`
+        props.onActivity(message)
+        notify('success', files.length > 0 ? 'Upload complete' : 'Folders created', message)
       } catch (error) {
         cache.refreshDirectory(directory, authorization)
-        fail(error)
+        fail(error, 'Upload failed')
       }
     }
 
@@ -439,6 +475,17 @@ export const FileTreeView = Shade<FileTreeViewProps>({
           },
         ]),
       })
+    }
+
+    const isProbablyTextBlob = (blob: Blob): boolean => {
+      const type = blob.type.toLowerCase()
+      return (
+        type === '' ||
+        type.startsWith('text/') ||
+        type.includes('json') ||
+        type.includes('javascript') ||
+        type.includes('typescript')
+      )
     }
 
     useHostProps(dropPath ? { 'data-drop': '' } : {})

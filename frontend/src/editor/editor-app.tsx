@@ -387,7 +387,10 @@ export const EditorApp = Shade({
                   ) : null}
                   {hasMappings ? (
                     <span
-                      style={{ fontSize: cssVariableTheme.typography.fontSize.xs, color: cssVariableTheme.text.secondary }}
+                      style={{
+                        fontSize: cssVariableTheme.typography.fontSize.xs,
+                        color: cssVariableTheme.text.secondary,
+                      }}
                     >
                       {lastCompileMetadata?.mappings?.length} mapping(s)
                     </span>
