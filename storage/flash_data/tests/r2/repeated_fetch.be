@@ -4,7 +4,7 @@
 # Then: berry profile  and/or  berry gc
 import net
 
-def main(args)
+def run(args)
     if size(args) < 1
         print("usage: repeated_fetch <url> [count] [text|json]")
         return 2

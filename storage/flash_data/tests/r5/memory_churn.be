@@ -29,7 +29,7 @@ def churn_once(n)
     return total
 end
 
-def main(args)
+def run(args)
     var round = 0
     while round < 5
         var bytes = churn_once(80)

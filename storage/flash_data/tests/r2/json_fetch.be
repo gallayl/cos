@@ -1,7 +1,7 @@
 # R2/P7: HTTP(S) JSON fetch regression. Edit url for an endpoint returning JSON.
 import net
 
-def main(args)
+def run(args)
     var url = "http://example.com/"
     var result = net.fetch(url, {"timeout_ms": 12000, "response_type": "json"})
     print("json_fetch ok", result["ok"], "status", result["status"], "json_ok", result["json_ok"], "err", result["error"])

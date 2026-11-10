@@ -144,31 +144,15 @@ class GenerationSession implements GenerationContext {
       return
     }
 
+    this.writeLine('')
     if (info.hasSetup) {
-      // R21: unified berry run executes main(args); UI apps launch explicitly via ui.launch.
-      this.writeLine('')
-      this.writeLine('def main(args)')
-      this.indent()
-      this.writeLine(`return ui.launch(${info.name})`)
-      this.dedent()
-      this.writeLine('end')
+      // UI app: runtime launches __cos_entry (class or instance).
+      this.writeLine(`var __cos_entry = ${info.name}`)
       return
     }
 
-    // Console/command app (R21): unified main(args) contract; runtime invokes main.
-    this.writeLine('')
-    this.writeLine(`var __cos_app = ${info.name}()`)
-    this.writeLine('def main(args)')
-    this.indent()
-    this.writeLine('var __cos_r = __cos_app.run(args)')
-    this.writeLine('if __cos_r == nil')
-    this.indent()
-    this.writeLine('return 0')
-    this.dedent()
-    this.writeLine('end')
-    this.writeLine('return __cos_r')
-    this.dedent()
-    this.writeLine('end')
+    // Console/command app: runtime invokes __cos_entry.run(args).
+    this.writeLine(`var __cos_entry = ${info.name}()`)
   }
 }
 

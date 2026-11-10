@@ -20,6 +20,9 @@ static const char s_berry_api_script[] =
     "var no_network = net.ping(\"example.com\")\n"
     "var short_timeout = net.ping(\"example.com\", 99)\n"
     "var invalid_host = net.ping(\"bad host\")\n"
+    "if listing[\"ok\"]\n"
+    "    log(\"FS_LIST_STEP_OK\")\n"
+    "end\n"
     "if listing[\"ok\"] && listing[\"count\"] > 0 && "
     "listing[\"entries\"][0][\"name\"] != nil\n"
     "    log(\"FS_LIST_OK\")\n"
@@ -63,7 +66,8 @@ static const char s_berry_api_script[] =
     "if !invalid_host[\"ok\"] && "
     "invalid_host[\"error\"] == \"ESP_ERR_INVALID_ARG\"\n"
     "    log(\"NET_INVALID_HOST_OK\")\n"
-    "end\n";
+    "end\n"
+    "log(\"BERRY_API_DONE\")\n";
 static const char s_berry_input_script[] = "var started = console.read_line(\"Input: \", def (value)\n"
                                            "    if value == nil\n"
                                            "        log(\"INPUT_CANCELLED\")\n"

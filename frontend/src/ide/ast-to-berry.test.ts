@@ -766,7 +766,7 @@ return App
 })
 
 describe('astToBerry R13/R21 entrypoints', () => {
-  it('lowers a UI app entrypoint to main(args) calling ui.launch (R21)', () => {
+  it('lowers a UI app entrypoint to __cos_entry (runtime-launched)', () => {
     const result = compileEntrypoint(`
       export default class Counter implements CosUiApplication {
         setup(_content: unknown, _width: number, _height: number): void {}
@@ -778,9 +778,7 @@ describe('astToBerry R13/R21 entrypoints', () => {
     end
 end
 
-def main(args)
-    return ui.launch(Counter)
-end
+var __cos_entry = Counter
 `)
   })
 
@@ -793,11 +791,19 @@ end
     `)
     expect(result.ok).toBe(true)
     expect(result.diagnostics).toEqual([])
-    expect(result.code).toContain('return ui.launch(App)')
-    expect(result.code).toContain('def main(args)')
+    expect(result.code).toBe(`class App
+    def run(_args)
+        return 0
+    end
+    def setup(_content, _width, _height)
+    end
+end
+
+var __cos_entry = App
+`)
   })
 
-  it('lowers a console app entrypoint to main(args) bridge (R21, runtime invokes main)', () => {
+  it('lowers a console app entrypoint to __cos_entry (runtime invokes run)', () => {
     const result = compileEntrypoint(`
       export default class Hello implements CosApplication {
         run(args: string[]): number {
@@ -814,14 +820,7 @@ end
     end
 end
 
-var __cos_app = Hello()
-def main(args)
-    var __cos_r = __cos_app.run(args)
-    if __cos_r == nil
-        return 0
-    end
-    return __cos_r
-end
+var __cos_entry = Hello()
 `)
   })
 

@@ -1,7 +1,7 @@
 # R2/P7: filesystem text read/write regression + profiling checkpoint.
 import fs
 
-def main(args)
+def run(args)
     var path = "/sdcard/r2_fs_text.tmp"
     var probe = fs.write_text(path, "r2-text")
     if probe == true

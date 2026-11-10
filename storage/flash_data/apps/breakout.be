@@ -221,6 +221,4 @@ class Breakout
     end
 end
 
-def main(args)
-    return ui.launch(Breakout)
-end
+var __cos_entry = Breakout

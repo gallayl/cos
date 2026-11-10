@@ -75,6 +75,4 @@ class TapDash
     end
 end
 
-def main(args)
-    return ui.launch(TapDash)
-end
+var __cos_entry = TapDash

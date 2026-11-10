@@ -308,7 +308,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run/eval Berry scripts (main(args), R21); profile/http-stack/gc tools",
+        .help = "Run/eval Berry entrypoint scripts; profile/http-stack/gc tools",
         .hint = NULL,
         .func = &cmd_berry,
     };

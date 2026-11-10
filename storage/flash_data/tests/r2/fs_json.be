@@ -1,7 +1,7 @@
 # R2/P7: filesystem JSON read/write regression + lazy JSON profiling checkpoint.
 import fs
 
-def main(args)
+def run(args)
     var path = "/sdcard/r2_fs_json.tmp"
     var payload = {"ok": true, "n": 42, "s": "r2"}
     var probe = fs.write_json(path, payload)

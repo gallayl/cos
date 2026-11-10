@@ -114,7 +114,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `restart`, `uptime`               | Restart the device or show uptime                         |
 | `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request             |
 | `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4                                |
-| `berry run <path> [args...]`      | Execute a Berry script (`main(args)`) from `/flash`/`/sdcard` |
+| `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
 | `mem` / `memory`                  | Show current, minimum, and largest free heap metrics      |
@@ -165,7 +165,13 @@ includes DNS resolution, and require Wi-Fi station connectivity. They use the
 same serialized worker as Berry `net.ping`; if DNS continues after a caller
 times out, another request is rejected until the lookup finishes.
 
-Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory. `berry run <path> [args...]` executes the script's `main(args)`, where `args` is a Berry list of strings excluding the script path; `main(args)` returns an integer shell status (`nil` means `0`). Default execution is non-intrusive (it does not close an active UI app). UI apps launch explicitly from `main(args)` via `ui.launch(AppClass)`. The bundled `/flash/scripts/arg_test.be` demonstrates argument handling:
+Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory.
+
+`berry run <path> [args...]` executes the script's top-level code, then resolves its entrypoint:
+- **Command script:** set global `__cos_entry` to an instance with `run(args)`, or define a global `run(args)` function. The runtime calls `run(args)` with a Berry list of strings (excluding the script path) and returns its integer shell status (`nil` means `0`). Execution is non-intrusive (it does not close an active UI app).
+- **UI app:** set global `__cos_entry` to a class or instance with `setup(content, width, height)`. The runtime launches it (closes/replaces the active UI app, hides the console, constructs the class if needed, calls `setup(0, display_width, display_height)`, and starts the UI). A successful launch returns status `0`.
+
+The bundled `/flash/scripts/arg_test.be` demonstrates argument handling:
 
 ```text
 berry run scripts/arg_test.be "argument 1" "asd asd asd argument 2"
@@ -209,7 +215,7 @@ Berry maps are accessed with indexing, for example `listing["ok"]` and
 
 `console.read_line` must be started by code running on the console input task (for example, a script launched with `berry run`, or an app's `setup`). While the prompt is active, it owns keyboard input even if a Berry UI app is visible. UI callbacks can cancel the request, but cannot start a second prompt directly.
 
-Berry entrypoints define `main(args)` (R21). UI apps call `ui.launch(AppClass)` (or an instance) from `main(args)`; `ui.launch` performs app lifecycle (replacing an active app as needed), instantiates the class when a class is passed, calls `setup(content, width, height)` with `content=0` and the display size, and starts the UI. `berry close` invokes the optional `teardown()` method and cancels any pending console prompt. TypeScript COS UI sources keep the `export default class ... implements CosUiApplication` pattern; the compiler lowers them to `main(args)` + `ui.launch(...)`. The Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit/explicit launch, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
+Berry entrypoints are exposed via the global `__cos_entry` (or, for simple command scripts, a global `run(args)` function). UI apps set `__cos_entry` to a class or instance with `setup(content, width, height)`; the runtime launches them and `ui.launch(app)` remains available for explicit launches from Berry code (it performs the app lifecycle: replace the active app as needed, instantiate a class when passed, call `setup(0, display_width, display_height)`, and start the UI). Command apps set `__cos_entry` to an instance with `run(args)` (or define `run(args)` directly). `berry close` invokes the optional `teardown()` method and cancels any pending console prompt. TypeScript COS sources keep the `export default class ... implements CosApplication/CosUiApplication` pattern; the compiler lowers them to `__cos_entry`. The Berry `ui` module currently supports labels, buttons, group boxes, checkboxes, bounds, text updates/colors, click/change handlers, timers, random values, deferred app exit/explicit launch, and clearing containers. Other cyd-proto widgets and the desktop/window framework are still migration work in progress.
 
 While a Berry UI app is active, its UI owns the display and the text-console renderer is paused to prevent the console and UI from drawing over each other. The UI redraws only when its content changes, and console output continues over UART and is rendered on screen again after `berry close` or `ui.exit()`. Berry game apps can also use `ui.fill_screen`, `ui.fill_rect`, and `ui.draw_text` for direct display drawing, plus `ui.touch()` to read the current touch position. `ui.key_down(keycode)` polls held keys from a Bluetooth HID keyboard; keycodes are USB HID usages, with constants including `ui.KEY_LEFT`, `ui.KEY_RIGHT`, `ui.KEY_A`, and `ui.KEY_D`. Use `ui.start_write()` and `ui.end_write()` to batch related display operations into one write transaction.
 

@@ -1249,11 +1249,17 @@ class ScriptPathScope
     bool pushed_;
 };
 
-void restore_command_main(int saved_main_index)
+constexpr char ENTRY_GLOBAL[] = "__cos_entry";
+
+void push_args_list(int argc, char *const argv[])
 {
-    be_pushvalue(s_vm, saved_main_index);
-    be_setglobal(s_vm, "main");
-    be_pop(s_vm, 1);
+    be_newobject(s_vm, "list");
+    for (int index = 0; index < argc; ++index)
+    {
+        be_pushstring(s_vm, argv[index] != nullptr ? argv[index] : "");
+        be_data_push(s_vm, -2);
+        be_pop(s_vm, 1);
+    }
     be_pop(s_vm, 1);
 }
 
@@ -1266,60 +1272,120 @@ esp_err_t execute_main_entry(BerrySourceBuffer source, size_t length, const char
     }
     const ScriptPathScope script_path(source_name);
     (void)script_path;
-    const int saved_main_index = be_top(s_vm) + 1;
-    be_getglobal(s_vm, "main");
-    be_pushnil(s_vm);
-    be_setglobal(s_vm, "main");
-    be_pop(s_vm, 1);
 
     esp_err_t err = execute_owned_source(std::move(source), length, source_name);
-    if (err == ESP_OK)
+    if (err != ESP_OK)
     {
-        be_getglobal(s_vm, "main");
-        if (!be_isfunction(s_vm, -1))
-        {
-            ESP_LOGE(TAG, "%s: script must define main(args)", source_name);
-            be_pop(s_vm, 1);
-            err = ESP_ERR_INVALID_ARG;
-        }
-        else
-        {
-            be_newobject(s_vm, "list");
-            for (int index = 0; index < argc; ++index)
-            {
-                be_pushstring(s_vm, argv[index] != nullptr ? argv[index] : "");
-                be_data_push(s_vm, -2);
-                be_pop(s_vm, 1);
-            }
-            be_pop(s_vm, 1);
-
-            if (be_pcall(s_vm, 1) != 0)
-            {
-                const char *error = be_tostring(s_vm, -1);
-                ESP_LOGE(TAG, "%s: main(args) failed: %s", source_name,
-                         error != nullptr ? error : "unknown Berry error");
-                be_pop(s_vm, 1);
-                err = ESP_FAIL;
-            }
-            else if (exit_status != nullptr && be_isnil(s_vm, -2))
-            {
-                *exit_status = 0;
-            }
-            else if (!be_isint(s_vm, -2) || be_toint(s_vm, -2) < std::numeric_limits<int>::min() ||
-                     be_toint(s_vm, -2) > std::numeric_limits<int>::max())
-            {
-                ESP_LOGE(TAG, "%s: main(args) must return an integer shell status", source_name);
-                err = ESP_ERR_INVALID_ARG;
-            }
-            else if (exit_status != nullptr)
-            {
-                *exit_status = static_cast<int>(be_toint(s_vm, -2));
-            }
-        }
+        return err;
     }
 
-    be_pop(s_vm, be_top(s_vm) - saved_main_index);
-    restore_command_main(saved_main_index);
+    be_getglobal(s_vm, ENTRY_GLOBAL);
+    const int entry_index = be_absindex(s_vm, -1);
+    if (be_isnil(s_vm, entry_index))
+    {
+        be_pop(s_vm, 1);
+        be_getglobal(s_vm, "run");
+        if (!be_isfunction(s_vm, -1))
+        {
+            ESP_LOGE(TAG, "%s: script must define __cos_entry or run(args)", source_name);
+            be_pop(s_vm, 1);
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        push_args_list(argc, argv);
+        if (be_pcall(s_vm, 1) != 0)
+        {
+            const char *error = be_tostring(s_vm, -1);
+            ESP_LOGE(TAG, "%s: run(args) failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
+            be_pop(s_vm, 2); // error, function/args context
+            return ESP_FAIL;
+        }
+        if (exit_status != nullptr && be_isnil(s_vm, -2))
+        {
+            *exit_status = 0;
+        }
+        else if (!be_isint(s_vm, -2) || be_toint(s_vm, -2) < std::numeric_limits<int>::min() ||
+                 be_toint(s_vm, -2) > std::numeric_limits<int>::max())
+        {
+            ESP_LOGE(TAG, "%s: run(args) must return an integer shell status (t[-1]=%s, t[-2]=%s)", source_name,
+                     be_typename(s_vm, -1), be_typename(s_vm, -2));
+            err = ESP_ERR_INVALID_ARG;
+        }
+        else if (exit_status != nullptr)
+        {
+            *exit_status = static_cast<int>(be_toint(s_vm, -2));
+        }
+        be_pop(s_vm, 2); // args, result(function slot)
+        return err;
+    }
+
+    const bool is_class = be_isclass(s_vm, entry_index);
+    const bool is_instance = be_isinstance(s_vm, entry_index);
+    if (!is_class && !is_instance)
+    {
+        ESP_LOGE(TAG, "%s: __cos_entry must be an app class or instance", source_name);
+        be_pop(s_vm, 1);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // UI entrypoints: a class, or an instance with a setup() method.
+    bool is_ui_entry = is_class;
+    if (is_instance)
+    {
+        be_getmethod(s_vm, entry_index, "setup");
+        is_ui_entry = !be_isnil(s_vm, -1);
+        be_pop(s_vm, 1);
+    }
+
+    if (is_ui_entry)
+    {
+        err = berry_runtime_ui_launch(s_vm, entry_index);
+        be_pop(s_vm, 1);
+        if (err == ESP_OK && exit_status != nullptr)
+        {
+            *exit_status = 0;
+        }
+        return err;
+    }
+
+    // Console/command entrypoints: instance with run(args).
+    be_getmethod(s_vm, entry_index, "run");
+    if (be_isnil(s_vm, -1))
+    {
+        be_pop(s_vm, 2); // nil, entry
+        ESP_LOGE(TAG, "%s: __cos_entry must define setup() for UI apps or run(args) for command apps", source_name);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    be_pushvalue(s_vm, entry_index); // self
+    push_args_list(argc, argv);
+    if (be_pcall(s_vm, 2) != 0)
+    {
+        const char *error = be_tostring(s_vm, -1);
+        ESP_LOGE(TAG, "%s: run(args) failed: %s", source_name, error != nullptr ? error : "unknown Berry error");
+        be_pop(s_vm, 3); // error, args/self/method context, entry
+        return ESP_FAIL;
+    }
+    else if (exit_status != nullptr && be_isnil(s_vm, -3))
+    {
+        *exit_status = 0;
+    }
+    else if (!be_isint(s_vm, -3) || be_toint(s_vm, -3) < std::numeric_limits<int>::min() ||
+             be_toint(s_vm, -3) > std::numeric_limits<int>::max())
+    {
+        ESP_LOGE(
+            TAG,
+            "%s: run(args) must return an integer shell status (top=%d, t[-1]=%s, t[-2]=%s, t[-3]=%s int=%d nil=%d)",
+            source_name, be_top(s_vm), be_typename(s_vm, -1), be_typename(s_vm, -2), be_typename(s_vm, -3),
+            be_isint(s_vm, -3), be_isnil(s_vm, -3));
+        err = ESP_ERR_INVALID_ARG;
+    }
+    else if (exit_status != nullptr)
+    {
+        *exit_status = static_cast<int>(be_toint(s_vm, -3));
+    }
+
+    be_pop(s_vm, 4); // args, self, result(method slot), entry
     return err;
 }
 

@@ -3,7 +3,7 @@
 # Edit url for a known-good HTTPS endpoint. Certificate verification remains enabled.
 import net
 
-def main(args)
+def run(args)
     var url = "https://example.com/"
     var result = net.fetch(url, {"timeout_ms": 12000, "response_type": "text"})
     print("https_get ok", result["ok"], "status", result["status"], "err", result["error"])

@@ -9,7 +9,7 @@
 
 import string
 
-def main(args)
+def run(args)
     print("R6 lazy module probe")
 
     # Berry `import` path (on-demand, bypasses lazy proxy global).

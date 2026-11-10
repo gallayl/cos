@@ -90,7 +90,7 @@ def has_arg(args, idx)
     return v != nil && v != "-" && v != ""
 end
 
-def main(args)
+def run(args)
     var http_get = arg_or(args, 0, "http://example.com/")
     var https_get = arg_or(args, 1, "https://example.com/")
     var post_url = nil

@@ -4,7 +4,7 @@
 # Edit url below for your test endpoint (HTTP, not HTTPS).
 import net
 
-def main(args)
+def run(args)
     var url = "http://example.com/"
     var result = net.fetch(url, {"timeout_ms": 8000, "response_type": "text"})
     print("http_get ok", result["ok"], "status", result["status"], "err", result["error"])

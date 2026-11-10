@@ -14,7 +14,7 @@ def fail(msg)
     return false
 end
 
-def main(args)
+def run(args)
     # 1) Invalid include_body type must be rejected before making the request.
     var bad = net.fetch("http://127.0.0.1/r7-invalid-include-body", {
         "response_type": "json",

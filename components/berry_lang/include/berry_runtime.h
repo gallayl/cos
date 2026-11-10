@@ -29,20 +29,26 @@ extern "C"
     esp_err_t berry_runtime_eval(const char *source, const char *source_name);
 
     /**
-     * Unified Berry entrypoint execution (R21).
-     * Loads and executes the script, then calls main(args) where args is a Berry list of
-     * command arguments (excluding the script path). Default execution is non-intrusive:
-     * it does not close/disturb an active UI app. UI apps must launch explicitly from
-     * main(args) via ui.launch(AppClass).
+     * Execute a Berry entrypoint script.
+     * Loads and executes the script's top-level code, then resolves its entrypoint:
+     *  - `__cos_entry` set to a UI app (class or instance with `setup`) is launched
+     *    via the UI lifecycle (close active app, hide console, construct if a class,
+     *    call setup, start UI). On success *exit_status is set to 0.
+     *  - `__cos_entry` set to a command app instance with `run(args)` is invoked as
+     *    `entry.run(args)` where args is a Berry list of command arguments (excluding
+     *    the script path). Execution is non-intrusive (no active UI app is closed).
+     *  - If `__cos_entry` is not set, a global `run(args)` function is invoked as
+     *    the command entrypoint.
      *
-     * On ESP_OK, *exit_status receives the integer status returned by main(args) (nil -> 0).
-     * Missing/non-integer main return values, missing main, and runtime errors return a
-     * non-OK esp_err_t; callers should map execution failures to status 1.
+     * On ESP_OK, *exit_status receives the integer status returned by run(args)
+     * (nil -> 0). Missing/invalid entrypoint, missing/non-integer status, and runtime
+     * errors return a non-OK esp_err_t; callers should map execution failures to
+     * status 1.
      */
     esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
 
     /**
-     * Compatibility wrapper (R21): executes main(args) with no arguments.
+     * Execute a Berry entrypoint script with no arguments.
      * Prefer berry_runtime_run_file for new code.
      */
     esp_err_t berry_runtime_open_app(const char *virtual_path);
