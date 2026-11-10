@@ -67,20 +67,29 @@ static const char s_berry_api_script[] =
     "invalid_host[\"error\"] == \"ESP_ERR_INVALID_ARG\"\n"
     "    log(\"NET_INVALID_HOST_OK\")\n"
     "end\n"
-    "log(\"BERRY_API_DONE\")\n";
+    "log(\"BERRY_API_DONE\")\n"
+    "def run(args)\n"
+    "    return 0\n"
+    "end\n";
 static const char s_berry_input_script[] = "var started = console.read_line(\"Input: \", def (value)\n"
                                            "    if value == nil\n"
                                            "        log(\"INPUT_CANCELLED\")\n"
                                            "    else\n"
-                                           "        log(\"INPUT_VALUE:\" + value)\n"
+                                           "        log(\"INPUT_VALUE:\" + str(value))\n"
                                            "    end\n"
                                            "end)\n"
                                            "if started == true\n"
                                            "    log(\"INPUT_STARTED\")\n"
                                            "else\n"
                                            "    log(\"INPUT_START_ERROR:\" + str(started))\n"
+                                           "end\n"
+                                           "def run(args)\n"
+                                           "    return 0\n"
                                            "end\n";
-static const char s_autoexec_script[] = "log(\"AUTOEXEC_OK\")\n";
+static const char s_autoexec_script[] = "log(\"AUTOEXEC_OK\")\n"
+                                        "def run(args)\n"
+                                        "    return 0\n"
+                                        "end\n";
 
 static void init_nvs(void)
 {
