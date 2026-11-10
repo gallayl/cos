@@ -4,6 +4,7 @@
 
 #include "esp_log.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -58,7 +59,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         }
         strncpy(uctx->target_path, real_path, sizeof(uctx->target_path) - 1);
 
-        /* Create parent directory */
+        /* Create parent directories */
         char parent[VFS_PATH_MAX];
         strncpy(parent, uctx->target_path, sizeof(parent) - 1);
         parent[sizeof(parent) - 1] = '\0';
@@ -66,7 +67,24 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         if (last_slash && last_slash != parent)
         {
             *last_slash = '\0';
-            vfs_mkdir(parent);
+            for (char *p = parent + 1; *p != '\0'; p++)
+            {
+                if (*p == '/')
+                {
+                    *p = '\0';
+                    if (!vfs_is_directory(parent) && vfs_mkdir(parent) != ESP_OK && !vfs_is_directory(parent))
+                    {
+                        snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                        return false;
+                    }
+                    *p = '/';
+                }
+            }
+            if (!vfs_is_directory(parent) && vfs_mkdir(parent) != ESP_OK && !vfs_is_directory(parent))
+            {
+                snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                return false;
+            }
         }
 
         uctx->file = fopen(uctx->target_path, "wb");

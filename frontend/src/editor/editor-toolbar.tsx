@@ -4,9 +4,10 @@ import { Button, ButtonGroup, Typography, cssVariableTheme } from '@furystack/sh
 export interface EditorToolbarProps {
   canSave: boolean
   canPreview: boolean
-  canSaveBerry: boolean
+  showCompile: boolean
+  canCompile: boolean
   onSave: () => void
-  onSaveBerry: () => void
+  onCompile: () => void
   onPreview: () => void
 }
 
@@ -72,15 +73,17 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
           >
             Preview
           </Button>
-          <Button
-            type="button"
-            size="small"
-            onclick={props.onSaveBerry}
-            aria-disabled={props.canSaveBerry ? 'false' : 'true'}
-            style={props.canSaveBerry ? undefined : disabledStyle}
-          >
-            Save Berry
-          </Button>
+          {props.showCompile ? (
+            <Button
+              type="button"
+              size="small"
+              onclick={props.onCompile}
+              aria-disabled={props.canCompile ? 'false' : 'true'}
+              style={props.canCompile ? undefined : disabledStyle}
+            >
+              Compile
+            </Button>
+          ) : null}
         </ButtonGroup>
       </header>
     )

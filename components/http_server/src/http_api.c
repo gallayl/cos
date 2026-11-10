@@ -101,9 +101,11 @@ static esp_err_t handler_files(httpd_req_t *req)
     {
         char escaped_name[128];
         json_escape(entries[i].name, escaped_name, sizeof(escaped_name));
-        char item[256];
-        snprintf(item, sizeof(item), "%s{\"name\":\"%s\",\"size\":%u,\"is_dir\":%s}", (i > 0) ? "," : "", escaped_name,
-                 (unsigned)entries[i].size, entries[i].is_dir ? "true" : "false");
+        char item[320];
+        snprintf(item, sizeof(item),
+                 "%s{\"name\":\"%s\",\"size\":%u,\"is_dir\":%s,\"mtime\":%lld,\"ctime\":%lld}", (i > 0) ? "," : "",
+                 escaped_name, (unsigned)entries[i].size, entries[i].is_dir ? "true" : "false",
+                 (long long)entries[i].mtime, (long long)entries[i].ctime);
         httpd_resp_sendstr_chunk(req, item);
     }
 

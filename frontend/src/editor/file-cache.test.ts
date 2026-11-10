@@ -68,7 +68,7 @@ describe('file cache', () => {
     const fetchImpl = vi.fn(async (url: string) => {
       if (url.startsWith('/api/files?path=')) {
         const path = decodeURIComponent(url.slice('/api/files?path='.length))
-        return json([{ name: `${path.split('/').pop()}.child.ts`, size: 1, is_dir: false }])
+        return json([{ name: `${path.split('/').pop()}.child.ts`, size: 1, is_dir: false, mtime: 1, ctime: 1 }])
       }
       return new Response(`content:${decodeURIComponent(url.slice('/api/file?path='.length))}`, { status: 200 })
     })

@@ -4,12 +4,13 @@ import { Button, NotyService, Typography, cssVariableTheme } from '@furystack/sh
 import { astToBerry } from '../ide/ast-to-berry'
 import type { BerryCompileMetadata, BerryCompileProfile, BerryDiagnostic } from '../ide/ast-to-berry'
 import { BerryCompileContext } from '../ide/berry-compile-context'
-import { CosFilesError, describeCosError, writeTextFile } from '../ide/files/cos-files'
-import { canOpenPath, languageForPath, parentPath } from '../ide/files/paths'
+import { CosFilesError, describeCosError, writeTextFile, type CosDirEntry } from '../ide/files/cos-files'
+import { berryPathFor, canOpenPath, languageForPath, parentPath } from '../ide/files/paths'
 import { getAst } from '../ide/get-ast'
 import '../ide/monaco-languages'
 import '../ide/register-cos-sdk'
-import { fetchReferencedWorkspaceTypes } from '../ide/import-resolution'
+import { fetchReferencedWorkspaceTypes, resolveImportPath } from '../ide/import-resolution'
+import { collectRelativeImportSpecifiers } from '../ide/import-specifiers'
 import { registerWorkspaceTypeScriptFile } from '../ide/typescript-workspace'
 import { BerryErrorAnnotator } from './berry-error-annotator'
 import { CompileOutput } from './compile-output'
@@ -266,35 +267,142 @@ export const EditorApp = Shade({
       return result
     }
 
-    const saveBerry = async () => {
+    const listEntries = async (directory: string, authorization: string): Promise<CosDirEntry[]> => {
+      try {
+        return await cache.directories.get(directory, authorization)
+      } catch {
+        return []
+      }
+    }
+
+    const compileTsToBerry = (source: string, entrypoint: boolean) =>
+      astToBerry(getAst(source), { profile: DEFAULT_COMPILE_PROFILE, entrypoint })
+
+    const findOutdatedBerryDependencies = async (
+      documentPath: string,
+      source: string,
+      authorization: string,
+    ): Promise<string[]> => {
+      const outdated = new Set<string>()
+      const visited = new Set<string>()
+      const dirCache = new Map<string, CosDirEntry[]>()
+
+      const entriesFor = async (dir: string): Promise<CosDirEntry[]> => {
+        if (!dirCache.has(dir)) {
+          dirCache.set(dir, await listEntries(dir, authorization))
+        }
+        return dirCache.get(dir) ?? []
+      }
+
+      const visit = async (tsPath: string, tsSource: string): Promise<void> => {
+        const dir = parentPath(tsPath)
+        if (!dir) return
+        for (const specifier of collectRelativeImportSpecifiers(tsSource)) {
+          const depTs = resolveImportPath(dir, specifier)
+          if (!depTs || visited.has(depTs)) continue
+          visited.add(depTs)
+          const depDir = parentPath(depTs)
+          const depBe = berryPathFor(depTs)
+          if (!depDir || !depBe) continue
+          const depDirEntries = await entriesFor(depDir)
+          const tsName = depTs.slice(depTs.lastIndexOf('/') + 1)
+          const beName = depBe.slice(depBe.lastIndexOf('/') + 1)
+          const tsEntry = depDirEntries.find((e) => e.name === tsName && !e.is_dir)
+          const beEntry = depDirEntries.find((e) => e.name === beName && !e.is_dir)
+          let depSource: string | null = null
+          try {
+            depSource = await cache.contents.get(depTs, authorization)
+          } catch {
+            continue
+          }
+          registerWorkspaceTypeScriptFile(depTs, depSource)
+          if (!beEntry || !tsEntry || beEntry.mtime < tsEntry.mtime) {
+            outdated.add(depTs)
+          }
+          await visit(depTs, depSource)
+        }
+      }
+
+      await visit(documentPath, source)
+      return [...outdated].sort()
+    }
+
+    const compileAndWriteBerryFile = async (tsPath: string, authorization: string): Promise<string | null> => {
+      const bePath = berryPathFor(tsPath)
+      if (!bePath) return 'Not a TypeScript file'
+      let source: string
+      try {
+        source = await cache.contents.get(tsPath, authorization)
+      } catch (error) {
+        return `${tsPath}: ${describeCosError(error)}`
+      }
+      const compiled = compileTsToBerry(source, false)
+      if (!compiled.ok) {
+        return `${tsPath}: compile failed (${compiled.diagnostics.length} issue(s))`
+      }
+      try {
+        await writeTextFile(bePath, compiled.code, { authorization })
+        const parent = parentPath(bePath)
+        if (parent) {
+          cache.refreshDirectory(parent, authorization)
+        }
+        return null
+      } catch (error) {
+        return `${bePath}: ${describeCosError(error)}`
+      }
+    }
+
+    const compileBerry = async () => {
       const current = live.document
       if (!current) return
       const plan = berryPlan(current)
       if (plan.kind === 'unsupported') {
-        const msg = 'Open a TypeScript file to save a Berry script'
+        const msg = 'Open a TypeScript file to compile'
         setStatus(msg)
-        notify('warning', 'Cannot save Berry', msg)
+        notify('warning', 'Cannot compile', msg)
         return
       }
+      if (plan.kind !== 'device') {
+        const msg = 'Compiled Berry output can only be saved for opened device TypeScript files'
+        setStatus(msg)
+        notify('warning', 'Compile unavailable', msg)
+        return
+      }
+
       const result = preview()
       if (!result?.ok) return
-      if (plan.kind !== 'device') {
-        const msg = 'Berry output can only be saved for opened device TypeScript files'
-        setStatus(msg)
-        notify('warning', 'Save Berry unavailable', msg)
-        return
-      }
+
+      const authorization = access.authorization.getValue()
       try {
-        const authorization = access.authorization.getValue()
+        const outdated = await findOutdatedBerryDependencies(current.path, current.text, authorization)
+        if (outdated.length > 0) {
+          const message = `The following imported files have missing or outdated Berry output:\n${outdated
+            .map((p) => `- ${p}`)
+            .join('\n')}\n\nCompile them too?`
+          if (window.confirm(message)) {
+            const failures: string[] = []
+            for (const dep of outdated) {
+              const failure = await compileAndWriteBerryFile(dep, authorization)
+              if (failure) failures.push(failure)
+            }
+            if (failures.length > 0) {
+              const msg = failures.join('\n')
+              setStatus('Some dependencies failed to compile')
+              notify('error', 'Dependency compile failed', msg)
+              return
+            }
+          }
+        }
+
         await writeTextFile(plan.path, result.code, { authorization })
         const parent = parentPath(plan.path)
         if (parent) {
           cache.refreshDirectory(parent, authorization)
         }
-        setStatus(`Wrote ${plan.path}`)
-        notify('success', 'Berry script saved', plan.path)
+        setStatus(`Compiled ${plan.path}`)
+        notify('success', 'Compiled', plan.path)
       } catch (error) {
-        noteFailure(error, 'Save Berry failed')
+        noteFailure(error, 'Compile failed')
       }
     }
 
@@ -323,17 +431,19 @@ export const EditorApp = Shade({
     const isTs = document?.language === 'typescript'
     const canSave = canSaveDocument(document)
     const canPreview = isTs
-    const canSaveBerry = isTs && document?.origin === 'device'
+    const showCompile = isTs
+    const canCompile = isTs
 
     return (
       <>
         <EditorToolbar
           canSave={canSave}
           canPreview={canPreview}
-          canSaveBerry={!!canSaveBerry}
+          showCompile={showCompile}
+          canCompile={canCompile}
           onSave={() => void save()}
           onPreview={preview}
-          onSaveBerry={() => void saveBerry()}
+          onCompile={() => void compileBerry()}
         />
         <div className="workspace">
           <FileBrowser

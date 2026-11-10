@@ -58,6 +58,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].size = 0;
         entries[*count].is_dir = true;
         entries[*count].mtime = 0;
+        entries[*count].ctime = 0;
         (*count)++;
 
         if (sdcard_is_mounted() && *count < max_entries)
@@ -66,6 +67,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
             entries[*count].size = 0;
             entries[*count].is_dir = true;
             entries[*count].mtime = 0;
+            entries[*count].ctime = 0;
             (*count)++;
         }
         return ESP_OK;
@@ -107,6 +109,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
             entries[*count].is_dir = (entry->d_type == DT_DIR);
             entries[*count].size = 0;
             entries[*count].mtime = 0;
+            entries[*count].ctime = 0;
             (*count)++;
             continue;
         }
@@ -116,12 +119,14 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
             entries[*count].is_dir = S_ISDIR(st.st_mode);
             entries[*count].size = (size_t)st.st_size;
             entries[*count].mtime = st.st_mtime;
+            entries[*count].ctime = st.st_ctime;
         }
         else
         {
             entries[*count].is_dir = (entry->d_type == DT_DIR);
             entries[*count].size = 0;
             entries[*count].mtime = 0;
+            entries[*count].ctime = 0;
         }
 
         (*count)++;
@@ -416,6 +421,15 @@ esp_err_t vfs_mkdir(const char *path)
         return ESP_ERR_INVALID_ARG;
     }
 
+    if (vfs_is_directory(path))
+    {
+        return ESP_OK;
+    }
+    if (vfs_exists(path))
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     char real_path[VFS_PATH_MAX];
     esp_err_t err = vfs_resolve_path(path, real_path, sizeof(real_path));
     if (err != ESP_OK)
@@ -425,6 +439,14 @@ esp_err_t vfs_mkdir(const char *path)
 
     if (mkdir(real_path, 0775) != 0)
     {
+        if (errno == EEXIST)
+        {
+            struct stat st;
+            if (stat(real_path, &st) == 0 && S_ISDIR(st.st_mode))
+            {
+                return ESP_OK;
+            }
+        }
         ESP_LOGE(TAG, "mkdir failed: %s", real_path);
         return ESP_FAIL;
     }
