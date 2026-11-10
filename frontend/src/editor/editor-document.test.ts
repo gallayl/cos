@@ -9,6 +9,7 @@ import {
   documentAfterEdit,
   documentFromFile,
   fileEntryLabel,
+  formatCompileSummary,
   formatDiagnostics,
   isDirty,
   lineCountLabel,
@@ -65,6 +66,20 @@ describe('editor document', () => {
 
   it('formats diagnostics and builds a Basic header', () => {
     expect(formatDiagnostics([{ line: 2, column: 4, message: 'nope' }])).toBe('2:4 nope')
+    expect(
+      formatCompileSummary({
+        ok: true,
+        diagnostics: [],
+        metadata: { profile: 'dev', mappings: [1, 2], notes: [] },
+      }),
+    ).toBe('Compiled · profile: dev · mappings: 2')
+    expect(
+      formatCompileSummary({
+        ok: false,
+        diagnostics: [{ severity: 'error' }, { severity: 'warning' }],
+        metadata: { profile: 'prod', mappings: [], notes: [] },
+      }),
+    ).toBe('1 error(s) · profile: prod · mappings: 0')
     expect(authorizationFromCredentials('  ', 'x')).toEqual({ ok: false, message: 'Enter the device username' })
     expect(authorizationFromCredentials('cos', 'secret')).toEqual({
       ok: true,

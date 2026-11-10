@@ -2,7 +2,8 @@ import { createComponent, Shade } from '@furystack/shades'
 import { cssVariableTheme } from '@furystack/shades-common-components'
 
 import { astToBerry } from '../ide/ast-to-berry'
-import type { BerryDiagnostic } from '../ide/ast-to-berry'
+import type { BerryCompileMetadata, BerryCompileProfile, BerryDiagnostic } from '../ide/ast-to-berry'
+import { BerryCompileContext } from '../ide/berry-compile-context'
 import { CosFilesError, describeCosError, writeTextFile } from '../ide/files/cos-files'
 import { canOpenPath, languageForPath, parentPath } from '../ide/files/paths'
 import {
@@ -17,6 +18,7 @@ import '../ide/monaco-languages'
 import '../ide/register-cos-sdk'
 import { fetchReferencedWorkspaceTypes } from '../ide/import-resolution'
 import { registerWorkspaceTypeScriptFile } from '../ide/typescript-workspace'
+import { BerryErrorAnnotator } from './berry-error-annotator'
 import { CompileOutput } from './compile-output'
 import { DeviceAccess } from './device-access'
 import {
@@ -26,6 +28,7 @@ import {
   createScratchDocument,
   documentAfterEdit,
   documentFromFile,
+  formatCompileSummary,
   formatDiagnostics,
   isDirty,
   lineCountLabel,
@@ -39,6 +42,8 @@ import { FileBrowser } from './file-browser'
 import { FileCache } from './file-cache'
 import { movedPath } from './file-tree'
 import { SourceEditor } from './source-editor'
+
+const DEFAULT_COMPILE_PROFILE: BerryCompileProfile = 'dev'
 
 const textFileAccept =
   '.ts,.tsx,.mts,.cts,.js,.jsx,.mjs,.cjs,.be,.berry,.txt,.json,.css,.html,.htm,.md,.xml,.yml,.yaml,.c,.h,.cpp,.hpp,.log'
@@ -78,6 +83,10 @@ export const EditorApp = Shade({
     const [localHandle, setLocalHandle] = useState<FileSystemFileHandle | null>('localHandle', null)
     const [revision, setRevision] = useState('revision', 0)
     const [berryDiagnostics, setBerryDiagnostics] = useState<readonly BerryDiagnostic[]>('berryDiagnostics', [])
+    const [lastCompileMetadata, setLastCompileMetadata] = useState<BerryCompileMetadata | undefined>(
+      'lastCompileMetadata',
+      undefined,
+    )
     const fileInput = useRef<HTMLInputElement>('file-input')
     const live = useDisposable('live-document', () => ({
       document,
@@ -89,6 +98,7 @@ export const EditorApp = Shade({
 
     const access = injector.get(DeviceAccess)
     const cache = injector.get(FileCache)
+    const compileContext = injector.get(BerryCompileContext)
     const dirty = isDirty(document)
 
     useDisposable(
@@ -123,8 +133,10 @@ export const EditorApp = Shade({
           return { [Symbol.dispose]() {} }
         }
         const timeout = window.setTimeout(() => {
-          const result = astToBerry(getAst(live.document.text))
+          const result = astToBerry(getAst(live.document.text), { profile: DEFAULT_COMPILE_PROFILE })
           setBerryDiagnostics(result.diagnostics)
+          setLastCompileMetadata(result.metadata)
+          compileContext.setMetadata(result.metadata)
         }, 700)
         return {
           [Symbol.dispose]() {
@@ -149,6 +161,8 @@ export const EditorApp = Shade({
       setLocalHandle(handle)
       setOutput('')
       setBerryDiagnostics([])
+      setLastCompileMetadata(undefined)
+      compileContext.setMetadata(undefined)
       setRevision(revision + 1)
       setStatus(nextStatus)
     }
@@ -273,16 +287,17 @@ export const EditorApp = Shade({
     }
 
     const showCompileResult = () => {
-      const result = astToBerry(getAst(document.text))
+      const result = astToBerry(getAst(document.text), { profile: DEFAULT_COMPILE_PROFILE })
       setBerryDiagnostics(result.diagnostics)
+      setLastCompileMetadata(result.metadata)
+      compileContext.setMetadata(result.metadata)
       if (result.ok) {
         setOutput(result.code)
-        setStatus('Compiled')
+        setStatus(formatCompileSummary(result))
         return result
       }
       setOutput(formatDiagnostics(result.diagnostics))
-      const errorCount = result.diagnostics.filter((d) => d.severity === 'error').length
-      setStatus(`${errorCount} error(s)`)
+      setStatus(formatCompileSummary(result))
       return result
     }
 
@@ -377,6 +392,7 @@ export const EditorApp = Shade({
               }}
             />
             {output ? <CompileOutput text={output} /> : null}
+            {document.language === 'typescript' ? <BerryErrorAnnotator metadata={lastCompileMetadata} /> : null}
           </div>
         </div>
         <EditorStatusBar

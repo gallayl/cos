@@ -8,9 +8,12 @@ import {
   diagnosticText,
   hasBerryErrors,
   readParseDiagnostics,
+  type BerryCompileMetadata,
+  type BerryCompileProfile,
   type BerryDiagnostic,
   type BerryDiagnosticSeverity,
   type BerryGenerationResult,
+  type BerrySourceMapEntry,
 } from './diagnostics'
 import { emitExpression as lowerExpression } from './expression-generator'
 import { ScopeTracker } from './scopes'
@@ -20,17 +23,23 @@ import { BerryWriter } from './writer'
 class GenerationSession implements GenerationContext {
   readonly sourceFile: ts.SourceFile
   readonly entrypoint: boolean
+  readonly profile: BerryCompileProfile
   private readonly writer = new BerryWriter()
   private readonly scopes = new ScopeTracker()
   private readonly diagnostics: BerryDiagnostic[] = []
+  private readonly mappings: BerrySourceMapEntry[] = []
+  private readonly mappingKeys = new Set<string>()
   private temps = 0
   private exportedName: string | undefined
   private readonly namedExports: Array<{ exported: string; local: string }> = []
   private defaultClassInfo: CosClassInfo | undefined
+  private captureDepth = 0
+  private readonly captureMappingBuffers: Array<Array<BerrySourceMapEntry & { __node: ts.Node }>> = []
 
-  constructor(sourceFile: ts.SourceFile, entrypoint: boolean) {
+  constructor(sourceFile: ts.SourceFile, entrypoint: boolean, profile: BerryCompileProfile) {
     this.sourceFile = sourceFile
     this.entrypoint = entrypoint
+    this.profile = profile
   }
 
   writeLine(text = ''): void {
@@ -45,8 +54,17 @@ class GenerationSession implements GenerationContext {
     this.writer.dedent()
   }
 
-  capture(build: () => void): string {
-    return this.writer.capture(build)
+  capture(build: () => void): { text: string; mappings: readonly BerrySourceMapEntry[] } {
+    this.captureDepth += 1
+    const buffer: Array<BerrySourceMapEntry & { __node: ts.Node }> = []
+    this.captureMappingBuffers.push(buffer)
+    try {
+      const text = this.writer.capture(build)
+      return { text, mappings: buffer }
+    } finally {
+      this.captureMappingBuffers.pop()
+      this.captureDepth -= 1
+    }
   }
 
   emitExpression(node: ts.Expression): string {
@@ -54,6 +72,7 @@ class GenerationSession implements GenerationContext {
   }
 
   emitStatement(node: ts.Statement): void {
+    this.recordMapping(node)
     lowerStatement(this, node)
   }
 
@@ -106,6 +125,7 @@ class GenerationSession implements GenerationContext {
   }
 
   emitTopLevelClass(node: ts.ClassDeclaration): void {
+    this.recordMapping(node)
     const info = emitClass(this, node)
     if (info?.isDefaultExport) this.defaultClassInfo = info
   }
@@ -127,7 +147,58 @@ class GenerationSession implements GenerationContext {
       ok: !hasBerryErrors(this.diagnostics),
       code: this.writer.toString(),
       diagnostics: this.diagnostics,
+      metadata: this.buildMetadata(),
     }
+  }
+
+  private buildMetadata(): BerryCompileMetadata {
+    const notes: string[] = [
+      this.profile === 'dev'
+        ? 'Dev profile: readable Berry output with statement-level debug mappings.'
+        : 'Prod profile: readable Berry output with reduced debug metadata.',
+      'Berry runtime line/stack debug details depend on firmware build options (for example BE_DEBUG_RUNTIME_INFO). This compiler metadata maps generated Berry locations to TypeScript source.',
+    ]
+    return {
+      profile: this.profile,
+      sourceFileName: this.sourceFile.fileName || undefined,
+      mappings: this.profile === 'dev' ? this.mappings : [],
+      notes,
+    }
+  }
+
+  noteMapping(node: ts.Node, columnOffset = 0): void {
+    this.recordMapping(node, columnOffset)
+  }
+
+  noteMappingAt(node: ts.Node, lineDelta: number, columnOffset: number): void {
+    this.recordMappingAt(node, lineDelta, columnOffset)
+  }
+
+  private recordMapping(node: ts.Node, columnOffset = 0): void {
+    this.recordMappingAt(node, 0, Math.max(0, columnOffset))
+  }
+
+  private recordMappingAt(node: ts.Node, lineDelta: number, columnOffset: number): void {
+    if (this.profile !== 'dev') return
+    const start = node.getStart(this.sourceFile, false)
+    const sourcePos = this.sourceFile.getLineAndCharacterOfPosition(Math.max(start, 0))
+    const generated = {
+      line: this.writer.nextLine + Math.max(0, lineDelta),
+      column: Math.max(1, this.writer.nextColumn + Math.max(0, columnOffset)),
+    }
+    const source = { line: sourcePos.line + 1, column: sourcePos.character + 1 }
+    const entry: BerrySourceMapEntry = { generated, source, kind: ts.SyntaxKind[node.kind] }
+    const buffer = this.captureMappingBuffers[this.captureMappingBuffers.length - 1]
+    if (buffer) {
+      // Fragment-relative mapping; dedupe within fragment buffer.
+      if (buffer.some((m) => m.generated.line === generated.line && m.generated.column === generated.column && m.source.line === source.line && m.source.column === source.column)) return
+      buffer.push({ ...entry, __node: node })
+      return
+    }
+    const key = `${generated.line}:${generated.column}:${source.line}:${source.column}`
+    if (this.mappingKeys.has(key)) return
+    this.mappingKeys.add(key)
+    this.mappings.push(entry)
   }
 
   private emitEntrypointLowering(): void {
@@ -162,6 +233,11 @@ export interface BerryCompileOptions {
    * top-level rules. Set false for module/snippet compilation (tests, libraries).
    */
   entrypoint?: boolean
+  /**
+   * Compiler profile. `dev` (default) emits debug metadata/mappings; `prod` reduces
+   * compiler debug metadata while keeping generated Berry behavior unchanged.
+   */
+  profile?: BerryCompileProfile
 }
 
 /**
@@ -170,15 +246,26 @@ export interface BerryCompileOptions {
  */
 export function generateBerry(sourceFile: ts.SourceFile, options: BerryCompileOptions = {}): BerryGenerationResult {
   const entrypoint = options.entrypoint !== false
+  const profile = options.profile ?? 'dev'
   const parseDiagnostics = readParseDiagnostics(sourceFile)
   if (parseDiagnostics.length > 0) {
     const diagnostics = parseDiagnostics.map((diagnostic) =>
       diagnosticAt(sourceFile, diagnostic.start ?? 0, diagnosticText(diagnostic.messageText), 'error'),
     )
-    return { ok: false, code: '', diagnostics }
+    return {
+      ok: false,
+      code: '',
+      diagnostics,
+      metadata: {
+        profile,
+        sourceFileName: sourceFile.fileName || undefined,
+        mappings: [],
+        notes: ['Parse failed; no Berry output or source mappings were produced.'],
+      },
+    }
   }
 
-  const session = new GenerationSession(sourceFile, entrypoint)
+  const session = new GenerationSession(sourceFile, entrypoint, profile)
   enforceTopLevelRules(session, sourceFile, entrypoint)
   for (const statement of sourceFile.statements) {
     if (entrypoint && ts.isClassDeclaration(statement) && hasExportModifier(statement, ts.SyntaxKind.DefaultKeyword)) {

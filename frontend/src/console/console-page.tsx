@@ -8,6 +8,8 @@ import {
   cssVariableTheme,
 } from '@furystack/shades-common-components'
 
+import { annotateBerryErrorText } from '../ide/ast-to-berry'
+import { BerryCompileContext } from '../ide/berry-compile-context'
 import { DeviceAccess } from '../editor/device-access'
 import { DeviceSignIn } from '../editor/device-sign-in'
 import { consoleMessageLimit, lineVisible, severityOf, stripAnsi } from './console-lines'
@@ -100,12 +102,14 @@ export const ConsolePage = Shade({
   render: ({ injector, useObservable, useDisposable, useRef }) => {
     const access = injector.get(DeviceAccess)
     const session = injector.get(ConsoleSession)
+    const compileContext = injector.get(BerryCompileContext)
     const [authorization] = useObservable('authorization', access.authorization)
     const [needsAuth] = useObservable('needs-auth', access.needsAuth)
     const [phase] = useObservable('phase', session.phase)
     const [transcript] = useObservable('transcript', session.transcript)
     const [level] = useObservable('level', session.level)
     const [draft] = useObservable('draft', session.draft)
+    const [compileMetadata] = useObservable('compile-metadata', compileContext.metadata)
     const log = useRef<HTMLDivElement>('log')
     const follow = useDisposable('follow', () => ({
       current: true,
@@ -116,6 +120,8 @@ export const ConsolePage = Shade({
     const pending = stripAnsi(transcript.pending)
     const pendingSeverity = severityOf(pending)
     const showPending = pending !== '' && lineVisible(pendingSeverity, level)
+    const mapLine = (text: string) =>
+      compileMetadata?.mappings?.length ? annotateBerryErrorText(text, compileMetadata) : text
     if (log.current && follow.current) {
       log.current.scrollTop = log.current.scrollHeight
     }
@@ -132,6 +138,11 @@ export const ConsolePage = Shade({
             <Typography variant="caption" color="textSecondary">
               {phaseText[phase]}
             </Typography>
+            {compileMetadata?.mappings?.length ? (
+              <Typography variant="caption" color="textSecondary">
+                TS source map active ({compileMetadata.mappings.length})
+              </Typography>
+            ) : null}
           </div>
           <Typography variant="caption" color="textSecondary">
             Log level
@@ -162,9 +173,11 @@ export const ConsolePage = Shade({
           }}
         >
           {visible.map((line) => (
-            <div className={line.severity ?? 'output'}>{line.text.length > 0 ? line.text : ' '}</div>
+            <div className={line.severity ?? 'output'}>
+              {mapLine(line.text.length > 0 ? line.text : ' ')}
+            </div>
           ))}
-          {showPending ? <div className={pendingSeverity ?? 'output'}>{pending}</div> : null}
+          {showPending ? <div className={pendingSeverity ?? 'output'}>{mapLine(pending)}</div> : null}
         </div>
         <form
           className="composer"

@@ -121,6 +121,21 @@ export function formatDiagnostics(
     .join('\n')
 }
 
+/** Format compiler metadata for incremental diagnostics UX. */
+export function formatCompileSummary(
+  result: {
+    ok: boolean
+    diagnostics: ReadonlyArray<{ severity?: string }>
+    metadata?: { profile?: string; mappings?: readonly unknown[]; notes?: readonly string[] }
+  },
+): string {
+  const profile = result.metadata?.profile ?? 'dev'
+  const errors = result.diagnostics.filter((d) => (d.severity ?? 'error') === 'error').length
+  const mappings = result.metadata?.mappings?.length ?? 0
+  const status = result.ok ? 'Compiled' : `${errors} error(s)`
+  return `${status} · profile: ${profile} · mappings: ${mappings}`
+}
+
 /** True when Create Berry can compile the open buffer. */
 export function canCreateBerry(language: string): boolean {
   return language === 'typescript'
