@@ -108,6 +108,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
     ${COMPONENT_DIR}/components/shell/src/shell_script.c
+    ${COMPONENT_DIR}/components/shell/src/shell_redirection.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c

@@ -3,6 +3,7 @@
 #include "berry_runtime.h"
 #include "filesystem.h"
 #include "shell.h"
+#include "shell_redirection.h"
 
 #include "esp_console.h"
 #include "esp_log.h"
@@ -430,14 +431,8 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
     return err;
 }
 
-esp_err_t shell_dispatch_expanded_line(const char *line, int *ret)
+static esp_err_t shell_dispatch_command_line(const char *line, int *ret)
 {
-    if (line == NULL || ret == NULL)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    *ret = 0;
     esp_err_t err = esp_console_run(line, ret);
     if (err != ESP_ERR_NOT_FOUND)
     {
@@ -472,6 +467,97 @@ esp_err_t shell_dispatch_expanded_line(const char *line, int *ret)
      * reported errors).
      */
     (void)err;
+    return ESP_OK;
+}
+
+esp_err_t shell_dispatch_expanded_line(const char *line, int *ret)
+{
+    if (line == NULL || ret == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *ret = 0;
+
+    shell_pipeline_info_t pipeline;
+    esp_err_t pipe_err = shell_parse_pipeline(line, &pipeline);
+    if (pipe_err != ESP_OK)
+    {
+        printf("pipes: parse failed (%s)\n", esp_err_to_name(pipe_err));
+        *ret = 1;
+        return ESP_OK;
+    }
+    if (pipeline.status == SHELL_PIPELINE_INVALID)
+    {
+        printf("pipes: invalid syntax\n");
+        *ret = 1;
+        return ESP_OK;
+    }
+    if (pipeline.status == SHELL_PIPELINE_UNSUPPORTED)
+    {
+        printf("pipes: not supported yet\n");
+        *ret = 1;
+        return ESP_OK;
+    }
+
+    shell_redirection_t redir;
+    esp_err_t parse_err = shell_parse_redirection(line, &redir);
+    if (parse_err != ESP_OK)
+    {
+        if (parse_err == ESP_ERR_INVALID_ARG)
+        {
+            printf("redirection: invalid or unsupported syntax\n");
+        }
+        else if (parse_err == ESP_ERR_INVALID_SIZE)
+        {
+            printf("redirection: command or target is too long\n");
+        }
+        else
+        {
+            printf("redirection: parse failed (%s)\n", esp_err_to_name(parse_err));
+        }
+        *ret = 1;
+        return ESP_OK;
+    }
+
+    if (redir.type == SHELL_REDIRECT_NONE)
+    {
+        return shell_dispatch_command_line(line, ret);
+    }
+
+    shell_redirect_state_t redirect_state;
+    esp_err_t redirect_err = shell_redirect_begin(&redir, &redirect_state);
+    if (redirect_err != ESP_OK)
+    {
+        printf("redirection: cannot redirect stdout to '%s': %s\n", redir.target, esp_err_to_name(redirect_err));
+        *ret = 1;
+        return ESP_OK;
+    }
+
+    esp_err_t err = shell_dispatch_command_line(redir.command, ret);
+    fflush(stdout);
+    shell_redirect_end(&redirect_state);
+
+    if (err != ESP_OK)
+    {
+        /* Infrastructure or unknown-command errors were not printed while redirected. */
+        if (err == ESP_ERR_NOT_FOUND)
+        {
+            printf("Unknown command: %s\n", redir.command);
+            *ret = 1;
+        }
+        else if (err == ESP_ERR_INVALID_ARG)
+        {
+            *ret = (*ret != 0) ? *ret : 1;
+        }
+        else
+        {
+            printf("redirection: command dispatch failed (%s)\n", esp_err_to_name(err));
+            *ret = 1;
+        }
+        return ESP_OK;
+    }
+
     return ESP_OK;
 }
 
