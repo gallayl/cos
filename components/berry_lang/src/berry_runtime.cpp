@@ -1646,27 +1646,19 @@ bool resolve_module_path(const char *specifier, char *resolved, size_t resolved_
     if (len >= 3 && std::strcmp(composed + len - 3, ".ts") == 0)
     {
         char candidate[VFS_PATH_MAX];
-        if (len + 1 < sizeof(candidate))
+        const int written = std::snprintf(candidate, sizeof(candidate), "%.*s.be", static_cast<int>(len - 3), composed);
+        if (written > 0 && static_cast<size_t>(written) < sizeof(candidate) && try_path(candidate))
         {
-            std::memcpy(candidate, composed, len - 3);
-            std::memcpy(candidate + len - 3, ".be", 4);
-            if (try_path(candidate))
-            {
-                return true;
-            }
+            return true;
         }
     }
     else if (len >= 4 && std::strcmp(composed + len - 4, ".tsx") == 0)
     {
         char candidate[VFS_PATH_MAX];
-        if (len + 1 < sizeof(candidate))
+        const int written = std::snprintf(candidate, sizeof(candidate), "%.*s.be", static_cast<int>(len - 4), composed);
+        if (written > 0 && static_cast<size_t>(written) < sizeof(candidate) && try_path(candidate))
         {
-            std::memcpy(candidate, composed, len - 4);
-            std::memcpy(candidate + len - 4, ".be", 4);
-            if (try_path(candidate))
-            {
-                return true;
-            }
+            return true;
         }
     }
     else if (len >= 3 && std::strcmp(composed + len - 3, ".be") == 0)
@@ -1679,14 +1671,10 @@ bool resolve_module_path(const char *specifier, char *resolved, size_t resolved_
     else
     {
         char candidate[VFS_PATH_MAX];
-        if (len + 3 < sizeof(candidate))
+        const int written = std::snprintf(candidate, sizeof(candidate), "%s.be", composed);
+        if (written > 0 && static_cast<size_t>(written) < sizeof(candidate) && try_path(candidate))
         {
-            std::memcpy(candidate, composed, len);
-            std::memcpy(candidate + len, ".be", 4);
-            if (try_path(candidate))
-            {
-                return true;
-            }
+            return true;
         }
     }
 
