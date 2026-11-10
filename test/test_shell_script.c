@@ -429,6 +429,88 @@ static void test_dispatch_reports_unsupported_and_invalid_pipes(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+static void test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms(void)
+{
+    shell_fd_redirect_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("info > out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("info >> out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("echo \"2> err.txt\"", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("echo '&> all.txt'", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+}
+
+static void test_fd_redirection_parse_detects_stderr_and_combined_forms(void)
+{
+    shell_fd_redirect_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2> err.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2>>err.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd &> all.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd &>>all.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2> err.txt > out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+}
+
+static void test_redirection_parse_stderr_and_combined_forms(void)
+{
+    shell_redirection_t redir;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd 2> err.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_STDERR_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("cmd", redir.command);
+    TEST_ASSERT_EQUAL_STRING("err.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd 2>> \"err.log\"", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_STDERR_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("err.log", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd &> all.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_BOTH_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("all.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd &>>all.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_BOTH_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("all.txt", redir.target);
+}
+
+static void test_dispatch_handles_stderr_fd_redirection_runtime_path(void)
+{
+    int ret = -1;
+
+    /* Best-effort runtime redirection is attempted (not rejected as unsupported).
+     * In this host test environment the target fopen may fail; dispatch must still
+     * handle the line and report non-zero status without mis-executing as plain args. */
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info 2> /flash/err.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info 2>> /flash/err.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info &> /flash/all.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info &>> /flash/all.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -461,5 +543,9 @@ int main(void)
     RUN_TEST(test_pipeline_parse_detects_unsupported_pipelines);
     RUN_TEST(test_pipeline_parse_rejects_invalid_syntax);
     RUN_TEST(test_dispatch_reports_unsupported_and_invalid_pipes);
+    RUN_TEST(test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms);
+    RUN_TEST(test_fd_redirection_parse_detects_stderr_and_combined_forms);
+    RUN_TEST(test_redirection_parse_stderr_and_combined_forms);
+    RUN_TEST(test_dispatch_handles_stderr_fd_redirection_runtime_path);
     return UNITY_END();
 }

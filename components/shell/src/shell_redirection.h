@@ -17,8 +17,12 @@ extern "C"
     typedef enum
     {
         SHELL_REDIRECT_NONE = 0,
-        SHELL_REDIRECT_TRUNCATE, /* >  */
-        SHELL_REDIRECT_APPEND,   /* >> */
+        SHELL_REDIRECT_TRUNCATE,        /* >   stdout */
+        SHELL_REDIRECT_APPEND,          /* >>  stdout */
+        SHELL_REDIRECT_STDERR_TRUNCATE, /* 2>  stderr */
+        SHELL_REDIRECT_STDERR_APPEND,   /* 2>> stderr */
+        SHELL_REDIRECT_BOTH_TRUNCATE,   /* &>  stdout+stderr */
+        SHELL_REDIRECT_BOTH_APPEND,     /* &>> stdout+stderr */
     } shell_redirect_type_t;
 
     typedef enum
@@ -34,6 +38,17 @@ extern "C"
         size_t segment_count;
     } shell_pipeline_info_t;
 
+    typedef enum
+    {
+        SHELL_FD_REDIRECT_NONE = 0,
+        SHELL_FD_REDIRECT_UNSUPPORTED,
+    } shell_fd_redirect_status_t;
+
+    typedef struct
+    {
+        shell_fd_redirect_status_t status;
+    } shell_fd_redirect_info_t;
+
     typedef struct
     {
         shell_redirect_type_t type;
@@ -45,13 +60,17 @@ extern "C"
     {
         bool active;
         int saved_stdout_fd;
+        int saved_stderr_fd;
         FILE *saved_stdout;
-        FILE *file;
+        FILE *saved_stderr;
+        FILE *stdout_file;
+        FILE *stderr_file;
         bool swapped_stdout;
+        bool swapped_stderr;
     } shell_redirect_state_t;
 
     /**
-     * Parse stdout redirection syntax (> / >>) from a shell command line.
+     * Parse redirection syntax (>, >>, 2>, 2>>, &>, &>>) from a shell command line.
      *
      * - No unquoted redirection operator: returns ESP_OK and sets out->type to
      *   SHELL_REDIRECT_NONE (command/target are cleared).
@@ -80,13 +99,22 @@ extern "C"
     esp_err_t shell_parse_pipeline(const char *line, shell_pipeline_info_t *out);
 
     /**
-     * Redirect stdout to a VFS path according to the parsed redirection type.
+     * Detect unquoted stderr/FD/combined redirection syntax (2>, 2>>, &>, &>>).
+     * Retained for compatibility; runtime-supported forms are parsed by
+     * shell_parse_redirection().
+     */
+    esp_err_t shell_parse_fd_redirection(const char *line, shell_fd_redirect_info_t *out);
+
+    /**
+     * Redirect stdout/stderr to a VFS path according to the parsed redirection type.
      * Resolves relative targets from the current shell working directory.
-     * On success, call shell_redirect_end() to restore stdout.
+     * Best-effort fd/stdio redirection: captures output written to redirected
+     * stdio streams/fds; ESP log routing may differ by target/config.
+     * On success, call shell_redirect_end() to restore streams.
      */
     esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state);
 
-    /** Restore stdout after shell_redirect_begin(). Safe to call if inactive. */
+    /** Restore redirected streams after shell_redirect_begin(). Safe to call if inactive. */
     void shell_redirect_end(shell_redirect_state_t *state);
 
 #ifdef __cplusplus

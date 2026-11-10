@@ -17,25 +17,35 @@
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
 #endif
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
 #else
 #include <unistd.h>
 #define shell_close close
 #define shell_fileno fileno
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
 
 static int shell_dup(int fd)
 {
 #if defined(F_DUPFD_CLOEXEC)
-    int duplicated = fcntl(fd, F_DUPFD_CLOEXEC, 0);
-    if (duplicated >= 0)
     {
-        return duplicated;
+        int duplicated = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+        if (duplicated >= 0)
+        {
+            return duplicated;
+        }
     }
 #endif
 #if defined(F_DUPFD)
-    duplicated = fcntl(fd, F_DUPFD, 0);
-    if (duplicated >= 0)
     {
-        return duplicated;
+        int duplicated = fcntl(fd, F_DUPFD, 0);
+        if (duplicated >= 0)
+        {
+            return duplicated;
+        }
     }
 #endif
     return -1;
@@ -277,18 +287,15 @@ esp_err_t shell_parse_pipeline(const char *line, shell_pipeline_info_t *out)
     }
 }
 
-esp_err_t shell_parse_redirection(const char *line, shell_redirection_t *out)
+esp_err_t shell_parse_fd_redirection(const char *line, shell_fd_redirect_info_t *out)
 {
     if (line == NULL || out == NULL)
     {
         return ESP_ERR_INVALID_ARG;
     }
 
-    memset(out, 0, sizeof(*out));
-    out->type = SHELL_REDIRECT_NONE;
+    out->status = SHELL_FD_REDIRECT_NONE;
 
-    const char *op = NULL;
-    shell_redirect_type_t type = SHELL_REDIRECT_NONE;
     char quote = '\0';
     for (const char *p = line; *p != '\0'; p++)
     {
@@ -306,37 +313,158 @@ esp_err_t shell_parse_redirection(const char *line, shell_redirection_t *out)
             quote = c;
             continue;
         }
+
+        /* Detect 2>, 2>>, &>, &>> (recognized fd/combined redirection syntax). */
+        if (c == '2' && *(p + 1) == '>')
+        {
+            out->status = SHELL_FD_REDIRECT_UNSUPPORTED; /* recognized syntax present */
+            return ESP_OK;
+        }
+        if (c == '&' && *(p + 1) == '>' && (p == line || *(p - 1) != '<'))
+        {
+            out->status = SHELL_FD_REDIRECT_UNSUPPORTED;
+            return ESP_OK;
+        }
+    }
+
+    return ESP_OK;
+}
+
+static bool find_redirection_op(const char *line, const char **op_out, shell_redirect_type_t *type_out)
+{
+    char quote = '\0';
+    for (const char *p = line; *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+
+        if (c == '2' && *(p + 1) == '>')
+        {
+            if (*(p + 2) == '>')
+            {
+                if (*(p + 3) == '>')
+                {
+                    return false;
+                }
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_STDERR_APPEND;
+            }
+            else
+            {
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_STDERR_TRUNCATE;
+            }
+            return true;
+        }
+
+        if (c == '&' && *(p + 1) == '>' && (p == line || *(p - 1) != '<'))
+        {
+            if (*(p + 2) == '>')
+            {
+                if (*(p + 3) == '>')
+                {
+                    return false;
+                }
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_BOTH_APPEND;
+            }
+            else
+            {
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_BOTH_TRUNCATE;
+            }
+            return true;
+        }
+
         if (c == '>')
         {
-            op = p;
+            /* Skip if part of a recognized fd/combined operator (handled above). */
+            if (p != line && (*(p - 1) == '2' || *(p - 1) == '&'))
+            {
+                continue;
+            }
             if (*(p + 1) == '>')
             {
                 if (*(p + 2) == '>')
                 {
-                    return ESP_ERR_INVALID_ARG;
+                    return false;
                 }
-                type = SHELL_REDIRECT_APPEND;
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_APPEND;
             }
             else
             {
-                type = SHELL_REDIRECT_TRUNCATE;
+                *op_out = p;
+                *type_out = SHELL_REDIRECT_TRUNCATE;
             }
-            break;
+            return true;
         }
     }
 
     if (quote != '\0')
     {
-        /* Unterminated quote in command portion: let existing parser/dispatch handle. */
-        return ESP_OK;
+        /* Unterminated quote: let existing parser/dispatch handle. */
+        *op_out = NULL;
+        *type_out = SHELL_REDIRECT_NONE;
+        return true;
     }
 
+    *op_out = NULL;
+    *type_out = SHELL_REDIRECT_NONE;
+    return true;
+}
+
+esp_err_t shell_parse_redirection(const char *line, shell_redirection_t *out)
+{
+    if (line == NULL || out == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    memset(out, 0, sizeof(*out));
+    out->type = SHELL_REDIRECT_NONE;
+
+    const char *op = NULL;
+    shell_redirect_type_t type = SHELL_REDIRECT_NONE;
+    if (!find_redirection_op(line, &op, &type))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
     if (op == NULL)
     {
         return ESP_OK;
     }
 
-    const char *after_op = op + (type == SHELL_REDIRECT_APPEND ? 2 : 1);
+    size_t op_len = 1;
+    switch (type)
+    {
+    case SHELL_REDIRECT_APPEND:
+    case SHELL_REDIRECT_STDERR_TRUNCATE:
+    case SHELL_REDIRECT_BOTH_TRUNCATE:
+        op_len = 2;
+        break;
+    case SHELL_REDIRECT_STDERR_APPEND:
+    case SHELL_REDIRECT_BOTH_APPEND:
+        op_len = 3;
+        break;
+    default:
+        op_len = 1;
+        break;
+    }
+
+    const char *after_op = op + op_len;
     const char *line_end = line + strlen(line);
 
     esp_err_t err = copy_trimmed_span(line, op, out->command, sizeof(out->command));
@@ -365,6 +493,23 @@ esp_err_t shell_parse_redirection(const char *line, shell_redirection_t *out)
     return ESP_OK;
 }
 
+static bool redirect_targets_stdout(shell_redirect_type_t type)
+{
+    return type == SHELL_REDIRECT_TRUNCATE || type == SHELL_REDIRECT_APPEND || type == SHELL_REDIRECT_BOTH_TRUNCATE ||
+           type == SHELL_REDIRECT_BOTH_APPEND;
+}
+
+static bool redirect_targets_stderr(shell_redirect_type_t type)
+{
+    return type == SHELL_REDIRECT_STDERR_TRUNCATE || type == SHELL_REDIRECT_STDERR_APPEND ||
+           type == SHELL_REDIRECT_BOTH_TRUNCATE || type == SHELL_REDIRECT_BOTH_APPEND;
+}
+
+static bool redirect_is_append(shell_redirect_type_t type)
+{
+    return type == SHELL_REDIRECT_APPEND || type == SHELL_REDIRECT_STDERR_APPEND || type == SHELL_REDIRECT_BOTH_APPEND;
+}
+
 esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state)
 {
     if (redir == NULL || state == NULL)
@@ -374,10 +519,14 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
 
     memset(state, 0, sizeof(*state));
     state->saved_stdout_fd = -1;
+    state->saved_stderr_fd = -1;
     state->saved_stdout = NULL;
-    state->file = NULL;
+    state->saved_stderr = NULL;
+    state->stdout_file = NULL;
+    state->stderr_file = NULL;
     state->active = false;
     state->swapped_stdout = false;
+    state->swapped_stderr = false;
 
     if (redir->type == SHELL_REDIRECT_NONE)
     {
@@ -411,58 +560,126 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         return err;
     }
 
-    const char *mode = (redir->type == SHELL_REDIRECT_APPEND) ? "a" : "w";
-    FILE *target = fopen(real_path, mode);
-    if (target == NULL)
+    const char *mode = redirect_is_append(redir->type) ? "a" : "w";
+    bool want_stdout = redirect_targets_stdout(redir->type);
+    bool want_stderr = redirect_targets_stderr(redir->type);
+
+    FILE *out_file = NULL;
+    FILE *err_file = NULL;
+
+    /* For &> / &>>, open a single file and share it. */
+    out_file = fopen(real_path, mode);
+    if (out_file == NULL)
     {
         printf("redirection: fopen('%s', \"%s\") failed\n", real_path, mode);
         return ESP_FAIL;
     }
-
-    fflush(stdout);
-    int stdout_fd = shell_fileno(stdout);
-    int target_fd = shell_fileno(target);
-    int saved_fd = -1;
-    bool fd_redirect_ok = false;
-    if (stdout_fd >= 0 && target_fd >= 0)
+    if (want_stdout && want_stderr)
     {
-        saved_fd = shell_dup(stdout_fd);
-        if (saved_fd >= 0 && shell_dup2(target_fd, stdout_fd) == stdout_fd)
+        err_file = out_file;
+    }
+    else if (want_stderr)
+    {
+        err_file = out_file;
+        out_file = NULL;
+    }
+
+    /* Best-effort redirection: try fd dup/dup2 per stream, else FILE* swap fallback (non-Windows). */
+    if (want_stdout)
+    {
+        fflush(stdout);
+        int fd = shell_fileno(stdout);
+        int target_fd = shell_fileno(out_file);
+        bool fd_ok = false;
+        if (fd >= 0 && target_fd >= 0)
         {
-            fd_redirect_ok = true;
+            int saved = shell_dup(fd);
+            if (saved >= 0 && shell_dup2(target_fd, fd) == fd)
+            {
+                state->saved_stdout_fd = saved;
+                fd_ok = true;
+            }
+            else if (saved >= 0)
+            {
+                shell_close(saved);
+            }
         }
-    }
-
-    if (fd_redirect_ok)
-    {
-        state->active = true;
-        state->saved_stdout_fd = saved_fd;
-        state->file = target;
-        state->swapped_stdout = false;
-        state->saved_stdout = NULL;
-        return ESP_OK;
-    }
-
-    if (saved_fd >= 0)
-    {
-        shell_close(saved_fd);
-        saved_fd = -1;
-    }
-
+        if (!fd_ok)
+        {
 #if !defined(_WIN32)
-    /* Fallback: swap stdout FILE* (works when commands write via stdio). */
-    state->saved_stdout = stdout;
-    stdout = target;
-    state->active = true;
-    state->saved_stdout_fd = -1;
-    state->file = target;
-    state->swapped_stdout = true;
-    return ESP_OK;
+            state->saved_stdout = stdout;
+            stdout = out_file;
+            state->swapped_stdout = true;
 #else
-    fclose(target);
-    printf("redirection: failed to duplicate/redirect stdout fd\n");
-    return ESP_FAIL;
+            fclose(out_file);
+            if (err_file != NULL && err_file != out_file)
+            {
+                fclose(err_file);
+            }
+            printf("redirection: failed to redirect stdout\n");
+            return ESP_FAIL;
 #endif
+        }
+        state->stdout_file = out_file;
+    }
+
+    if (want_stderr)
+    {
+        fflush(stderr);
+        int fd = shell_fileno(stderr);
+        int target_fd = shell_fileno(err_file);
+        bool fd_ok = false;
+        if (fd >= 0 && target_fd >= 0)
+        {
+            int saved = shell_dup(fd);
+            if (saved >= 0 && shell_dup2(target_fd, fd) == fd)
+            {
+                state->saved_stderr_fd = saved;
+                fd_ok = true;
+            }
+            else if (saved >= 0)
+            {
+                shell_close(saved);
+            }
+        }
+        if (!fd_ok)
+        {
+#if !defined(_WIN32)
+            state->saved_stderr = stderr;
+            stderr = err_file;
+            state->swapped_stderr = true;
+#else
+            /* Roll back stdout redirection if any was applied. */
+            if (want_stdout)
+            {
+                fflush(stdout);
+                int sfd = shell_fileno(stdout);
+                if (state->saved_stdout_fd >= 0 && sfd >= 0)
+                {
+                    (void)shell_dup2(state->saved_stdout_fd, sfd);
+                    shell_close(state->saved_stdout_fd);
+                    state->saved_stdout_fd = -1;
+                }
+            }
+            if (out_file != NULL)
+            {
+                fflush(out_file);
+                fclose(out_file);
+            }
+            if (err_file != NULL && err_file != out_file)
+            {
+                fflush(err_file);
+                fclose(err_file);
+            }
+            printf("redirection: failed to redirect stderr\n");
+            return ESP_FAIL;
+#endif
+        }
+        state->stderr_file = err_file;
+    }
+
+    state->active = true;
+    return ESP_OK;
 }
 
 void shell_redirect_end(shell_redirect_state_t *state)
@@ -473,6 +690,16 @@ void shell_redirect_end(shell_redirect_state_t *state)
     }
 
 #if !defined(_WIN32)
+    if (state->swapped_stderr)
+    {
+        fflush(stderr);
+        if (state->saved_stderr != NULL)
+        {
+            stderr = state->saved_stderr;
+        }
+        state->saved_stderr = NULL;
+        state->swapped_stderr = false;
+    }
     if (state->swapped_stdout)
     {
         fflush(stdout);
@@ -480,41 +707,47 @@ void shell_redirect_end(shell_redirect_state_t *state)
         {
             stdout = state->saved_stdout;
         }
-        if (state->file != NULL)
-        {
-            fflush(state->file);
-            fclose(state->file);
-            state->file = NULL;
-        }
         state->saved_stdout = NULL;
-        state->active = false;
         state->swapped_stdout = false;
-        return;
     }
 #endif
 
     fflush(stdout);
+    fflush(stderr);
 
     int stdout_fd = shell_fileno(stdout);
     if (state->saved_stdout_fd >= 0 && stdout_fd >= 0)
     {
         (void)shell_dup2(state->saved_stdout_fd, stdout_fd);
     }
-
-    if (state->file != NULL)
+    int stderr_fd = shell_fileno(stderr);
+    if (state->saved_stderr_fd >= 0 && stderr_fd >= 0)
     {
-        fflush(state->file);
-        fclose(state->file);
-        state->file = NULL;
+        (void)shell_dup2(state->saved_stderr_fd, stderr_fd);
+    }
+
+    /* Close target file(s) once (stdout_file and stderr_file may be same for &>). */
+    if (state->stdout_file != NULL)
+    {
+        fflush(state->stdout_file);
+        fclose(state->stdout_file);
+    }
+    if (state->stderr_file != NULL && state->stderr_file != state->stdout_file)
+    {
+        fflush(state->stderr_file);
+        fclose(state->stderr_file);
     }
 
     if (state->saved_stdout_fd >= 0)
     {
         shell_close(state->saved_stdout_fd);
-        state->saved_stdout_fd = -1;
+    }
+    if (state->saved_stderr_fd >= 0)
+    {
+        shell_close(state->saved_stderr_fd);
     }
 
-    state->active = false;
-    state->swapped_stdout = false;
-    state->saved_stdout = NULL;
+    memset(state, 0, sizeof(*state));
+    state->saved_stdout_fd = -1;
+    state->saved_stderr_fd = -1;
 }
