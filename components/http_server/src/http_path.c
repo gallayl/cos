@@ -3,6 +3,65 @@
 #include <stdbool.h>
 #include <string.h>
 
+static int hex_value(char c)
+{
+    if (c >= '0' && c <= '9')
+    {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f')
+    {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F')
+    {
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
+esp_err_t http_url_decode(const char *src, char *dst, size_t dst_len)
+{
+    if (src == NULL || dst == NULL || dst_len == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    size_t out_i = 0;
+    for (size_t i = 0; src[i] != '\0'; i++)
+    {
+        unsigned char c = (unsigned char)src[i];
+        if (c == '+')
+        {
+            c = ' ';
+        }
+        else if (c == '%')
+        {
+            int hi = hex_value(src[i + 1]);
+            int lo = src[i + 1] != '\0' ? hex_value(src[i + 2]) : -1;
+            if (hi < 0 || lo < 0)
+            {
+                return ESP_ERR_INVALID_ARG;
+            }
+            c = (unsigned char)((hi << 4) | lo);
+            if (c == '\0')
+            {
+                return ESP_ERR_INVALID_ARG;
+            }
+            i += 2;
+        }
+
+        if (out_i + 1 >= dst_len)
+        {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        dst[out_i++] = (char)c;
+    }
+
+    dst[out_i] = '\0';
+    return ESP_OK;
+}
+
 esp_err_t http_sanitize_upload_path(const char *raw, char *out_path, size_t len)
 {
     if (raw == NULL || out_path == NULL || len == 0)

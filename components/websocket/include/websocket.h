@@ -18,6 +18,24 @@ extern "C"
      */
     esp_err_t websocket_init(void);
 
+    /** Longest text frame accepted from a client, excluding the trailing newline. */
+#define WEBSOCKET_MAX_TEXT 126
+
+    /**
+     * @brief Receive one client text frame after the authenticated handshake.
+     *
+     * `data` is not NUL-terminated. A missing trailing newline is added before
+     * the handler runs, and the total length stays within one shell line.
+     */
+    typedef void (*websocket_text_handler_t)(const char *data, size_t len, void *context);
+
+    /**
+     * @brief Install or clear the incoming-text handler.
+     * @param handler Callback, or NULL to ignore client text.
+     * @param context Value passed through to the handler.
+     */
+    void websocket_set_text_handler(websocket_text_handler_t handler, void *context);
+
     /**
      * @brief Broadcast a text message to all connected WebSocket clients.
      *

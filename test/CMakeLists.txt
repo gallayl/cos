@@ -91,9 +91,23 @@ target_include_directories(calibration_logic PUBLIC
 )
 target_link_libraries(calibration_logic PRIVATE mock_esp calibration_storage)
 
+# --- Library: system_logic ---
+add_library(system_logic STATIC
+    ${COMPONENT_DIR}/components/system/src/system.c
+    ${COMPONENT_DIR}/components/system/src/system_cmd.c
+)
+target_include_directories(system_logic PUBLIC
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/filesystem/include
+    mocks
+)
+target_link_libraries(system_logic PRIVATE mock_esp)
+
+# --- Library: shell_logic ---
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
+    ${COMPONENT_DIR}/components/shell/src/shell_script.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -107,9 +121,11 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/shell/src
     ${COMPONENT_DIR}/components/filesystem/include
     ${COMPONENT_DIR}/components/berry_lang/include
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
@@ -162,12 +178,27 @@ target_include_directories(test_shell_berry PRIVATE
 target_link_libraries(test_shell_berry PRIVATE unity shell_logic mock_esp)
 add_test(NAME test_shell_berry COMMAND test_shell_berry)
 
+# --- Test: shell script resolver (R9) ---
+add_executable(test_shell_script test_shell_script.c)
+target_include_directories(test_shell_script PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/shell/src
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/berry_lang/include
+)
+target_link_libraries(test_shell_script PRIVATE unity shell_logic mock_esp)
+add_test(NAME test_shell_script COMMAND test_shell_script)
+
 # --- Test: Berry source buffer ownership ---
 add_executable(test_berry_source_buffer test_berry_source_buffer.cpp)
 target_include_directories(test_berry_source_buffer PRIVATE
     ${COMPONENT_DIR}/components/berry_lang/src
 )
 target_link_libraries(test_berry_source_buffer PRIVATE unity)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(test_berry_source_buffer PRIVATE -static-libgcc -static-libstdc++)
+endif()
 add_test(NAME test_berry_source_buffer COMMAND test_berry_source_buffer)
 
 # --- Test: text console commands ---
@@ -192,6 +223,9 @@ target_include_directories(test_ui PRIVATE
     ${COMPONENT_DIR}/components/ui/include
 )
 target_link_libraries(test_ui PRIVATE unity mock_esp)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(test_ui PRIVATE -static-libgcc -static-libstdc++)
+endif()
 add_test(NAME test_ui COMMAND test_ui)
 
 # --- Library: rgb_led_logic ---
@@ -305,18 +339,6 @@ target_include_directories(test_time_sync PRIVATE
 )
 target_link_libraries(test_time_sync PRIVATE unity time_sync_logic mock_esp)
 add_test(NAME test_time_sync COMMAND test_time_sync)
-
-# --- Library: system_logic ---
-add_library(system_logic STATIC
-    ${COMPONENT_DIR}/components/system/src/system.c
-    ${COMPONENT_DIR}/components/system/src/system_cmd.c
-)
-target_include_directories(system_logic PUBLIC
-    ${COMPONENT_DIR}/components/system/include
-    ${COMPONENT_DIR}/components/filesystem/include
-    mocks
-)
-target_link_libraries(system_logic PRIVATE mock_esp)
 
 # --- Test: system ---
 add_executable(test_system test_system.c)
@@ -476,3 +498,21 @@ target_include_directories(test_bluetooth_cmd PRIVATE
 )
 target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic mock_esp)
 add_test(NAME test_bluetooth_cmd COMMAND test_bluetooth_cmd)
+
+# --- Library: network_url ---
+add_library(network_url STATIC
+    ${COMPONENT_DIR}/components/network/src/network_url.c
+)
+target_include_directories(network_url PUBLIC
+    ${COMPONENT_DIR}/components/network/include
+    mocks
+)
+
+# --- Test: network_url ---
+add_executable(test_network_url test_network_url.c)
+target_include_directories(test_network_url PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/network/include
+)
+target_link_libraries(test_network_url PRIVATE unity network_url)
+add_test(NAME test_network_url COMMAND test_network_url)

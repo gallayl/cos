@@ -64,4 +64,6 @@ const char *text_console_log_level_name(text_console_log_level_t level)
     }
 }
 
+void text_console_apply_saved_log_level(void) {}
+
 void text_console_resize(void) {}

@@ -51,6 +51,22 @@ static void route_keyboard_event(const keyboard_event_t *event)
     keyboard_route_event(event, &s_keyboard_router);
 }
 
+static void broadcast_console_output(const char *data, size_t len, void *context)
+{
+    (void)context;
+    if (data == NULL || len == 0 || websocket_client_count() == 0)
+    {
+        return;
+    }
+    (void)websocket_broadcast(data, len);
+}
+
+static void submit_console_text(const char *data, size_t len, void *context)
+{
+    (void)context;
+    shell_feed_input(data, len);
+}
+
 static esp_err_t init_nvs(void)
 {
     esp_err_t err = nvs_flash_init();
@@ -65,9 +81,10 @@ static esp_err_t init_nvs(void)
 
 void app_main(void)
 {
+    ESP_ERROR_CHECK(init_nvs());
+    text_console_apply_saved_log_level();
     ESP_LOGI(TAG, "COS starting up...");
 
-    ESP_ERROR_CHECK(init_nvs());
     ESP_ERROR_CHECK(display_init());
     ESP_ERROR_CHECK(calibration_init());
     ESP_ERROR_CHECK(light_sensor_init());
@@ -86,6 +103,8 @@ void app_main(void)
     ESP_ERROR_CHECK(shell_init());
     bluetooth_hid_set_keyboard_callback(NULL);
     bluetooth_hid_set_key_event_callback(route_keyboard_event);
+    text_console_set_output_listener(broadcast_console_output, NULL);
+    websocket_set_text_handler(submit_console_text, NULL);
 
     ESP_LOGI(TAG, "COS ready");
 }

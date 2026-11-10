@@ -5,6 +5,7 @@
 #include "filesystem.h"
 #include "shell_alias.h"
 #include "shell_cmds.h"
+#include "shell_script.h"
 
 #include "esp_console.h"
 #include "esp_log.h"
@@ -184,6 +185,13 @@ esp_err_t shell_init(void)
         return err;
     }
 
+    err = shell_script_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Could not initialize shell scripts: %s", esp_err_to_name(err));
+        return err;
+    }
+
     update_prompt();
 
     err = shell_input_init();
@@ -192,7 +200,8 @@ esp_err_t shell_init(void)
         return err;
     }
 
-    berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line);
+    berry_runtime_set_console_input_provider(shell_input_read_line, shell_input_cancel_line, shell_input_read_key,
+                                             shell_input_read_char);
 
     (void)shell_berry_run_autoexec();
 

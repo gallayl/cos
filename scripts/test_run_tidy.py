@@ -1,7 +1,9 @@
+import io
 import json
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -66,7 +68,8 @@ class RunClangTidyTests(unittest.TestCase):
         process.stdout = ["clang-tidy error\n"]
         process.returncode = 7
 
-        self.assertEqual(7, run_clang_tidy("build/tidy", ["source.c"]))
+        with patch.object(sys, "stdout", new_callable=io.StringIO):
+            self.assertEqual(7, run_clang_tidy("build/tidy", ["source.c"]))
         popen.assert_called_once_with(
             ["clang-tidy", "-p", "build/tidy", "source.c"],
             stdout=subprocess.PIPE,
@@ -80,7 +83,8 @@ class RunClangTidyTests(unittest.TestCase):
         process.stdout = ["3 warnings treated as errors\n"]
         process.returncode = 0
 
-        self.assertEqual(1, run_clang_tidy("build/tidy", ["source.c"]))
+        with patch.object(sys, "stdout", new_callable=io.StringIO):
+            self.assertEqual(1, run_clang_tidy("build/tidy", ["source.c"]))
 
 
 if __name__ == "__main__":

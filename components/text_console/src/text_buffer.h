@@ -91,6 +91,19 @@ extern "C"
     /** Clear the entire buffer and reset cursor to (0, 0). */
     void text_buffer_clear(text_buffer_t *buf);
 
+    /**
+     * @brief Move the cursor to a 0-based cell.
+     * @return False when the cell is outside the active grid.
+     */
+    bool text_buffer_set_cursor(text_buffer_t *buf, int col, int row);
+
+    /**
+     * @brief Write printable characters without leaving the current row.
+     *
+     * Control characters are skipped. Output stops at the right edge instead of wrapping.
+     */
+    void text_buffer_write_clipped(text_buffer_t *buf, const char *data, size_t len);
+
     /** Release retained history while preserving the visible grid. */
     void text_buffer_clear_scrollback(text_buffer_t *buf);
 

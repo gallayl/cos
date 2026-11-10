@@ -1,4 +1,4 @@
-.PHONY: build flash flash-game monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
+.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -75,8 +75,11 @@ build:
 flash:
 	$(IDF_PY) flash
 
-flash-game: build
-	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) -b 460800 --before default-reset --after no-reset write-flash @littlefs-flash_args
+flash-data: build
+	cd "$(CURDIR)/build" && $(IDF_PYTHON) -m esptool --chip esp32 $(if $(PORT),-p $(PORT),) write-flash @littlefs-flash_args
+
+erase-flash:
+	$(IDF_PY) erase-flash
 
 monitor:
 	$(IDF_PY) monitor
@@ -86,9 +89,6 @@ clean:
 
 fullclean:
 	$(IDF_PY) fullclean
-
-erase-flash:
-	$(IDF_PY) erase-flash
 
 menuconfig:
 	$(IDF_PY) menuconfig
@@ -130,3 +130,13 @@ docs:
 docs-check:
 	@cmake -E make_directory build/docs
 	doxygen
+
+size:
+	$(IDF_PY) size
+
+size-components:
+	$(IDF_PY) size-components
+
+  
+reconfigure:
+	$(IDF_PY) reconfigure

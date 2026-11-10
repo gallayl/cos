@@ -42,6 +42,30 @@ void test_get_info_null_returns_error(void)
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, system_get_info(NULL));
 }
 
+/* R5-FU2: berry profile/mem must not report identical default/internal heaps when caps differ. */
+void test_get_info_distinguishes_default_and_internal_heap(void)
+{
+    mock_system_set_free_heap(180000);
+    mock_system_set_min_free_heap(160000);
+    mock_system_set_total_heap(320000);
+    mock_system_set_max_alloc(110000);
+    mock_system_set_internal_free_heap(250000);
+    mock_system_set_internal_min_free_heap(240000);
+    mock_system_set_internal_total_heap(400000);
+    mock_system_set_internal_max_alloc(130000);
+
+    system_info_t info;
+    TEST_ASSERT_EQUAL(ESP_OK, system_get_info(&info));
+    TEST_ASSERT_EQUAL(180000, info.free_heap);
+    TEST_ASSERT_EQUAL(160000, info.min_free_heap);
+    TEST_ASSERT_EQUAL(320000, info.total_heap);
+    TEST_ASSERT_EQUAL(110000, info.max_alloc_block);
+    TEST_ASSERT_EQUAL(250000, info.internal_free_heap);
+    TEST_ASSERT_EQUAL(240000, info.internal_min_free_heap);
+    TEST_ASSERT_EQUAL(400000, info.internal_total_heap);
+    TEST_ASSERT_EQUAL(130000, info.internal_max_alloc_block);
+}
+
 /* --- system_format_uptime --- */
 
 void test_uptime_seconds_only(void)
@@ -128,6 +152,7 @@ int main(void)
 
     RUN_TEST(test_get_info_populates_struct);
     RUN_TEST(test_get_info_null_returns_error);
+    RUN_TEST(test_get_info_distinguishes_default_and_internal_heap);
 
     RUN_TEST(test_uptime_seconds_only);
     RUN_TEST(test_uptime_minutes_and_seconds);

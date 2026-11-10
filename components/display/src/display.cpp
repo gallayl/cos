@@ -98,6 +98,7 @@ static lgfx::LGFX_Sprite &row_sprite()
 static bool initialized = false;
 static bool row_sprite_ready = false;
 static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
+static uint8_t s_text_size = 1;
 
 extern "C" esp_err_t display_init(void)
 {
@@ -250,6 +251,41 @@ extern "C" void display_set_text_font(uint8_t font_id)
     lcd().setTextFont(font_id);
 }
 
+extern "C" void display_set_text_size(uint8_t size)
+{
+    if (size < 1)
+    {
+        size = 1;
+    }
+    else if (size > 3)
+    {
+        size = 3;
+    }
+    if (size == s_text_size)
+    {
+        return;
+    }
+
+    s_text_size = size;
+    if (row_sprite_ready)
+    {
+        row_sprite().deleteSprite();
+        row_sprite_ready = false;
+    }
+}
+
+extern "C" void display_get_text_cell_size(int *width, int *height)
+{
+    if (width != nullptr)
+    {
+        *width = 6 * static_cast<int>(s_text_size);
+    }
+    if (height != nullptr)
+    {
+        *height = 8 * static_cast<int>(s_text_size);
+    }
+}
+
 extern "C" void display_start_write(void)
 {
     lcd().startWrite();
@@ -266,13 +302,13 @@ extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *
     {
         row_sprite().setColorDepth(16);
         row_sprite().setFont(&lgfx::fonts::Font0);
-        row_sprite().setTextSize(1);
-        int font_h = row_sprite().fontHeight();
+        row_sprite().setTextSize(s_text_size);
+        const int font_h = 8 * static_cast<int>(s_text_size);
         row_sprite().createSprite(lcd().width(), font_h);
         row_sprite_ready = true;
     }
 
-    int font_w = row_sprite().fontWidth();
+    const int font_w = 6 * static_cast<int>(s_text_size);
     row_sprite().fillSprite(bg);
     for (int i = 0; i < count; i++)
     {

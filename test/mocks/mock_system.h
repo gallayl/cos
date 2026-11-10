@@ -12,6 +12,12 @@ void mock_system_set_total_heap(size_t bytes);
 void mock_system_set_max_alloc(size_t bytes);
 void mock_system_set_flash_size(uint32_t bytes);
 
+/** Override internal-heap mock values (MALLOC_CAP_INTERNAL). Defaults mirror default-heap setters for compatibility. */
+void mock_system_set_internal_free_heap(uint32_t bytes);
+void mock_system_set_internal_min_free_heap(uint32_t bytes);
+void mock_system_set_internal_total_heap(size_t bytes);
+void mock_system_set_internal_max_alloc(size_t bytes);
+
 /** Set the mock value returned by esp_timer_get_time(). */
 void mock_system_set_uptime_us(int64_t us);
 

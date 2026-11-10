@@ -3,9 +3,27 @@
 
 #include "esp_log.h"
 
+#include <unistd.h>
+
 static const char *const TAG = "http_server";
 
 static httpd_handle_t s_server = NULL;
+static http_session_close_cb_t s_session_close_cb = NULL;
+
+void http_server_set_session_close_cb(http_session_close_cb_t cb)
+{
+    s_session_close_cb = cb;
+}
+
+static void on_session_close(httpd_handle_t hd, int sockfd)
+{
+    (void)hd;
+    if (s_session_close_cb != NULL)
+    {
+        s_session_close_cb(sockfd);
+    }
+    close(sockfd);
+}
 
 /* Forward declarations for sub-module registration */
 void http_static_init(void);
@@ -39,6 +57,10 @@ esp_err_t http_server_init(void)
     config.max_uri_handlers = 16;
     config.lru_purge_enable = true;
     config.stack_size = 8192;
+    /* Keep max_open_sockets within LWIP/httpd limits (IDF v6.1 reserves 3 internally).
+       Increasing it requires CONFIG_LWIP_MAX_SOCKETS; default 7 gives 4 client slots. */
+    config.max_open_sockets = 7;
+    config.close_fn = on_session_close;
 
     esp_err_t err = httpd_start(&s_server, &config);
     if (err != ESP_OK)

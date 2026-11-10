@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS "src/shell.c"
          "src/shell_alias.c"
+         "src/shell_script.c"
          "src/shell_input.c"
          "src/shell_completion.c"
          "src/shell_fs_cmds.c"
@@ -10,5 +11,5 @@ idf_component_register(
          "src/shell_berry_cmd.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES berry_lang filesystem network console esp_driver_uart freertos
+    REQUIRES berry_lang filesystem network console esp_driver_uart freertos system
 )

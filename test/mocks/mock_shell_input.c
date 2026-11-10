@@ -30,3 +30,17 @@ bool shell_input_is_reading_line(void)
 {
     return false;
 }
+
+esp_err_t shell_input_read_key(shell_line_input_callback_t callback, void *context)
+{
+    (void)callback;
+    (void)context;
+    return ESP_ERR_INVALID_STATE;
+}
+
+esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *context)
+{
+    (void)callback;
+    (void)context;
+    return ESP_ERR_INVALID_STATE;
+}

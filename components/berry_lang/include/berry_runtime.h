@@ -4,6 +4,9 @@
 #include "keyboard_event.h"
 
 #include <stdbool.h>
+#include <stddef.h>
+
+struct bvm;
 
 #ifdef __cplusplus
 extern "C"
@@ -14,6 +17,7 @@ extern "C"
     typedef esp_err_t (*berry_console_read_line_fn)(const char *prompt, berry_console_line_callback_t callback,
                                                     void *context);
     typedef esp_err_t (*berry_console_cancel_line_fn)(void *context);
+    typedef esp_err_t (*berry_console_read_key_fn)(berry_console_line_callback_t callback, void *context);
 
     /** Create the Berry virtual machine. Repeated calls are safe. */
     esp_err_t berry_runtime_init(void);
@@ -24,16 +28,29 @@ extern "C"
     /** Compile and execute Berry source code in the shared VM. */
     esp_err_t berry_runtime_eval(const char *source, const char *source_name);
 
-    /** Load and execute a Berry script from a COS virtual filesystem path. */
-    esp_err_t berry_runtime_run_file(const char *virtual_path);
+    /**
+     * Execute a Berry entrypoint script.
+     * Loads and executes the script's top-level code, then resolves its entrypoint:
+     *  - `__cos_entry` set to a UI app (class or instance with `setup`) is launched
+     *    via the UI lifecycle (close active app, hide console, construct if a class,
+     *    call setup, start UI). On success *exit_status is set to 0.
+     *  - `__cos_entry` set to a command app instance with `run(args)` is invoked as
+     *    `entry.run(args)` where args is a Berry list of command arguments (excluding
+     *    the script path). Execution is non-intrusive (no active UI app is closed).
+     *  - If `__cos_entry` is not set, a global `run(args)` function is invoked as
+     *    the command entrypoint.
+     *
+     * On ESP_OK, *exit_status receives the integer status returned by run(args)
+     * (nil -> 0). Missing/invalid entrypoint, missing/non-integer status, and runtime
+     * errors return a non-OK esp_err_t; callers should map execution failures to
+     * status 1.
+     */
+    esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
 
     /**
-     * Execute a Berry command script without changing UI app state.
-     * The script must define main(args), returning an integer shell status.
+     * Execute a Berry entrypoint script with no arguments.
+     * Prefer berry_runtime_run_file for new code.
      */
-    esp_err_t berry_runtime_exec_file(const char *virtual_path, int argc, char *const argv[], int *exit_status);
-
-    /** Load a class-based Berry UI app and invoke its setup method. */
     esp_err_t berry_runtime_open_app(const char *virtual_path);
 
     /** Invoke the current app's teardown method and release its UI resources. */
@@ -45,17 +62,59 @@ extern "C"
      */
     bool berry_runtime_handle_key_event(const keyboard_event_t *event);
 
-    /** Install the console input provider without coupling Berry to the shell. */
+    /** Install console line, key, and character input without coupling Berry to the shell. */
     void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                                  berry_console_cancel_line_fn cancel_line);
+                                                  berry_console_cancel_line_fn cancel_line,
+                                                  berry_console_read_key_fn read_key,
+                                                  berry_console_read_key_fn read_char);
 
     typedef struct
     {
         bool initialized;
         size_t gc_managed_bytes;
+        /** Berry GC step rate (be_gc_setsteprate value; Berry default is 200). 0 if unavailable. */
+        int gc_step_rate;
+        /** Free heap in default capability (MALLOC_CAP_DEFAULT), bytes. */
+        size_t heap_free;
+        /** Total heap size in default capability, bytes. */
+        size_t heap_total;
+        /** Largest free block in default heap (fragmentation indicator). */
+        size_t heap_largest_block;
+        /** Minimum free default-heap watermark since boot. */
+        size_t heap_min_free;
+        /** Free internal heap (MALLOC_CAP_INTERNAL), bytes. */
+        size_t internal_free;
+        /** Largest free internal heap block. */
+        size_t internal_largest_block;
+        /** Minimum free internal heap watermark since boot. */
+        size_t internal_min_free;
     } berry_runtime_memory_info_t;
 
     esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info);
+
+    /**
+     * Run Berry garbage collection and report managed bytes before/after.
+     * Out parameters may be NULL. Returns ESP_ERR_INVALID_STATE if the VM is not initialized.
+     */
+    esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes);
+
+    /**
+     * Set Berry GC step rate for experiments (Berry default 200; lower = more aggressive).
+     * Production default must remain unchanged unless measurements justify it (R5).
+     * Returns ESP_ERR_INVALID_STATE if the VM is not initialized, ESP_ERR_INVALID_ARG for invalid rate.
+     */
+    esp_err_t berry_runtime_set_gc_step_rate(int rate);
+
+    /**
+     * Launch a Berry UI app explicitly (R21). Called by ui.launch(app).
+     * `index` is the Berry stack index of a class (instantiated) or instance.
+     * Performs full UI lifecycle: closes active app, hides console, calls setup(0,w,h),
+     * starts UI. Returns ESP_OK on success.
+     */
+    esp_err_t berry_runtime_ui_launch(struct bvm *vm, int index);
+
+    /** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
+    bool berry_runtime_ensure_json(struct bvm *vm);
 
 #ifdef __cplusplus
 }

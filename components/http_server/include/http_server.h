@@ -39,6 +39,21 @@ extern "C"
     esp_err_t http_sanitize_upload_path(const char *raw, char *out_path, size_t len);
 
     /**
+     * @brief Decode a URL query value.
+     *
+     * Converts `%XX` escapes and `+` into spaces. The device filesystem API
+     * receives paths through query strings, which `httpd_query_key_value()`
+     * leaves encoded.
+     *
+     * @param src      Encoded query value.
+     * @param dst      Output buffer for the decoded value.
+     * @param dst_len  Size of the output buffer, including the terminator.
+     * @return ESP_OK on success, ESP_ERR_INVALID_ARG for a bad escape, or
+     *         ESP_ERR_INVALID_SIZE when the decoded value does not fit.
+     */
+    esp_err_t http_url_decode(const char *src, char *dst, size_t dst_len);
+
+    /**
      * @brief Get the MIME type for a file path based on its extension.
      * @param path  File path or name.
      * @return MIME type string (e.g. "text/html"). Never NULL.
@@ -81,6 +96,17 @@ extern "C"
      * of every protected endpoint handler.
      */
     esp_err_t http_auth_check(httpd_req_t *req);
+
+    /** @brief Callback invoked when the HTTP server closes a client session socket. */
+    typedef void (*http_session_close_cb_t)(int sockfd);
+
+    /**
+     * @brief Register a session-close callback.
+     *
+     * Used by components that maintain per-socket state (e.g. WebSocket).
+     * Pass NULL to clear. Must be set before or is effective for future closes.
+     */
+    void http_server_set_session_close_cb(http_session_close_cb_t cb);
 
 #ifdef __cplusplus
 }

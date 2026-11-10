@@ -27,6 +27,9 @@ static const char *const TAG = "text_console";
 
 static text_buffer_t s_buf;
 static SemaphoreHandle_t s_mutex;
+static uint8_t s_font_size = TEXT_CONSOLE_FONT_SIZE_MIN;
+static int s_cell_width = FONT_WIDTH;
+static int s_cell_height = FONT_HEIGHT;
 static TaskHandle_t s_render_task;
 static bool s_initialized = false;
 static bool s_screen_visible = true;
@@ -36,6 +39,9 @@ static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
 static text_console_log_level_t s_log_level = TEXT_CONSOLE_LOG_WARN;
+static text_console_output_listener_t s_output_listener = nullptr;
+static void *s_output_listener_context = nullptr;
+static TaskHandle_t s_output_listener_task = nullptr;
 
 static esp_log_level_t esp_log_level(text_console_log_level_t level)
 {
@@ -56,9 +62,9 @@ static bool valid_log_level(uint8_t level)
     return level <= TEXT_CONSOLE_LOG_INFO;
 }
 
-static void restore_log_level(void)
+extern "C" void text_console_apply_saved_log_level(void)
 {
-    s_log_level = TEXT_CONSOLE_LOG_WARN;
+    text_console_log_level_t level = TEXT_CONSOLE_LOG_WARN;
     nvs_handle_t handle;
     esp_err_t err = nvs_open(TEXT_CONSOLE_NVS_NAMESPACE, NVS_READONLY, &handle);
     if (err == ESP_OK)
@@ -70,7 +76,7 @@ static void restore_log_level(void)
         {
             if (valid_log_level(stored_level))
             {
-                s_log_level = static_cast<text_console_log_level_t>(stored_level);
+                level = static_cast<text_console_log_level_t>(stored_level);
             }
             else
             {
@@ -87,7 +93,13 @@ static void restore_log_level(void)
         ESP_LOGW(TAG, "Could not open console settings: %s", esp_err_to_name(err));
     }
 
-    esp_log_level_set("*", esp_log_level(s_log_level));
+    s_log_level = level;
+    esp_log_level_set("*", esp_log_level(level));
+}
+
+static void restore_log_level(void)
+{
+    text_console_apply_saved_log_level();
 }
 
 /* ── Rendering ─────────────────────────────────────────────── */
@@ -108,7 +120,7 @@ static void render_dirty(void)
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
-            display_draw_text_row(r * FONT_HEIGHT, chars, fg, s_buf.cols, BG_COLOR);
+            display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR);
             text_buffer_clear_row_dirty(&s_buf, r);
         }
         dirty &= dirty - 1;
@@ -131,9 +143,9 @@ static void handle_console_touch(void)
         }
 
         const int movement = y - s_touch_last_y + s_touch_remainder;
-        const int rows = movement / FONT_HEIGHT;
+        const int rows = movement / s_cell_height;
         s_touch_last_y = y;
-        s_touch_remainder = movement - rows * FONT_HEIGHT;
+        s_touch_remainder = movement - rows * s_cell_height;
         if (rows != 0)
         {
             (void)text_buffer_scroll_view(&s_buf, rows);
@@ -177,17 +189,42 @@ static void render_task(void *arg)
 
 /* ── stdout hook ───────────────────────────────────────────── */
 
+static void notify_output_listener(const char *buf, size_t size)
+{
+    if (s_output_listener == nullptr || buf == nullptr || size == 0)
+    {
+        return;
+    }
+
+    const TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    if (s_output_listener_task == self)
+    {
+        return;
+    }
+
+    const TaskHandle_t previous = s_output_listener_task;
+    s_output_listener_task = self;
+    s_output_listener(buf, size, s_output_listener_context);
+    s_output_listener_task = previous;
+}
+
 static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
 {
     (void)cookie;
 
-    /* Forward to original UART stdout */
+    /* Forward to original UART stdout. Do not use ESP_LOG in this hook:
+       it re-enters stdout and can recurse or deadlock (mutex/stdio) under pressure. */
+    if (s_original_stdout == NULL)
+    {
+        return (ssize_t)size;
+    }
     size_t written = fwrite(buf, 1, size, s_original_stdout);
     fflush(s_original_stdout);
+    notify_output_listener(buf, size);
 
     bool history_allocation_failed = false;
     bool should_notify_render = false;
-    if (s_initialized && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
         if (s_screen_visible)
         {
@@ -196,20 +233,132 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
             should_notify_render = true;
         }
         xSemaphoreGive(s_mutex);
-        if (should_notify_render)
+        if (should_notify_render && s_render_task != NULL)
         {
             xTaskNotifyGive(s_render_task);
         }
     }
     if (history_allocation_failed)
     {
-        ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
+        static const char msg[] =
+            "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+        fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+        fflush(s_original_stdout);
     }
 
     return (ssize_t)written;
 }
 
 /* ── Public API ────────────────────────────────────────────── */
+
+static void update_cell_metrics(void)
+{
+    int width = FONT_WIDTH;
+    int height = FONT_HEIGHT;
+    display_get_text_cell_size(&width, &height);
+    s_cell_width = width > 0 ? width : FONT_WIDTH;
+    s_cell_height = height > 0 ? height : FONT_HEIGHT;
+}
+
+static void console_grid_size(int *cols, int *rows)
+{
+    update_cell_metrics();
+    int width = display_get_width();
+    int height = display_get_height();
+    if (width < s_cell_width)
+    {
+        width = s_cell_width;
+    }
+    if (height < s_cell_height)
+    {
+        height = s_cell_height;
+    }
+    *cols = width / s_cell_width;
+    *rows = height / s_cell_height;
+}
+
+template <typename Operation> static esp_err_t with_console_buffer(Operation operation)
+{
+    if (!s_initialized || s_mutex == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    const esp_err_t err = operation();
+    const bool notify = s_screen_visible && text_buffer_has_dirty(&s_buf);
+    xSemaphoreGive(s_mutex);
+    if (notify && s_render_task != nullptr)
+    {
+        xTaskNotifyGive(s_render_task);
+    }
+    return err;
+}
+
+static bool foreground_for_color(text_console_color_t color, uint16_t *foreground)
+{
+    switch (color)
+    {
+    case TEXT_CONSOLE_COLOR_DEFAULT:
+    case TEXT_CONSOLE_COLOR_WHITE:
+        *foreground = TEXT_BUF_COLOR_WHITE;
+        return true;
+    case TEXT_CONSOLE_COLOR_BLACK:
+        *foreground = TEXT_BUF_COLOR_BLACK;
+        return true;
+    case TEXT_CONSOLE_COLOR_RED:
+        *foreground = TEXT_BUF_COLOR_RED;
+        return true;
+    case TEXT_CONSOLE_COLOR_GREEN:
+        *foreground = TEXT_BUF_COLOR_GREEN;
+        return true;
+    case TEXT_CONSOLE_COLOR_YELLOW:
+        *foreground = TEXT_BUF_COLOR_YELLOW;
+        return true;
+    case TEXT_CONSOLE_COLOR_BLUE:
+        *foreground = TEXT_BUF_COLOR_BLUE;
+        return true;
+    case TEXT_CONSOLE_COLOR_MAGENTA:
+        *foreground = TEXT_BUF_COLOR_MAGENTA;
+        return true;
+    case TEXT_CONSOLE_COLOR_CYAN:
+        *foreground = TEXT_BUF_COLOR_CYAN;
+        return true;
+    case TEXT_CONSOLE_COLOR_CURRENT:
+    default:
+        return false;
+    }
+}
+
+static esp_err_t prepare_text_color(const char *text, text_console_color_t color, size_t *length, uint16_t *foreground,
+                                    bool *apply_color)
+{
+    if (text == nullptr || length == nullptr || foreground == nullptr || apply_color == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const size_t text_length = strlen(text);
+    if (text_length > TEXT_CONSOLE_WRITE_MAX)
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    *length = text_length;
+    if (color == TEXT_CONSOLE_COLOR_CURRENT)
+    {
+        *apply_color = false;
+        return ESP_OK;
+    }
+    if (!foreground_for_color(color, foreground))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    *apply_color = true;
+    return ESP_OK;
+}
 
 extern "C" esp_err_t text_console_init(void)
 {
@@ -226,12 +375,15 @@ extern "C" esp_err_t text_console_init(void)
         return ESP_ERR_NO_MEM;
     }
 
+    s_font_size = TEXT_CONSOLE_FONT_SIZE_MIN;
     display_set_text_font(FONT_ID);
+    display_set_text_size(s_font_size);
     s_screen_visible = true;
     restore_log_level();
 
-    int cols = display_get_width() / FONT_WIDTH;
-    int rows = display_get_height() / FONT_HEIGHT;
+    int cols = 0;
+    int rows = 0;
+    console_grid_size(&cols, &rows);
     text_buffer_init(&s_buf, cols, rows);
 
     display_fill_screen(BG_COLOR);
@@ -318,6 +470,8 @@ extern "C" void text_console_deinit(void)
     }
 
     s_initialized = false;
+    s_output_listener = nullptr;
+    s_output_listener_context = nullptr;
 
     /* Restore stdout */
     if (stdout != s_original_stdout)
@@ -352,7 +506,7 @@ extern "C" void text_console_write(const char *data, size_t len)
         return;
     }
 
-    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         const bool screen_visible = s_screen_visible;
         if (screen_visible)
@@ -361,13 +515,17 @@ extern "C" void text_console_write(const char *data, size_t len)
         }
         const bool history_allocation_failed = screen_visible && text_buffer_take_scrollback_allocation_failure(&s_buf);
         xSemaphoreGive(s_mutex);
-        if (screen_visible)
+        if (screen_visible && s_render_task != NULL)
         {
             xTaskNotifyGive(s_render_task);
         }
-        if (history_allocation_failed)
+        if (history_allocation_failed && s_original_stdout != NULL)
         {
-            ESP_LOGW(TAG, "Scrollback allocation failed; continuing without history until the console is cleared");
+            /* Avoid ESP_LOG here: it re-enters stdout hook and can recurse if buffer writes keep failing. */
+            static const char msg[] =
+                "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+            fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+            fflush(s_original_stdout);
         }
     }
 }
@@ -452,6 +610,12 @@ extern "C" void text_console_clear(void)
     }
 }
 
+extern "C" void text_console_set_output_listener(text_console_output_listener_t listener, void *context)
+{
+    s_output_listener = listener;
+    s_output_listener_context = context;
+}
+
 extern "C" void text_console_resize(void)
 {
     if (!s_initialized)
@@ -459,8 +623,9 @@ extern "C" void text_console_resize(void)
         return;
     }
 
-    int cols = display_get_width() / FONT_WIDTH;
-    int rows = display_get_height() / FONT_HEIGHT;
+    int cols = 0;
+    int rows = 0;
+    console_grid_size(&cols, &rows);
 
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
@@ -471,4 +636,144 @@ extern "C" void text_console_resize(void)
     }
 
     ESP_LOGI(TAG, "Console resized to %dx%d chars", cols, rows);
+}
+
+extern "C" esp_err_t text_console_get_size(int *cols, int *rows)
+{
+    if (cols == nullptr || rows == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return with_console_buffer(
+        [cols, rows]()
+        {
+            *cols = s_buf.cols;
+            *rows = s_buf.rows;
+            return ESP_OK;
+        });
+}
+
+extern "C" esp_err_t text_console_get_cursor(int *x, int *y)
+{
+    if (x == nullptr || y == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return with_console_buffer(
+        [x, y]()
+        {
+            *x = s_buf.cursor_col;
+            *y = s_buf.cursor_row;
+            return ESP_OK;
+        });
+}
+
+extern "C" esp_err_t text_console_set_cursor(int x, int y)
+{
+    return with_console_buffer([x, y]()
+                               { return text_buffer_set_cursor(&s_buf, x, y) ? ESP_OK : ESP_ERR_INVALID_ARG; });
+}
+
+extern "C" esp_err_t text_console_write_text(const char *text, text_console_color_t color)
+{
+    size_t length = 0;
+    uint16_t foreground = TEXT_BUF_DEFAULT_FG;
+    bool apply_color = false;
+    const esp_err_t err = prepare_text_color(text, color, &length, &foreground, &apply_color);
+    if (err != ESP_OK || length == 0)
+    {
+        return err;
+    }
+
+    return with_console_buffer(
+        [text, length, foreground, apply_color]()
+        {
+            const uint16_t saved = s_buf.current_fg;
+            if (apply_color)
+            {
+                s_buf.current_fg = foreground;
+            }
+            text_buffer_write(&s_buf, text, length);
+            s_buf.current_fg = saved;
+            return ESP_OK;
+        });
+}
+
+extern "C" esp_err_t text_console_write_at(int x, int y, const char *text, text_console_color_t color)
+{
+    size_t length = 0;
+    uint16_t foreground = TEXT_BUF_DEFAULT_FG;
+    bool apply_color = false;
+    const esp_err_t err = prepare_text_color(text, color, &length, &foreground, &apply_color);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    return with_console_buffer(
+        [x, y, text, length, foreground, apply_color]()
+        {
+            if (!text_buffer_set_cursor(&s_buf, x, y))
+            {
+                return ESP_ERR_INVALID_ARG;
+            }
+            const uint16_t saved = s_buf.current_fg;
+            if (apply_color)
+            {
+                s_buf.current_fg = foreground;
+            }
+            text_buffer_write_clipped(&s_buf, text, length);
+            s_buf.current_fg = saved;
+            return ESP_OK;
+        });
+}
+
+extern "C" esp_err_t text_console_set_font_size(uint8_t size)
+{
+    if (size < TEXT_CONSOLE_FONT_SIZE_MIN || size > TEXT_CONSOLE_FONT_SIZE_MAX)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!s_initialized || s_mutex == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    if (size != s_font_size)
+    {
+        s_font_size = size;
+        display_set_text_size(s_font_size);
+        int cols = 0;
+        int rows = 0;
+        console_grid_size(&cols, &rows);
+        text_buffer_resize(&s_buf, cols, rows);
+        if (s_screen_visible)
+        {
+            display_fill_screen(BG_COLOR);
+        }
+    }
+    xSemaphoreGive(s_mutex);
+    if (s_screen_visible && s_render_task != nullptr)
+    {
+        xTaskNotifyGive(s_render_task);
+    }
+    return ESP_OK;
+}
+
+extern "C" esp_err_t text_console_get_font_size(uint8_t *size)
+{
+    if (size == nullptr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!s_initialized)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    *size = s_font_size;
+    return ESP_OK;
 }

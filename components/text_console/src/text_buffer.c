@@ -162,6 +162,11 @@ static void put_char(text_buffer_t *buf, char ch)
 {
     resolve_pending_wrap(buf);
 
+    if (buf->cursor_row < 0 || buf->cursor_row >= buf->rows || buf->cursor_col < 0 || buf->cursor_col >= buf->cols)
+    {
+        return;
+    }
+
     text_cell_t *cell = &buf->cells[buf->cursor_row][buf->cursor_col];
     cell->ch = ch;
     cell->fg = buf->current_fg;
@@ -287,10 +292,23 @@ static void dispatch_csi(text_buffer_t *buf, char final_byte)
         buf->cursor_col = clamp(buf->cursor_col - n, 0, buf->cols - 1);
         break;
     }
-    case 'H': /* CUP - cursor home */
-        buf->cursor_row = 0;
-        buf->cursor_col = 0;
+    case 'H': /* CUP - cursor position, 1-based; omitted or zero parameters mean 1 */
+    case 'f':
+    {
+        int row = 1;
+        int col = 1;
+        if (buf->csi_param_count >= 1 && buf->csi_params[0] > 0)
+        {
+            row = buf->csi_params[0];
+        }
+        if (buf->csi_param_count >= 2 && buf->csi_params[1] > 0)
+        {
+            col = buf->csi_params[1];
+        }
+        buf->cursor_row = clamp(row - 1, 0, buf->rows - 1);
+        buf->cursor_col = clamp(col - 1, 0, buf->cols - 1);
         break;
+    }
     case 'J': /* ED - erase in display */
         if (p0 == 2)
         {
@@ -425,6 +443,41 @@ void text_buffer_write(text_buffer_t *buf, const char *data, size_t len)
     for (size_t i = 0; i < len; i++)
     {
         process_byte(buf, data[i]);
+    }
+}
+
+bool text_buffer_set_cursor(text_buffer_t *buf, int col, int row)
+{
+    if (buf == NULL || col < 0 || row < 0 || col >= buf->cols || row >= buf->rows)
+    {
+        return false;
+    }
+
+    buf->cursor_col = col;
+    buf->cursor_row = row;
+    buf->pending_wrap = false;
+    return true;
+}
+
+void text_buffer_write_clipped(text_buffer_t *buf, const char *data, size_t len)
+{
+    if (buf == NULL || data == NULL)
+    {
+        return;
+    }
+
+    for (size_t i = 0; i < len; i++)
+    {
+        if (buf->pending_wrap)
+        {
+            return;
+        }
+        const unsigned char ch = (unsigned char)data[i];
+        if (ch < 0x20 || ch >= 0x7F)
+        {
+            continue;
+        }
+        put_char(buf, (char)ch);
     }
 }
 

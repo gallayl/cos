@@ -126,8 +126,24 @@ static esp_err_t handler_upload(httpd_req_t *req)
 
     if (ret != ESP_OK)
     {
+        const char *name = esp_err_to_name(ret);
+        ESP_LOGW(TAG, "Upload parse error: %s", name);
         httpd_resp_set_status(req, "500 Internal Server Error");
-        return httpd_resp_send(req, "{\"error\":\"Upload failed\"}", HTTPD_RESP_USE_STRLEN);
+        if (ret == ESP_ERR_NO_MEM)
+        {
+            return httpd_resp_send(req, "{\"error\":\"Upload failed: out of memory\"}", HTTPD_RESP_USE_STRLEN);
+        }
+        if (ret == ESP_ERR_INVALID_ARG)
+        {
+            return httpd_resp_send(req, "{\"error\":\"Upload failed: invalid request\"}", HTTPD_RESP_USE_STRLEN);
+        }
+        if (ret == ESP_ERR_INVALID_STATE)
+        {
+            return httpd_resp_send(req, "{\"error\":\"Upload failed: incomplete request\"}", HTTPD_RESP_USE_STRLEN);
+        }
+        char resp[96];
+        snprintf(resp, sizeof(resp), "{\"error\":\"Upload failed: %s\"}", name);
+        return httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     }
 
     return httpd_resp_send(req, "{\"status\":\"ok\"}", HTTPD_RESP_USE_STRLEN);

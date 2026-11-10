@@ -2,6 +2,7 @@
 #include "shell.h"
 #include "shell_alias.h"
 #include "shell_completion.h"
+#include "shell_script.h"
 
 #include "driver/uart.h"
 #include "driver/uart_vfs.h"
@@ -13,6 +14,7 @@
 
 #include <stdatomic.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *const TAG = "shell_input";
@@ -58,6 +60,7 @@ typedef enum
     ST_NORMAL,
     ST_ESC,
     ST_CSI,
+    ST_SS3,
 } input_state_t;
 
 static input_state_t s_parse_state;
@@ -73,6 +76,22 @@ typedef struct
 
 static line_input_request_t s_line_input;
 static input_state_t s_line_escape_state;
+
+typedef struct
+{
+    bool active;
+    bool character_only;
+    shell_line_input_callback_t callback;
+    void *context;
+    input_state_t escape_state;
+    int csi_param;
+    bool csi_param_any;
+    bool csi_skip_param;
+} key_input_request_t;
+
+static key_input_request_t s_key_input;
+
+#define KEY_SEQUENCE_TIMEOUT_MS 50
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -264,25 +283,27 @@ static void execute_line(void)
         esp_err_t err = shell_alias_expand(s_line, expanded_line, sizeof(expanded_line));
         if (err == ESP_OK)
         {
-            err = esp_console_run(expanded_line, &ret);
+            err = shell_dispatch_expanded_line(expanded_line, &ret);
         }
         else if (err == ESP_ERR_INVALID_SIZE)
         {
             printf("Alias expansion exceeds the command-line limit\n");
             err = ESP_OK;
         }
+
         if (err == ESP_ERR_NOT_FOUND)
         {
             printf("Unknown command: %s\n", s_line);
         }
         else if (err == ESP_ERR_INVALID_ARG)
         {
-            /* Empty or whitespace-only */
+            /* Empty or whitespace-only, or alias expansion issue already handled */
         }
         else if (err != ESP_OK)
         {
-            printf("Error: %s\n", esp_err_to_name(err));
+            /* Dispatch infrastructure errors (for example NO_MEM). */
         }
+        (void)ret;
     }
 
     s_line_pos = 0;
@@ -359,6 +380,280 @@ static void handle_normal_char(uint8_t ch)
     }
 }
 
+static void finish_key_input(esp_err_t result, const char *key)
+{
+    shell_line_input_callback_t callback = s_key_input.callback;
+    void *context = s_key_input.context;
+    char stored[16];
+    const char *delivered = NULL;
+
+    if (result == ESP_OK && key != NULL)
+    {
+        size_t index = 0;
+        while (key[index] != '\0' && index + 1 < sizeof(stored))
+        {
+            stored[index] = key[index];
+            index++;
+        }
+        stored[index] = '\0';
+        delivered = stored;
+    }
+
+    memset(&s_key_input, 0, sizeof(s_key_input));
+    atomic_store(&s_line_input_owned, s_line_input.active);
+    atomic_store(&s_line_input_owner, s_line_input.active ? s_line_input.context : NULL);
+
+    if (callback != NULL)
+    {
+        callback(result, delivered, context);
+    }
+}
+
+static void deliver_key_name(const char *name)
+{
+    if (!s_key_input.active || name == NULL || name[0] == '\0')
+    {
+        return;
+    }
+    if (s_key_input.character_only && (name[1] != '\0' || (unsigned char)name[0] < 0x20))
+    {
+        return;
+    }
+    finish_key_input(ESP_OK, name);
+}
+
+static const char *csi_key_name(int param, char final_byte)
+{
+    switch (final_byte)
+    {
+    case 'A':
+        return "up";
+    case 'B':
+        return "down";
+    case 'C':
+        return "right";
+    case 'D':
+        return "left";
+    case 'H':
+        return "home";
+    case 'F':
+        return "end";
+    case '~':
+        switch (param)
+        {
+        case 1:
+        case 7:
+            return "home";
+        case 2:
+            return "insert";
+        case 3:
+            return "delete";
+        case 4:
+        case 8:
+            return "end";
+        case 5:
+            return "pageup";
+        case 6:
+            return "pagedown";
+        case 11:
+            return "f1";
+        case 12:
+            return "f2";
+        case 13:
+            return "f3";
+        case 14:
+            return "f4";
+        case 15:
+            return "f5";
+        case 17:
+            return "f6";
+        case 18:
+            return "f7";
+        case 19:
+            return "f8";
+        case 20:
+            return "f9";
+        case 21:
+            return "f10";
+        case 23:
+            return "f11";
+        case 24:
+            return "f12";
+        default:
+            return NULL;
+        }
+    default:
+        return NULL;
+    }
+}
+
+static const char *ss3_key_name(char final_byte)
+{
+    switch (final_byte)
+    {
+    case 'A':
+        return "up";
+    case 'B':
+        return "down";
+    case 'C':
+        return "right";
+    case 'D':
+        return "left";
+    case 'H':
+        return "home";
+    case 'F':
+        return "end";
+    case 'P':
+        return "f1";
+    case 'Q':
+        return "f2";
+    case 'R':
+        return "f3";
+    case 'S':
+        return "f4";
+    default:
+        return NULL;
+    }
+}
+
+static void reset_key_sequence(void)
+{
+    s_key_input.escape_state = ST_NORMAL;
+    s_key_input.csi_param = 0;
+    s_key_input.csi_param_any = false;
+    s_key_input.csi_skip_param = false;
+}
+
+static void expire_pending_key_sequence(void)
+{
+    if (!s_key_input.active || s_key_input.escape_state == ST_NORMAL)
+    {
+        return;
+    }
+
+    reset_key_sequence();
+    if (!s_key_input.character_only)
+    {
+        finish_key_input(ESP_OK, "escape");
+    }
+}
+
+static bool key_sequence_is_pending(void)
+{
+    return s_key_input.active && s_key_input.escape_state != ST_NORMAL;
+}
+
+static void process_byte(uint8_t ch);
+static void process_key_byte(uint8_t ch);
+
+static void reprocess_after_escape(uint8_t ch)
+{
+    if (s_key_input.active)
+    {
+        process_key_byte(ch);
+        return;
+    }
+    process_byte(ch);
+}
+
+static void process_key_byte(uint8_t ch)
+{
+    if (!s_key_input.active)
+    {
+        return;
+    }
+    if (ch == 0x03)
+    {
+        finish_key_input(ESP_ERR_INVALID_STATE, NULL);
+        return;
+    }
+
+    if (s_key_input.escape_state == ST_ESC)
+    {
+        if (ch == '[')
+        {
+            s_key_input.escape_state = ST_CSI;
+            s_key_input.csi_param = 0;
+            s_key_input.csi_param_any = false;
+            s_key_input.csi_skip_param = false;
+            return;
+        }
+        if (ch == 'O')
+        {
+            s_key_input.escape_state = ST_SS3;
+            return;
+        }
+
+        reset_key_sequence();
+        if (!s_key_input.character_only)
+        {
+            finish_key_input(ESP_OK, "escape");
+        }
+        reprocess_after_escape(ch);
+        return;
+    }
+
+    if (s_key_input.escape_state == ST_SS3)
+    {
+        reset_key_sequence();
+        deliver_key_name(ss3_key_name((char)ch));
+        return;
+    }
+
+    if (s_key_input.escape_state == ST_CSI)
+    {
+        if (ch >= '0' && ch <= '9')
+        {
+            if (!s_key_input.csi_skip_param && s_key_input.csi_param < 1000)
+            {
+                s_key_input.csi_param = s_key_input.csi_param * 10 + (ch - '0');
+                s_key_input.csi_param_any = true;
+            }
+            return;
+        }
+        if (ch == ';')
+        {
+            s_key_input.csi_skip_param = true;
+            return;
+        }
+        if (ch >= 0x40 && ch <= 0x7E)
+        {
+            const int param = s_key_input.csi_param_any ? s_key_input.csi_param : 0;
+            reset_key_sequence();
+            deliver_key_name(csi_key_name(param, (char)ch));
+            return;
+        }
+        reset_key_sequence();
+        return;
+    }
+
+    if (ch == 0x1B)
+    {
+        s_key_input.escape_state = ST_ESC;
+        return;
+    }
+    if (ch == '\n' || ch == '\r')
+    {
+        deliver_key_name("enter");
+        return;
+    }
+    if (ch == '\b' || ch == 0x7F)
+    {
+        deliver_key_name("backspace");
+        return;
+    }
+    if (ch == '\t')
+    {
+        deliver_key_name("tab");
+        return;
+    }
+    if (ch >= 0x20 && ch < 0x7F)
+    {
+        const char text[2] = {(char)ch, '\0'};
+        deliver_key_name(text);
+    }
+}
+
 static void process_byte(uint8_t ch)
 {
     if (s_ignore_lf)
@@ -385,10 +680,20 @@ static void process_byte(uint8_t ch)
 
     if (ch == INPUT_CANCEL_REQUEST)
     {
-        if (s_line_input.active)
+        if (s_key_input.active)
+        {
+            finish_key_input(ESP_ERR_INVALID_STATE, NULL);
+        }
+        else if (s_line_input.active)
         {
             finish_line_input(ESP_ERR_INVALID_STATE);
         }
+        return;
+    }
+
+    if (s_key_input.active)
+    {
+        process_key_byte(ch);
         return;
     }
 
@@ -428,6 +733,10 @@ static void process_byte(uint8_t ch)
             history_next();
         }
         break;
+
+    case ST_SS3:
+        s_parse_state = ST_NORMAL;
+        break;
     }
 }
 
@@ -464,7 +773,13 @@ static void input_task(void *arg)
     uint8_t buf[32];
     for (;;)
     {
-        size_t n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), portMAX_DELAY);
+        const TickType_t wait = key_sequence_is_pending() ? pdMS_TO_TICKS(KEY_SEQUENCE_TIMEOUT_MS) : portMAX_DELAY;
+        size_t n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), wait);
+        if (n == 0)
+        {
+            expire_pending_key_sequence();
+            continue;
+        }
         process_input_buffer(buf, n);
         if (s_ignore_prompt_eol)
         {
@@ -504,7 +819,7 @@ esp_err_t shell_input_read_line(const char *prompt, shell_line_input_callback_t 
     {
         return ESP_ERR_INVALID_STATE;
     }
-    if (s_line_input.active)
+    if (s_line_input.active || s_key_input.active)
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -543,6 +858,46 @@ esp_err_t shell_input_cancel_line(void *context)
 bool shell_input_is_reading_line(void)
 {
     return atomic_load(&s_line_input_owned);
+}
+
+static esp_err_t begin_key_input(bool character_only, shell_line_input_callback_t callback, void *context)
+{
+    if (callback == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_input_stream == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_input_task != NULL && xTaskGetCurrentTaskHandle() != s_input_task)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_line_input.active || s_key_input.active)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    memset(&s_key_input, 0, sizeof(s_key_input));
+    s_key_input.active = true;
+    s_key_input.character_only = character_only;
+    s_key_input.callback = callback;
+    s_key_input.context = context;
+    s_key_input.escape_state = ST_NORMAL;
+    atomic_store(&s_line_input_owned, true);
+    atomic_store(&s_line_input_owner, context);
+    return ESP_OK;
+}
+
+esp_err_t shell_input_read_key(shell_line_input_callback_t callback, void *context)
+{
+    return begin_key_input(false, callback, context);
+}
+
+esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *context)
+{
+    return begin_key_input(true, callback, context);
 }
 
 esp_err_t shell_input_init(void)

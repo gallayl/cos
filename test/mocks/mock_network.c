@@ -72,3 +72,16 @@ esp_err_t network_resolve(const char *host, uint32_t timeout_ms, network_ping_re
     }
     return s_resolve_error;
 }
+
+esp_err_t network_http_get_worker_stack_info(network_http_worker_stack_info_t *info)
+{
+    if (info == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memset(info, 0, sizeof(*info));
+    info->available = false;
+    info->configured_stack = 12288;
+    info->stack_unit_bytes = 1;
+    return ESP_OK;
+}

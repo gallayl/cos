@@ -18,6 +18,8 @@ typedef struct
 esp_err_t esp_console_cmd_register(const esp_console_cmd_t *cmd);
 esp_err_t esp_console_register_help_command(void);
 void esp_console_get_completion(const char *buf, linenoiseCompletions *completions);
+size_t esp_console_split_argv(char *line, char **argv, size_t argv_size);
+esp_err_t esp_console_run(const char *cmdline, int *cmd_ret);
 
 /* Console init stubs */
 
@@ -36,12 +38,5 @@ typedef struct
 static inline esp_err_t esp_console_init(const esp_console_config_t *config)
 {
     (void)config;
-    return ESP_OK;
-}
-
-static inline esp_err_t esp_console_run(const char *cmdline, int *cmd_ret)
-{
-    (void)cmdline;
-    (void)cmd_ret;
     return ESP_OK;
 }

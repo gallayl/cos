@@ -42,6 +42,23 @@ CONFIG_LOG_COLORS=y
 # HTTP server WebSocket support
 CONFIG_HTTPD_WS_SUPPORT=y
 
+# HTTPS client used by net.fetch (memory-constrained ESP32).
+# Keep certificate verification enabled (bundle attached in network_http.c).
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+# Reduce fixed TLS I/O buffers: default 16KB in / 4KB out caused
+# mbedtls_ssl_setup alloc failures (MBEDTLS_ERR_SSL_ALLOC_FAILED, -0x008D)
+# on ~18KB free-heap boots. 4KB/4KB is a compatibility/memory tradeoff;
+# variable buffer + max fragment length let negotiated buffers shrink.
+CONFIG_MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH=y
+CONFIG_MBEDTLS_SSL_MAX_FRAGMENT_LENGTH=y
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=4096
+CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
+# Prefer dynamic TLS buffers where supported by ESP-IDF/mbedTLS config.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+
 # Partition table (custom: factory + LittleFS)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
