@@ -2062,7 +2062,6 @@ static int native_cos_lazy_member(bvm *vm)
     // Stack: [..., real_module]
     be_pushvalue(vm, -1);
     be_setglobal(vm, module_name);
-    be_pop(vm, 1);
 
     if (!be_getmember(vm, -1, attr))
     {
