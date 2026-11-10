@@ -162,6 +162,11 @@ static void put_char(text_buffer_t *buf, char ch)
 {
     resolve_pending_wrap(buf);
 
+    if (buf->cursor_row < 0 || buf->cursor_row >= buf->rows || buf->cursor_col < 0 || buf->cursor_col >= buf->cols)
+    {
+        return;
+    }
+
     text_cell_t *cell = &buf->cells[buf->cursor_row][buf->cursor_col];
     cell->ch = ch;
     cell->fg = buf->current_fg;
