@@ -71,7 +71,9 @@ function parameterListWithSpansInternal(
         offset += part.length
       } else {
         const emitted = emitExpressionWithSpans(ctx, parameter.initializer)
-        spans.push(...emitted.spans.map((s) => (s.line === 0 ? { ...s, column: s.column + exprOffsetInList } : { ...s })))
+        spans.push(
+          ...emitted.spans.map((s) => (s.line === 0 ? { ...s, column: s.column + exprOffsetInList } : { ...s })),
+        )
         const part = `${prefix}${emitted.text}`
         parts.push(part)
         offset += part.length

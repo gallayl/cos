@@ -32,10 +32,7 @@ export function mapBerryLineToSource(
 }
 
 /** Format a mapped location for diagnostics/UI labels. */
-export function formatMappedSource(
-  metadata: BerryCompileMetadata | undefined,
-  berryLine: number,
-): string | undefined {
+export function formatMappedSource(metadata: BerryCompileMetadata | undefined, berryLine: number): string | undefined {
   const mapped = mapBerryLineToSource(metadata, berryLine)
   if (!mapped) return undefined
   const file = metadata?.sourceFileName ? `${metadata.sourceFileName}:` : ''
@@ -65,10 +62,7 @@ function extractBerryLine(line: string): number | undefined {
  * Annotate Berry/runtime/compiler error text with mapped TypeScript locations when metadata is available.
  * This is a best-effort foundation for runtime-error UX; it does not modify lines without a detectable Berry line.
  */
-export function annotateBerryErrorText(
-  text: string,
-  metadata: BerryCompileMetadata | undefined,
-): string {
+export function annotateBerryErrorText(text: string, metadata: BerryCompileMetadata | undefined): string {
   if (!metadata?.mappings?.length) return text
   return text
     .split('\n')

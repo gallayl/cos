@@ -191,7 +191,16 @@ class GenerationSession implements GenerationContext {
     const buffer = this.captureMappingBuffers[this.captureMappingBuffers.length - 1]
     if (buffer) {
       // Fragment-relative mapping; dedupe within fragment buffer.
-      if (buffer.some((m) => m.generated.line === generated.line && m.generated.column === generated.column && m.source.line === source.line && m.source.column === source.column)) return
+      if (
+        buffer.some(
+          (m) =>
+            m.generated.line === generated.line &&
+            m.generated.column === generated.column &&
+            m.source.line === source.line &&
+            m.source.column === source.column,
+        )
+      )
+        return
       buffer.push({ ...entry, __node: node })
       return
     }

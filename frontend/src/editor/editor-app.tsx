@@ -20,6 +20,7 @@ import { fetchReferencedWorkspaceTypes } from '../ide/import-resolution'
 import { registerWorkspaceTypeScriptFile } from '../ide/typescript-workspace'
 import { BerryErrorAnnotator } from './berry-error-annotator'
 import { CompileOutput } from './compile-output'
+import { RuntimeMemoryDiagnostics } from './runtime-memory-diagnostics'
 import { DeviceAccess } from './device-access'
 import {
   berryPlan,
@@ -393,6 +394,7 @@ export const EditorApp = Shade({
             />
             {output ? <CompileOutput text={output} /> : null}
             {document.language === 'typescript' ? <BerryErrorAnnotator metadata={lastCompileMetadata} /> : null}
+            <RuntimeMemoryDiagnostics />
           </div>
         </div>
         <EditorStatusBar

@@ -1,8 +1,8 @@
 # R14 - Compiler Profiles, Debug Metadata, Source Maps, Editor Diagnostics (Slice 1)
 
 **Date:** 2026-11-10  
-**Status:** In progress (slice 1 implemented; frontend/compiler-only, no firmware/runtime changes)  
-**Scope:** `docs/plan/consolidated-improvement-plan.md` R14 — Compiler profiles, debug metadata, source maps, editor diagnostics (M9, P2)
+**Status:** Complete (implementation, documentation, and user-reported hardware validation passed 2026-11-10)  
+**Scope:** `docs/plan/consolidated-improvement-plan.md` R14 — Compiler profiles, debug metadata, source maps, editor/console diagnostics, runtime memory diagnostics (M9, P2)
 
 ## Goals for this slice
 
@@ -55,16 +55,20 @@ Current mapping granularity is **statement + construct + control-flow + key-expr
 
 ### Editor diagnostics (incremental)
 
-- `frontend/src/editor/editor-document.ts`
-  - Added `formatCompileSummary(result)` showing compile status, profile, and mapping count.
-- `frontend/src/editor/editor-app.tsx`
-  - Compile and live diagnostics use explicit `DEFAULT_COMPILE_PROFILE = 'dev'`.
-  - Successful compile status now includes profile/mapping summary (e.g. `Compiled · profile: dev · mappings: N`); failed compile status includes error count/profile/mapping summary.
+- frontend/src/editor/editor-document.ts
+  - Added formatCompileSummary(result) showing compile status, profile, and mapping count.
+- frontend/src/editor/editor-app.tsx
+  - Compile and live diagnostics use explicit DEFAULT_COMPILE_PROFILE = 'dev'.
+  - Successful compile status now includes profile/mapping summary; failed compile status includes error count/profile/mapping summary.
   - Stores latest compile metadata (including live TypeScript diagnostics compiles) for mapping-assisted tooling; metadata is cleared when replacing/resetting the document.
   - Existing Monaco marker flow for Berry diagnostics remains unchanged (TS locations reported by compiler diagnostics).
-- `frontend/src/editor/berry-error-annotator.tsx` (new)
-  - TypeScript editor panel: paste Berry/runtime/compiler error text and annotate line references to TS locations using latest dev compile metadata via `annotateBerryErrorText`.
-  - Disabled with guidance when no mappings are available (e.g. before compile or prod/no-mapping metadata). Provides immediate UX value without requiring device/runtime output integration.
+- frontend/src/editor/berry-error-annotator.tsx (new)
+  - TypeScript editor panel: paste Berry/runtime/compiler error text and annotate line references to TS locations using latest dev compile metadata via nnotateBerryErrorText.
+  - Disabled with guidance when no mappings are available (e.g. before compile or prod/no-mapping metadata).
+- frontend/src/editor/runtime-memory-diagnostics.tsx (new), integrated in editor UI
+  - **Confirmed frontend-accessible runtime metrics API:** GET /api/heap with HTTP Basic auth, 	ext/plain response body containing free heap bytes as an unsigned integer (e.g. 123456). Endpoint exists in firmware (components/http_server/src/http_api.c) and is also used as a console auth probe.
+  - UI fetches and displays free heap (formatted + raw), last-updated timestamp, and status; supports manual refresh and auto-refresh polling (5s) with auth/unreachable/error handling via DeviceAccess.
+  - Current scope is free-heap diagnostics only (richer metrics would require additional firmware API/UI work).
 
 ### Tests
 
@@ -85,11 +89,15 @@ Frontend-only validation:
 
 No hardware validation required (compiler/editor-only). Firmware/runtime `BE_DEBUG_RUNTIME_INFO`/production-debug behavior remains a documented follow-up/design consideration.
 
-## Follow-ups (R14 remaining)
+## Hardware validation (completed, user-reported 2026-11-10)
 
-- [ ] Refine compiler profiles with measured/dev-prod behavior decisions (e.g. comment/debug artifact policy if introduced later) while preserving semantics.
-- [~] Improve mapping granularity further: **span-aware expression emitter/mapping propagation prototype (1a) implemented** for nested subexpressions in key statement forms; continue refining coverage/fidelity (all emission contexts, dedupe/source-position nuances, mapping volume/perf tradeoffs) and harden automatic runtime/Berry/device error mapping for real device output formats.
-- [~] Wire annotated Berry/runtime/device error mapping to live runtime output when frontend receives it: **shared compile-metadata context (`BerryCompileContext`) + console transcript/pending auto-annotation implemented**; editor manual paste/annotate UX also available. Automatic usefulness depends on runtime output containing Berry line references and matching latest dev compile mappings.
-- [~] Evaluate firmware/debug-runtime implications (`BE_DEBUG_RUNTIME_INFO`, production profiles, artifact size/startup): **evaluation/measurement plan documented** (`docs/reports/2026-11-10-r14-prod-profile-debug-runtime-evaluation.md`); no firmware config changes or hardware measurements performed yet.
-- [ ] Editor memory diagnostics surfaced from runtime metrics: requires a defined frontend-accessible runtime metrics data source/API and UI integration (not implemented; `/api/heap` probe exists for console auth but response contract/UI are not established in editor).
-- [ ] Update/add consolidated plan progress evidence and finalize R14 status when remaining acceptance criteria are met.
+- **Guide:** `docs/reports/2026-11-10-r14-hardware-validation-guide.md`
+- **Helper script:** `scripts/r14-hardware-validation.ps1`
+- **Results:** `docs/reports/2026-11-10-r14-hardware-results.md`
+- **Outcome:** User confirmed all R14 hardware validation passed (Parts A/B/C executed per guide/checklist). No firmware config changes were adopted as part of this closure based on the reported outcome.
+
+## Follow-ups (post-R14, optional/as-needed)
+
+- [ ] Capture and archive detailed hardware artifacts/results (logs, raw device error strings, size/heap measurements, decisions) in the results report if available for future reference.
+- [ ] Improve mapping granularity/robustness further if new real-world samples reveal edge cases (embedded/multiline formatting, mapping-volume/source-specificity tradeoffs, additional runtime/device output formats).
+- [ ] Revisit compiler/firmware debug profile defaults only with measured evidence and explicit decision.

@@ -267,11 +267,15 @@ describe('berry source map (R14)', () => {
     // "    var x = obj.arr[i + 1]" -> element access and binary index
     const line3 = byGen(3)
     expect(line3.some((m) => m.kind === 'ElementAccessExpression')).toBe(true)
-    expect(line3.some((m) => m.kind === 'BinaryExpression' && m.generated.column > '    var x = '.length + 1)).toBe(true)
+    expect(line3.some((m) => m.kind === 'BinaryExpression' && m.generated.column > '    var x = '.length + 1)).toBe(
+      true,
+    )
 
     // "    var y = C(obj.x, i + 2)" -> new/call + argument spans
     const line4 = byGen(4)
-    expect(line4.some((m) => m.kind === 'NewExpression' || m.kind === 'CallExpression' || m.kind === 'Identifier')).toBe(true)
+    expect(
+      line4.some((m) => m.kind === 'NewExpression' || m.kind === 'CallExpression' || m.kind === 'Identifier'),
+    ).toBe(true)
     expect(line4.some((m) => m.kind === 'PropertyAccessExpression')).toBe(true)
   })
 
@@ -304,7 +308,9 @@ describe('berry source map (R14)', () => {
     )
     expect(annotateBerryErrorText('stack: /virtual/app.be:3:1', metadata)).toContain('(ts app.ts:7:2, berry line 3)')
     // No detectable line -> unchanged
-    expect(annotateBerryErrorText('generic failure without location', metadata)).toBe('generic failure without location')
+    expect(annotateBerryErrorText('generic failure without location', metadata)).toBe(
+      'generic failure without location',
+    )
     // Already annotated -> idempotent
     const once = annotateBerryErrorText('app.be:12:1: oops', metadata)
     expect(annotateBerryErrorText(once, metadata)).toBe(once)

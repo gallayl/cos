@@ -97,7 +97,10 @@ export function emitInlineFunction(
   const blockSpans: ExpressionSpan[] = [...paramSpans]
   // Remap fragment-relative mappings into inline-function-text coordinates:
   // "def (params)\n" is line 0 of inline text, captured content starts at line 1.
-  for (const mapping of captured.mappings as unknown as Array<{ generated: { line: number; column: number }; __node?: ts.Node }>) {
+  for (const mapping of captured.mappings as unknown as Array<{
+    generated: { line: number; column: number }
+    __node?: ts.Node
+  }>) {
     if (!mapping.__node) continue
     blockSpans.push({
       line: mapping.generated.line, // fragment line 1 -> inline text line 1

@@ -55,6 +55,11 @@
 - **Compiler-side `prod` profile (implemented):** reduces compiler debug metadata/mappings, keeps generated Berry behavior unchanged. This is independent and safe as a frontend compile option.
 - **Firmware `BE_DEBUG_RUNTIME_INFO` (not changed):** runtime/debug-trace behavior and error detail source. Any change requires firmware build + hardware/runtime validation and should be coordinated with R14 mapping/error UX expectations.
 
+## Hardware validation artifacts (2026-11-10)
+
+- Execution guide/checklist: `docs/reports/2026-11-10-r14-hardware-validation-guide.md` (Part C covers `BE_DEBUG_RUNTIME_INFO`/prod firmware evaluation).
+- Helper script: `scripts/r14-hardware-validation.ps1` (`-FirmwareEval` collects context/config snapshot and can capture `idf.py` build/size outputs; does not modify config or flash).
+
 ## Outcome
 
-No configuration changes made in this increment. This document captures the evaluation plan and risks so a measured firmware/profile experiment can be executed when hardware/build validation time is available.
+User-reported hardware validation/evaluation completed and passed (2026-11-10, see `docs/reports/2026-11-10-r14-hardware-results.md`). No firmware config changes were adopted for R14 closure based on the reported outcome. Revisit only with measured evidence and explicit decision if future profiling warrants it.

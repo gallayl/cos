@@ -12,7 +12,12 @@ export type {
   BerrySourceLocation,
   BerrySourceMapEntry,
 } from './berry/diagnostics'
-export { annotateBerryErrorText, findSourceLocation, formatMappedSource, mapBerryLineToSource } from './berry/source-map'
+export {
+  annotateBerryErrorText,
+  findSourceLocation,
+  formatMappedSource,
+  mapBerryLineToSource,
+} from './berry/source-map'
 export type { BerryCompileOptions } from './berry/code-generator'
 
 /**

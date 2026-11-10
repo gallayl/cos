@@ -173,9 +173,7 @@ export const ConsolePage = Shade({
           }}
         >
           {visible.map((line) => (
-            <div className={line.severity ?? 'output'}>
-              {mapLine(line.text.length > 0 ? line.text : ' ')}
-            </div>
+            <div className={line.severity ?? 'output'}>{mapLine(line.text.length > 0 ? line.text : ' ')}</div>
           ))}
           {showPending ? <div className={pendingSeverity ?? 'output'}>{mapLine(pending)}</div> : null}
         </div>

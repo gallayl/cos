@@ -109,11 +109,7 @@ export function noteExpressionSpans(
 /**
  * @brief Emit an expression and record its span mappings at `baseColumnOffset`.
  */
-export function emitExpressionMapped(
-  ctx: GenerationContext,
-  node: ts.Expression,
-  baseColumnOffset: number,
-): string {
+export function emitExpressionMapped(ctx: GenerationContext, node: ts.Expression, baseColumnOffset: number): string {
   const emitted = lowerExpression(ctx, node)
   noteExpressionSpans(ctx, baseColumnOffset, emitted.spans)
   return emitted.text
@@ -429,7 +425,10 @@ function emitNew(ctx: GenerationContext, node: ts.NewExpression): EmittedExpress
   })
 }
 
-function emitArguments(ctx: GenerationContext, args: readonly ts.Expression[]): { text: string; spans: ExpressionSpan[] } {
+function emitArguments(
+  ctx: GenerationContext,
+  args: readonly ts.Expression[],
+): { text: string; spans: ExpressionSpan[] } {
   let text = ''
   const spans: ExpressionSpan[] = []
   for (let i = 0; i < args.length; i++) {
@@ -543,7 +542,13 @@ function emitTemplate(ctx: GenerationContext, node: ts.TemplateExpression): Emit
   if (node.head.text.length > 0) parts.push(atom(berryString(node.head.text), node.head))
   for (const span of node.templateSpans) {
     const value = lowerExpression(ctx, span.expression)
-    parts.push(withNode(span.expression, { text: `str(${value.text})`, precedence: CALL_PRECEDENCE, spans: shiftSpans(value.spans, 'str(') }))
+    parts.push(
+      withNode(span.expression, {
+        text: `str(${value.text})`,
+        precedence: CALL_PRECEDENCE,
+        spans: shiftSpans(value.spans, 'str('),
+      }),
+    )
     if (span.literal.text.length > 0) parts.push(atom(berryString(span.literal.text), span.literal))
   }
   if (parts.length === 0) return atom('""', node)

@@ -122,13 +122,11 @@ export function formatDiagnostics(
 }
 
 /** Format compiler metadata for incremental diagnostics UX. */
-export function formatCompileSummary(
-  result: {
-    ok: boolean
-    diagnostics: ReadonlyArray<{ severity?: string }>
-    metadata?: { profile?: string; mappings?: readonly unknown[]; notes?: readonly string[] }
-  },
-): string {
+export function formatCompileSummary(result: {
+  ok: boolean
+  diagnostics: ReadonlyArray<{ severity?: string }>
+  metadata?: { profile?: string; mappings?: readonly unknown[]; notes?: readonly string[] }
+}): string {
   const profile = result.metadata?.profile ?? 'dev'
   const errors = result.diagnostics.filter((d) => (d.severity ?? 'error') === 'error').length
   const mappings = result.metadata?.mappings?.length ?? 0
