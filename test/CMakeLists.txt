@@ -126,7 +126,7 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp system_logic)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic vfs_path)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
