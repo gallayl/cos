@@ -72,7 +72,7 @@
 | R18 | `async`/`await` runtime design + implementation | P2 | ⬜ Not started | M10 |
 | R19 | In-browser COS simulator (Berry WASM) | P3 | ⬜ Not started | M10 |
 | R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) | P3 | ⬜ Backlog | Backlog |
-| R21 | Unify `berry run`/`berry exec` on `main(args)` contract + explicit app launch | P2 | ✅ Done (hardware validated 2026-11-09) | M9 |
+| R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch | P2 | ✅ Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10) | M9 |
 
 ## Detailed plan
 
@@ -305,7 +305,7 @@
   - [x] Tests/docs updated. Frontend: `tsc --noEmit` clean; `ast-to-berry` 43/43; targeted suite including `editor-document`, `cos-sdk`, `compile-storage`, `cos-sdk-manifest`, `cos-binding-audit` passed. Hardware validation checklist: `docs/reports/2026-11-09-r13-hardware-validation-guide.md`.
   - [x] Hardware validation recorded (2026-11-09, user report): **all R13-HW1–HW7 passed** (autoexec boot, `berry run` UI apps, `berry exec` console args/no double-run, console `run` compat, R9-resolved path, UI misuse via `berry exec` guard, generated-file smoke checks). Detailed serial logs not attached in chat; pass recorded from user confirmation.
 - **Follow-ups (captured):**
-  - [ ] **R21:** replace runtime-compatible lowering bridges with unified firmware `berry run`/`berry exec` contract and explicit UI launch API; then simplify generated UI/console bridge code as appropriate.
+  - [x] **R21 follow-up (2026-11-10):** runtime-compatible `main(args)` lowering bridges removed in favor of direct `__cos_entry` / `run(args)` entrypoint contract (compiler/runtime/scripts/docs updated). See R21.
   - [ ] **R13-FU1 (broader spec):** native resource-cleanup registration/guarantees for timers/callbacks/listeners/handles beyond TS contract conventions — add only with measurement/need (ties to R14/R16).
   - [ ] **R13-FU2 (broader spec):** configurable/more granular memory-conscious diagnostics for hot callbacks/uncontrolled allocations where statically feasible; keep false positives low.
   - [ ] **Optional TS contract:** split console/UI types if stricter compile-time `run()` enforcement for console implementers is desired (compiler already enforces).
@@ -354,34 +354,32 @@
   - [ ] Larger apps: file manager, text editor, calendar, broader UI showcase (separately scoped).
   - [ ] Image preview / Berry image support — requires format, memory, decoder feasibility assessment.
 
-### R21 - Unify `berry run`/`berry exec` on `main(args)` contract
+### R21 - Unify `berry run`/`berry exec` entrypoint contract + explicit app launch
 - **Priority:** P2 | **Complexity:** L | **ROI:** Medium-High (DX/consistency) | **Risk:** High (breaking migration)
-- **Status:** ✅ **Done (2026-11-09, hardware validated HW1–HW8).**
+- **Status:** ✅ **Done (follow-up 2026-11-10: `__cos_entry`/`run(args)` contract, hardware validated).** Initial R21 unification on `main(args)` (2026-11-09, HW1–HW8 validated) was superseded by this follow-up to remove `def main(args)` boilerplate.
 - **Source:** follow-up to R9 command-script model and R13; design discussion 2026-11-08
-- **Problem:** `berry run` and `berry exec` exposed different execution/lifecycle contracts (app/script execution with active-app reset vs command-script `main(args)` without UI disturbance), causing UX confusion and duplicated mental models.
-- **Decision (approved by user, 2026-11-09):** Compatibility is not the top priority. Unify on `main(args)` for runnable `.be` files. `berry run <path> [args...]` is the unified command (args list excludes script path; `main(args)` returns integer shell status, `nil` => `0`). Default execution is non-intrusive (does not close/disturb an active UI app). UI apps launch explicitly from `main(args)` via `ui.launch(app)` (class or instance); `ui.launch` performs app lifecycle (close/replace active app as specified, hide console/release scrollback, construct class if needed, call `setup(0, display_width, display_height)`, `ui::start()`, teardown integration) and returns `0` on success / raises on failure. `berry exec` is **removed** (not aliased). `export default class extends CosUiApplication` TS authoring remains supported; compiler lowers UI entrypoints to `main(args)` + `ui.launch(AppClass)`.
+- **Problem:** `berry run` and `berry exec` exposed different execution/lifecycle contracts, causing UX confusion and duplicated mental models. The initial `main(args)` bridge remained boilerplate in generated/hand-written scripts.
+- **Decision (approved by user):** Compatibility is not the top priority. `berry run <path> [args...]` is the unified command (args list excludes script path). `berry exec` is **removed**. Scripts execute top-level code and expose an entrypoint (no `def main(args)`):
+  - **UI app:** global `__cos_entry` is a class or instance with `setup(content, width, height)`. Runtime launches it (close/replace active UI app, hide console/release scrollback, construct if a class, call `setup(0, display_width, display_height)`, start UI). Success returns status `0`.
+  - **Command app:** global `__cos_entry` is an instance with `run(args)`, or (simple form) a global `run(args)` function. Runtime calls `run(args)` with a Berry list of args; returns integer shell status (`nil` => `0`). Default command execution is non-intrusive (does not close/disturb an active UI app).
+  - `ui.launch(app)` (class or instance) remains available for explicit launch/lifecycle control. TS authoring preserves `export default class ... implements CosApplication/CosUiApplication`; compiler lowers to `__cos_entry`.
 - **Spec / acceptance criteria:**
-  - `berry run <path> [args...]` is the unified command; args are passed as a list excluding the script path; `main(args)` returns an integer shell status (`nil` treated as `0`).
-  - Missing `main`, non-integer/out-of-range return values, and runtime errors produce clear nonzero failures.
-  - The default path does not close/disturb an active UI app or alter UI/console app state.
-  - `ui.launch(app)` performs documented app lifecycle and has defined status semantics (0 success / exception on failure).
+  - `berry run <path> [args...]` is the unified command with the contract above.
+  - Missing/invalid entrypoint, missing/non-integer/out-of-range status, and runtime errors produce clear nonzero failures.
+  - Default command execution is non-intrusive; UI launch performs documented lifecycle.
   - R9-resolved command scripts use the same execution contract/path.
-  - All in-repo `.be` entrypoints (`storage/flash_data`, tests/scripts/apps/autoexec) are migrated; TS compiler/templates/SDK docs emit or document the unified shape.
-  - Help/README/completion/tests/hardware validation are updated.
-- **Implementation notes (2026-11-09):**
-  - Runtime: `components/berry_lang/src/berry_runtime.cpp` / `include/berry_runtime.h` — unified `berry_runtime_run_file(path, argc, argv, &exit_status)` executes top-level then `main(args)` non-intrusively; removed `_cos_cmd_exec` bridge and old `exec_file`/class-return auto-launch path; added `berry_runtime_ui_launch(vm,index)` for `ui.launch`; `berry_runtime_open_app` is a compatibility wrapper (`main([])`).
-  - Berry UI binding: `components/berry_lang/src/berry_ui.cpp` registers `ui.launch(app)`.
-  - Shell: `components/shell/src/shell_berry_cmd.c` (`berry run <path> [args...]`, `berry exec` removed, autoexec uses unified run); `components/shell/src/shell_script.c` uses unified `berry_runtime_run_file` for R9-resolved scripts. Completion already accepted `berry run <path>`.
-  - TS compiler/SDK: `frontend/src/ide/berry/code-generator.ts` emits R21 main-entry lowering (UI: `ui.launch`; console: runtime-invoked `main(args)` bridge, no auto-run/_cos_cmd_exec). `frontend/src/cos-sdk/{index,ui}.d.ts`, binding inventory updated; frontend tests updated.
-  - Migration: regenerated 16 TS-compiled `storage/flash_data/**/*.be` via `frontend/tools/compile-storage.ts --write`; migrated 10 hand-written `storage/flash_data/tests/{r2,r5,r6,r7,r8}/*.be` scripts to define `main(args)` (R7/R8 comments updated from `berry exec` to `berry run`).
-  - Docs: `README.md`, R7/R8 report commands, hardware guide `docs/reports/2026-11-09-r21-hardware-validation-guide.md`.
-  - Validation (2026-11-09): host tests rebuilt/passed - `test_shell_berry` **28/28**, `test_shell_script` **19/19** (`test/build`). Berry host compile validation **26/26** `.be` files (`scripts/validate-berry-scripts.ps1`). Frontend: `vitest` targeted R21-affected tests **59/59**; `compile-storage.test.ts` **3/3**. **Hardware validation (2026-11-09, user report, manual): HW1–HW8 all OK** (autoexec, `berry run` args/status, `berry exec` removed, `ui.launch` Tap Dash+Breakout+close, non-intrusive/explicit replacement, R9 resolution, error cases, migrated test scripts). Evidence: `docs/reports/2026-11-09-r21-hardware-validation-guide.md`.
+  - In-repo entrypoints (`storage/flash_data` TS-generated and hand-written tests, `storage/ts`) are migrated; README/runtime header/shell help/compiler/SDK/tests updated.
+- **Implementation notes (follow-up 2026-11-10):**
+  - Runtime: `components/berry_lang/src/berry_runtime.cpp` / `include/berry_runtime.h` — `execute_main_entry` resolves `__cos_entry` (UI: class or instance with `setup` → `berry_runtime_ui_launch`; console: instance `run(args)`), or falls back to global `run(args)`. Status normalization preserved (`nil`→`0`, integer required). **Bugfix (hardware):** Berry `be_pcall` leaves the return value in the function slot and args on stack; method call result read from `-3` (pop 4) and global function result from `-2` (pop 2). `berry_runtime_ui_launch` / `ui.launch` binding retained.
+  - Shell: `components/shell/src/shell_berry_cmd.c` help updated to “Run/eval Berry entrypoint scripts…”.
+  - TS compiler/SDK/tests: `frontend/src/ide/berry/code-generator.ts` emits `var __cos_entry = <Class>` (UI) or `var __cos_entry = <Class>()` (console); `frontend/src/ide/ast-to-berry.test.ts` updated.
+  - Migration: regenerated 16 TS-compiled `storage/flash_data/**/*.be` via `frontend/tools/compile-storage.ts --write`; migrated 10 hand-written `storage/flash_data/tests/{r2,r5,r6,r7,r8}/*.be` to `def run(args)`.
+  - Docs: `README.md`, runtime header, consolidated plan/R21 docs updated.
+  - Validation (2026-11-10): frontend `vitest` targeted tests passed (`src/ide/ast-to-berry.test.ts`, `tools/compile-storage.test.ts` — **46/46**); storage compile/verify OK (16 regenerated). **Hardware validation (user):** autoexec executes successfully after stack-fix rebuild/reflash (`action("clear")`, status 0). Initial post-refactor failure (`run(args) must return an integer shell status`, `ESP_ERR_INVALID_ARG`) traced to pcall result-slot indexing and resolved.
 - **Progress:**
-  - [x] Contract/spec approved (2026-11-09): `ui.launch(app)` (class or instance), `berry exec` removed, TS `CosUiApplication` authoring preserved, `nil` main return => `0`.
-  - [x] Runtime + shell implementation.
-  - [x] Repo `.be` entrypoints migrated (TS-generated + hand-written test scripts).
-  - [x] TS toolchain/SDK/templates updated.
-  - [x] Tests/docs/hardware validation complete (host/frontend/docs/guide + manual hardware HW1–HW8 passed, 2026-11-09).
+  - [x] Initial R21 (`main(args)`/`ui.launch`) implemented and hardware validated HW1–HW8 (2026-11-09, see `docs/reports/2026-11-09-r21-hardware-validation-guide.md`).
+  - [x] Follow-up contract simplified to `__cos_entry` / `run(args)` (no `main` bridge) — runtime, compiler, scripts, docs updated.
+  - [x] Hardware validation: autoexec/startup path confirmed on device after bugfix (2026-11-10, user). Broader HW1–HW8 regression suite not rerun as a formal pass for this follow-up; core contract exercised successfully.
 
 ## Progress log
 
@@ -421,7 +419,7 @@
 
 | 2026-11-09 | **R13 complete (compiler/SDK/Monaco/TS migration + hardware validation).** | Delivered scope A (TS/SDK/compiler standardization aligned with R21, runtime-compatible Berry lowering). Added `CosApplication`/`CosUiApplication` TS API (`frontend/src/cos-sdk/index.d.ts`, `implements` style; ambient abstract classes; `setup` enforced for UI, console `run` enforced by compiler), method-based entrypoint detection (`setup`=>UI, `run`-only=>console, `setup`+`run` allowed as UI), always-on R13 entrypoint rules (`cos/default-class-entrypoint`, `cos/entrypoint-contract`, `cos/no-top-level-exec`, `cos/no-module-state`, `cos/no-top-level-function`, `cos/top-level-class`), severity/code diagnostics, and Monaco markers (compile + debounced live). Console entrypoints lower to `main(args)` bridge + `_cos_cmd_exec` auto-run guard; UI entrypoints return class for `berry run` and define guarded `main(args)` misuse message for `berry exec`. Minimal firmware hook in `components/berry_lang/src/berry_runtime.cpp`. Migrated all `storage/ts/**` (16 files) and regenerated `storage/flash_data/**/*.be` (`compile-storage` verify pass). Validation: `tsc --noEmit` clean; `ast-to-berry` 43/43; targeted Vitest suite 67/67; **hardware validation (2026-11-09, user report) R13-HW1-HW7 all passed**. Follow-ups: R21 runtime unification; R13-FU1 native resource-cleanup registration (measure first); R13-FU2 hot-callback/allocation diagnostics where feasible. Evidence: `docs/reports/2026-11-09-r13-hardware-validation-guide.md`. |
 | 2026-11-09 | **R21 complete (hardware validated HW1–HW8).** | Unified `berry run <path> [args...]` on `main(args)` (R21): runtime `berry_runtime_run_file(path,argc,argv,&exit_status)` executes top-level then `main(args)` non-intrusively (`nil`=>0); removed `berry exec` subcommand/API usage and `_cos_cmd_exec` bridge; added `ui.launch(app)` (`berry_runtime_ui_launch`) with full UI lifecycle (close/replace active app, console hide, construct class if needed, `setup(0,w,h)`, `ui::start`, teardown integration). TS authoring preserved (`export default class ... implements CosUiApplication`); compiler emits UI `main(args)`→`ui.launch(AppClass)` and console runtime-invoked `main(args)` bridge. Migrated all in-repo entrypoints: regenerated 16 TS-compiled `storage/flash_data/**/*.be`; migrated 10 hand-written `storage/flash_data/tests/{r2,r5,r6,r7,r8}/*.be` to `main(args)`. Updated README, SDK/binding inventory, R7/R8 guide commands. Validation: `test_shell_berry` 28/28, `test_shell_script` 19/19 (`test/build`); Berry host compile **26/26**; frontend targeted R21 tests **59/59** + `compile-storage.test.ts` **3/3**. **Hardware validation (2026-11-09, user report, manual): HW1–HW8 all OK** (autoexec, args/status, `berry exec` removed, `ui.launch` Tap Dash+Breakout+close, non-intrusive/explicit replacement, R9 resolution, error cases, migrated tests). Evidence: `docs/reports/2026-11-09-r21-hardware-validation-guide.md`. |
-
+| 2026-11-10 | **R21 follow-up: `def main(args)` removed, `__cos_entry`/`run(args)` contract adopted.** | Simplified entrypoints (no compatibility for `main`): runtime `execute_main_entry` resolves `__cos_entry` (UI class/instance with `setup` → `berry_runtime_ui_launch`, success status 0; command instance with `run(args)` → `entry.run(args)`) or falls back to global `run(args)`. `berry_runtime.h`/`README.md`/`shell_berry_cmd.c` help updated. Compiler (`frontend/src/ide/berry/code-generator.ts`) emits `var __cos_entry = <Class>` (UI) / `var __cos_entry = <Class>()` (console); frontend tests updated. Regenerated 16 TS-compiled `storage/flash_data/**/*.be` and migrated 10 hand-written `storage/flash_data/tests/{r2,r5,r6,r7,r8}/*.be` to `def run(args)`. Validation: frontend `vitest` `ast-to-berry` + `compile-storage` **46/46**, compile-storage verify/write OK. **Hardware (user, 2026-11-10):** autoexec initially failed `run(args) must return an integer shell status (ESP_ERR_INVALID_ARG)` due to Berry `be_pcall` result-slot indexing (return in function slot, args left on stack); fixed (method result `-3`/pop 4, global `-2`/pop 2), rebuilt/reflashed, autoexec succeeds. R13 bridge follow-up closed; R21 guide marked superseded for contract details. |
 ## Validation checklist (use when closing items)
 
 - [ ] Relevant unit tests added/updated and passing.

@@ -1,10 +1,11 @@
-# R21 — Hardware Validation Guide: Unified `berry run` / `main(args)` / `ui.launch`
+# R21 — Hardware Validation Guide: Unified `berry run` / `ui.launch`
 
 **Date:** 2026-11-09  
-**Plan item:** R21 (P2, M9) — Unify `berry run`/`berry exec` on `main(args)` contract + explicit app launch  
-**Status:** ✅ **Complete (2026-11-09).** Software implementation + migration + host/frontend tests complete; **hardware validation passed (user report, manual, HW1–HW8 all OK)**.
+**Plan item:** R21 (P2, M9) — Unify `berry run` entrypoint contract + explicit app launch  
+**Status:** ✅ **Initial validation complete (2026-11-09, `main(args)` contract, HW1–HW8 OK).**  
+**Follow-up (2026-11-10):** the `main(args)` bridge was removed and replaced by the `__cos_entry` / `run(args)` entrypoint contract (no `def main`). The contract summary and checklist below reflect the original 2026-11-09 validation; current contract details are in `README.md`, `components/berry_lang/include/berry_runtime.h`, and `docs/plan/consolidated-improvement-plan.md` (R21). **Hardware (user, 2026-11-10):** autoexec runs successfully with the new contract after runtime stack-fix rebuild/reflash (`action("clear")`, status 0). The full HW1–HW8 matrix was not formally rerun for this follow-up.
 
-## Summary of R21 behavior (expected)
+## Summary of R21 behavior (validated 2026-11-09, `main(args)` contract)
 
 - `berry run <path> [args...]` is the unified command. It loads the script, executes top-level code, then calls `main(args)` where `args` is a Berry list of command arguments **excluding the script path**. `main(args)` returns an integer shell status (`nil` means `0`).
 - Default execution is **non-intrusive**: it does not close/disturb an active UI app.
@@ -12,6 +13,15 @@
 - `berry exec` is **removed**. R9-resolved command scripts and `path`-resolved scripts use the same `main(args)` contract.
 - TS authoring pattern is preserved: `export default class ... implements CosUiApplication` / `CosApplication`. The compiler lowers UI entrypoints to `main(args)` + `ui.launch(...)` and console entrypoints to `main(args)` bridging `app.run(args)`.
 - Missing `main`, non-integer/non-nil return values, and runtime errors produce clear failures (nonzero/`ESP_FAIL`/`ESP_ERR_INVALID_ARG` as appropriate).
+
+## Follow-up contract (2026-11-10, current)
+
+`def main(args)` is no longer used. After top-level execution the runtime resolves:
+- `__cos_entry` = UI class/instance with `setup` → launched by runtime (status `0` on success).
+- `__cos_entry` = command instance with `run(args)` → `run(args)` invoked, `nil`→`0`, integer status required.
+- no `__cos_entry` → global `run(args)` invoked as command entrypoint.
+
+Compiler output: `var __cos_entry = <Class>` (UI) or `var __cos_entry = <Class>()` (console). See `README.md` / runtime header for the authoritative API. Hardware confirmation (user, 2026-11-10): autoexec OK after runtime `be_pcall` return-slot fix (`action("clear")`, status 0).
 
 ## Preconditions
 
