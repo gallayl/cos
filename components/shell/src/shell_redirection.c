@@ -568,20 +568,20 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     FILE *err_file = NULL;
 
     /* For &> / &>>, open a single file and share it. */
-    out_file = fopen(real_path, mode);
-    if (out_file == NULL)
+    FILE *target_file = fopen(real_path, mode);
+    if (target_file == NULL)
     {
         printf("redirection: fopen('%s', \"%s\") failed\n", real_path, mode);
         return ESP_FAIL;
     }
-    if (want_stdout && want_stderr)
+
+    if (want_stdout)
     {
-        err_file = out_file;
+        out_file = target_file;
     }
-    else if (want_stderr)
+    if (want_stderr)
     {
-        err_file = out_file;
-        out_file = NULL;
+        err_file = target_file;
     }
 
     /* Best-effort redirection: try fd dup/dup2 per stream, else FILE* swap fallback (non-Windows). */
@@ -611,11 +611,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
             stdout = out_file;
             state->swapped_stdout = true;
 #else
-            fclose(out_file);
-            if (err_file != NULL && err_file != out_file)
-            {
-                fclose(err_file);
-            }
+            fclose(target_file);
             printf("redirection: failed to redirect stdout\n");
             return ESP_FAIL;
 #endif
@@ -661,16 +657,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
                     state->saved_stdout_fd = -1;
                 }
             }
-            if (out_file != NULL)
-            {
-                fflush(out_file);
-                fclose(out_file);
-            }
-            if (err_file != NULL && err_file != out_file)
-            {
-                fflush(err_file);
-                fclose(err_file);
-            }
+            fclose(target_file);
             printf("redirection: failed to redirect stderr\n");
             return ESP_FAIL;
 #endif
