@@ -114,10 +114,10 @@ integration-test-install:
 	$(IDF_PYTHON) $(IDF_PATH)/tools/idf_tools.py install qemu-xtensa
 
 integration-test-build:
-	$(IDF_PYTHON) scripts/integration_test.py build
+	$(IDF_PYTHON) scripts/integration_test.py build $(INTEGRATION_TEST_BUILD_ARGS)
 
 integration-test-run:
-	$(IDF_PYTHON) scripts/integration_test.py run
+	$(IDF_PYTHON) scripts/integration_test.py run $(INTEGRATION_TEST_RUN_ARGS)
 
 integration-test: integration-test-build integration-test-run
 

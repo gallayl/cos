@@ -7,11 +7,13 @@ Used by `make integration-test-build` and `make integration-test-run`.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import shlex
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 
@@ -28,6 +30,36 @@ def discover_projects() -> list[Path]:
         if path.is_dir() and path.name.startswith("test_")
     ]
     return sorted(projects, key=lambda p: p.name)
+
+
+def select_projects(all_projects: list[Path], selectors: list[str]) -> list[Path]:
+    if not selectors:
+        return all_projects
+
+    by_name = {project.name: project for project in all_projects}
+    selected: list[Path] = []
+    seen: set[str] = set()
+
+    for selector in selectors:
+        normalized = selector.replace("\\", "/").rstrip("/")
+        name = Path(normalized).name
+        matches = [
+            project for project in all_projects if fnmatch.fnmatchcase(project.name, name)
+        ]
+        if not matches and name in by_name:
+            matches = [by_name[name]]
+        if not matches:
+            available = ", ".join(project.name for project in all_projects)
+            raise RuntimeError(
+                f"Unknown integration-test project selector '{selector}'. "
+                f"Available: {available}"
+            )
+        for project in matches:
+            if project.name not in seen:
+                selected.append(project)
+                seen.add(project.name)
+
+    return selected
 
 
 def split_command(value: str) -> list[str]:
@@ -117,11 +149,37 @@ def pytest_env() -> dict[str, str] | None:
     return env
 
 
-def cmd_build(projects: list[Path], idf_py: list[str]) -> int:
-    for project in projects:
-        rc = run([*idf_py, "-C", str(project), "build"])
-        if rc != 0:
-            return rc
+def build_project(project: Path, idf_py: list[str]) -> tuple[Path, int]:
+    return project, run([*idf_py, "-C", str(project), "build"])
+
+
+def cmd_build(projects: list[Path], idf_py: list[str], jobs: int) -> int:
+    if jobs <= 1 or len(projects) <= 1:
+        for project in projects:
+            _, rc = build_project(project, idf_py)
+            if rc != 0:
+                return rc
+        return 0
+
+    failures: list[tuple[Path, int]] = []
+    with ThreadPoolExecutor(max_workers=jobs) as executor:
+        futures = {
+            executor.submit(build_project, project, idf_py): project
+            for project in projects
+        }
+        for future in as_completed(futures):
+            project, rc = future.result()
+            if rc != 0:
+                failures.append((project, rc))
+
+    if failures:
+        failures.sort(key=lambda item: item[0].name)
+        for project, rc in failures:
+            print(
+                f"Integration test build failed: {project.name} (exit {rc})",
+                file=sys.stderr,
+            )
+        return failures[0][1]
     return 0
 
 
@@ -151,13 +209,38 @@ def cmd_run(projects: list[Path], python: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["build", "run"], help="Action to perform")
+    parser.add_argument(
+        "projects",
+        nargs="*",
+        help=(
+            "Optional integration-test project names or selectors "
+            "(e.g. test_shell_fs or test_shell*). Defaults to all."
+        ),
+    )
     parser.add_argument("--idf-py", help="Command used to invoke idf.py (overrides IDF_PY env)")
     parser.add_argument("--python", help="Python executable for pytest (overrides IDF_PYTHON env)")
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="Number of integration-test projects to build in parallel (build only).",
+    )
     args = parser.parse_args(argv)
 
     projects = discover_projects()
     if not projects:
         print("No integration-test projects found", file=sys.stderr)
+        return 1
+
+    try:
+        projects = select_projects(projects, args.projects)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if args.jobs < 1:
+        print("--jobs must be >= 1", file=sys.stderr)
         return 1
 
     if args.command == "build":
@@ -166,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 1
-        return cmd_build(projects, idf_py)
+        return cmd_build(projects, idf_py, args.jobs)
 
     python = resolve_python(args.python)
     return cmd_run(projects, python)
