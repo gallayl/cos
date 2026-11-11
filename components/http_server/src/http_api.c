@@ -21,7 +21,8 @@ static esp_err_t path_from_query(const char *raw_path, char *path, size_t path_l
         return err;
     }
 
-    if (allow_root && (strcmp(decoded, "/") == 0)) // NOLINT(readability-implicit-bool-conversion) -- logical && between bool flag and comparison result (int in C) is intentional
+    if (allow_root && (strcmp(decoded, "/") == 0)) // NOLINT(readability-implicit-bool-conversion) -- logical && between
+                                                   // bool flag and comparison result (int in C) is intentional
     {
         if (path_len < 2)
         {
@@ -103,7 +104,10 @@ static esp_err_t handler_files(httpd_req_t *req)
         json_escape(entries[i].name, escaped_name, sizeof(escaped_name));
         char item[320];
         snprintf(item, sizeof(item), "%s{\"name\":\"%s\",\"size\":%u,\"is_dir\":%s,\"mtime\":%lld,\"ctime\":%lld}",
-                 (i > 0) ? "," : "", escaped_name, (unsigned)entries[i].size, entries[i].is_dir ? "true" : "false", // NOLINT(readability-implicit-bool-conversion) - bool formatted as JSON string
+                 (i > 0) ? "," : "", escaped_name, (unsigned)entries[i].size,
+                 entries[i].is_dir
+                     ? "true"
+                     : "false", // NOLINT(readability-implicit-bool-conversion) - bool formatted as JSON string
                  (long long)entries[i].mtime, (long long)entries[i].ctime);
         httpd_resp_sendstr_chunk(req, item);
     }
@@ -151,7 +155,8 @@ static esp_err_t handler_file(httpd_req_t *req)
         return send_api_error(req, "400 Bad Request", "Invalid path");
     }
 
-    if (!vfs_exists(path) || vfs_is_directory(path)) // NOLINT(readability-implicit-bool-conversion) -- logical combination of bool-returning filesystem predicates
+    if (!vfs_exists(path) || vfs_is_directory(path)) // NOLINT(readability-implicit-bool-conversion) -- logical
+                                                     // combination of bool-returning filesystem predicates
     {
         return send_api_error(req, "404 Not Found", "Not found");
     }
@@ -170,13 +175,17 @@ static esp_err_t handler_file(httpd_req_t *req)
 
 static bool is_filesystem_root(const char *path)
 {
-    return (strcmp(path, "/flash") == 0) || (strcmp(path, "/sdcard") == 0); // NOLINT(readability-implicit-bool-conversion) -- strcmp comparisons combined as logical predicate
+    return (strcmp(path, "/flash") == 0) ||
+           (strcmp(path, "/sdcard") ==
+            0); // NOLINT(readability-implicit-bool-conversion) -- strcmp comparisons combined as logical predicate
 }
 
 static bool path_is_inside(const char *parent, const char *child)
 {
     size_t length = strlen(parent);
-    return (strncmp(child, parent, length) == 0) && (child[length] == '/'); // NOLINT(readability-implicit-bool-conversion) -- boundary check expressed as combined comparisons
+    return (strncmp(child, parent, length) == 0) &&
+           (child[length] ==
+            '/'); // NOLINT(readability-implicit-bool-conversion) -- boundary check expressed as combined comparisons
 }
 
 static esp_err_t query_path(httpd_req_t *req, const char *key, char *path, size_t path_len)
@@ -206,7 +215,8 @@ static esp_err_t handler_mkdir(httpd_req_t *req)
     }
 
     char path[VFS_PATH_MAX];
-    if (query_path(req, "path", path, sizeof(path)) != ESP_OK || is_filesystem_root(path)) // NOLINT(readability-implicit-bool-conversion)
+    if (query_path(req, "path", path, sizeof(path)) != ESP_OK ||
+        is_filesystem_root(path)) // NOLINT(readability-implicit-bool-conversion)
     {
         return send_api_error(req, "400 Bad Request", "Invalid path");
     }
@@ -231,7 +241,8 @@ static esp_err_t handler_rename(httpd_req_t *req)
     char from[VFS_PATH_MAX];
     char to[VFS_PATH_MAX];
     if ((query_path(req, "from", from, sizeof(from)) != ESP_OK) || (query_path(req, "to", to, sizeof(to)) != ESP_OK) ||
-        is_filesystem_root(from) || is_filesystem_root(to) || path_is_inside(from, to)) // NOLINT(readability-implicit-bool-conversion)
+        is_filesystem_root(from) || is_filesystem_root(to) ||
+        path_is_inside(from, to)) // NOLINT(readability-implicit-bool-conversion)
     {
         return send_api_error(req, "400 Bad Request", "Invalid path");
     }
@@ -264,7 +275,8 @@ static esp_err_t handler_delete(httpd_req_t *req)
     }
 
     char path[VFS_PATH_MAX];
-    if ((query_path(req, "path", path, sizeof(path)) != ESP_OK) || is_filesystem_root(path)) // NOLINT(readability-implicit-bool-conversion)
+    if ((query_path(req, "path", path, sizeof(path)) != ESP_OK) ||
+        is_filesystem_root(path)) // NOLINT(readability-implicit-bool-conversion)
     {
         return send_api_error(req, "400 Bad Request", "Invalid path");
     }

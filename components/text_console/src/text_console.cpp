@@ -388,7 +388,8 @@ extern "C" esp_err_t text_console_init(void)
 
     display_fill_screen(BG_COLOR);
 
-    const BaseType_t rc = xTaskCreate(render_task, "tc_render", RENDER_TASK_STACK, NULL, RENDER_TASK_PRIO, &s_render_task);
+    const BaseType_t rc =
+        xTaskCreate(render_task, "tc_render", RENDER_TASK_STACK, NULL, RENDER_TASK_PRIO, &s_render_task);
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create render task");

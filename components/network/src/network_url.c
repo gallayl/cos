@@ -7,12 +7,15 @@ static char s_base[NETWORK_URL_MAX + 1];
 
 static bool is_digit(unsigned char character)
 {
-    return (character >= '0') && (character <= '9');  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    return (character >= '0') &&
+           (character <= '9'); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool is_alpha(unsigned char character)
 {
-    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z'));  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    return ((character >= 'a') && (character <= 'z')) ||
+           ((character >= 'A') &&
+            (character <= 'Z')); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool is_alnum(unsigned char character)
@@ -122,7 +125,8 @@ static bool valid_hostname(const char *host)
     {
         if (*character == '.')
         {
-            if (label_length == 0 || previous_hyphen) // NOLINT(readability-implicit-bool-conversion) - bool in C logical op
+            if (label_length == 0 ||
+                previous_hyphen) // NOLINT(readability-implicit-bool-conversion) - bool in C logical op
             {
                 return false;
             }
@@ -144,7 +148,8 @@ static bool valid_hostname(const char *host)
             return false;
         }
     }
-    return (label_length > 0) && !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
+    return (label_length > 0) &&
+           !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
 
 static bool chars_allowed(const char *url)
@@ -354,7 +359,9 @@ static esp_err_t parse_absolute(const char *url, url_parts_t *parts)
             return ESP_ERR_INVALID_ARG;
         }
     }
-    if ((!parts->https && parts->port == 80U) || (parts->https && parts->port == 443U)) // NOLINT(readability-implicit-bool-conversion) - bool field compared as condition
+    if ((!parts->https && parts->port == 80U) ||
+        (parts->https &&
+         parts->port == 443U)) // NOLINT(readability-implicit-bool-conversion) - bool field compared as condition
     {
         parts->port = 0;
     }
@@ -363,7 +370,8 @@ static esp_err_t parse_absolute(const char *url, url_parts_t *parts)
 
 static esp_err_t format_url(const url_parts_t *parts, char *out, size_t out_size)
 {
-    const char *scheme = parts->https ? "https" : "http"; // NOLINT(readability-implicit-bool-conversion) - ternary selects scheme string
+    const char *scheme =
+        parts->https ? "https" : "http"; // NOLINT(readability-implicit-bool-conversion) - ternary selects scheme string
     int written;
     if (parts->port == 0)
     {
@@ -577,8 +585,11 @@ bool network_http_method_valid(const char *method)
     {
         return false;
     }
-    return ((strcmp(method, "GET") == 0) || (strcmp(method, "POST") == 0) || (strcmp(method, "PUT") == 0) ||  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
-            (strcmp(method, "PATCH") == 0) || (strcmp(method, "DELETE") == 0) || (strcmp(method, "HEAD") == 0));
+    return ((strcmp(method, "GET") == 0) || (strcmp(method, "POST") == 0) ||
+            (strcmp(method, "PUT") ==
+             0) || // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+            (strcmp(method, "PATCH") == 0) ||
+            (strcmp(method, "DELETE") == 0) || (strcmp(method, "HEAD") == 0));
 }
 
 bool network_http_method_allows_body(const char *method)
@@ -626,7 +637,9 @@ bool network_http_header_valid(const char *name, const char *value)
 
 bool network_http_timeout_valid(uint32_t timeout_ms)
 {
-    return ((timeout_ms >= NETWORK_HTTP_TIMEOUT_MIN_MS) && (timeout_ms <= NETWORK_HTTP_TIMEOUT_MAX_MS));  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    return ((timeout_ms >= NETWORK_HTTP_TIMEOUT_MIN_MS) &&
+            (timeout_ms <= NETWORK_HTTP_TIMEOUT_MAX_MS)); // NOLINT(readability-implicit-bool-conversion) - preserve
+                                                          // existing behavior/types
 }
 
 esp_err_t network_compose_url(const char *url, char *out, size_t out_size)

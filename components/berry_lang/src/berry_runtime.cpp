@@ -1608,8 +1608,10 @@ extern "C" esp_err_t berry_runtime_ui_launch(bvm *vm, int index)
     return ESP_OK;
 }
 
-esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source, // NOLINT(readability-non-const-parameter) - output object reset/populated by this function
-                             size_t *length)
+esp_err_t read_virtual_file(const char *virtual_path,
+                            BerrySourceBuffer *source, // NOLINT(readability-non-const-parameter) - output object
+                                                       // reset/populated by this function
+                            size_t *length)
 {
     // R5: stat first, then allocate the short-lived source buffer before opening/reading.
     // This avoids stdio/VFS read-path allocations fragmenting the heap before the large
@@ -1688,8 +1690,9 @@ esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source,
     return ESP_OK;
 }
 
-bool resolve_module_path(const char *specifier, char *resolved, // NOLINT(readability-non-const-parameter) - output path buffer
-                          size_t resolved_size)
+bool resolve_module_path(const char *specifier,
+                         char *resolved, // NOLINT(readability-non-const-parameter) - output path buffer
+                         size_t resolved_size)
 {
     char composed[VFS_PATH_MAX];
     const esp_err_t composed_err =
@@ -2293,7 +2296,8 @@ extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line
     s_console_read_char = read_char;
 }
 
-std::recursive_mutex &berry_runtime_mutex() // NOLINT(misc-use-internal-linkage) - external runtime API used across translation units
+std::recursive_mutex &
+berry_runtime_mutex() // NOLINT(misc-use-internal-linkage) - external runtime API used across translation units
 
 {
     return s_vm_mutex;

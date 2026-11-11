@@ -65,10 +65,56 @@ def resolve_python(args_python: str | None) -> str:
     return args_python or os.environ.get("IDF_PYTHON") or sys.executable
 
 
-def run(cmd: list[str], cwd: Path | None = None) -> int:
+def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> int:
     print("+", subprocess.list2cmdline(cmd) if os.name == "nt" else shlex.join(cmd), flush=True)
-    completed = subprocess.run(cmd, cwd=str(cwd) if cwd else None)
+    completed = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env)
     return completed.returncode
+
+
+def find_qemu_bin_dir() -> Path | None:
+    exe_name = "qemu-system-xtensa.exe" if os.name == "nt" else "qemu-system-xtensa"
+    found = shutil.which(exe_name)
+    if found:
+        return Path(found).parent
+
+    roots: list[Path] = []
+    tools_path = os.environ.get("IDF_TOOLS_PATH")
+    if tools_path:
+        roots.append(Path(tools_path))
+    if os.name == "nt":
+        roots.extend([Path(r"C:\Espressif\tools"), Path.home() / ".espressif" / "tools"])
+    else:
+        roots.append(Path.home() / ".espressif" / "tools")
+
+    seen: set[Path] = set()
+    for root in roots:
+        try:
+            root = root.resolve()
+        except OSError:
+            continue
+        if root in seen or not root.is_dir():
+            continue
+        seen.add(root)
+        for pattern in ("**/qemu/bin/" + exe_name, "**/bin/" + exe_name):
+            try:
+                for match in root.glob(pattern):
+                    if match.is_file():
+                        return match.parent
+            except OSError:
+                continue
+    return None
+
+
+def pytest_env() -> dict[str, str] | None:
+    env = os.environ.copy()
+    qemu_dir = find_qemu_bin_dir()
+    if qemu_dir:
+        qemu_str = str(qemu_dir)
+        path = env.get("PATH", "")
+        parts = path.split(os.pathsep) if path else []
+        if qemu_str not in parts:
+            env["PATH"] = qemu_str + (os.pathsep + path if path else "")
+    return env
 
 
 def cmd_build(projects: list[Path], idf_py: list[str]) -> int:
@@ -81,6 +127,7 @@ def cmd_build(projects: list[Path], idf_py: list[str]) -> int:
 
 def cmd_run(projects: list[Path], python: str) -> int:
     status = 0
+    env = pytest_env()
     for project in projects:
         rc = run(
             [
@@ -93,7 +140,8 @@ def cmd_run(projects: list[Path], python: str) -> int:
                 "--embedded-services",
                 "idf,qemu",
                 "-v",
-            ]
+            ],
+            env=env,
         )
         if rc != 0:
             status = 1

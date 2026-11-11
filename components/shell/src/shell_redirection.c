@@ -96,7 +96,8 @@ static int shell_dup2(int oldfd, int newfd)
 
 static bool is_space_char(char c)
 {
-    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'); // NOLINT(readability-implicit-bool-conversion) - character comparisons in C bool return
+    return (c == ' ') || (c == '\t') || (c == '\r') ||
+           (c == '\n'); // NOLINT(readability-implicit-bool-conversion) - character comparisons in C bool return
 }
 
 static esp_err_t copy_trimmed_span(const char *start, const char *end, char *out, size_t out_size)
@@ -277,7 +278,9 @@ esp_err_t shell_parse_pipeline(const char *line, shell_pipeline_info_t *out)
 
         /* Detect trailing pipe (end of string after whitespace). */
         const char *rest = segment_start;
-        while (*rest != '\0' && is_space_char(*rest)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
+        while (
+            *rest != '\0' &&
+            is_space_char(*rest)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             rest++;
         }
@@ -512,7 +515,8 @@ static bool redirect_targets_stderr(shell_redirect_type_t type)
 
 static bool redirect_is_append(shell_redirect_type_t type)
 {
-    return (type == SHELL_REDIRECT_APPEND) || (type == SHELL_REDIRECT_STDERR_APPEND) || (type == SHELL_REDIRECT_BOTH_APPEND); // NOLINT(readability-implicit-bool-conversion)
+    return (type == SHELL_REDIRECT_APPEND) || (type == SHELL_REDIRECT_STDERR_APPEND) ||
+           (type == SHELL_REDIRECT_BOTH_APPEND); // NOLINT(readability-implicit-bool-conversion)
 }
 
 esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state)
@@ -551,7 +555,9 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         printf("redirection: '%s' is not a virtual path\n", resolved_virtual);
         return ESP_ERR_INVALID_ARG;
     }
-    if (vfs_exists(resolved_virtual) && vfs_is_directory(resolved_virtual)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
+    if (vfs_exists(resolved_virtual) &&
+        vfs_is_directory(
+            resolved_virtual)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
     {
         printf("redirection: '%s' is a directory\n", resolved_virtual);
         return ESP_ERR_INVALID_ARG;
@@ -565,7 +571,9 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         return err;
     }
 
-    const char *mode = redirect_is_append(redir->type) ? "a" : "w"; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
+    const char *mode = redirect_is_append(redir->type)
+                           ? "a"
+                           : "w"; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
     const bool want_stdout = redirect_targets_stdout(redir->type);
     const bool want_stderr = redirect_targets_stderr(redir->type);
 

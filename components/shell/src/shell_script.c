@@ -25,7 +25,8 @@ static size_t s_path_count;
 
 static bool is_explicit_script_token(const char *token)
 {
-    return (token != NULL) && (strchr(token, '/') != NULL);  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    return (token != NULL) && (strchr(token, '/') !=
+                               NULL); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool has_be_extension(const char *name)
@@ -35,7 +36,8 @@ static bool has_be_extension(const char *name)
         return false;
     }
     size_t len = strlen(name);
-    return (len >= 3) && (strcmp(name + len - 3, ".be") == 0);  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    return (len >= 3) && (strcmp(name + len - 3, ".be") ==
+                          0); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static esp_err_t normalize_path_dir(const char *input, char *normalized, size_t len)
@@ -347,7 +349,9 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
     {
         return err;
     }
-    if (vfs_exists(candidate) && !vfs_is_directory(candidate))  // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) - preserve existing behavior/types
+    if (vfs_exists(candidate) &&
+        !vfs_is_directory(candidate)) // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr)
+                                      // - preserve existing behavior/types
     {
         strncpy(resolved, candidate, len - 1);
         resolved[len - 1] = '\0';
@@ -395,7 +399,9 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
     {
         printf("%s: %s\n", argv[0], esp_err_to_name(err));
         *handled = true;
-        return err; // placeholder no change? line 350 region? not matching warning line 350 is `if (vfs_exists(candidate) && !vfs_is_directory(candidate))`? need to target actual line 350 as reported. I'll fix separately.
+        return err; // placeholder no change? line 350 region? not matching warning line 350 is `if
+                    // (vfs_exists(candidate) && !vfs_is_directory(candidate))`? need to target actual line 350 as
+                    // reported. I'll fix separately.
     }
 
     if (!found)

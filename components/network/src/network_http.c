@@ -75,7 +75,10 @@ static bool http_request_abandoned(uint32_t request_id)
     bool abandoned = false;
     if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(20)) == pdTRUE)
     {
-        abandoned = ((s_http_abandoned != false) && (s_http_active != false) && (s_active_request_id == request_id));  // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) - preserve existing behavior/types
+        abandoned = ((s_http_abandoned != false) && (s_http_active != false) &&
+                     (s_active_request_id ==
+                      request_id)); // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) -
+                                    // preserve existing behavior/types
         xSemaphoreGive(s_http_mutex);
     }
     return abandoned;
@@ -124,7 +127,8 @@ static void log_http_worker_stack(const char *method, bool https, int status, es
              (unsigned)hwm_bytes, method != NULL ? method : "?", https ? "https" : "http", status,
              esp_err_to_name(err));
 
-    network_http_worker_stack_info_t sample = {0};  // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+    network_http_worker_stack_info_t sample = {
+        0}; // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
     sample.available = true;
     sample.configured_stack = configured;
     sample.stack_unit_bytes = stack_unit;
@@ -409,7 +413,9 @@ static void http_worker(void *argument)
         const bool https = strncmp(s_req_url, "https://", 8) == 0;
         log_http_worker_stack(http_method_name(message.method), https, status, err);
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
-        if (s_http_active && (s_active_request_id == message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
+        if (s_http_active &&
+            (s_active_request_id ==
+             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             s_http_active = false;
             if (!s_http_abandoned)
@@ -575,10 +581,15 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     if (remaining_ticks > 0 && xSemaphoreTake(s_http_done, remaining_ticks) == pdTRUE)
     {
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
-        const esp_err_t err = (s_http_completed && (s_completed_request_id == message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
-                                  ? s_completed_error
-                                  : ESP_ERR_INVALID_STATE;
-        if (s_http_completed && (s_completed_request_id == message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+        const esp_err_t err =
+            (s_http_completed &&
+             (s_completed_request_id ==
+              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+                ? s_completed_error
+                : ESP_ERR_INVALID_STATE;
+        if (s_http_completed &&
+            (s_completed_request_id ==
+             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
         {
             s_http_completed = false;
         }
@@ -588,13 +599,16 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
 
     xSemaphoreTake(s_http_mutex, portMAX_DELAY);
     esp_err_t err = ESP_ERR_TIMEOUT;
-    if (s_http_completed && (s_completed_request_id == message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+    if (s_http_completed && (s_completed_request_id ==
+                             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
         err = s_completed_error;
         s_http_completed = false;
         (void)xSemaphoreTake(s_http_done, 0);
     }
-    else if (s_http_active && (s_active_request_id == message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+    else if (s_http_active &&
+             (s_active_request_id ==
+              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
         // R8/R2: the worker may still be inside esp_http_client_perform. Mark
         // abandoned so worker/event paths stop mutating the public response, and

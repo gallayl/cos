@@ -20,12 +20,18 @@ class _PatchedPopen(_OrigPopen):
     def _fix_args(args):
         if isinstance(args, (list, tuple)):
             args = list(args)
-            if sys.platform == "win32" and args and args[0] == "esptool.py":
-                args[0] = "esptool"
+            if args and args[0] in ("esptool.py", "esptool"):
+                # pytest-embedded may invoke esptool as a bare command, which is
+                # not reliably available on Windows. Use the active Python env.
+                args = [sys.executable, "-m", "esptool", *args[1:]]
             args = ["merge_bin" if a == "merge-bin" else a for a in args]
         elif isinstance(args, str):
-            if sys.platform == "win32" and args.startswith("esptool.py "):
-                args = "esptool " + args[len("esptool.py "):]
+            if args.startswith("esptool.py "):
+                rest = args[len("esptool.py "):]
+                args = subprocess.list2cmdline([sys.executable, "-m", "esptool"]) + " " + rest
+            elif args.startswith("esptool "):
+                rest = args[len("esptool "):]
+                args = subprocess.list2cmdline([sys.executable, "-m", "esptool"]) + " " + rest
             args = args.replace(" merge-bin ", " merge_bin ")
         return args
 

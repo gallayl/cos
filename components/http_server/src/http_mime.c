@@ -21,7 +21,8 @@ const char *http_mime_type(const char *path)
         return "application/octet-stream";
     }
 
-    if (ends_with(path, ".html") || ends_with(path, ".htm")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
+    if (ends_with(path, ".html") ||
+        ends_with(path, ".htm")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
     {
         return "text/html";
     }
@@ -41,7 +42,8 @@ const char *http_mime_type(const char *path)
     {
         return "image/png";
     }
-    if (ends_with(path, ".jpg") || ends_with(path, ".jpeg")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
+    if (ends_with(path, ".jpg") ||
+        ends_with(path, ".jpeg")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
     {
         return "image/jpeg";
     }

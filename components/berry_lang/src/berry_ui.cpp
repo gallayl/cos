@@ -16,7 +16,8 @@
 
 namespace
 {
-enum class ElementType : std::uint8_t // NOLINT(performance-enum-size,readability-identifier-naming) - local enum values/style kept for consistency
+enum class ElementType : std::uint8_t // NOLINT(performance-enum-size,readability-identifier-naming) - local enum
+                                      // values/style kept for consistency
 {
     kRoot,     // NOLINT(readability-identifier-naming)
     kLabel,    // NOLINT(readability-identifier-naming)
@@ -25,7 +26,8 @@ enum class ElementType : std::uint8_t // NOLINT(performance-enum-size,readabilit
     kCheckbox  // NOLINT(readability-identifier-naming)
 };
 
-struct UiHandle // NOLINT(readability-identifier-naming) - local UI handle type used consistently in this translation unit
+struct UiHandle // NOLINT(readability-identifier-naming) - local UI handle type used consistently in this translation
+                // unit
 
 {
     ui::Element *element;
@@ -334,7 +336,7 @@ int native_on_click(bvm *vm)
     {
         be_return_nil(vm);
     }
-    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     if (handle != nullptr && handle->type == ElementType::kButton)
     {
         remove_callback(handle->click_callback);
@@ -352,7 +354,7 @@ int native_on_change(bvm *vm)
     {
         be_return_nil(vm);
     }
-    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     if (handle != nullptr && handle->type == ElementType::kCheckbox)
     {
         remove_callback(handle->change_callback);

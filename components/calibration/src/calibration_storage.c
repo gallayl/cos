@@ -118,5 +118,8 @@ bool calibration_storage_exists(uint8_t rotation)
     esp_err_t err = nvs_get_blob(handle, key, NULL, &required_size);
     nvs_close(handle);
 
-    return (err == ESP_OK) && (required_size == (DISPLAY_CAL_DATA_LEN * sizeof(uint16_t))); // NOLINT(readability-implicit-bool-conversion) - boolean expression result
+    return (err == ESP_OK) &&
+           (required_size ==
+            (DISPLAY_CAL_DATA_LEN *
+             sizeof(uint16_t))); // NOLINT(readability-implicit-bool-conversion) - boolean expression result
 }
