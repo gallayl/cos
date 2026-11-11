@@ -62,7 +62,9 @@ def sanitize_compile_commands(src_path, dst_path):
             if "-fexceptions" not in command_args:
                 command_args.append("-fexceptions")
 
-        if "command" in entry:
+        if "arguments" in entry:
+            entry["arguments"] = command_args
+        elif "command" in entry:
             entry["command"] = subprocess.list2cmdline(command_args) if os.name == "nt" else shlex.join(command_args)
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)

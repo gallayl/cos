@@ -564,6 +564,11 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     bool want_stdout = redirect_targets_stdout(redir->type);
     bool want_stderr = redirect_targets_stderr(redir->type);
 
+    if (!want_stdout && !want_stderr)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     FILE *out_file = NULL;
     FILE *err_file = NULL;
 
