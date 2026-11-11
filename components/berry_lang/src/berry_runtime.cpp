@@ -810,7 +810,6 @@ int native_fs_list(bvm *vm)
         map_set_bool(vm, "is_dir", entries[index].is_dir);
         map_set_number(vm, "mtime", static_cast<double>(entries[index].mtime));
         map_set_number(vm, "ctime", static_cast<double>(entries[index].ctime));
-        be_pop(vm, 1);
         be_data_push(vm, -2);
         be_pop(vm, 1);
     }
@@ -818,7 +817,6 @@ int native_fs_list(bvm *vm)
     be_pushvalue(vm, -2);
     be_data_insert(vm, -4);
     be_pop(vm, 2);
-    be_pop(vm, 1);
     map_set_number(vm, "count", static_cast<double>(count));
     be_pop(vm, 1);
     be_return(vm);
