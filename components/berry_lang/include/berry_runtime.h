@@ -15,7 +15,7 @@ extern "C"
 
     typedef void (*berry_console_line_callback_t)(esp_err_t result, const char *line, void *context);
     typedef esp_err_t (*berry_console_read_line_fn_t)(const char *prompt, berry_console_line_callback_t callback,
-                                                    void *context);
+                                                      void *context);
     typedef esp_err_t (*berry_console_cancel_line_fn_t)(void *context);
     typedef esp_err_t (*berry_console_read_key_fn_t)(berry_console_line_callback_t callback, void *context);
 

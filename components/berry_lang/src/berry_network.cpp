@@ -535,7 +535,8 @@ static int native_net_fetch(bvm *vm)
                 return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0,
                                          esp_err_to_name(ESP_ERR_INVALID_ARG));
             }
-            include_body = (be_tobool(vm, -1) != 0); // NOLINT(readability-implicit-bool-conversion) - Berry bbool is int-like
+            include_body =
+                (be_tobool(vm, -1) != 0); // NOLINT(readability-implicit-bool-conversion) - Berry bbool is int-like
             be_pop(vm, 1);
         }
         bool has_timeout = false;

@@ -76,8 +76,7 @@ static bool http_request_abandoned(uint32_t request_id)
     if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(20)) == pdTRUE)
     {
         // NOLINTNEXTLINE(readability-implicit-bool-conversion)
-        abandoned = s_http_abandoned && s_http_active &&
-                     (s_active_request_id == request_id);
+        abandoned = s_http_abandoned && s_http_active && (s_active_request_id == request_id);
         xSemaphoreGive(s_http_mutex);
     }
     return abandoned;

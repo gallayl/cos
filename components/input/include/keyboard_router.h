@@ -34,7 +34,7 @@ extern "C"
         keyboard_console_owner_fn_t console_owns_input; /**< Prompt ownership check, or NULL. */
         keyboard_gui_owner_fn_t gui_handles_event;      /**< GUI event handler, or NULL. */
         keyboard_shell_input_fn_t shell_input;          /**< Shell text callback, or NULL. */
-        void *context;                                /**< Opaque value passed to callbacks. */
+        void *context;                                  /**< Opaque value passed to callbacks. */
     } keyboard_router_t;
 
     /**
