@@ -83,7 +83,8 @@
 **Objective:** make host and QEMU validation loops practical for frequent local runs.
 
 - **Actions**
-  - [ ] Expose parallel integration firmware builds in `Makefile`/docs (e.g. `INTEGRATION_TEST_BUILD_ARGS=-jN` or dedicated target) and evaluate safe default concurrency for developer machines/CI.
+  - [x] Expose parallel integration firmware builds in `Makefile`/docs (e.g. `INTEGRATION_TEST_BUILD_ARGS=-jN` or dedicated target). (2026-11-11: added `INTEGRATION_TEST_JOBS` support to `make integration-test-build` and documented usage in `README.md`; safe default concurrency for developer machines/CI still to evaluate.)
+  - [ ] Evaluate safe default concurrency for developer machines/CI.
   - [ ] Evaluate safe parallelism for integration test execution (independent QEMU instances, resource caps); keep serial mode available and default where isolation/races are a concern.
   - [ ] Add targeted selection workflows as first-class UX (single project, glob/pattern, changed-area mapping) using existing `scripts/integration_test.py` selectors.
   - [ ] Improve host-test loop ergonomics: avoid redundant configuration when unchanged, support running subsets, and keep `ctest --output-on-failure` summaries clear.
@@ -167,7 +168,7 @@ Quick wins to prioritize early (can start in parallel with DX1 instrumentation):
 | DX1 | Baseline metrics and observability | P0 | ⬜ Not started |  |
 | DX2 | Reproducible environment & dependency simplification | P0 | ⬜ Not started |  |
 | DX3 | Build and lint performance | P1 | ⬜ Not started |  |
-| DX4 | Test and integration-test throughput | P1 | ⬜ Not started |  |
+| DX4 | Test and integration-test throughput | P1 | 🟡 In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
 | DX5 | Output ergonomics and failure signal | P1 | ⬜ Not started |  |
 | DX6 | Developer workflow UX and guardrails | P2 | ⬜ Not started |  |
 | DX7 | CI efficiency and parity | P2 | ⬜ Not started |  |

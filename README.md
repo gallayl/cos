@@ -70,6 +70,14 @@ python -m pip install -r integration_test/requirements.txt
 python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
 ```
 
+To build integration-test firmware projects in parallel, pass a job count:
+
+```bash
+make integration-test-build INTEGRATION_TEST_JOBS=4
+```
+
+You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` (for example, project selectors). Use `INTEGRATION_TEST_RUN_ARGS` for run-time arguments or invoke `scripts/integration_test.py` directly.
+
 ## Build and flash
 
 ```bash
