@@ -1,4 +1,4 @@
-.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
+.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint lint-db test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -100,6 +100,9 @@ format:
 
 format-check:
 	clang-format --dry-run --Werror $(SOURCES)
+
+lint-db:
+	@$(IDF_PYTHON) scripts/prepare_lint_db.py
 
 lint:
 	@$(IDF_PYTHON) scripts/run_tidy.py $(SOURCES)

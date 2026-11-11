@@ -28,8 +28,7 @@ jobs:
         shell: bash
         run: |
           . $IDF_PATH/export.sh
-          mkdir -p build/clang
-          IDF_TOOLCHAIN=clang idf.py -B build/clang reconfigure
+          make lint-db
 
       - name: Run clang-tidy
         shell: bash
