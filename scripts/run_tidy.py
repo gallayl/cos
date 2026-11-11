@@ -17,6 +17,12 @@ UNSUPPORTED_FLAGS = {
     "-fno-shrink-wrap",
     "-fno-tree-switch-conversion",
     "-fstrict-volatile-bitfields",
+    "-fno-malloc-dce",
+    "-fzero-init-padding-bits=all",
+    "-fno-builtin-memcpy",
+    "-fno-builtin-memset",
+    "-fno-builtin-bzero",
+    "-Wno-old-style-declaration",
 }
 
 SRC_PATH = os.environ.get("TIDY_COMPILE_COMMANDS", "build/compile_commands.json")
@@ -31,7 +37,6 @@ def sanitize_compile_commands(src_path, dst_path):
         if "arguments" in entry:
             if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
                 raise ValueError("compile database arguments must be a list of strings")
-            entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
             command_args = entry["arguments"]
         elif "command" in entry:
             words = shlex.split(entry["command"], posix=os.name != "nt")
@@ -39,10 +44,17 @@ def sanitize_compile_commands(src_path, dst_path):
                 words = [
                     word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
                 ]
-            words = [word for word in words if word not in UNSUPPORTED_FLAGS]
             command_args = words
         else:
             raise ValueError("compile database entry must contain command or arguments")
+
+        command_args = [
+            arg
+            for arg in command_args
+            if arg not in UNSUPPORTED_FLAGS
+            and not arg.startswith("@")
+            and not arg.startswith("-specs=")
+        ]
 
         if os.path.splitext(entry.get("file", ""))[1].lower() in {".cc", ".cpp", ".cxx", ".c++"}:
             # clang-tidy cannot parse LovyanGFX's dead throw branch with ESP-IDF's no-exceptions flag.

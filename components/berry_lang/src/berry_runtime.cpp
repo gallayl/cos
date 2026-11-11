@@ -813,7 +813,6 @@ int native_fs_list(bvm *vm)
         be_data_push(vm, -2);
         be_pop(vm, 1);
     }
-    be_pop(vm, 1);
     be_pushstring(vm, "entries");
     be_pushvalue(vm, -2);
     be_data_insert(vm, -4);
