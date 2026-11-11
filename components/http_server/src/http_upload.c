@@ -107,6 +107,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         }
     }
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (is_final && uctx->file)
     {
         fclose(uctx->file);

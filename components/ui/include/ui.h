@@ -9,7 +9,7 @@
 namespace ui
 {
 
-struct Bounds
+struct Bounds // NOLINT(readability-identifier-naming)
 {
     int x;
     int y;

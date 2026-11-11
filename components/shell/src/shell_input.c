@@ -415,6 +415,7 @@ static void deliver_key_name(const char *name)
     {
         return;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (s_key_input.character_only &&
         (name[1] != '\0' ||
          (unsigned char)name[0] <
@@ -543,6 +544,7 @@ static void expire_pending_key_sequence(void)
 
 static bool key_sequence_is_pending(void)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return s_key_input.active &&
            (s_key_input.escape_state !=
             ST_NORMAL); // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
@@ -631,6 +633,7 @@ static void process_key_byte(uint8_t ch)
         }
         if (ch >= 0x40 && ch <= 0x7E)
         {
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             const int param = s_key_input.csi_param_any
                                   ? s_key_input.csi_param
                                   : 0; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
@@ -841,6 +844,7 @@ esp_err_t shell_input_read_line(const char *prompt, shell_line_input_callback_t 
     {
         return ESP_ERR_INVALID_STATE;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (s_line_input.active ||
         s_key_input.active) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {
@@ -897,6 +901,7 @@ static esp_err_t begin_key_input(bool character_only, shell_line_input_callback_
     {
         return ESP_ERR_INVALID_STATE;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (s_line_input.active ||
         s_key_input.active) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {

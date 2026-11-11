@@ -102,7 +102,7 @@ static void append_field_value(char *field_value, size_t field_value_capacity, s
     field_value[*field_value_len] = '\0';
 }
 
-esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, multipart_file_cb on_file, void *ctx)
+esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, multipart_file_cb_t on_file, void *ctx)
 {
     char ct_buf[256];
     char *boundary = extract_boundary(req, ct_buf, sizeof(ct_buf));

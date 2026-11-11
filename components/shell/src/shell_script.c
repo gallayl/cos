@@ -25,6 +25,7 @@ static size_t s_path_count;
 
 static bool is_explicit_script_token(const char *token)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (token != NULL) && (strchr(token, '/') !=
                                NULL); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
@@ -36,6 +37,7 @@ static bool has_be_extension(const char *name)
         return false;
     }
     size_t len = strlen(name);
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (len >= 3) && (strcmp(name + len - 3, ".be") ==
                           0); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
@@ -349,6 +351,7 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
     {
         return err;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (vfs_exists(candidate) &&
         !vfs_is_directory(candidate)) // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr)
                                       // - preserve existing behavior/types

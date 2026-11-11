@@ -7,12 +7,14 @@ static char s_base[NETWORK_URL_MAX + 1];
 
 static bool is_digit(unsigned char character)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (character >= '0') &&
            (character <= '9'); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool is_alpha(unsigned char character)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return ((character >= 'a') && (character <= 'z')) ||
            ((character >= 'A') &&
             (character <= 'Z')); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
@@ -148,6 +150,7 @@ static bool valid_hostname(const char *host)
             return false;
         }
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (label_length > 0) &&
            !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
@@ -360,6 +363,7 @@ static esp_err_t parse_absolute(const char *url, url_parts_t *parts)
         }
     }
     if ((!parts->https && parts->port == 80U) ||
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         (parts->https &&
          parts->port == 443U)) // NOLINT(readability-implicit-bool-conversion) - bool field compared as condition
     {
@@ -585,6 +589,7 @@ bool network_http_method_valid(const char *method)
     {
         return false;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return ((strcmp(method, "GET") == 0) || (strcmp(method, "POST") == 0) ||
             (strcmp(method, "PUT") ==
              0) || // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
@@ -637,6 +642,7 @@ bool network_http_header_valid(const char *name, const char *value)
 
 bool network_http_timeout_valid(uint32_t timeout_ms)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return ((timeout_ms >= NETWORK_HTTP_TIMEOUT_MIN_MS) &&
             (timeout_ms <= NETWORK_HTTP_TIMEOUT_MAX_MS)); // NOLINT(readability-implicit-bool-conversion) - preserve
                                                           // existing behavior/types

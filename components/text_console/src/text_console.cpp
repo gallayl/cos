@@ -218,7 +218,8 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     {
         return (ssize_t)size;
     }
-    size_t written = fwrite(buf, 1, size, s_original_stdout);
+    const size_t written = fwrite(buf, 1, size, s_original_stdout);
+    (void)written;
     fflush(s_original_stdout);
     notify_output_listener(buf, size);
 

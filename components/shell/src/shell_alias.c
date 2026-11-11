@@ -106,6 +106,7 @@ static bool valid_command(const shell_alias_t *aliases, size_t count, const char
     char name[ALIAS_COMMAND_MAX];
     memcpy(name, command_name, command_name_length);
     name[command_name_length] = '\0';
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return ((find_alias(aliases, count, name) < 0) &&
             command_exists(name)); // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) -
                                    // preserve existing behavior/types
@@ -283,6 +284,7 @@ esp_err_t shell_alias_init(void)
         {
             *separator = '\0';
             const char *command = separator + 1;
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             if (valid_name(line) && valid_command(s_aliases, s_alias_count, command) &&
                 !command_exists(line) && // NOLINT(readability-implicit-bool-conversion,
                                          // readability-simplify-boolean-expr) - preserve existing behavior/types

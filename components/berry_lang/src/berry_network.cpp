@@ -535,8 +535,7 @@ static int native_net_fetch(bvm *vm)
                 return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0,
                                          esp_err_to_name(ESP_ERR_INVALID_ARG));
             }
-            include_body = (be_tobool(vm, -1) !=
-                            0); // NOLINT(readability-implicit-bool-conversion) - Berry API returns int-like bool value
+            include_body = (be_tobool(vm, -1) != 0); // NOLINT(readability-implicit-bool-conversion) - Berry bbool is int-like
             be_pop(vm, 1);
         }
         bool has_timeout = false;
@@ -723,8 +722,8 @@ static int native_net_ping(bvm *vm)
     be_return(vm);
 }
 
+// NOLINTNEXTLINE(readability-identifier-naming)
 static bntvmodobj_t const net_attrs[] = {
-    // NOLINT(readability-identifier-naming)
     be_native_module_function("ping", native_net_ping),
     be_native_module_function("host", native_net_host),
     be_native_module_function("wifi", native_net_wifi),
@@ -735,8 +734,8 @@ static bntvmodobj_t const net_attrs[] = {
     be_native_module_function("fetch", native_net_fetch),
 };
 
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern "C" const bntvmodule_t be_native_module_net = {
-    // NOLINT(readability-identifier-naming)
     "net",
     net_attrs,
     sizeof(net_attrs) / sizeof(net_attrs[0]),

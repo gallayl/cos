@@ -8,9 +8,11 @@ void keyboard_route_event(const keyboard_event_t *event, const keyboard_router_t
     }
 
     if (router->console_owns_input != NULL &&
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         router->console_owns_input(
             router->context)) // NOLINT(readability-implicit-bool-conversion) - callback bool result in C condition
     {
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         if (event->pressed && event->text_len > 0 &&
             router->shell_input !=
                 NULL) // NOLINT(readability-implicit-bool-conversion) - bool/size checks in C condition
@@ -21,6 +23,7 @@ void keyboard_route_event(const keyboard_event_t *event, const keyboard_router_t
     }
 
     if (router->gui_handles_event != NULL &&
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         router->gui_handles_event(
             event,
             router->context)) // NOLINT(readability-implicit-bool-conversion) - callback bool result in C condition
@@ -28,6 +31,7 @@ void keyboard_route_event(const keyboard_event_t *event, const keyboard_router_t
         return;
     }
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (event->pressed && event->text_len > 0 &&
         router->shell_input != NULL) // NOLINT(readability-implicit-bool-conversion) - bool/size checks in C condition
     {

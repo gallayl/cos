@@ -42,10 +42,10 @@ int s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
 constexpr char CONSOLE_INPUT_CALLBACK_GLOBAL[] = "_cos_console_input_callback";
 constexpr char MODULE_CACHE_GLOBAL[] = "_cos_modules";
 std::recursive_mutex s_vm_mutex;
-berry_console_read_line_fn s_console_read_line = nullptr;
-berry_console_cancel_line_fn s_console_cancel_line = nullptr;
-berry_console_read_key_fn s_console_read_key = nullptr;
-berry_console_read_key_fn s_console_read_char = nullptr;
+berry_console_read_line_fn_t s_console_read_line = nullptr;
+berry_console_cancel_line_fn_t s_console_cancel_line = nullptr;
+berry_console_read_key_fn_t s_console_read_key = nullptr;
+berry_console_read_key_fn_t s_console_read_char = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
 const char *s_app_class_global_name = nullptr;
@@ -230,7 +230,7 @@ esp_err_t cancel_pending_console_input()
 void console_line_complete(esp_err_t result, const char *line, void *context)
 {
     (void)context;
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr || !s_console_line_pending)
     {
         return;
@@ -479,7 +479,7 @@ int push_write_status(bvm *vm, esp_err_t err)
     be_return(vm);
 }
 
-esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn start)
+esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn_t start)
 {
     if (start == nullptr || s_console_line_pending)
     {
@@ -2129,7 +2129,7 @@ static void install_lazy_module_global(bvm *vm, const char *name)
 
 extern "C" esp_err_t berry_runtime_init(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm != nullptr)
     {
         return ESP_OK;
@@ -2177,7 +2177,7 @@ extern "C" esp_err_t berry_runtime_init(void)
 
 extern "C" void berry_runtime_deinit(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm != nullptr)
     {
         cancel_pending_console_input();
@@ -2189,7 +2189,7 @@ extern "C" void berry_runtime_deinit(void)
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (source == nullptr || source_name == nullptr)
     {
         return ESP_ERR_INVALID_ARG;
@@ -2205,7 +2205,7 @@ extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_n
 
 extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (virtual_path == nullptr || argc < 0 || (argc > 0 && argv == nullptr))
     {
         return ESP_ERR_INVALID_ARG;
@@ -2260,7 +2260,7 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
 
 extern "C" esp_err_t berry_runtime_close_app(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         return ESP_ERR_INVALID_STATE;
@@ -2275,7 +2275,7 @@ extern "C" bool berry_runtime_handle_key_event(const keyboard_event_t *event)
         return false;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr || !has_active_app())
     {
         return false;
@@ -2284,12 +2284,12 @@ extern "C" bool berry_runtime_handle_key_event(const keyboard_event_t *event)
     return true;
 }
 
-extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                                         berry_console_cancel_line_fn cancel_line,
-                                                         berry_console_read_key_fn read_key,
-                                                         berry_console_read_key_fn read_char)
+extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line_fn_t read_line,
+                                                         berry_console_cancel_line_fn_t cancel_line,
+                                                         berry_console_read_key_fn_t read_key,
+                                                         berry_console_read_key_fn_t read_char)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     s_console_read_line = read_line;
     s_console_cancel_line = cancel_line;
     s_console_read_key = read_key;
@@ -2320,7 +2320,7 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
         return ESP_ERR_INVALID_ARG;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
 
     info->initialized = (s_vm != nullptr);
     info->gc_managed_bytes = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
@@ -2338,7 +2338,7 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
 
 extern "C" esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         if (before_bytes != nullptr)
@@ -2373,7 +2373,7 @@ extern "C" esp_err_t berry_runtime_set_gc_step_rate(int rate)
         return ESP_ERR_INVALID_ARG;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         return ESP_ERR_INVALID_STATE;

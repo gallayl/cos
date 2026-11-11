@@ -14,10 +14,10 @@ extern "C"
 #endif
 
     typedef void (*berry_console_line_callback_t)(esp_err_t result, const char *line, void *context);
-    typedef esp_err_t (*berry_console_read_line_fn)(const char *prompt, berry_console_line_callback_t callback,
+    typedef esp_err_t (*berry_console_read_line_fn_t)(const char *prompt, berry_console_line_callback_t callback,
                                                     void *context);
-    typedef esp_err_t (*berry_console_cancel_line_fn)(void *context);
-    typedef esp_err_t (*berry_console_read_key_fn)(berry_console_line_callback_t callback, void *context);
+    typedef esp_err_t (*berry_console_cancel_line_fn_t)(void *context);
+    typedef esp_err_t (*berry_console_read_key_fn_t)(berry_console_line_callback_t callback, void *context);
 
     /** Create the Berry virtual machine. Repeated calls are safe. */
     esp_err_t berry_runtime_init(void);
@@ -63,10 +63,10 @@ extern "C"
     bool berry_runtime_handle_key_event(const keyboard_event_t *event);
 
     /** Install console line, key, and character input without coupling Berry to the shell. */
-    void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                                  berry_console_cancel_line_fn cancel_line,
-                                                  berry_console_read_key_fn read_key,
-                                                  berry_console_read_key_fn read_char);
+    void berry_runtime_set_console_input_provider(berry_console_read_line_fn_t read_line,
+                                                  berry_console_cancel_line_fn_t cancel_line,
+                                                  berry_console_read_key_fn_t read_key,
+                                                  berry_console_read_key_fn_t read_char);
 
     typedef struct
     {

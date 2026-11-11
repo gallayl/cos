@@ -210,6 +210,7 @@ uint8_t brightness_get(void)
 
 esp_err_t brightness_set_auto(bool on)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     s_mode = on ? BRIGHTNESS_MODE_AUTO
                 : BRIGHTNESS_MODE_MANUAL; // NOLINT(readability-implicit-bool-conversion) - bool selects enum value
 

@@ -59,6 +59,7 @@ static void print_http_stack(void)
             "status=%d err=%s\n",
             (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
             (unsigned)http_stack.hwm_words, (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes,
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             http_stack.last_method, http_stack.https ? "https" : "http",
             http_stack.last_status, // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
             esp_err_to_name(http_stack.last_error));
@@ -95,6 +96,7 @@ static void print_profile(void)
     if (berry_err == ESP_OK)
     {
         printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n",
+               // NOLINTNEXTLINE(readability-implicit-bool-conversion)
                berry_info.initialized
                    ? "yes"
                    : "no", // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
@@ -115,6 +117,7 @@ static void print_profile(void)
             printf("  HTTP worker:   cfg=%u unit=%u hwm=%u used~=%u bytes method=%s %s status=%d err=%s\n",
                    (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
                    (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes, http_stack.last_method,
+                   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
                    http_stack.https ? "https" : "http", http_stack.last_status,
                    esp_err_to_name(http_stack.last_error)); // NOLINT(readability-implicit-bool-conversion) - preserve
                                                             // existing behavior/types

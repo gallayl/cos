@@ -75,10 +75,9 @@ static bool http_request_abandoned(uint32_t request_id)
     bool abandoned = false;
     if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(20)) == pdTRUE)
     {
-        abandoned = ((s_http_abandoned != false) && (s_http_active != false) &&
-                     (s_active_request_id ==
-                      request_id)); // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) -
-                                    // preserve existing behavior/types
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+        abandoned = s_http_abandoned && s_http_active &&
+                     (s_active_request_id == request_id);
         xSemaphoreGive(s_http_mutex);
     }
     return abandoned;
@@ -413,6 +412,7 @@ static void http_worker(void *argument)
         const bool https = strncmp(s_req_url, "https://", 8) == 0;
         log_http_worker_stack(http_method_name(message.method), https, status, err);
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         if (s_http_active &&
             (s_active_request_id ==
              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
@@ -582,11 +582,13 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     {
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
         const esp_err_t err =
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             (s_http_completed &&
              (s_completed_request_id ==
               message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
                 ? s_completed_error
                 : ESP_ERR_INVALID_STATE;
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         if (s_http_completed &&
             (s_completed_request_id ==
              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
@@ -599,6 +601,7 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
 
     xSemaphoreTake(s_http_mutex, portMAX_DELAY);
     esp_err_t err = ESP_ERR_TIMEOUT;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (s_http_completed && (s_completed_request_id ==
                              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
@@ -606,6 +609,7 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
         s_http_completed = false;
         (void)xSemaphoreTake(s_http_done, 0);
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     else if (s_http_active &&
              (s_active_request_id ==
               message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix

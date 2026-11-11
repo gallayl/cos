@@ -21,6 +21,7 @@ const char *http_mime_type(const char *path)
         return "application/octet-stream";
     }
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (ends_with(path, ".html") ||
         ends_with(path, ".htm")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
     {
@@ -42,6 +43,7 @@ const char *http_mime_type(const char *path)
     {
         return "image/png";
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (ends_with(path, ".jpg") ||
         ends_with(path, ".jpeg")) // NOLINT(readability-implicit-bool-conversion) - bool predicates in C condition
     {

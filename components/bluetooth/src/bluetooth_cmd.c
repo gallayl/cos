@@ -37,6 +37,7 @@ static void print_status(void)
     {
         printf(
             "Bluetooth: %s\n",
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             bluetooth_is_enabled()
                 ? "ON"
                 : "OFF"); // NOLINT(readability-implicit-bool-conversion) - ternary selects string literals for printf

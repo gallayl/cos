@@ -99,6 +99,7 @@ static bool valid_hostname(const char *host)
             return false;
         }
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (label_length > 0) &&
            !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
@@ -258,6 +259,7 @@ static void ping_worker(void *argument)
         }
 
         xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         if (s_ping_active &&
             (s_active_request_id ==
              request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
@@ -378,11 +380,13 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
     {
         xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
         const esp_err_t err =
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
             (s_ping_completed &&
              (s_completed_request_id ==
               request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
                 ? s_completed_error
                 : ESP_ERR_INVALID_STATE;
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         if (s_ping_completed &&
             (s_completed_request_id ==
              request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
@@ -396,6 +400,7 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
 
     xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
     esp_err_t err = ESP_ERR_TIMEOUT;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (s_ping_completed && (s_completed_request_id ==
                              request.request_id)) // NOLINT(readability-implicit-bool-conversion) - C bool in condition
     {
@@ -404,6 +409,7 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
         s_ping_completed = false;
         (void)xSemaphoreTake(s_ping_completed_sem, 0);
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     else if (s_ping_active &&
              (s_active_request_id ==
               request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix

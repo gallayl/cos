@@ -118,6 +118,7 @@ bool calibration_storage_exists(uint8_t rotation)
     esp_err_t err = nvs_get_blob(handle, key, NULL, &required_size);
     nvs_close(handle);
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (err == ESP_OK) &&
            (required_size ==
             (DISPLAY_CAL_DATA_LEN *

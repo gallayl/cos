@@ -96,6 +96,7 @@ static int shell_dup2(int oldfd, int newfd)
 
 static bool is_space_char(char c)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (c == ' ') || (c == '\t') || (c == '\r') ||
            (c == '\n'); // NOLINT(readability-implicit-bool-conversion) - character comparisons in C bool return
 }
@@ -515,6 +516,7 @@ static bool redirect_targets_stderr(shell_redirect_type_t type)
 
 static bool redirect_is_append(shell_redirect_type_t type)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (type == SHELL_REDIRECT_APPEND) || (type == SHELL_REDIRECT_STDERR_APPEND) ||
            (type == SHELL_REDIRECT_BOTH_APPEND); // NOLINT(readability-implicit-bool-conversion)
 }
@@ -555,7 +557,9 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         printf("redirection: '%s' is not a virtual path\n", resolved_virtual);
         return ESP_ERR_INVALID_ARG;
     }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (vfs_exists(resolved_virtual) &&
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         vfs_is_directory(
             resolved_virtual)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
     {
@@ -571,6 +575,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         return err;
     }
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     const char *mode = redirect_is_append(redir->type)
                            ? "a"
                            : "w"; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary

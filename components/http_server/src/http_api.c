@@ -105,6 +105,7 @@ static esp_err_t handler_files(httpd_req_t *req)
         char item[320];
         snprintf(item, sizeof(item), "%s{\"name\":\"%s\",\"size\":%u,\"is_dir\":%s,\"mtime\":%lld,\"ctime\":%lld}",
                  (i > 0) ? "," : "", escaped_name, (unsigned)entries[i].size,
+                 // NOLINTNEXTLINE(readability-implicit-bool-conversion)
                  entries[i].is_dir
                      ? "true"
                      : "false", // NOLINT(readability-implicit-bool-conversion) - bool formatted as JSON string
@@ -175,6 +176,7 @@ static esp_err_t handler_file(httpd_req_t *req)
 
 static bool is_filesystem_root(const char *path)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (strcmp(path, "/flash") == 0) ||
            (strcmp(path, "/sdcard") ==
             0); // NOLINT(readability-implicit-bool-conversion) -- strcmp comparisons combined as logical predicate
@@ -183,6 +185,7 @@ static bool is_filesystem_root(const char *path)
 static bool path_is_inside(const char *parent, const char *child)
 {
     size_t length = strlen(parent);
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (strncmp(child, parent, length) == 0) &&
            (child[length] ==
             '/'); // NOLINT(readability-implicit-bool-conversion) -- boundary check expressed as combined comparisons
@@ -241,6 +244,7 @@ static esp_err_t handler_rename(httpd_req_t *req)
     char from[VFS_PATH_MAX];
     char to[VFS_PATH_MAX];
     if ((query_path(req, "from", from, sizeof(from)) != ESP_OK) || (query_path(req, "to", to, sizeof(to)) != ESP_OK) ||
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
         is_filesystem_root(from) || is_filesystem_root(to) ||
         path_is_inside(from, to)) // NOLINT(readability-implicit-bool-conversion)
     {

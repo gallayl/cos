@@ -12,8 +12,8 @@ be_extern_native_module(fs);
 be_extern_native_module(net);
 be_extern_native_module(ui);
 
+// NOLINTNEXTLINE(readability-identifier-naming)
 BERRY_LOCAL const bntvmodule_t *const be_module_table[] = {
-// NOLINT(readability-identifier-naming)
 #if BE_USE_STRING_MODULE
     &be_native_module(string),
 #endif

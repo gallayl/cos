@@ -418,7 +418,7 @@ int native_clear(bvm *vm)
     else if (handle != nullptr && handle->type == ElementType::kRoot)
     {
         ui::app_root().clear();
-        for (UiHandle &entry : s_handles)
+        for (const UiHandle &entry : s_handles)
         {
             remove_callback(entry.click_callback);
             remove_callback(entry.change_callback);

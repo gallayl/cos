@@ -130,6 +130,7 @@ bool http_static_is_spa(void)
 
 static bool is_api_route(const char *uri)
 {
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (strncmp(uri, "/api/", 5) == 0) ||
            (strncmp(uri, "/ws", 3) == 0); // NOLINT(readability-implicit-bool-conversion)
 }
