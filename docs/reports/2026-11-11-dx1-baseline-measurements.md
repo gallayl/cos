@@ -42,6 +42,27 @@ Wall-clock times below are from `System.Diagnostics.Stopwatch` around the invoke
 
 **Aggregate (measured commands B1–B8):** all executed commands exited 0 in this pass; total measured wall time ~21.34s (sum of individual stopwatch timings; sequential execution).
 
+## Firmware build baseline and compiler-caching comparison (local, 2026-11-11 follow-up)
+
+**Environment/state:** same Windows host (`E:\dev\cos`, ESP-IDF v6.1 tools, `ccache` 4.12.1 at `C:\Espressif\tools\ccache\4.12.1\ccache-4.12.1-windows-x86_64\ccache.exe`). The pre-existing `build/` CMake cache originated from `/workspaces/cos` (devcontainer path) and caused `make build` to fail until `build/` was removed; measurements below were taken after recreating a valid local build.
+
+**How caching was enabled (local only):** `IDF_CCACHE_ENABLE=1` with the ccache directory prepended to `PATH` (ESP-IDF/CMake reported `-DCCACHE_ENABLE=True` on cached runs; baseline reported `-DCCACHE_ENABLE=False`). No repository or CI files were changed for this measurement.
+
+| Scenario | Compiler cache | Exit | Time (ms) | Time (s) | Notes |
+|---|---:|---:|---:|---:|---|
+| **FB1 (baseline):** clean `make build` (after `build/` removed) | off (`IDF_CCACHE_ENABLE=0`) | 0 | 139520 | 139.52 | Full firmware build completed (`cos.bin` 0x1d9bc0, 7% free in smallest app partition). |
+| **FB2:** `make clean` + `make build` | on (`IDF_CCACHE_ENABLE=1`) | 0 / 0 | 29445 + 85931 | 29.45 + 85.93 | First ccache-enabled build; populates compiler cache. |
+| **FB3 (warm):** `make clean` + `make build` | on | 0 / 0 | 72093 (total) | 72.09 | Clean rebuild with warm ccache (primary comparison to FB1). |
+| **FB4:** incremental no-op `make build` | on | 0 | 1961 | 1.96 | Ninja up-to-date. |
+
+**`ccache -s` snapshot (after FB1–FB4):** cacheable 10564/10599 (99.67%), hits 7782/10564 (**73.67%**, direct 5166 / preprocessed 2616), misses 2782/10564 (26.33%), local cache size 0.1/5.0 GiB.
+
+**Comparison vs baseline (FB1 = 139.52 s, clean build):**
+- Warm cached clean rebuild (FB3): **72.09 s** → **−67.43 s (−48.3%)**, **~1.94× faster**.
+- First/populating cached clean build (FB2): **85.93 s** → **−53.59 s (−38.4%)**, **~1.62× faster**.
+
+**Conclusion:** compiler caching (`IDF_CCACHE_ENABLE` + `ccache`) provides a substantial local speedup for clean/rebuild cycles on this setup and is worth introducing to CI (with tool availability, `CCACHE_DIR`, cache restore/save keyed by toolchain/IDF/config, and hit-rate/size monitoring). CI integration and cross-platform validation remain follow-up work.
+
 ## Scripts/commands identified but not fully baseline-measured
 
 | Script / command | Status | Reason / blocker | Suggested follow-up |
@@ -51,7 +72,8 @@ Wall-clock times below are from `System.Diagnostics.Stopwatch` around the invoke
 | `python scripts/integration_test.py run [all\|<project>]` | Not measured | Requires built QEMU firmware images, `pytest-embedded` deps, and QEMU (`qemu-system-xtensa` not on PATH in this shell). | Measure per-project and full-suite after successful build; record env/cache state. |
 | `.\scripts\r14-hardware-validation.ps1` | Not executed (by design) | Hardware/firmware validation helper; creates artifact directories/checklists and may run `idf.py` in `-FirmwareEval` mode. Not a generic software-only baseline script. | Use only during R14 hardware validation with target device/serial; time artifact-prep step separately if desired. |
 | `make lint` | Not measured | Can be slow and requires prepared clang compile DB / ESP-IDF clang DB flow (`scripts/prepare_lint_db.py` -> `build/clang`); not run in this pass. | Measure after confirming `build/clang/compile_commands.json` freshness in ESP-IDF/clang-capable env; capture full vs scoped lint once DX3 adds modes. |
-| `make build` / `make integration-test` | Not measured | Firmware build/integration orchestration depend on activated ESP-IDF toolchain and (for integration) QEMU; high cost. | Baseline in canonical env with clean/incremental runs. |
+| `make build` (firmware) | **Partially measured (local)** | Clean build baseline and ccache comparison captured in follow-up (FB1–FB4). | Capture incremental-after-change, lint-coupled, and CI/devcontainer timings; validate on Linux/macOS. |
+| `make integration-test` | Not measured | Integration orchestration depends on activated ESP-IDF toolchain and QEMU; high cost. | Baseline in canonical env with clean/incremental runs. |
 | Frontend `yarn install` / cold-cache scenarios | Not measured | `node_modules` already present. | Capture clean install (`--frozen-lockfile`) and cache-state variants separately. |
 
 ## Progress / tracking
@@ -61,14 +83,16 @@ Wall-clock times below are from `System.Diagnostics.Stopwatch` around the invoke
 - [x] Ran and timed quick/safe script baselines (Berry validation skip, integration script help, format/test/lint/build commands available locally).
 - [x] Ran and timed host tests (`make test`) and frontend CI-equivalent scripts (`yarn format:check`, `yarn lint`, `yarn test`, `yarn build`).
 - [x] Recorded results in this report: `docs/reports/2026-11-11-dx1-baseline-measurements.md`.
+- [x] Captured local firmware `make build` baseline and ccache comparison (FB1–FB4): clean no-cache 139.52 s, warm cached clean rebuild 72.09 s (−48.3%, ~1.94×), 73.67% ccache hits.
 - [ ] Full Berry compile validation baseline (needs host Berry compiler).
 - [ ] Integration test build/run baselines (needs activated ESP-IDF v6.1 + QEMU + deps; measure `-j`/parallelism).
-- [ ] `make lint` and firmware `make build` baselines (needs appropriate toolchain/compile DB).
+- [ ] `make lint` baseline (needs appropriate toolchain/compile DB).
 - [ ] Cross-platform baselines (Linux/macOS/devcontainer) — not validated in this Windows-only pass.
 - [ ] Peak RAM/disk/log-volume metrics and CI runner comparison (future DX1 refinement).
 
 ## Notes
 
-- This pass did not modify firmware/frontend source logic; it executed existing checks/scripts to gather timing baselines.
-- PowerShell/native-command stderr wrapping was observed in some captured outputs but did not affect exit codes for the passing commands above.
-- Hardware-dependent validation was not performed.
+- The initial DX1 pass did not modify firmware/frontend source logic; it executed existing checks/scripts to gather timing baselines. The follow-up added local firmware build + compiler-cache measurements and documentation updates only (no firmware/frontend behavior changes).
+- A stale `build/` CMake cache from a different host path (`/workspaces/cos`) blocked local builds until `build/` was removed and recreated.
+- PowerShell/native-command stderr wrapping and ESP-IDF environment warnings were observed in some captured outputs but did not affect exit codes for the passing commands above.
+- Hardware-dependent validation was not performed. CI caching enablement is a separate follow-up.

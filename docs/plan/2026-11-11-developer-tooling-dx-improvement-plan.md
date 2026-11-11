@@ -165,10 +165,10 @@ Quick wins to prioritize early (can start in parallel with DX1 instrumentation):
 
 | ID | Workstream | Priority | Status | Notes |
 |---|---|---:|---|---|
-| DX1 | Baseline metrics and observability | P0 | ⬜ Not started |  |
+| DX1 | Baseline metrics and observability | P0 | 🟡 In progress | 2026-11-11: initial local script/tool baselines + firmware build baseline and ccache comparison recorded in `docs/reports/2026-11-11-dx1-baseline-measurements.md` (FB1–FB4: clean 139.52 s → warm cached 72.09 s, −48.3%); lint/integration/CI/cross-platform/peak metrics remain. |
 | DX2 | Reproducible environment & dependency simplification | P0 | ⬜ Not started |  |
-| DX3 | Build and lint performance | P1 | ⬜ Not started |  |
+| DX3 | Build and lint performance | P1 | 🟡 In progress | 2026-11-11: validated local compiler caching via `IDF_CCACHE_ENABLE=1` + ccache (Espressif tools) with ~1.94× warm clean-build speedup and 73.7% hit rate; repo/CI integration and lint-pipeline optimizations remain. |
 | DX4 | Test and integration-test throughput | P1 | 🟡 In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
 | DX5 | Output ergonomics and failure signal | P1 | ⬜ Not started |  |
 | DX6 | Developer workflow UX and guardrails | P2 | ⬜ Not started |  |
-| DX7 | CI efficiency and parity | P2 | ⬜ Not started |  |
+| DX7 | CI efficiency and parity | P2 | 🟡 In progress | 2026-11-11: local evidence supports adding compiler caching to CI (build-and-lint/integration workflows); implementation/validation in progress as next step. |

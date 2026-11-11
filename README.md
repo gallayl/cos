@@ -78,6 +78,17 @@ make integration-test-build INTEGRATION_TEST_JOBS=4
 
 You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` (for example, project selectors). Use `INTEGRATION_TEST_RUN_ARGS` for run-time arguments or invoke `scripts/integration_test.py` directly.
 
+### Optional: compiler caching (faster rebuilds)
+
+ESP-IDF supports compiler caching via ccache/sccache. If a compatible `ccache` is installed and on `PATH`, enable it for firmware builds:
+
+```bash
+export IDF_CCACHE_ENABLE=1   # PowerShell: $env:IDF_CCACHE_ENABLE = "1"
+make build
+```
+
+On Windows with Espressif tools, `ccache` may already be installed under `%IDF_TOOLS_PATH%\ccache\...` (add its directory to `PATH` before building). Local DX measurements on 2026-11-11 showed a clean firmware rebuild improved from ~139.5 s to ~72.1 s with a warm cache (~1.94× faster); see `docs/reports/2026-11-11-dx1-baseline-measurements.md`. CI enablement is tracked under DX7.
+
 ## Build and flash
 
 ```bash

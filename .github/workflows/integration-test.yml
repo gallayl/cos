@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
+    env:
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
       - uses: actions/checkout@v4
 
@@ -19,20 +22,41 @@ jobs:
         shell: bash
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Install QEMU and test tools
+      - name: Install QEMU, ccache, and test tools
         shell: bash
         run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ccache
           . $IDF_PATH/export.sh
           python $IDF_PATH/tools/idf_tools.py install qemu-xtensa
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          python -m pip install --upgrade pip
           python -m pip install -r integration_test/requirements.txt
+
+      - name: Restore pip cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-integration-${{ runner.os }}-idf-v6.1-${{ hashFiles('integration_test/requirements.txt', '.github/workflows/integration-test.yml') }}
+          restore-keys: |
+            pip-integration-${{ runner.os }}-idf-v6.1-
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-integration-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', 'integration_test/**', '.github/workflows/integration-test.yml') }}
+          restore-keys: |
+            ccache-integration-${{ runner.os }}-idf-v6.1-
 
       - name: Build integration test firmware
         shell: bash
         run: |
           . $IDF_PATH/export.sh
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
+          ccache --zero-stats || true
           make integration-test-build
+          ccache --show-stats || true
 
       - name: Upload integration test firmware
         if: always()
