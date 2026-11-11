@@ -96,10 +96,14 @@ def sanitize_compile_commands(src_path, dst_path):
 
         command_args = ensure_target_args(command_args)
 
-        if "arguments" in entry or os.name == "nt":
+        if "arguments" in entry:
             entry.pop("command", None)
             entry["arguments"] = command_args
+        elif os.name == "nt":
+            entry.pop("arguments", None)
+            entry["command"] = subprocess.list2cmdline(command_args)
         else:
+            entry.pop("arguments", None)
             entry["command"] = shlex.join(command_args)
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
