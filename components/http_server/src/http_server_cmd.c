@@ -13,9 +13,9 @@ static int cmd_server(int argc, char **argv)
     if (argc == 1)
     {
         printf("HTTP server: %s\n", http_server_get_handle() ? "running" : "stopped");
-        printf("Static:      %s\n", http_static_is_enabled() ? "on" : "off");
+        printf("Static:      %s\n", http_static_is_enabled() ? "on" : "off"); // NOLINT(readability-implicit-bool-conversion)
         printf("Static root: %s\n", http_static_get_root());
-        printf("SPA:         %s\n", http_static_is_spa() ? "on" : "off");
+        printf("SPA:         %s\n", http_static_is_spa() ? "on" : "off"); // NOLINT(readability-implicit-bool-conversion)
         printf("Auth user:   %s\n", http_auth_get_username());
         return 0;
     }
@@ -51,9 +51,9 @@ static int cmd_server(int argc, char **argv)
     {
         if (argc == 2)
         {
-            printf("Static:      %s\n", http_static_is_enabled() ? "on" : "off");
+            printf("Static:      %s\n", http_static_is_enabled() ? "on" : "off"); // NOLINT(readability-implicit-bool-conversion)
             printf("Static root: %s\n", http_static_get_root());
-            printf("SPA:         %s\n", http_static_is_spa() ? "on" : "off");
+            printf("SPA:         %s\n", http_static_is_spa() ? "on" : "off"); // NOLINT(readability-implicit-bool-conversion)
             return 0;
         }
 
@@ -91,7 +91,7 @@ static int cmd_server(int argc, char **argv)
         {
             if (argc < 4)
             {
-                printf("SPA: %s\n", http_static_is_spa() ? "on" : "off");
+                printf("SPA: %s\n", http_static_is_spa() ? "on" : "off"); // NOLINT(readability-implicit-bool-conversion)
                 return 0;
             }
             if (strcmp(argv[3], "on") == 0)

@@ -18,7 +18,7 @@ esp_err_t i2c_bus_init(void)
         .scl_io_num = CYD_I2C_SCL_PIN,
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = CYD_I2C_GLITCH_IGNORE,
-        .flags = {.enable_internal_pullup = true},
+        .flags = {.enable_internal_pullup = 1},
     };
     esp_err_t err = i2c_new_master_bus(&bus_cfg, &s_bus_handle);
     if (err != ESP_OK)

@@ -8,7 +8,8 @@ BERRY_API void be_writebuffer(const char *buffer, size_t length)
     be_fwrite(stdout, buffer, length);
 }
 
-BERRY_API char *be_readstring(char *buffer, size_t size)
+BERRY_API char *be_readstring(char *buffer, // NOLINT(readability-non-const-parameter) - output buffer required by Berry port API
+                              size_t size)
 {
     return be_fgets(stdin, buffer, (int)size);
 }

@@ -24,6 +24,8 @@ else
   IDF_PYTHON ?= python
 endif
 IDF_PY ?= $(IDF_PYTHON) $(IDF_PATH)/tools/idf.py
+export IDF_PYTHON
+export IDF_PY
 
 # Portable source file listing (works with both GNU and Windows find)
 SOURCES := $(wildcard main/*.c main/*.h) \
@@ -108,18 +110,14 @@ test:
 	ctest --test-dir test/build --output-on-failure
 	python -m unittest discover -s scripts -p "test_*.py"
 
+integration-test-install:
+	$(IDF_PYTHON) $(IDF_PATH)/tools/idf_tools.py install qemu-xtensa
+
 integration-test-build:
-	@test -n "$(INTEGRATION_TEST_PROJECTS)" || { echo "No integration-test projects found"; exit 1; }
-	@for test_dir in $(INTEGRATION_TEST_PROJECTS); do \
-		$(IDF_PY) -C "$$test_dir" build || exit $$?; \
-	done
+	$(IDF_PYTHON) scripts/integration_test.py build
 
 integration-test-run:
-	@status=0; \
-	for test_dir in $(INTEGRATION_TEST_PROJECTS); do \
-		$(IDF_PYTHON) -m pytest "$$test_dir" --target esp32 --embedded-services idf,qemu -v || status=1; \
-	done; \
-	exit $$status
+	$(IDF_PYTHON) scripts/integration_test.py run
 
 integration-test: integration-test-build integration-test-run
 

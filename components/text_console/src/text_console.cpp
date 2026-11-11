@@ -115,7 +115,7 @@ static void render_dirty(void)
 
     while (dirty)
     {
-        int r = __builtin_ctzll(dirty);
+        const int r = __builtin_ctzll(dirty);
         char chars[TEXT_BUF_MAX_COLS];
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
@@ -196,13 +196,13 @@ static void notify_output_listener(const char *buf, size_t size)
         return;
     }
 
-    const TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    TaskHandle_t self = xTaskGetCurrentTaskHandle();
     if (s_output_listener_task == self)
     {
         return;
     }
 
-    const TaskHandle_t previous = s_output_listener_task;
+    TaskHandle_t previous = s_output_listener_task;
     s_output_listener_task = self;
     s_output_listener(buf, size, s_output_listener_context);
     s_output_listener_task = previous;
@@ -240,9 +240,9 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     }
     if (history_allocation_failed)
     {
-        static const char msg[] =
+        static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
             "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
-        fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+        fwrite(SCROLLBACK_ALLOC_FAILED_MSG, 1, sizeof(SCROLLBACK_ALLOC_FAILED_MSG) - 1, s_original_stdout);
         fflush(s_original_stdout);
     }
 
@@ -388,7 +388,7 @@ extern "C" esp_err_t text_console_init(void)
 
     display_fill_screen(BG_COLOR);
 
-    BaseType_t rc = xTaskCreate(render_task, "tc_render", RENDER_TASK_STACK, NULL, RENDER_TASK_PRIO, &s_render_task);
+    const BaseType_t rc = xTaskCreate(render_task, "tc_render", RENDER_TASK_STACK, NULL, RENDER_TASK_PRIO, &s_render_task);
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create render task");
@@ -522,9 +522,9 @@ extern "C" void text_console_write(const char *data, size_t len)
         if (history_allocation_failed && s_original_stdout != NULL)
         {
             /* Avoid ESP_LOG here: it re-enters stdout hook and can recurse if buffer writes keep failing. */
-            static const char msg[] =
+            static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
                 "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
-            fwrite(msg, 1, sizeof(msg) - 1, s_original_stdout);
+            fwrite(SCROLLBACK_ALLOC_FAILED_MSG, 1, sizeof(SCROLLBACK_ALLOC_FAILED_MSG) - 1, s_original_stdout);
             fflush(s_original_stdout);
         }
     }

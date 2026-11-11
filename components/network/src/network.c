@@ -76,7 +76,7 @@ static bool valid_hostname(const char *host)
     {
         if (*character == '.')
         {
-            if (label_length == 0 || previous_hyphen)
+            if (label_length == 0 || previous_hyphen) // NOLINT(readability-implicit-bool-conversion) - bool in C logical op
             {
                 return false;
             }
@@ -92,13 +92,13 @@ static bool valid_hostname(const char *host)
         {
             return false;
         }
-        previous_hyphen = *character == '-';
+        previous_hyphen = (*character == '-');
         if (++label_length > 63)
         {
             return false;
         }
     }
-    return label_length > 0 && !previous_hyphen;
+    return (label_length > 0) && !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
 
 static void ping_on_success(esp_ping_handle_t handle, void *argument)
@@ -246,8 +246,9 @@ static void ping_worker(void *argument)
         esp_err_t err = ESP_ERR_TIMEOUT;
         if (now_us < request.deadline_us)
         {
-            err = request.resolve_only ? perform_resolve(request.host, &result)
-                                       : perform_ping(request.host, request.deadline_us, &result);
+            err = request.resolve_only // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
+                      ? perform_resolve(request.host, &result)
+                      : perform_ping(request.host, request.deadline_us, &result);
             if (esp_timer_get_time() >= request.deadline_us)
             {
                 err = ESP_ERR_TIMEOUT;
@@ -255,7 +256,7 @@ static void ping_worker(void *argument)
         }
 
         xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
-        if (s_ping_active && s_active_request_id == request.request_id)
+        if (s_ping_active && (s_active_request_id == request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             s_ping_active = false;
             if (!s_ping_abandoned)
@@ -340,7 +341,7 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
         return ESP_ERR_TIMEOUT;
     }
 
-    if (s_ping_active || s_ping_completed)
+    if (s_ping_active || s_ping_completed) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {
         xSemaphoreGive(s_ping_mutex);
         return ESP_ERR_INVALID_STATE;
@@ -372,9 +373,10 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
     if (remaining_ticks > 0 && xSemaphoreTake(s_ping_completed_sem, remaining_ticks) == pdTRUE)
     {
         xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
-        const esp_err_t err = s_ping_completed && s_completed_request_id == request.request_id ? s_completed_error
-                                                                                               : ESP_ERR_INVALID_STATE;
-        if (s_ping_completed && s_completed_request_id == request.request_id)
+        const esp_err_t err = (s_ping_completed && (s_completed_request_id == request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+                                  ? s_completed_error
+                                  : ESP_ERR_INVALID_STATE;
+        if (s_ping_completed && (s_completed_request_id == request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
         {
             *result = s_completed_result;
             s_ping_completed = false;
@@ -385,14 +387,14 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
 
     xSemaphoreTake(s_ping_mutex, portMAX_DELAY);
     esp_err_t err = ESP_ERR_TIMEOUT;
-    if (s_ping_completed && s_completed_request_id == request.request_id)
+    if (s_ping_completed && (s_completed_request_id == request.request_id)) // NOLINT(readability-implicit-bool-conversion) - C bool in condition
     {
         err = s_completed_error;
         *result = s_completed_result;
         s_ping_completed = false;
         (void)xSemaphoreTake(s_ping_completed_sem, 0);
     }
-    else if (s_ping_active && s_active_request_id == request.request_id)
+    else if (s_ping_active && (s_active_request_id == request.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
         s_ping_abandoned = true;
     }

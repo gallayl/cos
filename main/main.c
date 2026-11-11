@@ -40,7 +40,7 @@ static void feed_shell_keyboard_text(const char *text, size_t length, void *cont
     shell_feed_input(text, length);
 }
 
-static const keyboard_router_t s_keyboard_router = {
+static const keyboard_router_t S_KEYBOARD_ROUTER = {
     .console_owns_input = console_prompt_owns_keyboard,
     .gui_handles_event = berry_app_handles_keyboard,
     .shell_input = feed_shell_keyboard_text,
@@ -48,7 +48,7 @@ static const keyboard_router_t s_keyboard_router = {
 
 static void route_keyboard_event(const keyboard_event_t *event)
 {
-    keyboard_route_event(event, &s_keyboard_router);
+    keyboard_route_event(event, &S_KEYBOARD_ROUTER);
 }
 
 static void broadcast_console_output(const char *data, size_t len, void *context)

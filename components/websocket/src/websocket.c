@@ -154,7 +154,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_ws_frame_t frame = {0};
+    httpd_ws_frame_t frame = {.final = false};
     frame.type = HTTPD_WS_TYPE_TEXT;
     esp_err_t ret = httpd_ws_recv_frame(req, &frame, 0);
     if (ret != ESP_OK)

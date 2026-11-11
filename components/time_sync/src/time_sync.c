@@ -88,6 +88,7 @@ time_t time_sync_get_epoch(void)
     return time(NULL);
 }
 
+// NOLINTNEXTLINE(readability-non-const-parameter) -- output buffer written via strftime
 esp_err_t time_sync_get_utc(char *buf, size_t len)
 {
     if (buf == NULL || len < 21)

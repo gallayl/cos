@@ -40,9 +40,10 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
                            bool is_first, bool is_final, void *ctx)
 {
     (void)field_name;
+    (void)file_name;
     upload_ctx_t *uctx = (upload_ctx_t *)ctx;
 
-    if (is_first && !uctx->has_path)
+    if (is_first && !uctx->has_path) // NOLINT(readability-implicit-bool-conversion)
     {
         snprintf(uctx->error, sizeof(uctx->error), "Missing path field");
         return false;

@@ -61,14 +61,17 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].ctime = 0;
         (*count)++;
 
-        if (sdcard_is_mounted() && *count < max_entries)
+        if (sdcard_is_mounted())
         {
-            strncpy(entries[*count].name, "sdcard", VFS_NAME_MAX);
-            entries[*count].size = 0;
-            entries[*count].is_dir = true;
-            entries[*count].mtime = 0;
-            entries[*count].ctime = 0;
-            (*count)++;
+            if (*count < max_entries)
+            {
+                strncpy(entries[*count].name, "sdcard", VFS_NAME_MAX);
+                entries[*count].size = 0;
+                entries[*count].is_dir = true;
+                entries[*count].mtime = 0;
+                entries[*count].ctime = 0;
+                (*count)++;
+            }
         }
         return ESP_OK;
     }

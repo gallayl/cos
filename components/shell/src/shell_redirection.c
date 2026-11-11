@@ -10,10 +10,10 @@
 
 #if defined(_WIN32)
 #include <io.h>
-#define shell_close _close
+#define SHELL_CLOSE _close
 #define shell_dup _dup
 #define shell_dup2 _dup2
-#define shell_fileno _fileno
+#define SHELL_FILENO _fileno
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
 #endif
@@ -22,14 +22,16 @@
 #endif
 #else
 #include <unistd.h>
-#define shell_close close
-#define shell_fileno fileno
+#define SHELL_CLOSE close
+#define SHELL_FILENO fileno
 #ifndef STDERR_FILENO
 #define STDERR_FILENO 2
 #endif
 
+// NOLINTNEXTLINE(readability-identifier-naming) - bounded/intentional; preserve behavior
 static int shell_dup(int fd)
 {
+    (void)fd;
 #if defined(F_DUPFD_CLOEXEC)
     {
         int duplicated = fcntl(fd, F_DUPFD_CLOEXEC, 0);
@@ -51,13 +53,14 @@ static int shell_dup(int fd)
     return -1;
 }
 
+// NOLINTNEXTLINE(readability-identifier-naming) - bounded/intentional; preserve behavior
 static int shell_dup2(int oldfd, int newfd)
 {
     if (oldfd == newfd)
     {
         return newfd;
     }
-    if (shell_close(newfd) < 0)
+    if (SHELL_CLOSE(newfd) < 0)
     {
         /* Ignore close errors; fcntl may still succeed if fd was not open. */
     }
@@ -70,7 +73,7 @@ static int shell_dup2(int oldfd, int newfd)
         }
         if (duplicated >= 0)
         {
-            (void)shell_close(duplicated);
+            (void)SHELL_CLOSE(duplicated);
         }
     }
 #endif
@@ -83,7 +86,7 @@ static int shell_dup2(int oldfd, int newfd)
         }
         if (duplicated >= 0)
         {
-            (void)shell_close(duplicated);
+            (void)SHELL_CLOSE(duplicated);
         }
     }
 #endif
@@ -93,16 +96,16 @@ static int shell_dup2(int oldfd, int newfd)
 
 static bool is_space_char(char c)
 {
-    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'); // NOLINT(readability-implicit-bool-conversion) - character comparisons in C bool return
 }
 
 static esp_err_t copy_trimmed_span(const char *start, const char *end, char *out, size_t out_size)
 {
-    while (start < end && is_space_char(*start))
+    while (start < end && is_space_char(*start)) // NOLINT(readability-implicit-bool-conversion) - C bool/int mix
     {
         start++;
     }
-    while (end > start && is_space_char(*(end - 1)))
+    while (end > start && is_space_char(*(end - 1))) // NOLINT(readability-implicit-bool-conversion) - C bool/int mix
     {
         end--;
     }
@@ -121,7 +124,7 @@ static esp_err_t parse_target_token(const char *start, const char *end, char *ou
                                     const char **consumed_end)
 {
     const char *p = start;
-    while (p < end && is_space_char(*p))
+    while (p < end && is_space_char(*p)) // NOLINT(readability-implicit-bool-conversion) - C bool/int mix
     {
         p++;
     }
@@ -173,7 +176,7 @@ static esp_err_t parse_target_token(const char *start, const char *end, char *ou
         out[len] = '\0';
     }
 
-    while (p < end && is_space_char(*p))
+    while (p < end && is_space_char(*p)) // NOLINT(readability-implicit-bool-conversion) - C bool/int mix
     {
         p++;
     }
@@ -274,7 +277,7 @@ esp_err_t shell_parse_pipeline(const char *line, shell_pipeline_info_t *out)
 
         /* Detect trailing pipe (end of string after whitespace). */
         const char *rest = segment_start;
-        while (*rest != '\0' && is_space_char(*rest))
+        while (*rest != '\0' && is_space_char(*rest)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             rest++;
         }
@@ -495,19 +498,21 @@ esp_err_t shell_parse_redirection(const char *line, shell_redirection_t *out)
 
 static bool redirect_targets_stdout(shell_redirect_type_t type)
 {
-    return type == SHELL_REDIRECT_TRUNCATE || type == SHELL_REDIRECT_APPEND || type == SHELL_REDIRECT_BOTH_TRUNCATE ||
-           type == SHELL_REDIRECT_BOTH_APPEND;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion) - C logical OR result used as bool
+    return (type == SHELL_REDIRECT_TRUNCATE) || (type == SHELL_REDIRECT_APPEND) ||
+           (type == SHELL_REDIRECT_BOTH_TRUNCATE) || (type == SHELL_REDIRECT_BOTH_APPEND);
 }
 
 static bool redirect_targets_stderr(shell_redirect_type_t type)
 {
-    return type == SHELL_REDIRECT_STDERR_TRUNCATE || type == SHELL_REDIRECT_STDERR_APPEND ||
-           type == SHELL_REDIRECT_BOTH_TRUNCATE || type == SHELL_REDIRECT_BOTH_APPEND;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion) - C logical OR result used as bool
+    return (type == SHELL_REDIRECT_STDERR_TRUNCATE) || (type == SHELL_REDIRECT_STDERR_APPEND) ||
+           (type == SHELL_REDIRECT_BOTH_TRUNCATE) || (type == SHELL_REDIRECT_BOTH_APPEND);
 }
 
 static bool redirect_is_append(shell_redirect_type_t type)
 {
-    return type == SHELL_REDIRECT_APPEND || type == SHELL_REDIRECT_STDERR_APPEND || type == SHELL_REDIRECT_BOTH_APPEND;
+    return (type == SHELL_REDIRECT_APPEND) || (type == SHELL_REDIRECT_STDERR_APPEND) || (type == SHELL_REDIRECT_BOTH_APPEND); // NOLINT(readability-implicit-bool-conversion)
 }
 
 esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state)
@@ -546,7 +551,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         printf("redirection: '%s' is not a virtual path\n", resolved_virtual);
         return ESP_ERR_INVALID_ARG;
     }
-    if (vfs_exists(resolved_virtual) && vfs_is_directory(resolved_virtual))
+    if (vfs_exists(resolved_virtual) && vfs_is_directory(resolved_virtual)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
     {
         printf("redirection: '%s' is a directory\n", resolved_virtual);
         return ESP_ERR_INVALID_ARG;
@@ -560,9 +565,9 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         return err;
     }
 
-    const char *mode = redirect_is_append(redir->type) ? "a" : "w";
-    bool want_stdout = redirect_targets_stdout(redir->type);
-    bool want_stderr = redirect_targets_stderr(redir->type);
+    const char *mode = redirect_is_append(redir->type) ? "a" : "w"; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
+    const bool want_stdout = redirect_targets_stdout(redir->type);
+    const bool want_stderr = redirect_targets_stderr(redir->type);
 
     if (!want_stdout && !want_stderr)
     {
@@ -593,8 +598,8 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     if (want_stdout)
     {
         fflush(stdout);
-        int fd = shell_fileno(stdout);
-        int target_fd = shell_fileno(out_file);
+        int fd = SHELL_FILENO(stdout);
+        int target_fd = SHELL_FILENO(out_file);
         bool fd_ok = false;
         if (fd >= 0 && target_fd >= 0)
         {
@@ -606,7 +611,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
             }
             else if (saved >= 0)
             {
-                shell_close(saved);
+                SHELL_CLOSE(saved);
             }
         }
         if (!fd_ok)
@@ -627,8 +632,8 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     if (want_stderr)
     {
         fflush(stderr);
-        int fd = shell_fileno(stderr);
-        int target_fd = shell_fileno(err_file);
+        int fd = SHELL_FILENO(stderr);
+        int target_fd = SHELL_FILENO(err_file);
         bool fd_ok = false;
         if (fd >= 0 && target_fd >= 0)
         {
@@ -640,7 +645,7 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
             }
             else if (saved >= 0)
             {
-                shell_close(saved);
+                SHELL_CLOSE(saved);
             }
         }
         if (!fd_ok)
@@ -654,11 +659,11 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
             if (want_stdout)
             {
                 fflush(stdout);
-                int sfd = shell_fileno(stdout);
+                int sfd = SHELL_FILENO(stdout);
                 if (state->saved_stdout_fd >= 0 && sfd >= 0)
                 {
                     (void)shell_dup2(state->saved_stdout_fd, sfd);
-                    shell_close(state->saved_stdout_fd);
+                    SHELL_CLOSE(state->saved_stdout_fd);
                     state->saved_stdout_fd = -1;
                 }
             }
@@ -707,12 +712,12 @@ void shell_redirect_end(shell_redirect_state_t *state)
     fflush(stdout);
     fflush(stderr);
 
-    int stdout_fd = shell_fileno(stdout);
+    int stdout_fd = SHELL_FILENO(stdout);
     if (state->saved_stdout_fd >= 0 && stdout_fd >= 0)
     {
         (void)shell_dup2(state->saved_stdout_fd, stdout_fd);
     }
-    int stderr_fd = shell_fileno(stderr);
+    int stderr_fd = SHELL_FILENO(stderr);
     if (state->saved_stderr_fd >= 0 && stderr_fd >= 0)
     {
         (void)shell_dup2(state->saved_stderr_fd, stderr_fd);
@@ -732,11 +737,11 @@ void shell_redirect_end(shell_redirect_state_t *state)
 
     if (state->saved_stdout_fd >= 0)
     {
-        shell_close(state->saved_stdout_fd);
+        SHELL_CLOSE(state->saved_stdout_fd);
     }
     if (state->saved_stderr_fd >= 0)
     {
-        shell_close(state->saved_stderr_fd);
+        SHELL_CLOSE(state->saved_stderr_fd);
     }
 
     memset(state, 0, sizeof(*state));

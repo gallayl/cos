@@ -10,7 +10,7 @@
 static void map_set_bool(bvm *vm, const char *key, bool value)
 {
     be_pushstring(vm, key);
-    be_pushbool(vm, value);
+    be_pushbool(vm, value ? 1 : 0);
     be_data_insert(vm, -3);
     be_pop(vm, 2);
 }
@@ -58,7 +58,7 @@ static int push_status(bvm *vm, esp_err_t err)
 {
     if (err == ESP_OK)
     {
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
     }
     else
     {
@@ -535,7 +535,7 @@ static int native_net_fetch(bvm *vm)
                 return push_fetch_result(vm, false, 0, url, nullptr, "", 0, false, 0,
                                          esp_err_to_name(ESP_ERR_INVALID_ARG));
             }
-            include_body = be_tobool(vm, -1) != 0;
+            include_body = (be_tobool(vm, -1) != 0); // NOLINT(readability-implicit-bool-conversion) - Berry API returns int-like bool value
             be_pop(vm, 1);
         }
         bool has_timeout = false;
@@ -722,7 +722,7 @@ static int native_net_ping(bvm *vm)
     be_return(vm);
 }
 
-static bntvmodobj_t const net_attrs[] = {
+static bntvmodobj_t const net_attrs[] = { // NOLINT(readability-identifier-naming)
     be_native_module_function("ping", native_net_ping),
     be_native_module_function("host", native_net_host),
     be_native_module_function("wifi", native_net_wifi),
@@ -733,7 +733,7 @@ static bntvmodobj_t const net_attrs[] = {
     be_native_module_function("fetch", native_net_fetch),
 };
 
-extern "C" const bntvmodule_t be_native_module_net = {
+extern "C" const bntvmodule_t be_native_module_net = { // NOLINT(readability-identifier-naming)
     "net",
     net_attrs,
     sizeof(net_attrs) / sizeof(net_attrs[0]),

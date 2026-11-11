@@ -106,7 +106,7 @@ static bool valid_command(const shell_alias_t *aliases, size_t count, const char
     char name[ALIAS_COMMAND_MAX];
     memcpy(name, command_name, command_name_length);
     name[command_name_length] = '\0';
-    return find_alias(aliases, count, name) < 0 && command_exists(name);
+    return ((find_alias(aliases, count, name) < 0) && command_exists(name));  // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) - preserve existing behavior/types
 }
 
 static esp_err_t save_aliases(const shell_alias_t *aliases, size_t count)
@@ -281,8 +281,8 @@ esp_err_t shell_alias_init(void)
         {
             *separator = '\0';
             const char *command = separator + 1;
-            if (valid_name(line) && valid_command(s_aliases, s_alias_count, command) && !command_exists(line) &&
-                s_alias_count < ALIAS_MAX && find_alias(s_aliases, s_alias_count, line) < 0)
+            if (valid_name(line) && valid_command(s_aliases, s_alias_count, command) && !command_exists(line) &&  // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr) - preserve existing behavior/types
+                (s_alias_count < ALIAS_MAX) && (find_alias(s_aliases, s_alias_count, line) < 0))
             {
                 strncpy(s_aliases[s_alias_count].name, line, sizeof(s_aliases[0].name) - 1);
                 strncpy(s_aliases[s_alias_count].command, command, sizeof(s_aliases[0].command) - 1);

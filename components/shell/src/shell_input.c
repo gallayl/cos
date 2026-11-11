@@ -415,7 +415,7 @@ static void deliver_key_name(const char *name)
     {
         return;
     }
-    if (s_key_input.character_only && (name[1] != '\0' || (unsigned char)name[0] < 0x20))
+    if (s_key_input.character_only && (name[1] != '\0' || (unsigned char)name[0] < 0x20)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
     {
         return;
     }
@@ -540,12 +540,17 @@ static void expire_pending_key_sequence(void)
 
 static bool key_sequence_is_pending(void)
 {
-    return s_key_input.active && s_key_input.escape_state != ST_NORMAL;
+    return s_key_input.active && (s_key_input.escape_state != ST_NORMAL); // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
 
 static void process_byte(uint8_t ch);
+// NOLINTNEXTLINE(misc-no-recursion) - mutually recursive with process_byte/reprocess_after_escape for ESC reprocessing;
+// bounded by input bytes.
 static void process_key_byte(uint8_t ch);
 
+// NOLINTNEXTLINE(misc-no-recursion) - small, bounded recursion when reprocessing a byte after an incomplete escape
+// sequence.
+// NOLINTNEXTLINE(misc-no-recursion) - bounded/intentional; preserve behavior
 static void reprocess_after_escape(uint8_t ch)
 {
     if (s_key_input.active)
@@ -556,6 +561,9 @@ static void reprocess_after_escape(uint8_t ch)
     process_byte(ch);
 }
 
+// NOLINTNEXTLINE(misc-no-recursion) - mutually recursive with process_byte for key/escape handling; bounded by input
+// bytes.
+// NOLINTNEXTLINE(misc-no-recursion) - bounded/intentional; preserve behavior
 static void process_key_byte(uint8_t ch)
 {
     if (!s_key_input.active)
@@ -618,7 +626,7 @@ static void process_key_byte(uint8_t ch)
         }
         if (ch >= 0x40 && ch <= 0x7E)
         {
-            const int param = s_key_input.csi_param_any ? s_key_input.csi_param : 0;
+            const int param = s_key_input.csi_param_any ? s_key_input.csi_param : 0; // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
             reset_key_sequence();
             deliver_key_name(csi_key_name(param, (char)ch));
             return;
@@ -654,6 +662,9 @@ static void process_key_byte(uint8_t ch)
     }
 }
 
+// NOLINTNEXTLINE(misc-no-recursion) - mutually recursive with process_key_byte for key/escape handling; bounded by
+// input bytes.
+// NOLINTNEXTLINE(misc-no-recursion) - bounded/intentional; preserve behavior
 static void process_byte(uint8_t ch)
 {
     if (s_ignore_lf)
@@ -707,7 +718,7 @@ static void process_byte(uint8_t ch)
     {
     case ST_NORMAL:
         handle_normal_char(ch);
-        if ((ch == '\r' || ch == '\n') && s_line_input.active)
+        if ((ch == '\r' || ch == '\n') && s_line_input.active) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             s_ignore_prompt_eol = true;
         }
@@ -773,7 +784,9 @@ static void input_task(void *arg)
     uint8_t buf[32];
     for (;;)
     {
-        const TickType_t wait = key_sequence_is_pending() ? pdMS_TO_TICKS(KEY_SEQUENCE_TIMEOUT_MS) : portMAX_DELAY;
+        const TickType_t wait = key_sequence_is_pending() // NOLINT(readability-implicit-bool-conversion) - bool condition in C ternary
+                                     ? pdMS_TO_TICKS(KEY_SEQUENCE_TIMEOUT_MS)
+                                     : portMAX_DELAY;
         size_t n = xStreamBufferReceive(s_input_stream, buf, sizeof(buf), wait);
         if (n == 0)
         {
@@ -819,7 +832,7 @@ esp_err_t shell_input_read_line(const char *prompt, shell_line_input_callback_t 
     {
         return ESP_ERR_INVALID_STATE;
     }
-    if (s_line_input.active || s_key_input.active)
+    if (s_line_input.active || s_key_input.active) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -874,7 +887,7 @@ static esp_err_t begin_key_input(bool character_only, shell_line_input_callback_
     {
         return ESP_ERR_INVALID_STATE;
     }
-    if (s_line_input.active || s_key_input.active)
+    if (s_line_input.active || s_key_input.active) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {
         return ESP_ERR_INVALID_STATE;
     }

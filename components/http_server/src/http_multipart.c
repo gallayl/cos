@@ -43,6 +43,7 @@ static char *extract_boundary(httpd_req_t *req, char *buf, size_t buf_len)
 static void parse_part_headers(const char *headers, size_t hdr_len, char *name, size_t name_len, char *filename,
                                size_t filename_len)
 {
+    (void)hdr_len;
     name[0] = '\0';
     filename[0] = '\0';
 
@@ -197,7 +198,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
                 if (pos)
                 {
                     size_t data_len = (size_t)(pos - accum);
-                    if (is_file && on_file)
+                    if (is_file && (on_file != NULL)) // NOLINT(readability-implicit-bool-conversion)
                     {
                         if (!on_file(field_name, file_name, (const uint8_t *)accum, data_len, is_first_chunk, true,
                                      ctx))
@@ -221,7 +222,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
                 else if (accum_len > bm_len)
                 {
                     size_t safe = accum_len - bm_len;
-                    if (is_file && on_file)
+                    if (is_file && (on_file != NULL)) // NOLINT(readability-implicit-bool-conversion)
                     {
                         if (!on_file(field_name, file_name, (const uint8_t *)accum, safe, is_first_chunk, false, ctx))
                         {
@@ -289,13 +290,13 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb on_field, mu
         result = ESP_ERR_INVALID_STATE;
     }
 
-    if (state == BODY && accum_len > 0)
+    if ((state == BODY) && (accum_len > 0))
     {
-        if (is_file && on_file)
+        if (is_file && (on_file != NULL)) // NOLINT(readability-implicit-bool-conversion)
         {
             on_file(field_name, file_name, (const uint8_t *)accum, accum_len, is_first_chunk, true, ctx);
         }
-        else if (!is_file && on_field)
+        else if (!is_file && (on_field != NULL))
         {
             append_field_value(field_value, sizeof(field_value), &field_value_len, accum, accum_len);
             on_field(field_name, field_value, ctx);

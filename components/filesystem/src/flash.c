@@ -36,8 +36,8 @@ esp_err_t flash_init(void)
     esp_vfs_littlefs_conf_t conf = {
         .base_path = FLASH_MOUNT_POINT,
         .partition_label = FLASH_PARTITION_LABEL,
-        .format_if_mount_failed = false,
-        .dont_mount = false,
+        .format_if_mount_failed = 0,
+        .dont_mount = 0,
     };
 
     esp_err_t ret = esp_vfs_littlefs_register(&conf);

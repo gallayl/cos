@@ -48,7 +48,8 @@ static int cmd_time(int argc, char **argv)
     }
     printf("Local:  %s\n", local_buf);
     printf("UTC:    %s\n", utc_buf);
-    printf("Synced: %s\n", time_sync_is_synced() ? "yes" : "no");
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion) -- bool used as ternary condition
+    printf("Synced: %s\n", (time_sync_is_synced() ? "yes" : "no"));
     return 0;
 }
 

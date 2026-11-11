@@ -81,7 +81,7 @@ void http_static_init(void)
 esp_err_t http_static_set_enabled(bool enabled)
 {
     s_enabled = enabled;
-    return save_uint8(NVS_KEY_ENABLED, enabled ? 1 : 0);
+    return save_uint8(NVS_KEY_ENABLED, enabled ? 1U : 0U); // NOLINT(readability-implicit-bool-conversion) - bool selects byte value
 }
 
 bool http_static_is_enabled(void)
@@ -118,7 +118,7 @@ const char *http_static_get_root(void)
 esp_err_t http_static_set_spa(bool enabled)
 {
     s_spa = enabled;
-    return save_uint8(NVS_KEY_SPA, enabled ? 1 : 0);
+    return save_uint8(NVS_KEY_SPA, enabled ? 1U : 0U); // NOLINT(readability-implicit-bool-conversion) - bool selects byte value
 }
 
 bool http_static_is_spa(void)
@@ -128,7 +128,7 @@ bool http_static_is_spa(void)
 
 static bool is_api_route(const char *uri)
 {
-    return (strncmp(uri, "/api/", 5) == 0 || strncmp(uri, "/ws", 3) == 0);
+    return (strncmp(uri, "/api/", 5) == 0) || (strncmp(uri, "/ws", 3) == 0); // NOLINT(readability-implicit-bool-conversion)
 }
 
 static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
@@ -171,7 +171,7 @@ static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
 
     int close_result = fclose(f);
     httpd_resp_send_chunk(req, NULL, 0);
-    return read_error || close_result != 0 ? ESP_FAIL : ESP_OK;
+    return (read_error || (close_result != 0)) ? ESP_FAIL : ESP_OK; // NOLINT(readability-implicit-bool-conversion)
 }
 
 esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)
