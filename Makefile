@@ -27,6 +27,30 @@ IDF_PY ?= $(IDF_PYTHON) $(IDF_PATH)/tools/idf.py
 export IDF_PYTHON
 export IDF_PY
 
+# Optional compiler cache (DX3): set USE_CCACHE=1 (or IDF_CCACHE_ENABLE=1) to
+# enable ESP-IDF ccache/sccache integration for faster rebuilds. If the ccache
+# executable is installed under IDF tools but not on PATH, add it automatically.
+USE_CCACHE ?=
+ifneq ($(strip $(USE_CCACHE)),)
+  ifneq ($(filter 0 false FALSE no NO,$(USE_CCACHE)),0 false FALSE no NO)
+    IDF_CCACHE_ENABLE ?= 1
+  endif
+endif
+ifneq ($(strip $(IDF_CCACHE_ENABLE)),)
+  ifneq ($(filter 1 true TRUE yes YES,$(IDF_CCACHE_ENABLE)),)
+    SEP ?= $(if $(findstring ;,$(PATH)),;,:)
+    ifdef IDF_TOOLS_PATH
+      CCACHE_TOOL_DIRS := $(dir $(wildcard $(IDF_TOOLS_PATH)/ccache/*/*/ccache.exe) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/*/ccache) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/ccache.exe) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/ccache))
+      ifneq ($(strip $(CCACHE_TOOL_DIRS)),)
+        export PATH := $(subst $(eval ) ,$(SEP),$(CCACHE_TOOL_DIRS))$(SEP)$(PATH)
+      endif
+    endif
+  endif
+endif
+ifdef IDF_CCACHE_ENABLE
+  export IDF_CCACHE_ENABLE
+endif
+
 # Portable source file listing (works with both GNU and Windows find)
 SOURCES := $(wildcard main/*.c main/*.h) \
            $(wildcard components/display/include/*.h) \
