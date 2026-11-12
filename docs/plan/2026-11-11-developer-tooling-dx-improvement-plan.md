@@ -73,7 +73,7 @@
   - [ ] Enable compiler caching for supported compilers/builds (e.g. `CCACHE`/`IDF_CCACHE_ENABLE`/CMake compiler launcher, `sccache` where preferable), with documented cache dirs per OS and CI cache integration.
   - [ ] Ensure parallel builds are easy and explicit (`idf.py -j`/Ninja parallelism defaults or documented flags); avoid unnecessary clean/reconfigure steps in common targets.
   - [ ] Review lint pipeline for reuse: avoid redundant `reconfigure` when inputs unchanged, cache/scope compile DB generation if practical, and support **changed-files/impacted-files** clang-tidy mode for local iteration while keeping full lint in CI (or as a required pre-push check).
-  - [ ] Replace manual `SOURCES` glob maintenance in `Makefile` with deterministic discovery (e.g. from tracked files/components or compile DB) for format/lint coverage; keep behavior identical in CI.
+  - [x] Replace manual `SOURCES` glob maintenance in `Makefile` with deterministic discovery (e.g. from tracked files/components or compile DB) for format/lint coverage; keep behavior identical in CI. (2026-11-12: Makefile `SOURCES` now discovered deterministically via `$(sort $(wildcard ...))` over `main/` and `components/*/{include,src}` `.c/.cpp/.h` files; `format`/`format-check`/`lint` targets unchanged.)
   - [ ] Consider optional incremental/problem-matcher-friendly lint wrappers (SARIF/JUnit summaries) without losing raw diagnostics.
 - **Acceptance:** measurable reduction in incremental/clean build and lint times on at least one reference platform; format/lint coverage automatically includes new component sources; CI remains green/equivalent.
 - **Risks/notes:** clang-tidy against embedded toolchains can be sensitive to flags/DB freshness; validate `scripts/run_tidy.py` sanitization behavior after changes.
@@ -167,7 +167,7 @@ Quick wins to prioritize early (can start in parallel with DX1 instrumentation):
 |---|---|---:|---|---|
 | DX1 | Baseline metrics and observability | P0 | 🟡 In progress | 2026-11-11: initial local script/tool baselines + firmware build baseline and ccache comparison recorded in `docs/reports/2026-11-11-dx1-baseline-measurements.md` (FB1–FB4: clean 139.52 s → warm cached 72.09 s, −48.3%); lint/integration/CI/cross-platform/peak metrics remain. |
 | DX2 | Reproducible environment & dependency simplification | P0 | ⬜ Not started |  |
-| DX3 | Build and lint performance | P1 | 🟡 In progress | 2026-11-11: validated local compiler caching via `IDF_CCACHE_ENABLE=1` + ccache (Espressif tools) with ~1.94× warm clean-build speedup and 73.7% hit rate; repo/CI integration and lint-pipeline optimizations remain. |
+| DX3 | Build and lint performance | P1 | 🟡 In progress | 2026-11-11: validated local compiler caching via `IDF_CCACHE_ENABLE=1` + ccache (Espressif tools) with ~1.94× warm clean-build speedup and 73.7% hit rate. 2026-11-12: replaced manual Makefile `SOURCES` enumeration with deterministic discovery (`$(sort $(wildcard ...))` over `main/` and `components/*/{include,src}` for `.c/.cpp/.h`) so `format`/`format-check`/`lint` auto-cover new project sources; repo/CI cache integration and lint-pipeline optimizations remain. |
 | DX4 | Test and integration-test throughput | P1 | 🟡 In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
 | DX5 | Output ergonomics and failure signal | P1 | ⬜ Not started |  |
 | DX6 | Developer workflow UX and guardrails | P2 | ⬜ Not started |  |
