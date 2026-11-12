@@ -115,11 +115,6 @@ void log_lifecycle_checkpoint(const char *phase)
              static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
 }
 
-void log_heap_snapshot(const char *phase)
-{
-    log_lifecycle_checkpoint(phase);
-}
-
 void collect_berry_garbage()
 {
     const size_t before = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
