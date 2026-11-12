@@ -73,6 +73,34 @@ static const char s_autoexec_script[] = "log(\"AUTOEXEC_OK\")\n"
                                         "    return 0\n"
                                         "end\n";
 
+static const char s_ping_script[] = "def run(args)\n"
+                                    "    if size(args) < 1 || size(args) > 2\n"
+                                    "        print(\"Usage: ping <host> [timeout_ms]\")\n"
+                                    "        return 1\n"
+                                    "    end\n"
+                                    "    var timeout_ms = 1000\n"
+                                    "    if size(args) == 2\n"
+                                    "        try\n"
+                                    "            var parsed = int(args[1])\n"
+                                    "            if str(parsed) != args[1] || parsed < 100 || parsed > 3000\n"
+                                    "                print(\"ping: timeout must be 100-3000 ms\")\n"
+                                    "                return 1\n"
+                                    "            end\n"
+                                    "            timeout_ms = parsed\n"
+                                    "        except ..\n"
+                                    "            print(\"ping: timeout must be 100-3000 ms\")\n"
+                                    "            return 1\n"
+                                    "        end\n"
+                                    "    end\n"
+                                    "    var result = net.ping(args[0], timeout_ms)\n"
+                                    "    if result[\"ok\"] == true\n"
+                                    "        print(\"Reply from \" + result[\"address\"] + \": time=\" + str(result[\"rtt_ms\"]) + \" ms\")\n"
+                                    "        return 0\n"
+                                    "    end\n"
+                                    "    print(\"ping: \" + args[0] + \" failed (\" + result[\"error\"] + \")\")\n"
+                                    "    return 1\n"
+                                    "end\n";
+
 static void init_nvs(void)
 {
     esp_err_t err = nvs_flash_init();
@@ -94,6 +122,7 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_net.be", s_berry_net_script, sizeof(s_berry_net_script) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_input.be", s_berry_input_script, sizeof(s_berry_input_script) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/autoexec.be", s_autoexec_script, sizeof(s_autoexec_script) - 1));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/ping.be", s_ping_script, sizeof(s_ping_script) - 1));
 
     memset(s_large_file, 'A', 600);
     memset(s_large_file + 600, 'B', sizeof(s_large_file) - 600);
