@@ -189,6 +189,7 @@ def test_cp_copies_without_overwriting(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cat /flash/copied.txt\n")
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cp /flash/large.txt /flash/large-copy.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cat /flash/large-copy.txt\n")
@@ -232,6 +233,7 @@ def test_rmdir_only_removes_empty_directories(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("rmdir /flash/nonempty-to-remove\n")
     dut.expect("directory must be empty", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
 # ── Relative path resolution ──────────────────────────────────────────

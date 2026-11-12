@@ -243,6 +243,21 @@ static bool vfs_paths_share_mount(const char *first, const char *second)
     return strncmp(first, second, first_mount_len) == 0;
 }
 
+typedef struct
+{
+    FILE *dst;
+} vfs_copy_context_t;
+
+static esp_err_t vfs_copy_stream_chunk(const void *data, size_t len, void *context)
+{
+    vfs_copy_context_t *copy_ctx = (vfs_copy_context_t *)context;
+    if (fwrite(data, 1, len, copy_ctx->dst) != len)
+    {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 esp_err_t vfs_copy_file(const char *source, const char *destination)
 {
     if (source == NULL || destination == NULL)
@@ -250,88 +265,33 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
         return ESP_ERR_INVALID_ARG;
     }
 
-    char source_path[VFS_PATH_MAX];
-    char destination_path[VFS_PATH_MAX];
-    esp_err_t err = vfs_resolve_path(source, source_path, sizeof(source_path));
-    if (err != ESP_OK)
+    /* Refuse to overwrite an existing destination. */
+    if (vfs_exists(destination))
     {
-        return err;
+        return ESP_ERR_INVALID_STATE;
     }
-    err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
-    if (err != ESP_OK)
-    {
-        return err;
-    }
-
-    int source_fd = open(source_path, O_RDONLY);
-    if (source_fd < 0)
+    if (!vfs_exists(source) || vfs_is_directory(source))
     {
         return ESP_ERR_NOT_FOUND;
     }
 
-    struct stat source_stat;
-    if (fstat(source_fd, &source_stat) != 0)
+    char destination_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
+    if (err != ESP_OK)
     {
-        close(source_fd);
+        return err;
+    }
+
+    FILE *dst = fopen(destination_path, "wb");
+    if (dst == NULL)
+    {
         return ESP_FAIL;
     }
-    if (!S_ISREG(source_stat.st_mode))
-    {
-        close(source_fd);
-        return ESP_ERR_INVALID_ARG;
-    }
 
-    int destination_fd = open(destination_path, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (destination_fd < 0)
-    {
-        int open_error = errno;
-        if (close(source_fd) != 0)
-        {
-            return ESP_FAIL;
-        }
-        return (open_error == EEXIST) ? ESP_ERR_INVALID_STATE : ESP_FAIL;
-    }
+    vfs_copy_context_t copy_ctx = {.dst = dst};
+    err = vfs_read_file_stream(source, vfs_copy_stream_chunk, &copy_ctx);
 
-    char buffer[512];
-    while (err == ESP_OK)
-    {
-        ssize_t bytes_read = read(source_fd, buffer, sizeof(buffer));
-        if (bytes_read < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            err = ESP_FAIL;
-            break;
-        }
-        if (bytes_read == 0)
-        {
-            break;
-        }
-
-        ssize_t offset = 0;
-        while (offset < bytes_read)
-        {
-            ssize_t bytes_written = write(destination_fd, buffer + offset, (size_t)(bytes_read - offset));
-            if (bytes_written < 0 && errno == EINTR)
-            {
-                continue;
-            }
-            if (bytes_written <= 0)
-            {
-                err = ESP_FAIL;
-                break;
-            }
-            offset += bytes_written;
-        }
-    }
-
-    if (close(source_fd) != 0 && err == ESP_OK)
-    {
-        err = ESP_FAIL;
-    }
-    if (close(destination_fd) != 0 && err == ESP_OK)
+    if (fclose(dst) != 0 && err == ESP_OK)
     {
         err = ESP_FAIL;
     }
