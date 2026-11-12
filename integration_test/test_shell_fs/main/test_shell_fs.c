@@ -114,7 +114,6 @@ static void init_nvs(void)
 
 static void seed_test_files(void)
 {
-    ESP_ERROR_CHECK(flash_format());
     ESP_ERROR_CHECK(vfs_write_file("/flash/hello.txt", "Hello, COS!\n", 12));
     ESP_ERROR_CHECK(vfs_write_file("/flash/binary.bin", "\x00\x01\x02\x41\x42\x43", 6));
     ESP_ERROR_CHECK(vfs_mkdir("/flash/berry-empty"));
@@ -132,6 +131,7 @@ static void seed_test_files(void)
 void app_main(void)
 {
     init_nvs();
+    ESP_ERROR_CHECK(flash_format());
     ESP_ERROR_CHECK(filesystem_init());
     seed_test_files();
     ESP_ERROR_CHECK(shell_init());
