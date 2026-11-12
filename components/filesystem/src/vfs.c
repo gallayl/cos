@@ -101,36 +101,10 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         strncpy(entries[*count].name, entry->d_name, VFS_NAME_MAX - 1);
         entries[*count].name[VFS_NAME_MAX - 1] = '\0';
 
-        char entry_path[VFS_PATH_MAX];
-        size_t rp_len = strlen(real_path);
-        const char *sep = (rp_len > 0 && real_path[rp_len - 1] == '/') ? "" : "/";
-        int written = snprintf(entry_path, sizeof(entry_path), "%s%s%s", real_path, sep, entry->d_name);
-
-        struct stat st;
-        if (written < 0 || (size_t)written >= sizeof(entry_path))
-        {
-            entries[*count].is_dir = (entry->d_type == DT_DIR);
-            entries[*count].size = 0;
-            entries[*count].mtime = 0;
-            entries[*count].ctime = 0;
-            (*count)++;
-            continue;
-        }
-
-        if (stat(entry_path, &st) == 0)
-        {
-            entries[*count].is_dir = S_ISDIR(st.st_mode);
-            entries[*count].size = (size_t)st.st_size;
-            entries[*count].mtime = st.st_mtime;
-            entries[*count].ctime = st.st_ctime;
-        }
-        else
-        {
-            entries[*count].is_dir = (entry->d_type == DT_DIR);
-            entries[*count].size = 0;
-            entries[*count].mtime = 0;
-            entries[*count].ctime = 0;
-        }
+        entries[*count].is_dir = (entry->d_type == DT_DIR);
+        entries[*count].size = 0;
+        entries[*count].mtime = 0;
+        entries[*count].ctime = 0;
 
         (*count)++;
     }

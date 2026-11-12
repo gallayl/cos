@@ -102,7 +102,7 @@ def test_nslookup_reports_unavailable_network(dut):
 def test_berry_filesystem_and_network_apis(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_api.be\n")
-    markers = (
+    fs_markers = (
         "FS_LIST_OK",
         "FS_EMPTY_OK",
         "FS_RELATIVE_OK",
@@ -110,11 +110,20 @@ def test_berry_filesystem_and_network_apis(dut):
         "FS_INVALID_PATH_OK",
         "FS_TEXT_OK",
         "FS_JSON_OK",
+        "BERRY_FS_API_DONE",
+    )
+    for marker in fs_markers:
+        dut.expect(marker, timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    dut.write("berry run /flash/berry_net.be\n")
+    net_markers = (
         "NET_NO_WIFI_OK",
         "NET_TIMEOUT_BOUNDS_OK",
         "NET_INVALID_HOST_OK",
+        "BERRY_NET_API_DONE",
     )
-    for marker in markers:
+    for marker in net_markers:
         dut.expect(marker, timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
