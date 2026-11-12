@@ -358,15 +358,6 @@ esp_err_t vfs_mkdir(const char *path)
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (vfs_is_directory(path))
-    {
-        return ESP_OK;
-    }
-    if (vfs_exists(path))
-    {
-        return ESP_ERR_INVALID_STATE;
-    }
-
     char real_path[VFS_PATH_MAX];
     esp_err_t err = vfs_resolve_path(path, real_path, sizeof(real_path));
     if (err != ESP_OK)
@@ -374,21 +365,23 @@ esp_err_t vfs_mkdir(const char *path)
         return err;
     }
 
-    if (mkdir(real_path, 0775) != 0)
+    if (mkdir(real_path, 0775) == 0)
     {
-        if (errno == EEXIST)
-        {
-            struct stat st;
-            if (stat(real_path, &st) == 0 && S_ISDIR(st.st_mode))
-            {
-                return ESP_OK;
-            }
-        }
-        ESP_LOGE(TAG, "mkdir failed: %s", real_path);
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
-    return ESP_OK;
+    if (errno == EEXIST)
+    {
+        struct stat st;
+        if (stat(real_path, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+            return ESP_OK;
+        }
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGE(TAG, "mkdir failed: %s (errno=%d)", real_path, errno);
+    return ESP_FAIL;
 }
 
 esp_err_t vfs_remove(const char *path)
