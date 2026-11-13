@@ -13,7 +13,7 @@
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| B1 | Must fix | `ui.touch()` pops its return list and does not return touch coordinates | Open |  | `components/berry_lang/src/berry_ui.cpp` |
+| B1 | Must fix | `ui.touch()` pops its return list and does not return touch coordinates | Fixed |  | 2026-11-13: `components/berry_lang/src/berry_ui.cpp` no longer pops the returned list, so `[x, y]` remains on the stack for `be_return(vm)`. |
 | B2 | Should fix | No automated tests cover Berry runtime/UI/network integration behavior | Open |  | No `test/` or in-component tests found |
 | B3 | Should fix | Network header/string helpers are duplicated between runtime and network module | Open |  | Lean/maintainability; same rules in two places can drift |
 | B4 | Nice to have | UI timer tick iterates timer state without the runtime lock | Open |  | Depends on UI tick threading/guarding; verify with `ui` implementation |
@@ -52,7 +52,8 @@
 
 ## Validation / not checked
 
-- Not run: `make format-check`, `make test` (no commands executed in this review pass).
+- 2026-11-13: Ran `make format-check` and `make test` after B1 fix — **pass** (host checks). Did not run ESP-IDF firmware build/lint, QEMU, or on-device Berry/UI touch validation for this change.
+- Not run in the original review pass: `make format-check`, `make test`.
 - Not run: ESP-IDF build/lint/integration checks (`make build`, `make lint`, `make integration-test*`) because this was a code audit, not a build/test run in a prepared ESP-IDF environment.
 - Not read deeply: upstream Berry core fetched into the build directory at configure/build time, and the implementations of `ui`, `display`, `filesystem`, `network`, `text_console`, and `esp_console` used by this module.
 - Not checked on hardware: real console input callbacks, UI task/tick threading, touch/display behavior, VFS behavior, network fetch/ping behavior, and memory/fragmentation behavior under load.
@@ -64,4 +65,4 @@
 
 ## Verdict
 
-Not healthy yet: fix Finding 1 first because `ui.touch()` cannot return touch coordinates correctly as written.
+Finding B1 fixed (touch coordinates now returned as written). Remaining findings (B2–B4) are still open/unverified.

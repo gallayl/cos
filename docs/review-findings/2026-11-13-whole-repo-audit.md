@@ -25,10 +25,10 @@ Load assumed: single embedded device, usually one local user at a time, with a s
 - **Fix:** Make static auth policy explicit: require auth by default (or provide a clear public/private mode), and enforce allowed roots.
 - **If we skip it:** Accidental data exposure of web assets, configs, scripts, or other readable files served from the static root.
 
-### 4. **Static path join trusts request URI segments without normalization** (`components/http_server/src/http_static.c:200-227`, `components/filesystem/src/vfs_path.c:158-196`)
+### 4. **Static path join trusts request URI segments without normalization** (`components/http_server/src/http_static.c:200-227`, `components/filesystem/src/vfs_path.c:158-196`) — **Fixed (2026-11-13)**
 - **What this is:** Static handler strips the query string, concatenates `s_root + clean_uri`, then resolves only `/flash` or `/sdcard` prefixes; `vfs_resolve_path` appends the remainder verbatim and does not normalize `.`/`..`.
 - **Problem:** A crafted URI containing traversal-like segments may escape the intended static root depending on mount/VFS behavior. Upload paths are sanitized separately, but static reads use a different path flow.
-- **Fix:** Canonicalize/normalize the joined virtual path (reuse `normalize_absolute` logic or equivalent) and reject any resolved path outside the configured root before `fopen/stat`.
+- **Fix applied:** `vfs_resolve_path` now normalizes traversal (F1), and `components/http_server/src/http_static.c` resolves/constrains served real paths (including SPA fallback) to remain under the configured static root before `stat`/`fopen`.
 - **If we skip it:** Possible read access outside the intended public directory on some filesystem/mount setups.
 
 ### 5. **Authenticated WebSocket input is fed directly to the shell** (`main/main.c:64-68`, `main/main.c:106-107`, `components/websocket/src/websocket.c:147-221`)
@@ -43,10 +43,10 @@ Load assumed: single embedded device, usually one local user at a time, with a s
 - **Fix:** Enforce configurable max content length/free-space checks before/during write, and fail early with a clear error.
 - **If we skip it:** Storage exhaustion and denial of service; recovery may require manual cleanup or formatting.
 
-### 7. **HTTP auth uses plain string comparison and stores credentials as blobs** (`components/http_server/src/http_auth.c:56-94`, `components/http_server/src/http_auth.c:120-135`)
+### 7. **HTTP auth uses plain string comparison and stores credentials as blobs** (`components/http_server/src/http_auth.c:56-94`, `components/http_server/src/http_auth.c:120-135`) — **Partially fixed (2026-11-13)**
 - **What this is:** Credentials are compared with `strcmp` and persisted in NVS as raw username/password blobs.
 - **Problem:** Direct password storage increases impact if NVS contents are extracted; timing side channels are less critical on a local embedded target but easy to avoid.
-- **Fix:** Store a salted password verifier/hash (or at least avoid plaintext where feasible), and use constant-time comparison for secrets.
+- **Fix applied:** `components/http_server/src/http_auth.c` now uses constant-time comparison for credential checks. Credentials are still stored as plaintext blobs in NVS (hash/verifier storage not yet implemented).
 - **If we skip it:** Higher impact from device/NVS compromise and weaker credential hygiene.
 
 ### 8. **Multipart boundary/header parsing trusts `Content-Type` formatting narrowly** (`components/http_server/src/http_multipart.c:10-41`, `components/http_server/src/http_multipart.c:105-123`)

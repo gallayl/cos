@@ -7,6 +7,32 @@
 #include <stdio.h>
 #include <string.h>
 
+static bool secure_equals(const char *a, const char *b)
+{
+    if (a == NULL || b == NULL)
+    {
+        return false;
+    }
+    size_t la = strlen(a);
+    size_t lb = strlen(b);
+    size_t diff = la ^ lb;
+    size_t len = la < lb ? la : lb;
+    for (size_t i = 0; i < len; i++)
+    {
+        diff |= (size_t)((unsigned char)a[i] ^ (unsigned char)b[i]);
+    }
+    /* Touch both strings over the compared length to avoid early-exit timing. */
+    for (size_t i = len; i < la; i++)
+    {
+        diff |= (size_t)((unsigned char)a[i] ^ 0U);
+    }
+    for (size_t i = len; i < lb; i++)
+    {
+        diff |= (size_t)((unsigned char)b[i] ^ 0U);
+    }
+    return diff == 0;
+}
+
 static const char *const TAG = "http_auth";
 
 #define NVS_NAMESPACE "http_auth"
@@ -127,7 +153,7 @@ esp_err_t http_auth_check(httpd_req_t *req)
     const char *req_user = (const char *)decoded;
     const char *req_pass = colon + 1;
 
-    if (strcmp(req_user, s_username) != 0 || strcmp(req_pass, s_password) != 0)
+    if (!secure_equals(req_user, s_username) || !secure_equals(req_pass, s_password))
     {
         goto unauthorized;
     }

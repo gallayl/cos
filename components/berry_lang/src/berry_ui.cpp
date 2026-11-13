@@ -558,7 +558,6 @@ int native_touch(bvm *vm)
     be_pushint(vm, y);
     be_data_push(vm, -2);
     be_pop(vm, 1);
-    be_pop(vm, 1);
     be_return(vm);
 }
 
