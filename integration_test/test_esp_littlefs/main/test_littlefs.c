@@ -799,11 +799,14 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
     /* When the filesystem is nearly full, littlefs may internally recover
      * from NOSPC (e.g. metadata compaction succeeds without a split) so
      * neither fwrite nor fclose reports an error.  Detect this steady-state
-     * by stopping once used_bytes stops growing. */
+     * by stopping once used_bytes stops growing. A hard cap bounds runtime
+     * when reported usage fluctuates under QEMU/flash emulation. */
     size_t total = 0, used = 0, prev_used = 0;
+    size_t max_used = 0;
     int stall_count = 0;
     int i = 0;
-    while(true){
+    const int max_iters = 400;
+    while(i < max_iters){
         char *filename = names[i % 7];
         FILE* f = fopen(filename, "a+b");
         TEST_ASSERT_NOT_NULL(f);
@@ -833,8 +836,11 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
         TEST_ASSERT_GREATER_OR_EQUAL_INT(used, total);
         //printf("used: %d total: %d\n", used, total);
 
-        if (used == prev_used && (total - used) <= 2 * 4096) {
-            if (++stall_count >= 10) {
+        if (used > max_used) {
+            max_used = used;
+            stall_count = 0;
+        } else if ((total - used) <= 2 * 4096) {
+            if (++stall_count >= 20) {
                 break;
             }
         } else {
