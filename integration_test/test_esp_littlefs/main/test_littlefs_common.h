@@ -19,7 +19,6 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "test_utils.h"
 #include "unity.h"
 #include <fcntl.h>
 #include <stdio.h>
@@ -33,6 +32,12 @@
 #define littlefs_base_path "/littlefs"
 extern const char littlefs_test_partition_label[];
 extern const char littlefs_test_hello_str[];
+
+static inline const esp_partition_t *get_test_data_partition(void)
+{
+    return esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
+                                    littlefs_test_partition_label);
+}
 
 
 void test_littlefs_create_file_with_text(const char* name, const char* text);
