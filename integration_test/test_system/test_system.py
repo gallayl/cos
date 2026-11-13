@@ -3,10 +3,12 @@ import re
 
 BOOT_TIMEOUT = 30
 CMD_TIMEOUT = 10
+PROMPT_RE = re.compile(r"COS.+>")
 
 
 def _wait_ready(dut):
-    dut.expect("SYSTEM_READY", timeout=BOOT_TIMEOUT)
+    dut.write("\n")
+    dut.expect(PROMPT_RE, timeout=BOOT_TIMEOUT)
 
 
 def test_system_boots(dut):
