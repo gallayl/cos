@@ -28,6 +28,8 @@ test/build/
 # ESP-IDF specific build outputs
 *.bin
 *.elf
+# Keep integration test fixtures
+!integration_test/test_esp_littlefs/main/testfs.bin
 *.map
 flasher_args.json # Generated in build directory
 sdkconfig.old
