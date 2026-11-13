@@ -57,6 +57,7 @@ CTestTestfile.cmake
 *.pyo
 *.pyd
 __pycache__/
+.pytest_cache/
 *.egg-info/
 dist/
 
