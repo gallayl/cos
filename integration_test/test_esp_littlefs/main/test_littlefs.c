@@ -772,7 +772,6 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
      * This test fills the partition while asserting total >= used every step.
      */
     test_setup();
-    const char foo[] = "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo";
 
     char names[7][64];
     for (size_t i = 0; i < 7; ++i) {
@@ -805,9 +804,21 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
         char *filename = names[i % 7];
         FILE* f = fopen(filename, "a+b");
         TEST_ASSERT_NOT_NULL(f);
-        size_t n_bytes = 200 + i % 17;
-        int amount_written = fwrite(foo, n_bytes, 1, f);
-        if(amount_written != 1) {
+        char buf[256];
+        memset(buf, 'f', sizeof(buf));
+        size_t remaining = 4096 + (i % 17) * 64;
+        int amount_written = 1;
+        while (remaining > 0) {
+            size_t chunk = remaining < sizeof(buf) ? remaining : sizeof(buf);
+            amount_written = (int)fwrite(buf, 1, chunk, f);
+            if (amount_written != (int)chunk) {
+                amount_written = 0;
+                break;
+            }
+            remaining -= chunk;
+        }
+        if (amount_written == 0) {
+            fclose(f);
             break;
         }
         if(0 != fclose(f)){
