@@ -326,6 +326,13 @@ esp_err_t format_from_efs(esp_littlefs_t *efs)
         }
         efs->cache_size = CONFIG_LITTLEFS_FD_CACHE_MIN_SIZE; // Initial size of cache; will resize ondemand
         efs->cache = esp_littlefs_calloc(efs->cache_size, sizeof(*efs->cache));
+        if (efs->cache == NULL)
+        {
+            efs->cache_size = 0;
+            lfs_unmount(efs->fs);
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to allocate file cache after format");
+            return ESP_ERR_NO_MEM;
+        }
     }
     ESP_LOGV(ESP_LITTLEFS_TAG, "Format Success!");
 
@@ -1612,7 +1619,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
     if (conf->partition_label)
     {
         /* Input and Environment Validation */
-        if (esp_littlefs_by_label(conf->partition_label, index) == ESP_OK)
+        int existing = -1;
+        if (esp_littlefs_by_label(conf->partition_label, &existing) == ESP_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Partition already used");
             err = ESP_ERR_INVALID_STATE;
@@ -1628,7 +1636,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
     }
     else if (conf->partition)
     {
-        if (esp_littlefs_by_partition(conf->partition, index) == ESP_OK)
+        int existing = -1;
+        if (esp_littlefs_by_partition(conf->partition, &existing) == ESP_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Partition already used");
             err = ESP_ERR_INVALID_STATE;
@@ -1651,7 +1660,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
     }
     else if (conf->blockdev)
     {
-        if (esp_littlefs_by_blockdev(conf->blockdev, index) == ESP_OK)
+        int existing = -1;
+        if (esp_littlefs_by_blockdev(conf->blockdev, &existing) == ESP_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Blockdev already used");
             err = ESP_ERR_INVALID_STATE;
@@ -1756,6 +1766,13 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         }
         efs->cache_size = 4;
         efs->cache = esp_littlefs_calloc(efs->cache_size, sizeof(*efs->cache));
+        if (efs->cache == NULL)
+        {
+            efs->cache_size = 0;
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to allocate file cache");
+            err = ESP_ERR_NO_MEM;
+            goto exit;
+        }
 
         if (conf->grow_on_mount)
         {
@@ -2086,7 +2103,8 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
     lfs_flags = esp_littlefs_flags_conv(flags);
     if (efs->read_only && lfs_flags != LFS_O_RDONLY)
     {
-        return LFS_ERR_INVAL;
+        errno = EROFS;
+        return -1;
     }
 
     /* Get a FD */
@@ -2104,7 +2122,7 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
                 sem_give(efs);
                 ESP_LOGV(ESP_LITTLEFS_TAG, "Open directory but it is a file");
                 errno = ENOTDIR;
-                return LFS_ERR_INVAL;
+                return -1;
             }
         }
     }
@@ -2119,10 +2137,10 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 
     if (fd < 0)
     {
-        errno = lfs_errno_remap(fd);
+        errno = ENFILE;
         sem_give(efs);
         ESP_LOGV(ESP_LITTLEFS_TAG, "Error obtaining FD");
-        return LFS_ERR_INVAL;
+        return -1;
     }
 
 #if CONFIG_LITTLEFS_SPIFFS_COMPAT
@@ -2166,7 +2184,7 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 #else
         ESP_LOGV(ESP_LITTLEFS_TAG, "Failed to open file. Error %s (%d)", esp_littlefs_errno(res), res);
 #endif
-        return LFS_ERR_INVAL;
+        return -1;
     }
 
     /* Sync after opening. If we are overwriting a file, this will free that
@@ -2213,10 +2231,10 @@ static ssize_t vfs_littlefs_write(void *ctx, int fd, const void *data, size_t si
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2252,10 +2270,10 @@ static ssize_t vfs_littlefs_read(void *ctx, int fd, void *dst, size_t size)
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2285,10 +2303,10 @@ static ssize_t vfs_littlefs_pwrite(void *ctx, int fd, const void *src, size_t si
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2298,13 +2316,17 @@ static ssize_t vfs_littlefs_pwrite(void *ctx, int fd, const void *src, size_t si
     if (old_offset < (off_t)0)
     {
         res = old_offset;
+        sem_give(efs);
         goto exit;
     }
 
     /* Set to wanted position.  */
     res = lfs_file_seek(efs->fs, &file->file, offset, SEEK_SET);
     if (res < (off_t)0)
+    {
+        sem_give(efs);
         goto exit;
+    }
 
     /* Write out the data.  */
     res = lfs_file_write(efs->fs, &file->file, src, size);
@@ -2342,10 +2364,10 @@ static ssize_t vfs_littlefs_pread(void *ctx, int fd, void *dst, size_t size, off
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2355,13 +2377,17 @@ static ssize_t vfs_littlefs_pread(void *ctx, int fd, void *dst, size_t size, off
     if (old_offset < (off_t)0)
     {
         res = old_offset;
+        sem_give(efs);
         goto exit;
     }
 
     /* Set to wanted position.  */
     res = lfs_file_seek(efs->fs, &file->file, offset, SEEK_SET);
     if (res < (off_t)0)
+    {
+        sem_give(efs);
         goto exit;
+    }
 
     /* Read the data.  */
     res = lfs_file_read(efs->fs, &file->file, dst, size);
@@ -2399,10 +2425,10 @@ static int vfs_littlefs_close(void *ctx, int fd)
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2468,10 +2494,10 @@ static off_t vfs_littlefs_lseek(void *ctx, int fd, off_t offset, int mode)
     }
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2502,10 +2528,10 @@ static int vfs_littlefs_fsync(void *ctx, int fd)
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2540,10 +2566,10 @@ static int vfs_littlefs_fstat(void *ctx, int fd, struct stat *st)
     st->st_blksize = efs->cfg.block_size;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD must be <%d.", efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -2963,10 +2989,10 @@ static ssize_t vfs_littlefs_truncate(void *ctx, const char *path, off_t size)
     int fd = vfs_littlefs_open(ctx, path, LFS_O_RDWR, 438);
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -3001,10 +3027,10 @@ static int vfs_littlefs_ftruncate(void *ctx, int fd, off_t size)
     vfs_littlefs_file_t *file = NULL;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
@@ -3216,16 +3242,15 @@ static int vfs_littlefs_fcntl(void *ctx, int fd, int cmd, int arg)
     const uint32_t flags_mask = LFS_O_WRONLY | LFS_O_RDONLY | LFS_O_RDWR;
 
     sem_take(efs);
-    if ((uint32_t)fd > efs->cache_size)
+    if ((uint32_t)fd >= efs->cache_size || efs->cache[fd] == NULL)
     {
         sem_give(efs);
-        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d must be <%d.", fd, efs->cache_size);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "FD %d is invalid.", fd);
         errno = EBADF;
         return -1;
     }
 
     file = efs->cache[fd];
-    if (file)
     {
         lfs_file = &efs->cache[fd]->file;
     }
