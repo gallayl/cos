@@ -285,6 +285,7 @@ static void test_setup_bdl(const esp_partition_t* partition, bool read_only)
     TEST_ESP_OK(esp_vfs_littlefs_register(&conf));
     TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
     TEST_ASSERT_TRUE(esp_littlefs_blockdev_mounted(s_bdl_handle));
+    vTaskDelay(1);
     printf("BDL test setup complete.\n");
 }
 
@@ -293,6 +294,7 @@ static void test_teardown_bdl(void)
     TEST_ESP_OK(esp_vfs_littlefs_unregister_blockdev(s_bdl_handle));
     TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
     s_bdl_handle = NULL; // released by unregister
+    vTaskDelay(1);
     printf("BDL test teardown complete.\n");
 }
 
