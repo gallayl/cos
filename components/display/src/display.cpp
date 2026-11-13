@@ -128,6 +128,11 @@ extern "C" esp_err_t display_set_rotation(uint8_t rotation)
         return ESP_ERR_INVALID_ARG;
     }
     lcd().setRotation(rotation);
+    if (row_sprite_ready)
+    {
+        row_sprite().deleteSprite();
+        row_sprite_ready = false;
+    }
     return ESP_OK;
 }
 
@@ -304,8 +309,18 @@ extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *
         row_sprite().setFont(&lgfx::fonts::Font0);
         row_sprite().setTextSize(s_text_size);
         const int font_h = 8 * static_cast<int>(s_text_size);
-        row_sprite().createSprite(lcd().width(), font_h);
+        if (row_sprite().createSprite(lcd().width(), font_h) == nullptr)
+        {
+            row_sprite_ready = false;
+            ESP_LOGE(TAG, "Failed to create row sprite");
+            return;
+        }
         row_sprite_ready = true;
+    }
+
+    if (chars == NULL || fg == NULL || count <= 0)
+    {
+        return;
     }
 
     const int font_w = 6 * static_cast<int>(s_text_size);

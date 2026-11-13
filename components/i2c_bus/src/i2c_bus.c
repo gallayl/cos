@@ -41,6 +41,11 @@ esp_err_t i2c_bus_scan(uint8_t *addrs, size_t max_addrs, size_t *found)
     }
 
     *found = 0;
+    if (s_bus_handle == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     for (uint16_t addr = 1; addr < 127; addr++)
     {
         esp_err_t err = i2c_master_probe(s_bus_handle, addr, 50);
@@ -61,6 +66,10 @@ esp_err_t i2c_bus_read(uint8_t addr, uint8_t *buf, size_t len)
     if (buf == NULL || len == 0)
     {
         return ESP_ERR_INVALID_ARG;
+    }
+    if (s_bus_handle == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
     }
 
     i2c_device_config_t dev_cfg = {
@@ -92,6 +101,10 @@ esp_err_t i2c_bus_write(uint8_t addr, const uint8_t *data, size_t len)
     if (data == NULL || len == 0)
     {
         return ESP_ERR_INVALID_ARG;
+    }
+    if (s_bus_handle == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
     }
 
     i2c_device_config_t dev_cfg = {

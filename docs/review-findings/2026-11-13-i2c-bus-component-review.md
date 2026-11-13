@@ -9,7 +9,7 @@
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| B1 | Must fix | Scan/read/write use the bus before checking it was initialized | Open |  | `s_bus_handle` can be NULL; ESP-IDF APIs receive an invalid handle |
+| B1 | Must fix | Scan/read/write use the bus before checking it was initialized | Fixed |  | 2026-11-13: `i2c_bus_scan/read/write` now return `ESP_ERR_INVALID_STATE` when `s_bus_handle` is NULL (scan sets `*found=0`). |
 | B2 | Must fix | `i2c_bus_init` does not recover cleanly on repeat or partial failure | Open |  | Re-init can leak/replace handle; command registration aborts after bus is created |
 | B3 | Should fix | Console command parsing turns bad addresses/bytes into device 0 or wrong values | Open |  | `strtol(..., NULL, 0)` / unchecked conversion; user typo targets wrong device |
 | B4 | Nice to have | `i2c scan` can block for several seconds | Open |  | Probes 126 addresses sequentially with 50 ms timeout each |
@@ -60,10 +60,10 @@ Not healthy: fix B1 and B2 first so callers cannot use an unready bus and init c
 
 - `Lean: -0 lines, -0 dependencies possible.` No clear safe deletion or dependency removal found; read/write share small add/remove boilerplate, but extracting it is optional and not required for correctness.
 
-## Not checked
+## Validation / not checked
 
+- 2026-11-13: Ran `make format-check` and `make test` after B1 fix — **pass** (host checks, including `test_i2c_bus`). Did not run ESP-IDF firmware build/lint or on-device I2C validation.
 - Real ESP-IDF hardware behavior and timing (toolchain/device not exercised in this review).
-- `make build`, `make lint`, `make test`, and component-level host tests in this environment (run relevant checks per `AGENTS.md` when implementing fixes).
 - Thread/concurrency safety if scan/read/write/init are called from multiple tasks at once (review assumed single-user, occasional calls).
 - Behavior of `i2c_master_probe` for bus errors vs "no device" on the target ESP-IDF version; scan currently treats any non-`ESP_OK` probe as "not found".
 - Full console parsing/command behavior on device beyond static code reading; `i2c_bus_cmd.c` has no dedicated host tests in `test/test_i2c_bus.c`.

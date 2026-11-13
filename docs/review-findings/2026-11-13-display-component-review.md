@@ -12,9 +12,9 @@
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| D1 | Must fix | Row sprite is not rebuilt when rotation/display width changes | Open |  | `display_draw_text_row` keeps old sprite width after `display_set_rotation` |
-| D2 | Must fix | Row sprite creation result is not checked | Open |  | OOM/failed `createSprite` can leave drawing against an invalid sprite |
-| D3 | Should fix | `display_draw_text_row` does not validate inputs | Open |  | `chars`/`fg` null or bad `count` can read/write out of range |
+| D1 | Must fix | Row sprite is not rebuilt when rotation/display width changes | Fixed |  | 2026-11-13: `display_set_rotation` now deletes/rebuild-invalidates the row sprite so it is recreated at the new width. |
+| D2 | Must fix | Row sprite creation result is not checked | Fixed |  | 2026-11-13: `display_draw_text_row` checks `createSprite` result, logs error, and returns without drawing on failure. |
+| D3 | Should fix | `display_draw_text_row` does not validate inputs | Fixed |  | 2026-11-13: `display_draw_text_row` now returns early on null `chars`/`fg` or non-positive `count`. |
 | D4 | Should fix | `display_draw_text` ignores null text and resets text size/font state | Open |  | Null can crash; size forced to 1 can surprise callers and shared state |
 | D5 | Should fix | Display API does not guard use before initialization | Open |  | Most functions call into LovyanGFX without checking `display_init` ran |
 | D6 | Nice to have | No tests for the display wrapper | Open |  | Rotation/sprite sizing and argument handling are untested |
@@ -80,10 +80,7 @@ Not healthy for future changes: fix row sprite invalidation and allocation check
 
 No dead code or removable dependencies were confirmed in this module from this audit.
 
-## Not checked
+## Validation / not checked
 
-- On-device behavior, SPI timing, touch accuracy, and calibration UX (no hardware run).
-- LovyanGFX internal behavior beyond what the wrapper calls (library source not audited).
-- `display_set_text_font` correctness with all font IDs and its interaction with the Font0 row sprite path.
-- Full cross-task call ordering across all components beyond the usage sites read (`main`, `ui`, `text_console`).
-- ESP-IDF build/lint/test for this specific change set (no code changed; audit only).
+- 2026-11-13: Ran `make format-check` and `make test` after D1–D3 fixes — **pass** (host checks). `components/display` wrapper behavior is not covered by host unit tests.
+- Not checked: on-device behavior, SPI timing, touch accuracy, rotation changes at runtime, sprite allocation failure paths, LovyanGFX internals, `display_set_text_font` interactions, and ESP-IDF firmware build/lint/QEMU validation for this change.
