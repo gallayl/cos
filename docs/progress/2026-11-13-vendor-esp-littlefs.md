@@ -36,3 +36,11 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 - `make lint-db` — reconfigured `build/clang` and included `E:/dev/cos/components/esp_littlefs` in the build graph/compile DB; exited 1 due to `ESP_ROM_ELF_DIR` not defined during esp_rom gdbinit generation (IDF tools/export incomplete in shell). Compile DB generation/reconfigure completed despite error.
 - `make build` — pass (exit 0, ESP-IDF v6.1): configured, generated `littlefs.bin` image, built bootloader and `cos.bin` ("Project build complete").
 - Not run: `frontend/` checks (no frontend changes), `make docs-check` (not in scope), integration/QEMU suites (e.g. `integration_test/test_esp_littlefs/`, `integration-test` flows), hardware validation.
+
+## Commands run (F3, this session)
+- `make format-check` — pass (exit 0). Vendored `esp_littlefs` sources included.
+- `make test` — pass (exit 0): ctest 24/24 passed; `python -m unittest discover -s scripts -p "test_*.py"` 3 tests OK.
+- `make build` — pass (exit 0, ESP-IDF v6.1): generated `littlefs.bin`, built bootloader and `cos.bin` ("Project build complete"). Noted pre-existing warning about unexpected `managed_components/joltwallet__littlefs` dir and `ESP_ROM_ELF_DIR` gdbinit warning during configure (build completed).
+- `make lint-db` — pass/reconfigured (ESP-IDF v6.1 clang build dir `build/clang`): configured and generated build files including `E:/dev/cos/components/esp_littlefs` in component graph.
+- `make lint` — pass (exit 0) with project clang-tidy on linted sources; vendored `components/esp_littlefs` remains excluded from tidy `SOURCES`.
+- Not run: `frontend/` checks (no frontend changes), `make docs-check` (not in scope), `integration_test/test_esp_littlefs/` Unity suite and other integration/QEMU flows, hardware/QEMU-sensitive LittleFS mount-fail→format behavior.
