@@ -52,7 +52,7 @@ esp_err_t system_get_info(system_info_t *info)
 
 esp_err_t system_format_uptime(char *buf, size_t len)
 {
-    if (buf == NULL || len < 4)
+    if (buf == NULL || len < 3)
     {
         return ESP_ERR_INVALID_SIZE;
     }

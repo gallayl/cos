@@ -9,9 +9,9 @@
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| S1 | Must fix | Duplicate console command name `info` can abort boot | Open |  | Rename or consolidate with shell `info`; update callers/tests |
+| S1 | Must fix | Duplicate console command name `info` can abort boot | Fixed |  | 2026-11-13: Renamed system command to `sysinfo` in `components/system/src/system_cmd.c`; updated `test/test_system.c` to invoke `sysinfo`. Shell `info` (filesystem usage) remains unchanged. |
 | S2 | Must fix | `esp_flash_get_size` failure ignored in `system_get_info` | Open |  | Decide error/unknown handling consistent with callers |
-| S3 | Should fix | `system_format_uptime` rejects 3-byte buffer for `"0s"` | Open |  | Allow smallest valid output; keep truncation check |
+| S3 | Should fix | `system_format_uptime` rejects 3-byte buffer for `"0s"` | Fixed |  | 2026-11-13: `components/system/src/system.c` now accepts buffers >= 3 bytes; `snprintf` truncation check still rejects undersized buffers for actual output. |
 
 **Status values:** Open → In progress → Fixed → Verified (add evidence/link/date in Notes).
 
@@ -46,9 +46,9 @@
 
 ## Validation / not checked
 
+- 2026-11-13: Ran `make format-check` and `make test` after S1/S3 fixes — **pass** (host checks, including `test_system`). Did not run ESP-IDF firmware build/lint, QEMU, or on-device boot validation.
 - Full ESP-IDF device build and boot run of the combined firmware after resolving S1 (ESP-IDF/toolchain not exercised in this review).
 - Behavior of `esp_flash_get_size` failure paths on real hardware (S2).
-- Existing host/unit test run for `test_system` after any fixes (run relevant checks per `AGENTS.md` when implementing).
 
 ## Related code/tests
 

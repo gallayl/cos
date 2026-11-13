@@ -93,7 +93,7 @@ static int cmd_uptime(int argc, char **argv)
 void system_register_commands(void)
 {
     const esp_console_cmd_t info_cmd = {
-        .command = "info",
+        .command = "sysinfo",
         .help = "Show system and filesystem information",
         .hint = NULL,
         .func = &cmd_info,

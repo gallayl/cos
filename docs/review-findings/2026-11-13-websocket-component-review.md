@@ -15,7 +15,7 @@ COS is ESP32 (CYD/ESP32-2432S028R) firmware with a display, local input, and ser
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
 | W1 | Must fix | Oversized WebSocket frame is rejected without reading its payload | Open |  | Can leave unread bytes on the connection and break later frames |
-| W2 | Should fix | `websocket_init` leaks mutex and leaves bad state on early failure | Open |  | `s_mutex` created before server check; not deleted on `ESP_ERR_INVALID_STATE` |
+| W2 | Should fix | `websocket_init` leaks mutex and leaves bad state on early failure | Fixed |  | 2026-11-13: `components/websocket/src/websocket.c` now checks for HTTP server before creating `s_mutex` and avoids overwriting an existing mutex on init. |
 | W3 | Should fix | Text handler and context are shared without synchronization | Open |  | `ws_handler` reads while `websocket_set_text_handler` can write from another task |
 | W4 | Nice to have | Single global session-close callback slot | Open |  | `http_server_set_session_close_cb` holds one callback; websocket owns it exclusively |
 
@@ -63,8 +63,8 @@ Usable for the current single-user console bridge, but fix oversized-frame handl
 
 ## Not checked
 
+- 2026-11-13: Ran `make format-check` and `make test` after W2 fix — **pass** (host checks). `components/websocket` has no dedicated host unit tests in `test/`.
 - On-device ESP-IDF build, runtime behavior, and real browser WebSocket traffic (handshake, auth failures, disconnects, binary/fragmented/ping-close frames) were not exercised in this review.
 - ESP-IDF `httpd_ws_recv_frame`/`httpd_ws_send_data_async` semantics under partial reads, send backpressure, or socket reuse beyond static reasoning.
 - Concurrency/load beyond the assumed small-client, occasional-use case (many reconnects, rapid output bursts, or handler changes while traffic is active).
-- Host unit tests for this component: `components/websocket` has no dedicated tests under `test/` and is not listed as a unit-test component in `test/CMakeLists.txt`; existing checks from `AGENTS.md` were not run for this report.
 - HTTP auth and static/file/API handlers in `components/http_server` except the session-close and handler-registration integration points used by websocket.

@@ -231,17 +231,20 @@ static int cmd_ws(int argc, char **argv)
 
 esp_err_t websocket_init(void)
 {
-    s_mutex = xSemaphoreCreateMutex();
-    if (!s_mutex)
-    {
-        return ESP_ERR_NO_MEM;
-    }
-
     httpd_handle_t server = http_server_get_handle();
     if (!server)
     {
         ESP_LOGE(TAG, "HTTP server not running");
         return ESP_ERR_INVALID_STATE;
+    }
+
+    if (s_mutex == NULL)
+    {
+        s_mutex = xSemaphoreCreateMutex();
+        if (!s_mutex)
+        {
+            return ESP_ERR_NO_MEM;
+        }
     }
 
     http_server_set_session_close_cb(websocket_on_session_close);
