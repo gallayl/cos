@@ -1811,14 +1811,9 @@ exit:
  * @brief
  * @parameter efs file system context
  */
-#include <stdio.h>
 static inline int sem_take(esp_littlefs_t *efs)
 {
-    int res;
-    printf("SEM_TAKE_ENTER task=%s\n", pcTaskGetName(NULL));
-    res = xSemaphoreTakeRecursive(efs->lock, portMAX_DELAY);
-    printf("SEM_TAKE_GOT task=%s\n", pcTaskGetName(NULL));
-    return res;
+    return xSemaphoreTakeRecursive(efs->lock, portMAX_DELAY);
 }
 
 /**
@@ -1827,7 +1822,6 @@ static inline int sem_take(esp_littlefs_t *efs)
  */
 static inline int sem_give(esp_littlefs_t *efs)
 {
-    printf("SEM_GIVE task=%s\n", pcTaskGetName(NULL));
     return xSemaphoreGiveRecursive(efs->lock);
 }
 
@@ -2073,7 +2067,6 @@ static int esp_littlefs_get_fd_by_name(esp_littlefs_t *efs, const char *path)
 
 static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 {
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_OPEN enter path=%s flags=0x%x task=%s", path, flags, pcTaskGetName(NULL));
     /* Note: mode is currently unused */
     int fd = -1, lfs_flags, res;
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
@@ -2097,9 +2090,7 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
     }
 
     /* Get a FD */
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_OPEN before sem_take");
     sem_take(efs);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_OPEN after sem_take");
 
 #if CONFIG_LITTLEFS_OPEN_DIR
     /* Check if it is a file with same path */
@@ -2212,7 +2203,6 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 #endif
 
     sem_give(efs);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_OPEN done path=%s fd=%d task=%s", path, fd, pcTaskGetName(NULL));
     return fd;
 }
 
@@ -2404,14 +2394,11 @@ exit:
 
 static int vfs_littlefs_close(void *ctx, int fd)
 {
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_CLOSE enter fd=%d task=%s", fd, pcTaskGetName(NULL));
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     int res;
     vfs_littlefs_file_t *file = NULL;
 
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_CLOSE before sem_take");
     sem_take(efs);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_CLOSE after sem_take");
     if ((uint32_t)fd > efs->cache_size)
     {
         sem_give(efs);
@@ -2452,9 +2439,7 @@ static int vfs_littlefs_close(void *ctx, int fd)
 #endif
 
     esp_littlefs_free_fd(efs, fd);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_CLOSE before sem_give fd=%d", fd);
     sem_give(efs);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "VFS_CLOSE done fd=%d", fd);
     return res;
 }
 
