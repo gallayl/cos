@@ -783,10 +783,13 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
     for (size_t i = 0; i < 7; ++i) {
         FILE* f = fopen(names[i], "wb");
         TEST_ASSERT_NOT_NULL(f);
-        char val = 'c';
+        char buf[256];
+        memset(buf, 'c', sizeof(buf));
         size_t n_bytes = 65432;
-        for(int i=0; i < n_bytes; i++) {
-            TEST_ASSERT_EQUAL(1, fwrite(&val, 1, 1, f));
+        while (n_bytes > 0) {
+            size_t chunk = n_bytes < sizeof(buf) ? n_bytes : sizeof(buf);
+            TEST_ASSERT_EQUAL(chunk, fwrite(buf, 1, chunk, f));
+            n_bytes -= chunk;
         }
         TEST_ASSERT_EQUAL(0, fclose(f));
     }
