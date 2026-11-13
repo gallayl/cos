@@ -29,7 +29,7 @@ static const char *const TAG = "shell_input";
 
 #define RX_TASK_STACK 2048
 #define RX_TASK_PRIO 5
-#define INPUT_TASK_STACK 8192
+#define INPUT_TASK_STACK 12288
 #define INPUT_TASK_PRIO 4
 
 static StreamBufferHandle_t s_input_stream;
