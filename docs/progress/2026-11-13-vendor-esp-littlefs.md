@@ -20,10 +20,18 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 - `make lint-db` includes `esp_littlefs` in the clang compile DB/build graph. `make lint` excludes `components/esp_littlefs/**` from clang-tidy `SOURCES` because upstream/wrapper code does not satisfy project clang-tidy/Werror rules; treating it as project-lint-clean would require large, risky rewrites.
 - `make test` (host ctest + `python -m unittest discover -s scripts`) passes; no esp_littlefs-specific host unit targets added (ESP/flash-coupled implementation). Migrated `integration_test/test_esp_littlefs` Unity suite and other filesystem integration/QEMU flows not executed in this session (require QEMU + pinned deps / runtime). Hardware/QEMU-sensitive LittleFS mount-fail→format behavior not validated.
 
-## Commands run (this session, F1 continuation)
+## Commands run (F1 continuation)
 - `make format` — pass (exit 0). Included `components/esp_littlefs` (wrapper + `src/littlefs` core).
 - `make format-check` — pass (exit 0). `components/esp_littlefs` included.
 - `make test` — pass (exit 0): ctest 24/24 passed; `python -m unittest discover -s scripts -p "test_*.py"` 3 tests OK.
 - `make lint-db` — completed reconfigure and generated `build/clang` compile DB including `E:/dev/cos/components/esp_littlefs`; process exited 1 due to environment warning/error `ESP_ROM_ELF_DIR environment variable is not defined` during esp_rom gdbinit generation (ESP-IDF export/tools incomplete in this shell).
 - `make lint` — pass (exit 0) on project clang-tidy sources (vendored `components/esp_littlefs` excluded from tidy SOURCES; see notes).
 - `make build` — not rerun this session (ESP-IDF build previously recorded; environment state after lint-db/gdbinit issue not revalidated). Hardware/QEMU/integration flows not run.
+
+## Commands run (F2, this session)
+- `make format-check` — pass (exit 0).
+- `make test` — pass (exit 0): ctest 24/24 passed; `python -m unittest discover -s scripts -p "test_*.py"` 3 tests OK.
+- `make lint` — failed initially on pre-existing `components/filesystem/src/vfs.c` clang-tidy warnings (`readability-implicit-bool-conversion`); fixed by splitting condition into explicit checks, rerun pass (exit 0). Vendored `components/esp_littlefs` remains excluded from tidy SOURCES.
+- `make lint-db` — reconfigured `build/clang` and included `E:/dev/cos/components/esp_littlefs` in the build graph/compile DB; exited 1 due to `ESP_ROM_ELF_DIR` not defined during esp_rom gdbinit generation (IDF tools/export incomplete in shell). Compile DB generation/reconfigure completed despite error.
+- `make build` — pass (exit 0, ESP-IDF v6.1): configured, generated `littlefs.bin` image, built bootloader and `cos.bin` ("Project build complete").
+- Not run: `frontend/` checks (no frontend changes), `make docs-check` (not in scope), integration/QEMU suites (e.g. `integration_test/test_esp_littlefs/`, `integration-test` flows), hardware validation.

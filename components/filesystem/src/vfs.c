@@ -270,7 +270,11 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
     {
         return ESP_ERR_INVALID_STATE;
     }
-    if (vfs_exists(source) == false || vfs_is_directory(source))
+    if (!vfs_exists(source))
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (vfs_is_directory(source))
     {
         return ESP_ERR_NOT_FOUND;
     }
