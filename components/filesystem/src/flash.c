@@ -83,6 +83,17 @@ esp_err_t flash_format(void)
     /* Ensure no stale registration remains before formatting. */
     (void)esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
 
+    const esp_partition_t *part =
+        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, FLASH_PARTITION_LABEL);
+    if (part != NULL)
+    {
+        esp_err_t erase_ret = esp_partition_erase_range(part, 0, part->size);
+        if (erase_ret != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Partition erase failed before format: %s", esp_err_to_name(erase_ret));
+        }
+    }
+
     esp_err_t ret = esp_littlefs_format(FLASH_PARTITION_LABEL);
     if (ret != ESP_OK)
     {

@@ -117,96 +117,7 @@ static void init_nvs(void)
     ESP_ERROR_CHECK(err);
 }
 
-static void run_fs_probe(const char *phase)
-{
-    const char *stdio_path = "/flash/probe_stdio.txt";
-    const char *posix_path = "/flash/probe_posix.txt";
-    const char *dir_path = "/flash/probe_dir";
-    const char *content = "LittleFS test";
-    char read_buf[32] = {0};
-    struct stat st;
-
-    ESP_LOGI(TAG, "FS_PROBE[%s]: begin", phase);
-
-    /* stdio write/create */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fopen(w) before (%s)", phase, stdio_path);
-    FILE *file = fopen(stdio_path, "w");
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fopen(w) after (%p)", phase, (void *)file);
-    if (file == NULL)
-    {
-        ESP_LOGE(TAG, "FS_PROBE[%s]: stdio fopen(w) failed errno=%d", phase, errno);
-    }
-    else
-    {
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fwrite before", phase);
-        size_t written = fwrite(content, 1, strlen(content), file);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fwrite after (%u)", phase, (unsigned)written);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fclose before", phase);
-        int close_rc = fclose(file);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fclose after (%d)", phase, close_rc);
-    }
-
-    /* stdio read */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fopen(r) before (%s)", phase, stdio_path);
-    file = fopen(stdio_path, "r");
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fopen(r) after (%p)", phase, (void *)file);
-    if (file == NULL)
-    {
-        ESP_LOGE(TAG, "FS_PROBE[%s]: stdio fopen(r) failed errno=%d", phase, errno);
-    }
-    else
-    {
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fread before", phase);
-        size_t bytes_read = fread(read_buf, 1, sizeof(read_buf) - 1, file);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fread after (%u)", phase, (unsigned)bytes_read);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fclose(r) before", phase);
-        int close_rc = fclose(file);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: stdio fclose(r) after (%d)", phase, close_rc);
-    }
-
-    /* POSIX open/write/close */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: posix open(w) before (%s)", phase, posix_path);
-    int fd = open(posix_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: posix open(w) after (%d)", phase, fd);
-    if (fd < 0)
-    {
-        ESP_LOGE(TAG, "FS_PROBE[%s]: posix open(w) failed errno=%d", phase, errno);
-    }
-    else
-    {
-        ESP_LOGI(TAG, "FS_PROBE[%s]: posix write before", phase);
-        ssize_t written = write(fd, content, strlen(content));
-        ESP_LOGI(TAG, "FS_PROBE[%s]: posix write after (%d)", phase, (int)written);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: posix close before", phase);
-        int close_rc = close(fd);
-        ESP_LOGI(TAG, "FS_PROBE[%s]: posix close after (%d)", phase, close_rc);
-    }
-
-    /* stat */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stat before (%s)", phase, stdio_path);
-    int stat_rc = stat(stdio_path, &st);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: stat after (%d, size=%ld)", phase, stat_rc, stat_rc == 0 ? (long)st.st_size : -1L);
-
-    /* mkdir */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: mkdir before (%s)", phase, dir_path);
-    int mkdir_rc = mkdir(dir_path, 0775);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: mkdir after (%d, errno=%d)", phase, mkdir_rc, mkdir_rc == 0 ? 0 : errno);
-
-    /* unlink */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: unlink before (%s)", phase, posix_path);
-    int unlink_rc = unlink(posix_path);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: unlink after (%d, errno=%d)", phase, unlink_rc, unlink_rc == 0 ? 0 : errno);
-
-    /* cleanup probe artifacts (best-effort) */
-    ESP_LOGI(TAG, "FS_PROBE[%s]: cleanup unlink stdio before", phase);
-    (void)unlink(stdio_path);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: cleanup unlink stdio after", phase);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: cleanup rmdir before", phase);
-    (void)rmdir(dir_path);
-    ESP_LOGI(TAG, "FS_PROBE[%s]: cleanup rmdir after", phase);
-
-    ESP_LOGI(TAG, "FS_PROBE[%s]: end", phase);
-}
+/* FS_PROBE removed: used raw /flash paths outside VFS mount and added noise without test value. */
 
 static void seed_test_files(void)
 {
@@ -230,15 +141,9 @@ void app_main(void)
     ESP_ERROR_CHECK(flash_format());
     ESP_ERROR_CHECK(filesystem_init());
 
-    run_fs_probe("after_fs_init_before_seed");
-
     seed_test_files();
 
-    run_fs_probe("after_seed_before_shell_init");
-
     ESP_ERROR_CHECK(shell_init());
-
-    run_fs_probe("after_shell_init");
 
     ESP_LOGI(TAG, "SHELL_READY");
 }
