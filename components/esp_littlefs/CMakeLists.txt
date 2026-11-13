@@ -4,26 +4,17 @@ set(SOURCES
     src/esp_littlefs.c
     src/lfs_config.c
     src/littlefs_esp_part.c
+    src/littlefs_bdl.c
     src/littlefs/lfs.c
     src/littlefs/lfs_util.c
 )
 
-if(NOT IDF_TARGET STREQUAL "esp8266" AND "${IDF_VERSION_MAJOR}" VERSION_GREATER_EQUAL "6")
-    list(APPEND SOURCES src/littlefs_bdl.c)
+if(CONFIG_LITTLEFS_SDMMC_SUPPORT)
+    list(APPEND SOURCES src/littlefs_sdmmc.c)
 endif()
 
-if(NOT IDF_TARGET STREQUAL "esp8266")
-    list(APPEND pub_requires sdmmc)
-    if(CONFIG_LITTLEFS_SDMMC_SUPPORT)
-        list(APPEND SOURCES src/littlefs_sdmmc.c)
-    endif()
-endif()
-
-list(APPEND pub_requires esp_partition)
-if(NOT IDF_TARGET STREQUAL "esp8266" AND "${IDF_VERSION_MAJOR}" VERSION_GREATER_EQUAL "6")
-    list(APPEND pub_requires esp_blockdev)
-endif()
-list(APPEND priv_requires esptool_py spi_flash vfs)
+set(pub_requires esp_partition esp_blockdev sdmmc)
+set(priv_requires esptool_py spi_flash vfs)
 
 idf_component_register(
     SRCS ${SOURCES}
