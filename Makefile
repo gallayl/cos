@@ -53,12 +53,16 @@ endif
 
 # Deterministic source discovery for format-check/lint (portable: GNU/Windows Make).
 # Covers project-owned C/C++/headers under main and component include/src trees.
-SOURCES := $(sort \
+FORMAT_SOURCES := $(sort \
 	$(wildcard main/*.c main/*.h) \
 	$(wildcard components/*/include/*.h) \
 	$(wildcard components/*/src/*.c) \
 	$(wildcard components/*/src/*.cpp) \
-	$(wildcard components/*/src/*.h))
+	$(wildcard components/*/src/*.h) \
+	$(wildcard components/esp_littlefs/src/littlefs/*.c) \
+	$(wildcard components/esp_littlefs/src/littlefs/*.h))
+# Vendored esp_littlefs keeps its own style; lint-db still covers it via the build graph.
+SOURCES := $(filter-out components/esp_littlefs/%,$(FORMAT_SOURCES))
 
 INTEGRATION_TEST_PROJECTS := $(patsubst %/,%,$(wildcard integration_test/test_*/))
 
@@ -87,10 +91,10 @@ menuconfig:
 	$(IDF_PY) menuconfig
 
 format:
-	clang-format -i $(SOURCES)
+	clang-format -i $(FORMAT_SOURCES)
 
 format-check:
-	clang-format --dry-run --Werror $(SOURCES)
+	clang-format --dry-run --Werror $(FORMAT_SOURCES)
 
 lint-db:
 	@$(IDF_PYTHON) scripts/prepare_lint_db.py
