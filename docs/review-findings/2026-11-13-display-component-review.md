@@ -15,7 +15,7 @@
 | D1 | Must fix | Row sprite is not rebuilt when rotation/display width changes | Fixed |  | 2026-11-13: `display_set_rotation` now deletes/rebuild-invalidates the row sprite so it is recreated at the new width. |
 | D2 | Must fix | Row sprite creation result is not checked | Fixed |  | 2026-11-13: `display_draw_text_row` checks `createSprite` result, logs error, and returns without drawing on failure. |
 | D3 | Should fix | `display_draw_text_row` does not validate inputs | Fixed |  | 2026-11-13: `display_draw_text_row` now returns early on null `chars`/`fg` or non-positive `count`. |
-| D4 | Should fix | `display_draw_text` ignores null text and resets text size/font state | Open |  | Null can crash; size forced to 1 can surprise callers and shared state |
+| D4 | Should fix | `display_draw_text` ignores null text and resets text size/font state | Fixed |  | 2026-11-13: `display_draw_text` now no-ops on null text and uses `s_text_size` (also applied to `display_draw_char`) instead of forcing size 1. |
 | D5 | Should fix | Display API does not guard use before initialization | Open |  | Most functions call into LovyanGFX without checking `display_init` ran |
 | D6 | Nice to have | No tests for the display wrapper | Open |  | Rotation/sprite sizing and argument handling are untested |
 | D7 | Nice to have | Module has no synchronization for shared mutable display state | Open |  | Safe only when callers serialize access; worth documenting or guarding if use grows |
@@ -82,5 +82,5 @@ No dead code or removable dependencies were confirmed in this module from this a
 
 ## Validation / not checked
 
-- 2026-11-13: Ran `make format-check` and `make test` after D1–D3 fixes — **pass** (host checks). `components/display` wrapper behavior is not covered by host unit tests.
-- Not checked: on-device behavior, SPI timing, touch accuracy, rotation changes at runtime, sprite allocation failure paths, LovyanGFX internals, `display_set_text_font` interactions, and ESP-IDF firmware build/lint/QEMU validation for this change.
+- 2026-11-13: Ran `make format-check` and `make test` after D1–D4 fixes — **pass** (host checks). `components/display` wrapper behavior is not covered by host unit tests.
+- Not checked: on-device behavior, SPI timing, touch accuracy, rotation/text-size behavior, sprite allocation failure paths, LovyanGFX internals, `display_set_text_font` interactions, and ESP-IDF firmware build/lint/QEMU validation for these changes.

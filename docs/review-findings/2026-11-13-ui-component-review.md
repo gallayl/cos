@@ -13,7 +13,7 @@
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
 | U1 | Must fix | `start()`/`stop()` race the UI task (unsafe concurrent state changes) | Open |  | Touch redrawn from task while start/stop mutate globals/root without guard |
-| U2 | Must fix | GroupBox draws title above its bounds (`y - 4`) | Open |  | Can draw off the top of the widget/screen |
+| U2 | Must fix | GroupBox draws title above its bounds (`y - 4`) | Fixed |  | 2026-11-13: `components/ui/src/ui.cpp` now draws GroupBox title at `bounds_.y + 1` (inside bounds) instead of `bounds_.y - 4`. |
 | U3 | Must fix | Text rendering ignores bounds (overflow/clipping not enforced) | Open |  | `Renderer::draw_text` passes bounds to `display_draw_text` only as x,y; long text can overflow |
 | U4 | Should fix | Touch end events forwarded to every child container path can misbehave with nested containers | Open |  | `Container::on_touch_end` calls all children; press state is per-widget but routing assumes different semantics |
 | U5 | Should fix | `Container::clear()` unmounts children even if container not mounted (asymmetric) | Open |  | Unmount called on children inside `if (mounted_)` branch but clear is used broadly |
@@ -102,9 +102,7 @@ The UI module is small and has decent host tests for core behavior, but it has r
 
 - Lean: no line/dependency removals identified from this audit (module is already small). Possible small cleanup: remove redundant move+clear in action queue, simplify `clear()` unmount logic (~few lines). No new dependencies suggested.
 
-## Not checked
+## Validation / not checked
 
-- Full ESP-IDF build and on-device behavior (no hardware run in this review).
-- `display_*` driver clipping/behavior details beyond headers (assumed as documented).
-- Berry `berry_ui.cpp` integration correctness beyond call sites (not traced end-to-end in this pass).
-- Performance under heavy redraw/touch load (not measured).
+- 2026-11-13: Ran `make format-check` and `make test` after U2 fix — **pass** (host checks, including `test_ui`). Did not run ESP-IDF firmware build/lint, QEMU, or on-device UI validation.
+- Not checked: full ESP-IDF build/on-device behavior, `display_*` clipping details, Berry integration end-to-end, performance under load.

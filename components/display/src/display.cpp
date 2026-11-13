@@ -227,9 +227,13 @@ extern "C" void display_draw_vline(int x, int y, int height, uint16_t color)
 
 extern "C" void display_draw_text(int x, int y, const char *text, uint16_t fg, uint16_t bg)
 {
+    if (text == nullptr)
+    {
+        return;
+    }
     lcd().setCursor(x, y);
     lcd().setTextColor(fg, bg);
-    lcd().setTextSize(1);
+    lcd().setTextSize(s_text_size);
     lcd().print(text);
 }
 
@@ -237,7 +241,7 @@ extern "C" void display_draw_char(int x, int y, char c, uint16_t fg, uint16_t bg
 {
     lcd().setCursor(x, y);
     lcd().setTextColor(fg, bg);
-    lcd().setTextSize(1);
+    lcd().setTextSize(s_text_size);
     lcd().write(static_cast<uint8_t>(c));
 }
 

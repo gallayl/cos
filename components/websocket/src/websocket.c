@@ -22,8 +22,16 @@ static void *s_text_handler_context = NULL;
 
 void websocket_set_text_handler(websocket_text_handler_t handler, void *context)
 {
+    if (s_mutex != NULL)
+    {
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+    }
     s_text_handler = handler;
     s_text_handler_context = context;
+    if (s_mutex != NULL)
+    {
+        xSemaphoreGive(s_mutex);
+    }
 }
 
 static void remove_client(int fd);
@@ -201,7 +209,20 @@ static esp_err_t ws_handler(httpd_req_t *req)
         add_client(httpd_req_to_sockfd(req));
     }
 
-    if (frame.type == HTTPD_WS_TYPE_TEXT && s_text_handler != NULL)
+    websocket_text_handler_t handler = NULL;
+    void *handler_ctx = NULL;
+    if (s_mutex != NULL)
+    {
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+    }
+    handler = s_text_handler;
+    handler_ctx = s_text_handler_context;
+    if (s_mutex != NULL)
+    {
+        xSemaphoreGive(s_mutex);
+    }
+
+    if (frame.type == HTTPD_WS_TYPE_TEXT && handler != NULL)
     {
         char line[WEBSOCKET_MAX_TEXT + 1];
         size_t len = frame.len;
@@ -213,7 +234,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
         if (len > 0)
         {
             line[len++] = '\n';
-            s_text_handler(line, len, s_text_handler_context);
+            handler(line, len, handler_ctx);
         }
     }
 

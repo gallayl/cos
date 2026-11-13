@@ -395,7 +395,7 @@ void GroupBox::draw(Renderer &renderer)
 
     if (!title_.empty())
     {
-        renderer.draw_text({bounds_.x + left_top_width + title_gap, bounds_.y - 4, title_width, 12}, title_.c_str(),
+        renderer.draw_text({bounds_.x + left_top_width + title_gap, bounds_.y + 1, title_width, 12}, title_.c_str(),
                            foreground_, background_);
     }
     Container::draw(renderer);
