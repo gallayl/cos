@@ -4,9 +4,11 @@
 
 #include "esp_log.h"
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static const char *const TAG = "http_upload";
 
@@ -60,7 +62,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         }
         strncpy(uctx->target_path, real_path, sizeof(uctx->target_path) - 1);
 
-        /* Create parent directories */
+        /* Create parent directories on the resolved real path. */
         char parent[VFS_PATH_MAX];
         strncpy(parent, uctx->target_path, sizeof(parent) - 1);
         parent[sizeof(parent) - 1] = '\0';
@@ -73,7 +75,19 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
                 if (*p == '/')
                 {
                     *p = '\0';
-                    if (!vfs_is_directory(parent) && vfs_mkdir(parent) != ESP_OK && !vfs_is_directory(parent))
+                    struct stat st;
+                    if (stat(parent, &st) != 0)
+                    {
+                        if (mkdir(parent, 0775) != 0)
+                        {
+                            if (errno != EEXIST || stat(parent, &st) != 0 || !S_ISDIR(st.st_mode))
+                            {
+                                snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                                return false;
+                            }
+                        }
+                    }
+                    else if (!S_ISDIR(st.st_mode))
                     {
                         snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
                         return false;
@@ -81,7 +95,20 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
                     *p = '/';
                 }
             }
-            if (!vfs_is_directory(parent) && vfs_mkdir(parent) != ESP_OK && !vfs_is_directory(parent))
+
+            struct stat st;
+            if (stat(parent, &st) != 0)
+            {
+                if (mkdir(parent, 0775) != 0)
+                {
+                    if (errno != EEXIST || stat(parent, &st) != 0 || !S_ISDIR(st.st_mode))
+                    {
+                        snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                        return false;
+                    }
+                }
+            }
+            else if (!S_ISDIR(st.st_mode))
             {
                 snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
                 return false;

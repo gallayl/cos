@@ -13,8 +13,8 @@ This branch vendors and wires in `esp_littlefs`, adds shell output redirection a
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| B1 | Must fix | HTTP upload parent-directory creation passes real paths to virtual-path VFS helpers | Open |  | Nested uploads that need new folders fail with "Failed to create directory" |
-| B2 | Should fix | `vfs_list_dir` no longer fills file size/timestamps for directory entries | Open |  | Returns `size=0, mtime=0, ctime=0` for all real entries; breaks `fs.list`/UI expectations |
+| B1 | Must fix | HTTP upload parent-directory creation passes real paths to virtual-path VFS helpers | Fixed |  | 2026-11-13: `components/http_server/src/http_upload.c` now creates/checks parent directories on the resolved real path via `stat`/`mkdir` instead of `vfs_is_directory`/`vfs_mkdir`. |
+| B2 | Should fix | `vfs_list_dir` no longer fills file size/timestamps for directory entries | Fixed |  | 2026-11-13: `components/filesystem/src/vfs.c` now `stat`s each entry to restore `is_dir`, `size`, `mtime`, and `ctime` (best-effort; leaves defaults if stat fails). |
 
 **Status values:** Open / In progress / Fixed / Verified (add evidence/link/date in Notes).
 
@@ -38,7 +38,8 @@ This branch vendors and wires in `esp_littlefs`, adds shell output redirection a
 
 ## Validation / not checked
 
-- ESP-IDF firmware build/lint and QEMU/on-device runtime validation were not run as part of this read-only branch review.
+- 2026-11-13: Ran `make format-check` and `make test` after fixes — **pass** (24 host ctest + 3 script tests). Did not run ESP-IDF firmware build/lint or QEMU/on-device validation for these changes.
+- ESP-IDF firmware build/lint and QEMU/on-device runtime validation were not run as part of the original read-only branch review.
 - Vendored `components/esp_littlefs/src/littlefs/*` upstream implementation was not reviewed (large third-party source import).
 - Large frontend/editor/IDE and TypeScript-to-Berry compiler/runtime refactors were not fully audited for behavior regressions beyond traced API touchpoints.
 - Concurrency beyond the assumed single-user/single-operation model (for example concurrent HTTP handlers or shell/Berry interactions) was not exhaustively analyzed.

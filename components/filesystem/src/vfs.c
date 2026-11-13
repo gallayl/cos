@@ -106,6 +106,23 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].mtime = 0;
         entries[*count].ctime = 0;
 
+        char entry_path[VFS_PATH_MAX];
+        int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
+        if (written > 0 && (size_t)written < sizeof(entry_path))
+        {
+            struct stat st;
+            if (stat(entry_path, &st) == 0)
+            {
+                entries[*count].is_dir = S_ISDIR(st.st_mode);
+                if (S_ISREG(st.st_mode) && st.st_size >= 0)
+                {
+                    entries[*count].size = (size_t)st.st_size;
+                }
+                entries[*count].mtime = st.st_mtime;
+                entries[*count].ctime = st.st_ctime;
+            }
+        }
+
         (*count)++;
     }
 
@@ -130,7 +147,7 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
         return err;
     }
 
-    FILE *f = fopen(real_path, "r");
+    FILE *f = fopen(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
@@ -155,7 +172,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
         return err;
     }
 
-    FILE *f = fopen(real_path, "r");
+    FILE *f = fopen(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
@@ -206,7 +223,7 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
     }
 
     ESP_LOGI(TAG, "vfs_write_file: fopen %s", real_path);
-    FILE *f = fopen(real_path, "w");
+    FILE *f = fopen(real_path, "wb");
     ESP_LOGI(TAG, "vfs_write_file: fopen=%p", (void *)f);
     if (f == NULL)
     {
