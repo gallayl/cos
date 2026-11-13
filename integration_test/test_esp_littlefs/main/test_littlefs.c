@@ -1,18 +1,18 @@
-//#define LOG_LOCAL_LEVEL 4
+// #define LOG_LOCAL_LEVEL 4
 #include "test_littlefs_common.h"
 
 static void test_littlefs_write_file_with_offset(const char *filename);
 static void test_littlefs_read_file_with_offset(const char *filename);
-static void test_littlefs_overwrite_append(const char* filename);
-static void test_littlefs_open_max_files(const char* filename_prefix, size_t files_count);
-static void test_littlefs_concurrent_rw(const char* filename_prefix);
+static void test_littlefs_overwrite_append(const char *filename);
+static void test_littlefs_open_max_files(const char *filename_prefix, size_t files_count);
+static void test_littlefs_concurrent_rw(const char *filename_prefix);
 
 static int test_littlefs_stat(const char *path, struct stat *buf);
 
 TEST_CASE("can initialize LittleFS in erased partition", "[littlefs]")
 {
     /* Gets the partition labeled "flash_test" */
-    const esp_partition_t* part = get_test_data_partition();
+    const esp_partition_t *part = get_test_data_partition();
     TEST_ASSERT_NOT_NULL(part);
     TEST_ESP_OK(esp_partition_erase_range(part, 0, part->size));
     test_setup();
@@ -26,14 +26,14 @@ TEST_CASE("can initialize LittleFS in erased partition", "[littlefs]")
 TEST_CASE("can format mounted partition", "[littlefs]")
 {
     // Mount LittleFS, create file, format, check that the file does not exist.
-    const esp_partition_t* part = get_test_data_partition();
+    const esp_partition_t *part = get_test_data_partition();
     TEST_ASSERT_NOT_NULL(part);
     test_setup();
-    const char* filename = littlefs_base_path "/hello.txt";
+    const char *filename = littlefs_base_path "/hello.txt";
     test_littlefs_create_file_with_text(filename, littlefs_test_hello_str);
     printf("Deleting \"%s\" via formatting fs.\n", filename);
     esp_littlefs_format(part->label);
-    FILE* f = fopen(filename, "r");
+    FILE *f = fopen(filename, "r");
     TEST_ASSERT_NULL(f);
     test_teardown();
 }
@@ -42,24 +42,22 @@ TEST_CASE("can format unmounted partition", "[littlefs]")
 {
     // Mount LittleFS, create file, unmount. Format. Mount again, check that
     // the file does not exist.
-    const esp_partition_t* part = get_test_data_partition();
+    const esp_partition_t *part = get_test_data_partition();
     TEST_ASSERT_NOT_NULL(part);
 
     test_setup();
-    const char* filename = littlefs_base_path "/hello.txt";
+    const char *filename = littlefs_base_path "/hello.txt";
     test_littlefs_create_file_with_text(filename, littlefs_test_hello_str);
     test_teardown();
 
     esp_littlefs_format(part->label);
     // Don't use test_setup here, need to mount without formatting
-    const esp_vfs_littlefs_conf_t conf = {
-        .base_path = littlefs_base_path,
-        .partition_label = littlefs_test_partition_label,
-        .format_if_mount_failed = false
-    };
+    const esp_vfs_littlefs_conf_t conf = {.base_path = littlefs_base_path,
+                                          .partition_label = littlefs_test_partition_label,
+                                          .format_if_mount_failed = false};
     TEST_ESP_OK(esp_vfs_littlefs_register(&conf));
 
-    FILE* f = fopen(filename, "r");
+    FILE *f = fopen(filename, "r");
     TEST_ASSERT_NULL(f);
     test_teardown();
 }
@@ -68,18 +66,15 @@ TEST_CASE("NULL label mounts first littlefs partition.", "[littlefs]")
 {
     esp_littlefs_format(littlefs_test_partition_label);
     const esp_vfs_littlefs_conf_t conf = {
-        .base_path = littlefs_base_path,
-        .partition_label = NULL,
-        .format_if_mount_failed = true
-    };
+        .base_path = littlefs_base_path, .partition_label = NULL, .format_if_mount_failed = true};
     TEST_ESP_OK(esp_vfs_littlefs_register(&conf));
-    TEST_ASSERT_TRUE( heap_caps_check_integrity_all(true) );
+    TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
 
-    TEST_ASSERT_TRUE( esp_littlefs_mounted(NULL) );
-    TEST_ASSERT_TRUE( esp_littlefs_mounted("named_part") );
+    TEST_ASSERT_TRUE(esp_littlefs_mounted(NULL));
+    TEST_ASSERT_TRUE(esp_littlefs_mounted("named_part"));
 
     TEST_ESP_OK(esp_vfs_littlefs_unregister(NULL));
-    TEST_ASSERT_TRUE( heap_caps_check_integrity_all(true) );
+    TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
 }
 
 TEST_CASE("can create and write file", "[littlefs]")
@@ -117,15 +112,15 @@ TEST_CASE("r+ mode read and write file", "[littlefs]")
      * if it does not exist */
 
     const char fn[] = littlefs_base_path "/hello.txt";
-    char buf[100] = { 0 };
+    char buf[100] = {0};
 
     test_setup();
 
     test_littlefs_create_file_with_text(fn, "foo");
-    
+
     /* Read back the previously written foo, and add bar*/
     {
-        FILE* f = fopen(fn, "r+");
+        FILE *f = fopen(fn, "r+");
         TEST_ASSERT_NOT_NULL(f);
         TEST_ASSERT_EQUAL(3, fread(buf, 1, sizeof(buf), f));
         TEST_ASSERT_EQUAL_STRING("foo", buf);
@@ -138,7 +133,7 @@ TEST_CASE("r+ mode read and write file", "[littlefs]")
 
     /* Just normal read the whole contents */
     {
-        FILE* f = fopen(fn, "r+");
+        FILE *f = fopen(fn, "r+");
         TEST_ASSERT_NOT_NULL(f);
         TEST_ASSERT_EQUAL(6, fread(buf, 1, sizeof(buf), f));
         TEST_ASSERT_EQUAL_STRING("foobar", buf);
@@ -151,7 +146,7 @@ TEST_CASE("r+ mode read and write file", "[littlefs]")
 TEST_CASE("w+ mode read and write file", "[littlefs]")
 {
     const char fn[] = littlefs_base_path "/hello.txt";
-    char buf[100] = { 0 };
+    char buf[100] = {0};
 
     test_setup();
 
@@ -159,7 +154,7 @@ TEST_CASE("w+ mode read and write file", "[littlefs]")
 
     /* this should overwrite the file and be readable */
     {
-        FILE* f = fopen(fn, "w+");
+        FILE *f = fopen(fn, "w+");
         TEST_ASSERT_NOT_NULL(f);
         TEST_ASSERT_TRUE(fputs("bar", f) != EOF);
         TEST_ASSERT_EQUAL(0, fseek(f, 0, SEEK_SET));
@@ -171,10 +166,10 @@ TEST_CASE("w+ mode read and write file", "[littlefs]")
     test_teardown();
 }
 
-
 TEST_CASE("can open maximum number of files", "[littlefs]")
 {
-    size_t max_files = FOPEN_MAX - 3;  /* account for stdin, stdout, stderr, esp-idf defaults to maximum 64 file descriptors */
+    size_t max_files =
+        FOPEN_MAX - 3; /* account for stdin, stdout, stderr, esp-idf defaults to maximum 64 file descriptors */
 
     test_setup();
     test_littlefs_open_max_files("/littlefs/f", max_files);
@@ -212,7 +207,7 @@ TEST_CASE("can lseek", "[littlefs]")
 {
     test_setup();
 
-    FILE* f = fopen(littlefs_base_path "/seek.txt", "wb+");
+    FILE *f = fopen(littlefs_base_path "/seek.txt", "wb+");
     TEST_ASSERT_NOT_NULL(f);
     TEST_ASSERT_EQUAL(11, fprintf(f, "0123456789\n"));
     TEST_ASSERT_EQUAL(0, fseek(f, -2, SEEK_CUR));
@@ -238,11 +233,10 @@ TEST_CASE("can lseek", "[littlefs]")
 
     // Error checking
     // Attempting to seek before the beginning of file should return an error
-    TEST_ASSERT_EQUAL(-1, fseek(f, 100, 100));  // Bad mode
+    TEST_ASSERT_EQUAL(-1, fseek(f, 100, 100)); // Bad mode
     TEST_ASSERT_EQUAL(EINVAL, errno);
     TEST_ASSERT_EQUAL(-1, fseek(f, -1, SEEK_SET)); // Seeking to before start of file
     TEST_ASSERT_EQUAL(EINVAL, errno);
-
 
     TEST_ASSERT_EQUAL(0, fclose(f));
     test_teardown();
@@ -255,12 +249,15 @@ TEST_CASE("stat/fstat returns correct values", "[littlefs]")
 
     test_littlefs_create_file_with_text(filename, "foo\n");
     struct stat st;
-    for(uint8_t i=0; i < 2; i++) {
-        if(i == 0){
+    for (uint8_t i = 0; i < 2; i++)
+    {
+        if (i == 0)
+        {
             // Test stat
             TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
         }
-        else {
+        else
+        {
 #ifndef CONFIG_LITTLEFS_USE_ONLY_HASH
             // Test fstat
             FILE *f = fopen(filename, "r");
@@ -289,18 +286,19 @@ TEST_CASE("esp_littlefs_info", "[littlefs]")
     test_setup();
 
     char filename[] = littlefs_base_path "/test_esp_littlefs_info.bin";
-    unlink(filename);  /* Delete the file incase it exists */
-    
+    unlink(filename); /* Delete the file incase it exists */
+
     /* Get starting system size */
     size_t total_og = 0, used_og = 0;
     TEST_ESP_OK(esp_littlefs_info(littlefs_test_partition_label, &total_og, &used_og));
 
     /* Write 100,000 bytes */
-    FILE* f = fopen(filename, "wb");
+    FILE *f = fopen(filename, "wb");
     TEST_ASSERT_NOT_NULL(f);
     char val = 'c';
     size_t n_bytes = 100000;
-    for(int i=0; i < n_bytes; i++) {
+    for (int i = 0; i < n_bytes; i++)
+    {
         TEST_ASSERT_EQUAL(1, fwrite(&val, 1, 1, f));
     }
     TEST_ASSERT_EQUAL(0, fclose(f));
@@ -309,7 +307,7 @@ TEST_CASE("esp_littlefs_info", "[littlefs]")
     size_t total_new = 0, used_new = 0;
     TEST_ESP_OK(esp_littlefs_info(littlefs_test_partition_label, &total_new, &used_new));
 
-    printf("old: %d; new: %d; diff: %d\n", used_og, used_new, used_new-used_og);
+    printf("old: %d; new: %d; diff: %d\n", used_og, used_new, used_new - used_og);
 
     /* total amount of storage shouldn't change */
     TEST_ASSERT_EQUAL_INT(total_og, total_new);
@@ -331,14 +329,14 @@ TEST_CASE("mtime support", "[littlefs]")
     test_setup();
 
     /* Open a file, check that mtime is set correctly */
-    const char* filename = littlefs_base_path "/time";
+    const char *filename = littlefs_base_path "/time";
     time_t t_before_create = time(NULL);
     test_littlefs_create_file_with_text(filename, "test");
     time_t t_after_create = time(NULL);
 
     struct stat st;
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    printf("mtime=%d\n", (int) st.st_mtime);
+    printf("mtime=%d\n", (int)st.st_mtime);
     TEST_ASSERT(st.st_mtime >= t_before_create);
     TEST_ASSERT(st.st_mtime <= t_after_create);
 
@@ -349,7 +347,7 @@ TEST_CASE("mtime support", "[littlefs]")
     TEST_ASSERT_EQUAL(0, fclose(f));
     time_t t_after_close = time(NULL);
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    printf("mtime=%d\n", (int) st.st_mtime);
+    printf("mtime=%d\n", (int)st.st_mtime);
     time_t append_mtime = st.st_mtime;
     TEST_ASSERT(append_mtime >= t_before_close);
     TEST_ASSERT(append_mtime <= t_after_close);
@@ -360,8 +358,8 @@ TEST_CASE("mtime support", "[littlefs]")
     f = fopen(filename, "r");
     TEST_ASSERT_EQUAL(0, fclose(f));
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    printf("mtime=%d\n", (int) st.st_mtime);
-    TEST_ASSERT(t_before_close_ro > t_after_close);  // sufficient time has passed for this test to be valid.
+    printf("mtime=%d\n", (int)st.st_mtime);
+    TEST_ASSERT(t_before_close_ro > t_after_close); // sufficient time has passed for this test to be valid.
     // make sure the st_mtime is the same as bfore
     TEST_ASSERT(st.st_mtime == append_mtime);
 
@@ -374,13 +372,13 @@ TEST_CASE("mnonce support", "[littlefs]")
 {
     /* Open a file, check that mtime is set correctly */
     struct stat st;
-    const char* filename = littlefs_base_path "/time";
+    const char *filename = littlefs_base_path "/time";
     test_setup();
     test_littlefs_create_file_with_text(filename, "test");
 
     int nonce1;
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    nonce1 = (int) st.st_mtime;
+    nonce1 = (int)st.st_mtime;
     printf("mtime=%d\n", nonce1);
     TEST_ASSERT(nonce1 >= 0);
 
@@ -388,13 +386,15 @@ TEST_CASE("mnonce support", "[littlefs]")
     int nonce2;
     FILE *f = fopen(filename, "a");
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    nonce2 = (int) st.st_mtime;
+    nonce2 = (int)st.st_mtime;
     printf("mtime=%d\n", nonce2);
-    if( nonce1 == UINT32_MAX ) {
+    if (nonce1 == UINT32_MAX)
+    {
         TEST_ASSERT_EQUAL_INT(1, nonce2);
     }
-    else {
-        TEST_ASSERT_EQUAL_INT(1, nonce2-nonce1);
+    else
+    {
+        TEST_ASSERT_EQUAL_INT(1, nonce2 - nonce1);
     }
     TEST_ASSERT_EQUAL(0, fclose(f));
 
@@ -402,8 +402,8 @@ TEST_CASE("mnonce support", "[littlefs]")
     int nonce3;
     f = fopen(filename, "r");
     TEST_ASSERT_EQUAL(0, test_littlefs_stat(filename, &st));
-    nonce3 = (int) st.st_mtime;
-    printf("mtime=%d\n", (int) st.st_mtime);
+    nonce3 = (int)st.st_mtime;
+    printf("mtime=%d\n", (int)st.st_mtime);
     TEST_ASSERT_EQUAL_INT(nonce2, nonce3);
     TEST_ASSERT_EQUAL(0, fclose(f));
 
@@ -429,7 +429,7 @@ static void test_littlefs_write_file_with_offset(const char *filename)
     int written = pwrite(fd, &new_char, 1, offset);
     TEST_ASSERT_EQUAL(1, written);
     TEST_ASSERT_EQUAL(0, close(fd));
-    
+
     char buf[len];
 
     // Compare if both are equal
@@ -447,7 +447,7 @@ static void test_littlefs_read_file_with_offset(const char *filename)
     off_t offset = strstr(source, "p") - source;
     size_t len = strlen(source);
     char buf[len - offset + 1];
-    buf[len-offset] = '\0'; // EOS
+    buf[len - offset] = '\0'; // EOS
 
     // Create file with string at source string
     test_littlefs_create_file_with_text(filename, source);
@@ -463,7 +463,7 @@ static void test_littlefs_read_file_with_offset(const char *filename)
     TEST_ASSERT_EQUAL(0, close(fd));
 }
 
-static void test_littlefs_overwrite_append(const char* filename)
+static void test_littlefs_overwrite_append(const char *filename)
 {
     /* Create new file with 'aaaa' */
     test_littlefs_create_file_with_text(filename, "aaaa");
@@ -475,7 +475,7 @@ static void test_littlefs_overwrite_append(const char* filename)
     TEST_ASSERT_EQUAL(0, fclose(f_a));
 
     /* Read back 8 bytes from file, verify it's 'aaaabbbb' */
-    char buf[10] = { 0 };
+    char buf[10] = {0};
     FILE *f_r = fopen(filename, "r");
     TEST_ASSERT_NOT_NULL(f_r);
     TEST_ASSERT_EQUAL(8, fread(buf, 1, 8, f_r));
@@ -498,35 +498,39 @@ static void test_littlefs_overwrite_append(const char* filename)
     TEST_ASSERT_EQUAL(0, fclose(f_r));
 }
 
-static void test_littlefs_open_max_files(const char* filename_prefix, size_t files_count)
+static void test_littlefs_open_max_files(const char *filename_prefix, size_t files_count)
 {
-    FILE** files = calloc(files_count, sizeof(FILE*));
+    FILE **files = calloc(files_count, sizeof(FILE *));
     assert(files);
-    for (size_t i = 0; i < files_count; ++i) {
+    for (size_t i = 0; i < files_count; ++i)
+    {
         char name[32];
         snprintf(name, sizeof(name), "%s_%d.txt", filename_prefix, i);
         printf("Opening \"%s\"\n", name);
-        TEST_ASSERT_TRUE( heap_caps_check_integrity_all(true) );
+        TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
         files[i] = fopen(name, "w");
         TEST_ASSERT_NOT_NULL(files[i]);
-        TEST_ASSERT_TRUE( heap_caps_check_integrity_all(true) );
+        TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
     }
     /* close everything and clean up */
-    for (size_t i = 0; i < files_count; ++i) {
+    for (size_t i = 0; i < files_count; ++i)
+    {
         TEST_ASSERT_EQUAL(0, fclose(files[i]));
-        TEST_ASSERT_TRUE( heap_caps_check_integrity_all(true) );
+        TEST_ASSERT_TRUE(heap_caps_check_integrity_all(true));
     }
     free(files);
 }
 
-typedef enum {
+typedef enum
+{
     CONCURRENT_TASK_ACTION_READ,
     CONCURRENT_TASK_ACTION_WRITE,
     CONCURRENT_TASK_ACTION_STAT,
 } concurrent_task_action_t;
 
-typedef struct {
-    const char* filename;
+typedef struct
+{
+    const char *filename;
     concurrent_task_action_t action;
     size_t word_count;
     int seed;
@@ -534,51 +538,71 @@ typedef struct {
     int result;
 } read_write_test_arg_t;
 
-#define READ_WRITE_TEST_ARG_INIT(name, seed_) \
-        { \
-            .filename = name, \
-            .seed = seed_, \
-            .word_count = 4096, \
-            .action = CONCURRENT_TASK_ACTION_WRITE, \
-            .done = xSemaphoreCreateBinary() \
-        }
+#define READ_WRITE_TEST_ARG_INIT(name, seed_)                                                                          \
+    {.filename = name,                                                                                                 \
+     .seed = seed_,                                                                                                    \
+     .word_count = 4096,                                                                                               \
+     .action = CONCURRENT_TASK_ACTION_WRITE,                                                                           \
+     .done = xSemaphoreCreateBinary()}
 
-static void read_write_task(void* param)
+static void read_write_task(void *param)
 {
     FILE *f = NULL;
-    read_write_test_arg_t* args = (read_write_test_arg_t*) param;
-    if (args->action == CONCURRENT_TASK_ACTION_WRITE) {
+    read_write_test_arg_t *args = (read_write_test_arg_t *)param;
+    if (args->action == CONCURRENT_TASK_ACTION_WRITE)
+    {
         f = fopen(args->filename, "wb");
-        if (f == NULL) {args->result = ESP_ERR_NOT_FOUND; goto done;}
-    } else if (args->action == CONCURRENT_TASK_ACTION_READ) {
+        if (f == NULL)
+        {
+            args->result = ESP_ERR_NOT_FOUND;
+            goto done;
+        }
+    }
+    else if (args->action == CONCURRENT_TASK_ACTION_READ)
+    {
         f = fopen(args->filename, "rb");
-        if (f == NULL) {args->result = ESP_ERR_NOT_FOUND; goto done;}
-    } else if (args->action == CONCURRENT_TASK_ACTION_STAT) {
+        if (f == NULL)
+        {
+            args->result = ESP_ERR_NOT_FOUND;
+            goto done;
+        }
+    }
+    else if (args->action == CONCURRENT_TASK_ACTION_STAT)
+    {
     }
 
     srand(args->seed);
-    for (size_t i = 0; i < args->word_count; ++i) {
+    for (size_t i = 0; i < args->word_count; ++i)
+    {
         uint32_t val = rand();
-        if (args->action == CONCURRENT_TASK_ACTION_WRITE) {
+        if (args->action == CONCURRENT_TASK_ACTION_WRITE)
+        {
             int cnt = fwrite(&val, sizeof(val), 1, f);
-            if (cnt != 1) {
+            if (cnt != 1)
+            {
                 esp_rom_printf("E(w): i=%d, cnt=%d val=%d\n\n", i, cnt, val);
                 args->result = ESP_FAIL;
                 goto close;
             }
-        } else if (args->action == CONCURRENT_TASK_ACTION_READ) {
+        }
+        else if (args->action == CONCURRENT_TASK_ACTION_READ)
+        {
             uint32_t rval;
             int cnt = fread(&rval, sizeof(rval), 1, f);
-            if (cnt != 1) {
+            if (cnt != 1)
+            {
                 esp_rom_printf("E(r): i=%d, cnt=%d rval=%d\n\n", i, cnt, rval);
                 args->result = ESP_FAIL;
                 goto close;
             }
-        } else if (args->action == CONCURRENT_TASK_ACTION_STAT) {
+        }
+        else if (args->action == CONCURRENT_TASK_ACTION_STAT)
+        {
             int res;
             struct stat buf;
             res = stat(args->filename, &buf);
-            if(res < 0) {
+            if (res < 0)
+            {
                 args->result = ESP_FAIL;
                 goto done;
             }
@@ -587,7 +611,8 @@ static void read_write_task(void* param)
     args->result = ESP_OK;
 
 close:
-    if(f) {
+    if (f)
+    {
         TEST_ASSERT_EQUAL(0, fclose(f));
     }
 
@@ -597,12 +622,13 @@ done:
     vTaskDelete(NULL);
 }
 
-
-static void test_littlefs_concurrent_rw(const char* filename_prefix)
+static void test_littlefs_concurrent_rw(const char *filename_prefix)
 {
 #define TASK_SIZE 4096
+    const TickType_t timeout = pdMS_TO_TICKS(120000);
     char names[4][64];
-    for (size_t i = 0; i < 4; ++i) {
+    for (size_t i = 0; i < 4; ++i)
+    {
         snprintf(names[i], sizeof(names[i]), "%s%d", filename_prefix, i + 1);
     }
 
@@ -614,13 +640,13 @@ static void test_littlefs_concurrent_rw(const char* filename_prefix)
     printf("writing f1 and f2\n");
     const int cpuid_0 = 0;
     const int cpuid_1 = portNUM_PROCESSORS - 1;
-    xTaskCreatePinnedToCore(&read_write_task, "rw1", TASK_SIZE, &args1, 3, NULL, cpuid_0);
-    xTaskCreatePinnedToCore(&read_write_task, "rw2", TASK_SIZE, &args2, 3, NULL, cpuid_1);
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw1", TASK_SIZE, &args1, 3, NULL, cpuid_0));
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw2", TASK_SIZE, &args2, 3, NULL, cpuid_1));
 
-    xSemaphoreTake(args1.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args1.done, timeout));
     printf("f1 done\n");
     TEST_ASSERT_EQUAL(ESP_OK, args1.result);
-    xSemaphoreTake(args2.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args2.done, timeout));
     printf("f2 done\n");
     TEST_ASSERT_EQUAL(ESP_OK, args2.result);
 
@@ -631,10 +657,10 @@ static void test_littlefs_concurrent_rw(const char* filename_prefix)
 
     printf("reading f1 and f2, writing f3 and f4, stating f1 concurrently from 2 cores\n");
 
-    xTaskCreatePinnedToCore(&read_write_task, "rw3", TASK_SIZE, &args3, 3, NULL, cpuid_1);
-    xTaskCreatePinnedToCore(&read_write_task, "rw4", TASK_SIZE, &args4, 3, NULL, cpuid_0);
-    xTaskCreatePinnedToCore(&read_write_task, "rw1", TASK_SIZE, &args1, 3, NULL, cpuid_0);
-    xTaskCreatePinnedToCore(&read_write_task, "rw2", TASK_SIZE, &args2, 3, NULL, cpuid_1);
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw3", TASK_SIZE, &args3, 3, NULL, cpuid_1));
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw4", TASK_SIZE, &args4, 3, NULL, cpuid_0));
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw1", TASK_SIZE, &args1, 3, NULL, cpuid_0));
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "rw2", TASK_SIZE, &args2, 3, NULL, cpuid_1));
 
 #if CONFIG_VFS_SUPPORT_DIR
     read_write_test_arg_t args5 = READ_WRITE_TEST_ARG_INIT(names[0], 3);
@@ -644,38 +670,40 @@ static void test_littlefs_concurrent_rw(const char* filename_prefix)
     args6.action = CONCURRENT_TASK_ACTION_STAT;
     args6.word_count = 300;
 
-
-    xTaskCreatePinnedToCore(&read_write_task, "stat1", TASK_SIZE, &args5, 3, NULL, cpuid_0);
-    xTaskCreatePinnedToCore(&read_write_task, "stat2", TASK_SIZE, &args6, 3, NULL, cpuid_1);
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "stat1", TASK_SIZE, &args5, 3, NULL, cpuid_0));
+    TEST_ASSERT_EQUAL(pdPASS, xTaskCreatePinnedToCore(&read_write_task, "stat2", TASK_SIZE, &args6, 3, NULL, cpuid_1));
 #endif
 
-
-    xSemaphoreTake(args1.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args1.done, timeout));
     printf("f1 done\n");
     TEST_ASSERT_EQUAL(ESP_OK, args1.result);
-    xSemaphoreTake(args2.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args2.done, timeout));
     printf("f2 done\n");
     TEST_ASSERT_EQUAL(ESP_OK, args2.result);
-    xSemaphoreTake(args3.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args3.done, timeout));
     printf("f3 done\n");
     TEST_ASSERT_EQUAL(ESP_OK, args3.result);
-    xSemaphoreTake(args4.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args4.done, timeout));
     printf("f4 done\n");
+    TEST_ASSERT_EQUAL(ESP_OK, args4.result);
 
 #if CONFIG_VFS_SUPPORT_DIR
-    TEST_ASSERT_EQUAL(ESP_OK, args5.result);
-    xSemaphoreTake(args5.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args5.done, timeout));
     printf("stat1 done\n");
-    TEST_ASSERT_EQUAL(ESP_OK, args6.result);
-    xSemaphoreTake(args6.done, portMAX_DELAY);
+    TEST_ASSERT_EQUAL(ESP_OK, args5.result);
+    TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(args6.done, timeout));
     printf("stat2 done\n");
+    TEST_ASSERT_EQUAL(ESP_OK, args6.result);
 #endif
-
 
     vSemaphoreDelete(args1.done);
     vSemaphoreDelete(args2.done);
     vSemaphoreDelete(args3.done);
     vSemaphoreDelete(args4.done);
+#if CONFIG_VFS_SUPPORT_DIR
+    vSemaphoreDelete(args5.done);
+    vSemaphoreDelete(args6.done);
+#endif
 #undef TASK_SIZE
 }
 
@@ -684,9 +712,9 @@ TEST_CASE("SPIFFS COMPAT: file creation and deletion", "[littlefs]")
 {
     test_setup();
 
-    const char* filename = littlefs_base_path "/spiffs_compat/foo/bar/spiffs_compat.bin";
+    const char *filename = littlefs_base_path "/spiffs_compat/foo/bar/spiffs_compat.bin";
 
-    FILE* f = fopen(filename, "w");
+    FILE *f = fopen(filename, "w");
     TEST_ASSERT_NOT_NULL(f);
     TEST_ASSERT_TRUE(fputs("bar", f) != EOF);
     TEST_ASSERT_EQUAL(0, fclose(f));
@@ -695,7 +723,8 @@ TEST_CASE("SPIFFS COMPAT: file creation and deletion", "[littlefs]")
 
     /* check to see if all the directories were deleted */
     struct stat sb;
-    if (test_littlefs_stat(littlefs_base_path "/spiffs_compat", &sb) == 0 && S_ISDIR(sb.st_mode)) {
+    if (test_littlefs_stat(littlefs_base_path "/spiffs_compat", &sb) == 0 && S_ISDIR(sb.st_mode))
+    {
         TEST_FAIL_MESSAGE("Empty directories were not deleted");
     }
 
@@ -708,10 +737,10 @@ TEST_CASE("SPIFFS COMPAT: file creation and rename", "[littlefs]")
 
     int res;
     char message[256];
-    const char* src = littlefs_base_path "/spiffs_compat/src/foo/bar/spiffs_compat.bin";
-    const char* dst = littlefs_base_path "/spiffs_compat/dst/foo/bar/spiffs_compat.bin";
+    const char *src = littlefs_base_path "/spiffs_compat/src/foo/bar/spiffs_compat.bin";
+    const char *dst = littlefs_base_path "/spiffs_compat/dst/foo/bar/spiffs_compat.bin";
 
-    FILE* f = fopen(src, "w");
+    FILE *f = fopen(src, "w");
     TEST_ASSERT_NOT_NULL(f);
     TEST_ASSERT_TRUE(fputs("bar", f) != EOF);
     TEST_ASSERT_EQUAL(0, fclose(f));
@@ -722,14 +751,15 @@ TEST_CASE("SPIFFS COMPAT: file creation and rename", "[littlefs]")
 
     /* check to see if all the directories were deleted */
     struct stat sb;
-    if (test_littlefs_stat(littlefs_base_path "/spiffs_compat/src", &sb) == 0 && S_ISDIR(sb.st_mode)) {
+    if (test_littlefs_stat(littlefs_base_path "/spiffs_compat/src", &sb) == 0 && S_ISDIR(sb.st_mode))
+    {
         TEST_FAIL_MESSAGE("Empty directories were not deleted");
     }
 
     test_teardown();
 }
 
-#endif  // CONFIG_LITTLEFS_SPIFFS_COMPAT
+#endif // CONFIG_LITTLEFS_SPIFFS_COMPAT
 
 TEST_CASE("Rewriting file frees space immediately (#7426)", "[littlefs]")
 {
@@ -743,18 +773,21 @@ TEST_CASE("Rewriting file frees space immediately (#7426)", "[littlefs]")
     TEST_ESP_OK(esp_littlefs_info(littlefs_test_partition_label, &total, &used));
 
     // 2 block overhead
-    int kb_to_write = (total - used - (2*4096)) / 1024;
+    int kb_to_write = (total - used - (2 * 4096)) / 1024;
 
     // Create and overwrite a file >50% of spaceA (48/64K)
     uint8_t buf[1024];
     memset(buf, 0xaa, 1024);
-    for (uint8_t x = 0; x < 2; x++) {
+    for (uint8_t x = 0; x < 2; x++)
+    {
         FILE *f = fopen(littlefs_base_path "/file1.bin", "w");
         TEST_ASSERT_NOT_NULL(f);
 
-        for (size_t i = 0; i < kb_to_write; i++) {
+        for (size_t i = 0; i < kb_to_write; i++)
+        {
             TEST_ASSERT_EQUAL_INT(1024, fwrite(buf, 1, 1024, f));
-            if ((i & 0x1F) == 0) {
+            if ((i & 0x1F) == 0)
+            {
                 vTaskDelay(1);
             }
         }
@@ -777,18 +810,21 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
     test_setup();
 
     char names[7][64];
-    for (size_t i = 0; i < 7; ++i) {
+    for (size_t i = 0; i < 7; ++i)
+    {
         snprintf(names[i], sizeof(names[i]), littlefs_base_path "/%d", i + 1);
-        unlink(names[i]);  // Make sure these files don't exist
+        unlink(names[i]); // Make sure these files don't exist
     }
 
-    for (size_t i = 0; i < 7; ++i) {
-        FILE* f = fopen(names[i], "wb");
+    for (size_t i = 0; i < 7; ++i)
+    {
+        FILE *f = fopen(names[i], "wb");
         TEST_ASSERT_NOT_NULL(f);
         char buf[256];
         memset(buf, 'c', sizeof(buf));
         size_t n_bytes = 65432;
-        while (n_bytes > 0) {
+        while (n_bytes > 0)
+        {
             size_t chunk = n_bytes < sizeof(buf) ? n_bytes : sizeof(buf);
             TEST_ASSERT_EQUAL(chunk, fwrite(buf, 1, chunk, f));
             n_bytes -= chunk;
@@ -806,44 +842,56 @@ TEST_CASE("esp_littlefs_info returns used_bytes > total_bytes", "[littlefs]")
     int stall_count = 0;
     int i = 0;
     const int max_iters = 400;
-    while(i < max_iters){
+    while (i < max_iters)
+    {
         char *filename = names[i % 7];
-        FILE* f = fopen(filename, "a+b");
+        FILE *f = fopen(filename, "a+b");
         TEST_ASSERT_NOT_NULL(f);
         char buf[256];
         memset(buf, 'f', sizeof(buf));
         size_t remaining = 4096 + (i % 17) * 64;
         int amount_written = 1;
-        while (remaining > 0) {
+        while (remaining > 0)
+        {
             size_t chunk = remaining < sizeof(buf) ? remaining : sizeof(buf);
             amount_written = (int)fwrite(buf, 1, chunk, f);
-            if (amount_written != (int)chunk) {
+            if (amount_written != (int)chunk)
+            {
                 amount_written = 0;
                 break;
             }
             remaining -= chunk;
         }
-        if (amount_written == 0) {
+        if (amount_written == 0)
+        {
             fclose(f);
             break;
         }
-        if(0 != fclose(f)){
+        if (0 != fclose(f))
+        {
             break;
         }
 
-        total = 0; used = 0;
+        total = 0;
+        used = 0;
         TEST_ESP_OK(esp_littlefs_info(littlefs_test_partition_label, &total, &used));
         TEST_ASSERT_GREATER_OR_EQUAL_INT(used, total);
-        //printf("used: %d total: %d\n", used, total);
+        // printf("used: %d total: %d\n", used, total);
 
-        if (used > max_used) {
+        if (used > max_used)
+        {
             max_used = used;
             stall_count = 0;
-        } else if ((total - used) <= 2 * 4096) {
-            if (++stall_count >= 20) {
+        }
+        else if ((total - used) <= 2 * 4096)
+        {
+            if (++stall_count >= 20)
+            {
                 break;
             }
-        } else {
+        }
+        else
+        {
             stall_count = 0;
         }
         prev_used = used;
@@ -973,10 +1021,12 @@ TEST_CASE("fcntl get flags", "[littlefs]")
 /**
  * Cannot use buitin `stat` since it depends on CONFIG_VFS_SUPPORT_DIR.
  */
-static int test_littlefs_stat(const char *path, struct stat *buf){
+static int test_littlefs_stat(const char *path, struct stat *buf)
+{
     int res;
-    FILE* f = fopen(path, "r");
-    if(!f){
+    FILE *f = fopen(path, "r");
+    if (!f)
+    {
         return -1;
     }
     int fd = fileno(f);
