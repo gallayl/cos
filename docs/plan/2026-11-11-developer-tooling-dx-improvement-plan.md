@@ -122,7 +122,7 @@
 **Objective:** faster, clearer CI with the same guarantees.
 
 - **Actions**
-  - [ ] Add caching to workflows: pip/uv, frontend package manager store, ESP-IDF/QEMU tools where feasible, and compiler caches keyed by toolchain/config hashes.
+  - [ ] Add caching to workflows: pip/uv, frontend package manager store, ESP-IDF/QEMU tools where feasible, and compiler caches keyed by toolchain/config hashes. (2026-11-13: added `actions/cache` for `integration_test/test_*/build` in integration-test workflow; ccache/pip caching already present there.)
   - [ ] Use parallel integration builds/runs where runner resources and test isolation allow; upload summarized results and retain detailed logs/artifacts only as needed.
   - [ ] Align CI invocation with new quiet/summary modes while preserving artifact richness on failure.
   - [ ] Periodically review container/toolchain pin freshness and startup cost (image size/layers, preinstalled tools) in coordination with ESP-IDF version policy.
@@ -171,4 +171,4 @@ Quick wins to prioritize early (can start in parallel with DX1 instrumentation):
 | DX4 | Test and integration-test throughput | P1 | 🟡 In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
 | DX5 | Output ergonomics and failure signal | P1 | ⬜ Not started |  |
 | DX6 | Developer workflow UX and guardrails | P2 | ⬜ Not started |  |
-| DX7 | CI efficiency and parity | P2 | 🟡 In progress | 2026-11-11: local evidence supports adding compiler caching to CI (build-and-lint/integration workflows); implementation/validation in progress as next step. |
+| DX7 | CI efficiency and parity | P2 | 🟡 In progress | 2026-11-11: local evidence supports adding compiler caching to CI (build-and-lint/integration workflows); implementation/validation in progress as next step. 2026-11-13: integration-test workflow now caches `integration_test/test_*/build` (keyed by source/config/workflow hashes) in addition to ccache to speed incremental/no-op firmware builds across CI runs. |

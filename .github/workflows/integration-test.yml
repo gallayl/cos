@@ -49,6 +49,14 @@ jobs:
           restore-keys: |
             ccache-integration-${{ runner.os }}-idf-v6.1-
 
+      - name: Restore integration test build directories
+        uses: actions/cache@v4
+        with:
+          path: integration_test/test_*/build
+          key: itest-build-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', 'integration_test/**', '.github/workflows/integration-test.yml') }}
+          restore-keys: |
+            itest-build-${{ runner.os }}-idf-v6.1-
+
       - name: Build integration test firmware
         shell: bash
         run: |
