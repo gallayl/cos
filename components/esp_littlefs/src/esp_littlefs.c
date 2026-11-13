@@ -3251,15 +3251,8 @@ static int vfs_littlefs_fcntl(void *ctx, int fd, int cmd, int arg)
     }
 
     file = efs->cache[fd];
-    {
-        lfs_file = &efs->cache[fd]->file;
-    }
-    else
-    {
-        sem_give(efs);
-        errno = EBADF;
-        return -1;
-    }
+    (void)file;
+    lfs_file = &file->file;
 
     if (cmd == F_GETFL)
     {
