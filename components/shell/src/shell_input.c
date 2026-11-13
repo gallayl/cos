@@ -943,6 +943,7 @@ esp_err_t shell_input_init(void)
     if (s_input_stream == NULL)
     {
         ESP_LOGE(TAG, "Failed to create input stream buffer");
+        uart_driver_delete(UART_NUM);
         return ESP_ERR_NO_MEM;
     }
 
@@ -960,6 +961,9 @@ esp_err_t shell_input_init(void)
     if (rc != pdPASS)
     {
         ESP_LOGE(TAG, "Failed to create UART RX task");
+        vStreamBufferDelete(s_input_stream);
+        s_input_stream = NULL;
+        uart_driver_delete(UART_NUM);
         return ESP_ERR_NO_MEM;
     }
 
@@ -968,6 +972,10 @@ esp_err_t shell_input_init(void)
     {
         ESP_LOGE(TAG, "Failed to create input task");
         vTaskDelete(s_uart_rx_task);
+        s_uart_rx_task = NULL;
+        vStreamBufferDelete(s_input_stream);
+        s_input_stream = NULL;
+        uart_driver_delete(UART_NUM);
         return ESP_ERR_NO_MEM;
     }
 

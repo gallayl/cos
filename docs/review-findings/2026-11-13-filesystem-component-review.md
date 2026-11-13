@@ -13,7 +13,7 @@ COS is ESP32 (CYD/ESP32-2432S028R) firmware with a display/touch UI and an inter
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| F1 | Must fix | `vfs_resolve_path` does not normalize `.`/`..`, allowing virtual-path escape | Open |  | Prefix-mapped real path can traverse outside mount root if caller passes unnormalized input |
+| F1 | Must fix | `vfs_resolve_path` does not normalize `.`/`..`, allowing virtual-path escape | Fixed |  | 2026-11-13: `components/filesystem/src/vfs_path.c` now normalizes the virtual path with `normalize_absolute` before mapping `/flash`/`/sdcard`, rejecting traversal above root and invalid/oversized paths. |
 | F2 | Should fix | `vfs_read_file`, `vfs_write_file`, and `vfs_read_file_stream` use text mode, which can corrupt binary data | Fixed |  | 2026-11-13: `components/filesystem/src/vfs.c` now uses binary modes (`"rb"` for reads/stream, `"wb"` for writes); copy path reads via stream and writes `"wb"`. |
 | F3 | Should fix | VFS/file operation logic has no host tests for `vfs.c` behavior (only `vfs_path.c` covered) | Open |  | `test/test_vfs_path.c` exercises path helpers; no host tests for read/write/copy/rename/remove/list/stat/root semantics |
 | F4 | Nice to have | Small cleanup opportunities in init/deinit wrappers | Open |  | `flash_deinit` redundant unregister branch; `sdcard_init` only forwards to `sdcard_mount` |
@@ -55,6 +55,7 @@ COS is ESP32 (CYD/ESP32-2432S028R) firmware with a display/touch UI and an inter
 ## Validation / not checked
 
 - 2026-11-13: Ran `make format-check` and `make test` after F2 fix — **pass** (24 host ctest + 3 script tests). Did not run ESP-IDF firmware build/lint or on-device validation for this change.
+- 2026-11-13: Ran `make format-check` and `make test` after F1 fix — **pass** (24 host ctest + 3 script tests). Did not run ESP-IDF firmware build/lint or on-device validation for traversal cases.
 - ESP-IDF firmware build/lint and on-device behavior (ESP-IDF toolchain, LittleFS partition, SD card/SPI hardware not exercised in the original review).
 - `make format-check` and `make test` were not run as part of the original read-only audit.
 - Runtime behavior of underlying dependencies/APIs (`esp_littlefs`, FAT/SDMMC/SPI drivers, POSIX VFS semantics, storage layout) beyond source inspection.

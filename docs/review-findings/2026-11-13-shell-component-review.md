@@ -13,8 +13,8 @@ COS is ESP32 (CYD/ESP32-2432S028R) firmware with a display/touch UI and an inter
 
 | ID | Severity | Finding | Status | Owner | Notes |
 |---:|----------|---------|--------|-------|-------|
-| S1 | Must fix | `shell_resolve_relative` can return a truncated or wrong path without error | Open |  | Ignored `snprintf` truncation and silent drop of >32 path components |
-| S2 | Must fix | `shell_input_init` leaks UART/stream/task resources on partial failure | Open |  | No rollback when stream/task creation fails after driver install |
+| S1 | Must fix | `shell_resolve_relative` can return a truncated or wrong path without error | Fixed |  | 2026-11-13: `components/shell/src/shell.c` now fails on `snprintf` truncation and on paths with >32 components instead of returning a different path. |
+| S2 | Must fix | `shell_input_init` leaks UART/stream/task resources on partial failure | Fixed |  | 2026-11-13: `components/shell/src/shell_input.c` now rolls back stream/task/UART driver on partial init failure. |
 | S3 | Should fix | Shell parsing/dispatch/path logic has no host tests in `test/` | Open |  | Risky logic (paths, aliases, redirection, script resolution) not covered by host unit tests |
 | S4 | Nice to have | Stray debug comment left in `shell_script_try_exec` error path | Open |  | Confusing maintenance artifact in `src/shell_script.c` |
 
@@ -54,8 +54,9 @@ COS is ESP32 (CYD/ESP32-2432S028R) firmware with a display/touch UI and an inter
 
 ## Validation / not checked
 
+- 2026-11-13: Ran `make format-check` and `make test` after S1/S2 fixes — **pass** (24 host ctest + 3 script tests). Did not run ESP-IDF firmware build/lint or on-device shell behavior.
 - Full ESP-IDF firmware build/lint and on-device shell behavior (ESP-IDF toolchain/hardware not exercised in this review).
-- `make format-check` and `make test` were not run as part of this read-only audit.
+- `make format-check` and `make test` were not run as part of the original read-only audit.
 - Concurrency beyond the intended model (commands or callbacks interacting with shell/input state from multiple tasks at once).
 - Behavior of underlying dependencies/APIs (`vfs_*`, `esp_console`, UART/stream buffer semantics, Berry runtime, network/filesystem implementations) except where directly used by shell code.
 - End-to-end behavior of quoted-argument parsing as handled by `esp_console` for all edge cases, and BT keyboard/input edge cases on hardware.

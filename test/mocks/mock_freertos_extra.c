@@ -33,6 +33,11 @@ size_t xStreamBufferReceive(StreamBufferHandle_t xStreamBuffer, void *pvRxData, 
     return 0;
 }
 
+void vStreamBufferDelete(StreamBufferHandle_t xStreamBuffer)
+{
+    (void)xStreamBuffer;
+}
+
 BaseType_t xTaskCreate(void (*pxTaskCode)(void *), const char *pcName, unsigned int usStackDepth, void *pvParameters,
                        unsigned int uxPriority, TaskHandle_t *pxCreatedTask)
 {

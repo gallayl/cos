@@ -19,3 +19,4 @@ int uart_write_bytes(uart_port_t uart_num, const void *src, size_t size);
 int uart_read_bytes(uart_port_t uart_num, void *buf, uint32_t length, uint32_t ticks_to_wait);
 esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size,
                               QueueHandle_t *uart_queue, int intr_alloc_flags);
+esp_err_t uart_driver_delete(uart_port_t uart_num);
