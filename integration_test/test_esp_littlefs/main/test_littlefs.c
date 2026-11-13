@@ -754,6 +754,9 @@ TEST_CASE("Rewriting file frees space immediately (#7426)", "[littlefs]")
 
         for (size_t i = 0; i < kb_to_write; i++) {
             TEST_ASSERT_EQUAL_INT(1024, fwrite(buf, 1, 1024, f));
+            if ((i & 0x1F) == 0) {
+                vTaskDelay(1);
+            }
         }
         TEST_ASSERT_EQUAL(0, fclose(f));
     }

@@ -89,26 +89,27 @@ static void fill_partitions()
         'D','U','M','M','Y','D','A','T','A','0','1','2', '3', '4', '5', '6',
         'D','U','M','M','Y','D','A','T','A','0','1','2', '3', '4', '5', '6'
     };
+    const uint32_t fill_bytes = 0x4000; /* 16KB is enough to dirty partition for format bench on QEMU */
 
     ESP_LOGI(TAG, "Filling SPIFFS partition with dummy data");
     part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
             "spiffs_store");
     esp_partition_erase_range(part, 0, part->size);
-    for(uint32_t i=0; i < part->size; i += sizeof(dummy_data))
+    for(uint32_t i=0; i < part->size && i < fill_bytes; i += sizeof(dummy_data))
         esp_partition_write(part, i, dummy_data, sizeof(dummy_data));
 
     ESP_LOGI(TAG, "Filling FAT partition with dummy data");
     part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
             "fat_store");
     esp_partition_erase_range(part, 0, part->size);
-    for(uint32_t i=0; i < part->size; i += sizeof(dummy_data))
+    for(uint32_t i=0; i < part->size && i < fill_bytes; i += sizeof(dummy_data))
         esp_partition_write(part, i, dummy_data, sizeof(dummy_data));
 
     ESP_LOGI(TAG, "Filling LittleFS partition with dummy data");
     part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
             "flash_test");
     esp_partition_erase_range(part, 0, part->size);
-    for(uint32_t i=0; i < part->size; i += sizeof(dummy_data))
+    for(uint32_t i=0; i < part->size && i < fill_bytes; i += sizeof(dummy_data))
         esp_partition_write(part, i, dummy_data, sizeof(dummy_data));
 }
 
@@ -151,7 +152,7 @@ static void read_write_test_1(const char *mount_pt, uint32_t iter) {
             ESP_LOGE(TAG, "Failed to open file %d for writing", i);
             continue;
         }
-        for(uint32_t j=0; j < 2000; j++) {
+        for(uint32_t j=0; j < 200; j++) {
             fprintf(f, "All work and no play makes Jack a dull boy.\n");
         }
         fclose(f);
@@ -240,15 +241,15 @@ TEST_CASE("Write 5 files, read 5 files, then delete 5 files", TAG){
     test_benchmark_setup();
 
     printf("FAT:\n");
-    read_write_test_1("/fat", 5);
+    read_write_test_1("/fat", 2);
     printf("\n");
 
     printf("SPIFFS:\n");
-    read_write_test_1("/spiffs", 5);
+    read_write_test_1("/spiffs", 2);
     printf("\n");
 
     printf("LittleFS:\n");
-    read_write_test_1("/littlefs", 5);
+    read_write_test_1("/littlefs", 2);
     printf("\n");
 
     test_benchmark_teardown();

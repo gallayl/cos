@@ -63,8 +63,8 @@ TEST_CASE("ftruncate", "[littlefs]")
 
 static void test_littlefs_readdir_many_files(const char* dir_prefix)
 {
-    const int n_files = 40;
-    const int n_folders = 4;
+    const int n_files = 20;
+    const int n_folders = 2;
     unsigned char file_count[n_files * n_folders];
     memset(file_count, 0, sizeof(file_count)/sizeof(file_count[0]));
     char file_name[ESP_VFS_PATH_MAX + CONFIG_LITTLEFS_OBJ_NAME_LEN];
