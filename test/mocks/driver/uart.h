@@ -20,4 +20,3 @@ int uart_read_bytes(uart_port_t uart_num, void *buf, uint32_t length, uint32_t t
 esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_buffer_size, int queue_size,
                               QueueHandle_t *uart_queue, int intr_alloc_flags);
 esp_err_t uart_driver_delete(uart_port_t uart_num);
-bool uart_is_driver_installed(uart_port_t uart_num);

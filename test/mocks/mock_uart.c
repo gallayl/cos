@@ -66,9 +66,3 @@ esp_err_t uart_driver_delete(uart_port_t uart_num)
     (void)uart_num;
     return ESP_OK;
 }
-
-bool uart_is_driver_installed(uart_port_t uart_num)
-{
-    (void)uart_num;
-    return false;
-}

@@ -5,6 +5,7 @@
 #include "shell_script.h"
 
 #include "driver/uart.h"
+#include "driver/uart_vfs.h"
 #include "esp_console.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -35,7 +36,6 @@ static StreamBufferHandle_t s_input_stream;
 static TaskHandle_t s_input_task;
 static atomic_bool s_line_input_owned;
 static _Atomic(void *) s_line_input_owner;
-static atomic_bool s_uart_driver_installed;
 
 /* ── Line buffer ───────────────────────────────────────────── */
 
@@ -776,36 +776,12 @@ static void uart_rx_task(void *arg)
 {
     (void)arg;
     uint8_t buf[32];
-    bool install_attempted = false;
     for (;;)
     {
         int n = uart_read_bytes(UART_NUM, buf, sizeof(buf), pdMS_TO_TICKS(100));
         if (n > 0)
         {
             xStreamBufferSend(s_input_stream, buf, (size_t)n, portMAX_DELAY);
-            continue;
-        }
-
-        if (n < 0)
-        {
-            if (!install_attempted && !atomic_load(&s_uart_driver_installed))
-            {
-                install_attempted = true;
-                esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-                if (err == ESP_OK)
-                {
-                    atomic_store(&s_uart_driver_installed, true);
-                    ESP_LOGI(TAG, "UART driver installed for shell input");
-                    continue;
-                }
-                if (err == ESP_ERR_INVALID_STATE)
-                {
-                    atomic_store(&s_uart_driver_installed, true);
-                    continue;
-                }
-            }
-            /* Driver unavailable or contested; avoid a tight error-log loop. */
-            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
@@ -955,16 +931,28 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
-    /* Avoid installing/probing UART driver during init: it can hang in some QEMU boots.
-     * The RX task will lazily install the driver if reads fail (e.g. no console driver). */
-    atomic_init(&s_uart_driver_installed, false);
-    ESP_LOGI(TAG, "Shell input using existing UART setup");
+    bool driver_installed = false;
+    esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    if (err == ESP_OK)
+    {
+        driver_installed = true;
+    }
+    else if (err == ESP_ERR_INVALID_STATE)
+    {
+        /* driver likely already installed by console */
+    }
+    else
+    {
+        ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    uart_vfs_dev_use_driver(UART_NUM);
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
     {
         ESP_LOGE(TAG, "Failed to create input stream buffer");
-        if (atomic_load(&s_uart_driver_installed))
+        if (driver_installed)
         {
             uart_driver_delete(UART_NUM);
         }
@@ -987,7 +975,7 @@ esp_err_t shell_input_init(void)
         ESP_LOGE(TAG, "Failed to create UART RX task");
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        if (atomic_load(&s_uart_driver_installed))
+        if (driver_installed)
         {
             uart_driver_delete(UART_NUM);
         }
@@ -1002,7 +990,7 @@ esp_err_t shell_input_init(void)
         s_uart_rx_task = NULL;
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        if (atomic_load(&s_uart_driver_installed))
+        if (driver_installed)
         {
             uart_driver_delete(UART_NUM);
         }
