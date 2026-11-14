@@ -4,9 +4,6 @@
 #include "shell_completion.h"
 #include "shell_script.h"
 
-#include "driver/uart.h"
-#include "driver/uart_vfs.h"
-#include "esp_console.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/stream_buffer.h"
@@ -24,8 +21,6 @@ static const char *const TAG = "shell_input";
 #define INPUT_CANCEL_REQUEST 0xFF
 #define PROMPT_EOL_GRACE_MS 50
 #define HISTORY_SIZE 8
-#define UART_RX_BUF_SIZE 256
-#define UART_NUM CONFIG_ESP_CONSOLE_UART_NUM
 
 #define RX_TASK_STACK 2048
 #define RX_TASK_PRIO 5
@@ -778,15 +773,15 @@ static void uart_rx_task(void *arg)
     uint8_t buf[32];
     for (;;)
     {
-        int n = uart_read_bytes(UART_NUM, buf, sizeof(buf), pdMS_TO_TICKS(100));
+        size_t n = fread(buf, 1, sizeof(buf), stdin);
         if (n > 0)
         {
-            xStreamBufferSend(s_input_stream, buf, (size_t)n, portMAX_DELAY);
+            xStreamBufferSend(s_input_stream, buf, n, portMAX_DELAY);
         }
-        else if (n < 0)
+        else
         {
-            /* Avoid tight loop/hangs from driver install attempts in QEMU. */
-            vTaskDelay(pdMS_TO_TICKS(100));
+            clearerr(stdin);
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
 }
@@ -936,7 +931,6 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
-    /* Avoid uart_driver_install/uart_vfs_dev_use_driver: can hang in QEMU console-owned UART. */
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
