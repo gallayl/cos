@@ -37,9 +37,9 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 | Phase | Commit(s) | Status | Notes |
 |---|---|---|---|
 | Plan doc + tracking | `37075c2` | Done | Persist plan, cross-refs, baseline |
-| 0 — Baseline gate | `ab11e98`, `37075c2` (pushed) | In progress | Revert+plan pushed; observing CI run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861) to classify failures (A transport/init, B VFS/LittleFS runtime, C deterministic logic) |
-| 1 — Shell FS command unit tests (quick win) | (this phase commit) | Done (host) | Strengthened `mock_filesystem` stream/copy behavior and added host `shell_fs_cmds` tests (`cat` read/missing/dir, `rm` missing, `touch` preserves content, `cp` preserves content). `make format-check`/`make test` pass locally; CI integration impact pending |
-| 2 — VFS contract tests / minimal seam + targeted fix | TBD | Pending | `vfs.c` contract tests (mocked/seamed backend as needed); evidence-backed fixes; keep real LittleFS integration |
+| 0 — Baseline gate | `ab11e98`, `37075c2` (pushed) | In progress | Revert+plan pushed; baseline run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861): `init_sequence/system/nvs_calibration/vfs_ops/stability/esp_littlefs` passed, `shell_fs` still running at last check (A transport/init regressions cleared; pending B/C classification) |
+| 1 — Shell FS command unit tests (quick win) | `5c52857` | Done (host) | Strengthened `mock_filesystem` stream/copy behavior and added host `shell_fs_cmds` tests (`cat` read/missing/dir, `rm` missing, `touch` preserves content, `cp` preserves content). `make format-check`/`make test` pass locally; CI integration impact pending |
+| 2 — VFS contract tests / minimal seam + targeted fix | (this phase commit) | In progress (partial) | Added `vfs_path` normalization contract test (`vfs_resolve_path` dot/dotdot for flash/sdcard). Targeted runtime/seam fix for `shell_fs` blocked pending CI failure artifacts/logs from in-progress runs; to be completed with evidence-backed change |
 | 3 — Console/input seam (only if needed) | TBD | Pending | Minimal seam for `shell_input` init/read policy if Phase 0 shows transport/init blocking; no init guesswork |
 | Pipeline green | — | Pending | Required PR checks green; root causes evidence-backed |
 
@@ -90,7 +90,13 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 
 ## CI observations
 
-- **Phase 0 push (baseline revert `ab11e98` + plan `37075c2`)** — Integration run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861), Build/Lint [43613402894](https://github.com/gallayl/cos/actions/runs/43613402894): in progress at time of Phase 1 commit. Non-integration PR checks observed passing (Format, Doxygen, Unit Tests, Frontend/Lint-format-test-build). Failure signatures/artifacts to be recorded when complete.
+- **Phase 0 baseline (revert `ab11e98` + plan `37075c2`)** — Integration run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861) (Build/Lint [43613402894](https://github.com/gallayl/cos/actions/runs/43613402894)): **partial, in progress at last check**.
+  - **Passed:** `init_sequence` ([132503147764](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147764)), `system` ([132503147661](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147661)), `nvs_calibration` ([132503147747](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147747)), `vfs_ops` ([132503147666](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147666)), `stability` ([132503147649](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147649)). Non-integration PR checks passed (Format, Doxygen, Unit Tests, Frontend/Lint-format-test-build).
+  - **Still running:** `shell_fs` ([132503147444](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147444)), `esp_littlefs` ([132503147748](https://github.com/gallayl/cos/actions/runs/43613402861/job/132503147748)).
+  - **Interim classification:** A (transport/init regressions) appears cleared by revert; pending `shell_fs` result will confirm whether original B (LittleFS/VFS command-time runtime stalls, cf. [43588554529](https://github.com/gallayl/cos/actions/runs/43588554529)) remains.
+- **Phase 1 push** — Integration run [43613609943](https://github.com/gallayl/cos/actions/runs/43613609943) (head `5c52857`): **partial, in progress at last check**.
+  - **Passed:** `init_sequence`, `system`, `nvs_calibration`, `vfs_ops`, `stability`, `esp_littlefs`.
+  - **Still running:** `shell_fs` ([132503784207](https://github.com/gallayl/cos/actions/runs/43613609943/job/132503784207)). Same pattern as baseline → strongly indicates remaining blocker is **B (shell_fs runtime/LittleFS-VFS command path)**, not A/C. Detailed failure signature/artifacts pending job completion.
 
 ## Skipped / risks (living)
 
