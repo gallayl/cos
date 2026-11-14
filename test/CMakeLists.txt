@@ -158,6 +158,16 @@ target_include_directories(test_vfs_path PRIVATE
 target_link_libraries(test_vfs_path PRIVATE unity vfs_path mock_esp)
 add_test(NAME test_vfs_path COMMAND test_vfs_path)
 
+# --- Test: vfs (contract tests with seam/mocked backend) ---
+add_executable(test_vfs test_vfs.c)
+target_include_directories(test_vfs PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/filesystem/src
+)
+target_link_libraries(test_vfs PRIVATE unity mock_esp)
+add_test(NAME test_vfs COMMAND test_vfs)
+
 # --- Test: shell ---
 add_executable(test_shell test_shell.c)
 target_include_directories(test_shell PRIVATE

@@ -17,6 +17,59 @@
 
 static const char *const TAG = "vfs";
 
+/* Test seam: allow host tests to inject POSIX/FS backend operations. */
+#ifndef VFS_OPENDIR
+#define VFS_OPENDIR opendir
+#endif
+#ifndef VFS_READDIR
+#define VFS_READDIR readdir
+#endif
+#ifndef VFS_CLOSEDIR
+#define VFS_CLOSEDIR closedir
+#endif
+#ifndef VFS_STAT
+#define VFS_STAT stat
+#endif
+#ifndef VFS_MKDIR
+#define VFS_MKDIR(path, mode) mkdir((path), (mode))
+#endif
+#ifndef VFS_RMDIR
+#define VFS_RMDIR rmdir
+#endif
+#ifndef VFS_UNLINK
+#define VFS_UNLINK unlink
+#endif
+#ifndef VFS_RENAME
+#define VFS_RENAME rename
+#endif
+#ifndef VFS_FOPEN
+#define VFS_FOPEN fopen
+#endif
+#ifndef VFS_FREAD
+#define VFS_FREAD fread
+#endif
+#ifndef VFS_FWRITE
+#define VFS_FWRITE fwrite
+#endif
+#ifndef VFS_FCLOSE
+#define VFS_FCLOSE fclose
+#endif
+#ifndef VFS_FFLUSH
+#define VFS_FFLUSH fflush
+#endif
+#ifndef VFS_FERROR
+#define VFS_FERROR ferror
+#endif
+#ifndef VFS_SDCARD_IS_MOUNTED
+#define VFS_SDCARD_IS_MOUNTED sdcard_is_mounted
+#endif
+#ifndef VFS_FLASH_INIT
+#define VFS_FLASH_INIT flash_init
+#endif
+#ifndef VFS_SDCARD_INIT
+#define VFS_SDCARD_INIT sdcard_init
+#endif
+
 /* Treat clearly invalid early dates (pre-2021, common unsynced defaults) as not synced. */
 static bool is_system_time_synced(void)
 {
@@ -53,7 +106,7 @@ static void mask_unsynced_times(vfs_dir_entry_t *entry, bool time_synced)
 
 esp_err_t filesystem_init(void)
 {
-    esp_err_t ret = flash_init();
+    esp_err_t ret = VFS_FLASH_INIT();
     if (ret != ESP_OK)
     {
         return ret;
@@ -62,7 +115,7 @@ esp_err_t filesystem_init(void)
 #if CONFIG_COS_FILESYSTEM_DISABLE_SDCARD
     ESP_LOGI(TAG, "SD card initialization disabled by configuration");
 #else
-    esp_err_t sd_ret = sdcard_init();
+    esp_err_t sd_ret = VFS_SDCARD_INIT();
     if (sd_ret != ESP_OK)
     {
         ESP_LOGI(TAG, "SD card not available (%s)", esp_err_to_name(sd_ret));
@@ -97,7 +150,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].ctime = 0;
         (*count)++;
 
-        if (sdcard_is_mounted())
+        if (VFS_SDCARD_IS_MOUNTED())
         {
             if (*count < max_entries)
             {
@@ -119,7 +172,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         return err;
     }
 
-    DIR *dir = opendir(real_path);
+    DIR *dir = VFS_OPENDIR(real_path);
     if (dir == NULL)
     {
         ESP_LOGD(TAG, "Cannot open directory: %s", real_path);
@@ -129,7 +182,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
     bool time_synced = is_system_time_synced();
 
     struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL && *count < max_entries)
+    while ((entry = VFS_READDIR(dir)) != NULL && *count < max_entries)
     {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         {
@@ -139,19 +192,27 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         strncpy(entries[*count].name, entry->d_name, VFS_NAME_MAX - 1);
         entries[*count].name[VFS_NAME_MAX - 1] = '\0';
 
+#ifdef DT_DIR
         entries[*count].is_dir = (entry->d_type == DT_DIR);
+#else
+        entries[*count].is_dir = false;
+#endif
         entries[*count].size = 0;
         entries[*count].mtime = 0;
         entries[*count].ctime = 0;
 
+#ifdef DT_DIR
         if (entry->d_type != DT_DIR || time_synced)
+#else
+        if (true)
+#endif
         {
             char entry_path[VFS_PATH_MAX];
             int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
             if (written > 0 && (size_t)written < sizeof(entry_path))
             {
                 struct stat st;
-                if (stat(entry_path, &st) == 0)
+                if (VFS_STAT(entry_path, &st) == 0)
                 {
                     entries[*count].is_dir = S_ISDIR(st.st_mode);
                     if (S_ISREG(st.st_mode) && st.st_size >= 0)
@@ -168,7 +229,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         (*count)++;
     }
 
-    closedir(dir);
+    VFS_CLOSEDIR(dir);
     return ESP_OK;
 }
 
@@ -189,14 +250,14 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
         return err;
     }
 
-    FILE *f = fopen(real_path, "rb");
+    FILE *f = VFS_FOPEN(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
     }
 
-    *bytes_read = fread(buf, 1, buf_size, f);
-    fclose(f);
+    *bytes_read = VFS_FREAD(buf, 1, buf_size, f);
+    VFS_FCLOSE(f);
     return ESP_OK;
 }
 
@@ -214,7 +275,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
         return err;
     }
 
-    FILE *f = fopen(real_path, "rb");
+    FILE *f = VFS_FOPEN(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
@@ -223,7 +284,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
     char buf[512];
     do
     {
-        size_t bytes_read = fread(buf, 1, sizeof(buf), f);
+        size_t bytes_read = VFS_FREAD(buf, 1, sizeof(buf), f);
         if (bytes_read > 0)
         {
             err = callback(buf, bytes_read, context);
@@ -235,7 +296,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
 
         if (bytes_read < sizeof(buf))
         {
-            if (ferror(f))
+            if (VFS_FERROR(f))
             {
                 err = ESP_FAIL;
             }
@@ -243,7 +304,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
         }
     } while (true);
 
-    if (fclose(f) != 0 && err == ESP_OK)
+    if (VFS_FCLOSE(f) != 0 && err == ESP_OK)
     {
         err = ESP_FAIL;
     }
@@ -265,7 +326,7 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
     }
 
     ESP_LOGI(TAG, "vfs_write_file: fopen %s", real_path);
-    FILE *f = fopen(real_path, "wb");
+    FILE *f = VFS_FOPEN(real_path, "wb");
     ESP_LOGI(TAG, "vfs_write_file: fopen=%p", (void *)f);
     if (f == NULL)
     {
@@ -274,16 +335,16 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 
     if (len > 0)
     {
-        size_t written = fwrite(data, 1, len, f);
+        size_t written = VFS_FWRITE(data, 1, len, f);
         ESP_LOGI(TAG, "vfs_write_file: fwrite=%u/%u", (unsigned)written, (unsigned)len);
         if (written != len)
         {
-            fclose(f);
+            VFS_FCLOSE(f);
             return ESP_FAIL;
         }
     }
 
-    int rc = fclose(f);
+    int rc = VFS_FCLOSE(f);
     ESP_LOGI(TAG, "vfs_write_file: fclose=%d", rc);
     return ESP_OK;
 }
@@ -314,7 +375,7 @@ typedef struct
 static esp_err_t vfs_copy_stream_chunk(const void *data, size_t len, void *context)
 {
     vfs_copy_context_t *copy_ctx = (vfs_copy_context_t *)context;
-    if (fwrite(data, 1, len, copy_ctx->dst) != len)
+    if (VFS_FWRITE(data, 1, len, copy_ctx->dst) != len)
     {
         return ESP_FAIL;
     }
@@ -349,7 +410,7 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
         return err;
     }
 
-    FILE *dst = fopen(destination_path, "wb");
+    FILE *dst = VFS_FOPEN(destination_path, "wb");
     if (dst == NULL)
     {
         return ESP_FAIL;
@@ -358,11 +419,11 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
     vfs_copy_context_t copy_ctx = {.dst = dst};
     err = vfs_read_file_stream(source, vfs_copy_stream_chunk, &copy_ctx);
 
-    if (fclose(dst) != 0 && err == ESP_OK)
+    if (VFS_FCLOSE(dst) != 0 && err == ESP_OK)
     {
         err = ESP_FAIL;
     }
-    if (err != ESP_OK && unlink(destination_path) != 0)
+    if (err != ESP_OK && VFS_UNLINK(destination_path) != 0)
     {
         ESP_LOGE(TAG, "Failed to clean up partial copy: %s", destination_path);
     }
@@ -396,7 +457,7 @@ esp_err_t vfs_rename_file(const char *source, const char *destination)
     }
 
     struct stat source_stat;
-    if (stat(source_path, &source_stat) != 0)
+    if (VFS_STAT(source_path, &source_stat) != 0)
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -406,7 +467,7 @@ esp_err_t vfs_rename_file(const char *source, const char *destination)
     }
 
     struct stat destination_stat;
-    if (stat(destination_path, &destination_stat) == 0)
+    if (VFS_STAT(destination_path, &destination_stat) == 0)
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -415,7 +476,7 @@ esp_err_t vfs_rename_file(const char *source, const char *destination)
         return ESP_FAIL;
     }
 
-    return (rename(source_path, destination_path) == 0) ? ESP_OK : ESP_FAIL;
+    return (VFS_RENAME(source_path, destination_path) == 0) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t vfs_mkdir(const char *path)
@@ -433,7 +494,7 @@ esp_err_t vfs_mkdir(const char *path)
     }
 
     ESP_LOGI(TAG, "vfs_mkdir: %s", real_path);
-    if (mkdir(real_path, 0775) == 0)
+    if (VFS_MKDIR(real_path, 0775) == 0)
     {
         ESP_LOGI(TAG, "vfs_mkdir: ok %s", real_path);
         return ESP_OK;
@@ -442,7 +503,7 @@ esp_err_t vfs_mkdir(const char *path)
     if (errno == EEXIST)
     {
         struct stat st;
-        if (stat(real_path, &st) == 0 && S_ISDIR(st.st_mode))
+        if (VFS_STAT(real_path, &st) == 0 && S_ISDIR(st.st_mode))
         {
             return ESP_OK;
         }
@@ -468,14 +529,14 @@ esp_err_t vfs_remove(const char *path)
     }
 
     struct stat st;
-    if (stat(real_path, &st) != 0)
+    if (VFS_STAT(real_path, &st) != 0)
     {
         return ESP_ERR_NOT_FOUND;
     }
 
     if (S_ISDIR(st.st_mode))
     {
-        if (rmdir(real_path) != 0)
+        if (VFS_RMDIR(real_path) != 0)
         {
             ESP_LOGE(TAG, "rmdir failed: %s", real_path);
             return ESP_FAIL;
@@ -483,7 +544,7 @@ esp_err_t vfs_remove(const char *path)
     }
     else
     {
-        if (unlink(real_path) != 0)
+        if (VFS_UNLINK(real_path) != 0)
         {
             ESP_LOGE(TAG, "unlink failed: %s", real_path);
             return ESP_FAIL;
@@ -506,7 +567,7 @@ bool vfs_exists(const char *path)
     }
     if (strcmp(path, "/sdcard") == 0)
     {
-        return sdcard_is_mounted();
+        return VFS_SDCARD_IS_MOUNTED();
     }
 
     char real_path[VFS_PATH_MAX];
@@ -516,7 +577,7 @@ bool vfs_exists(const char *path)
     }
 
     struct stat st;
-    return stat(real_path, &st) == 0;
+    return VFS_STAT(real_path, &st) == 0;
 }
 
 esp_err_t vfs_stat(const char *path, bool *is_dir, size_t *size)
@@ -536,7 +597,7 @@ esp_err_t vfs_stat(const char *path, bool *is_dir, size_t *size)
     }
     if (strcmp(path, "/sdcard") == 0)
     {
-        if (!sdcard_is_mounted())
+        if (!VFS_SDCARD_IS_MOUNTED())
         {
             return ESP_ERR_NOT_FOUND;
         }
@@ -552,7 +613,7 @@ esp_err_t vfs_stat(const char *path, bool *is_dir, size_t *size)
     }
 
     struct stat st;
-    if (stat(real_path, &st) != 0)
+    if (VFS_STAT(real_path, &st) != 0)
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -583,7 +644,7 @@ bool vfs_is_directory(const char *path)
     }
     if (strcmp(path, "/sdcard") == 0)
     {
-        return sdcard_is_mounted();
+        return VFS_SDCARD_IS_MOUNTED();
     }
 
     char real_path[VFS_PATH_MAX];
@@ -593,7 +654,7 @@ bool vfs_is_directory(const char *path)
     }
 
     struct stat st;
-    if (stat(real_path, &st) != 0)
+    if (VFS_STAT(real_path, &st) != 0)
     {
         return false;
     }
