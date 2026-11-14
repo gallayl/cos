@@ -8,10 +8,21 @@ on:
 
 jobs:
   integration-test:
-    name: Integration Tests (QEMU)
+    name: Integration Tests (${{ matrix.suite }})
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - esp_littlefs
+          - init_sequence
+          - nvs_calibration
+          - shell_fs
+          - stability
+          - system
+          - vfs_ops
     env:
       IDF_CCACHE_ENABLE: "1"
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -37,52 +48,54 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-integration-${{ runner.os }}-idf-v6.1-${{ hashFiles('integration_test/requirements.txt', '.github/workflows/integration-test.yml') }}
+          key: pip-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('integration_test/requirements.txt', '.github/workflows/integration-test.yml') }}
           restore-keys: |
+            pip-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
             pip-integration-${{ runner.os }}-idf-v6.1-
 
       - name: Restore ccache
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: ccache-integration-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', 'integration_test/**', '.github/workflows/integration-test.yml') }}
+          key: ccache-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
           restore-keys: |
+            ccache-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
             ccache-integration-${{ runner.os }}-idf-v6.1-
 
-      - name: Restore integration test build directories
+      - name: Restore integration test build directory
         uses: actions/cache@v4
         with:
-          path: integration_test/test_*/build
-          key: itest-build-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', 'integration_test/**', '.github/workflows/integration-test.yml') }}
+          path: integration_test/test_${{ matrix.suite }}/build
+          key: itest-build-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
           restore-keys: |
-            itest-build-${{ runner.os }}-idf-v6.1-
+            itest-build-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
 
-      - name: Build integration test firmware
+      - name: Build integration test firmware (${{ matrix.suite }})
         shell: bash
         run: |
           . $IDF_PATH/export.sh
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
           ccache --zero-stats || true
-          make integration-test-build
+          make integration-test-build-${{ matrix.suite }}
           ccache --show-stats || true
 
       - name: Upload integration test firmware
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-firmware
+          name: integration-test-firmware-${{ matrix.suite }}
           path: |
-            integration_test/test_*/build/*.elf
+            integration_test/test_${{ matrix.suite }}/build/*.elf
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Run integration tests
-        timeout-minutes: 15
+      - name: Run integration tests (${{ matrix.suite }})
+        timeout-minutes: 5
         shell: bash
         run: |
           . $IDF_PATH/export.sh
           eval "$(python $IDF_PATH/tools/idf_tools.py export)"
-          make integration-test-run
+          make integration-test-run-${{ matrix.suite }}
 
       - name: Collect embedded test logs
         if: always()
@@ -97,10 +110,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-logs
+          name: integration-test-logs-${{ matrix.suite }}
           path: |
             pytest-embedded-logs/
-            integration_test/test_*/build/*.elf
+            integration_test/test_${{ matrix.suite }}/build/*.elf
           if-no-files-found: ignore
           retention-days: 14
 
@@ -116,6 +129,7 @@ jobs:
           from pathlib import Path
 
           workspace = Path(os.environ["GITHUB_WORKSPACE"])
+          suite = os.environ.get("SUITE", "")
           logs = workspace / "pytest-embedded-logs"
           tools = Path("/opt/esp/tools/xtensa-esp-elf")
           addr2line_candidates = list(tools.glob("*/xtensa-esp-elf/bin/xtensa-esp32-elf-addr2line"))
@@ -137,7 +151,7 @@ jobs:
                       if "Backtrace:" in line:
                           traces.append(line.partition("Backtrace:")[2])
 
-              if project is None:
+              if project is None or (suite and project != f"test_{suite}"):
                   continue
 
               for trace in traces:
@@ -162,3 +176,5 @@ jobs:
                   if result.stderr:
                       print(result.stderr, end="")
           PY
+        env:
+          SUITE: ${{ matrix.suite }}

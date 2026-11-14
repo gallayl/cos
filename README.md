@@ -76,7 +76,17 @@ To build integration-test firmware projects in parallel, pass a job count:
 make integration-test-build INTEGRATION_TEST_JOBS=4
 ```
 
-You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` (for example, project selectors). Use `INTEGRATION_TEST_RUN_ARGS` for run-time arguments or invoke `scripts/integration_test.py` directly.
+Build or run a single suite (by project name or short name without `test_` prefix):
+
+```bash
+make integration-test-build-shell_fs
+make integration-test-run-shell_fs
+make integration-test-shell_fs   # build + run
+```
+
+Available suites: `esp_littlefs`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
+
+You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` / `INTEGRATION_TEST_RUN_ARGS`, or invoke `scripts/integration_test.py` directly.
 
 ### Optional: compiler caching (faster rebuilds)
 
@@ -261,9 +271,12 @@ make format       # auto-format all source files
 make format-check # check formatting (CI-friendly, fails on violations)
 make lint         # run clang-tidy static analysis
 make test         # build and run host-based unit tests
-make integration-test       # build and run all discovered QEMU integration tests
-make integration-test-build # build all integration-test firmware projects
-make integration-test-run   # run all integration tests (after building)
+make integration-test              # build and run all discovered QEMU integration tests
+make integration-test-build        # build all integration-test firmware projects
+make integration-test-run          # run all integration tests (after building)
+make integration-test-<suite>      # build and run one suite (e.g. shell_fs)
+make integration-test-build-<suite># build one suite
+make integration-test-run-<suite>  # run one suite
 make docs-check   # validate Doxygen documentation
 make menuconfig   # open ESP-IDF configuration menu
 make clean        # remove build artifacts

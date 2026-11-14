@@ -16,10 +16,15 @@ pip install -r integration_test/requirements.txt
 
 From the repository root (preferred):
 
+Build/run one suite (by short name or full project name):
+
 ```bash
-make integration-test-build INTEGRATION_TEST_BUILD_ARGS="test_shell_fs"
-make integration-test-run INTEGRATION_TEST_RUN_ARGS="test_shell_fs"
+make integration-test-build-shell_fs
+make integration-test-run-shell_fs
+make integration-test-shell_fs   # build + run
 ```
+
+Available suites: `esp_littlefs`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
 
 Build/run all projects:
 
@@ -28,7 +33,7 @@ make integration-test-build
 make integration-test-run
 ```
 
-`scripts/integration_test.py` discovers `integration_test/test_*` projects. `pytest.ini` in this folder sets `--target esp32 --embedded-services idf,qemu`.
+You can still pass selectors/args via `INTEGRATION_TEST_BUILD_ARGS`, `INTEGRATION_TEST_RUN_ARGS`, and `INTEGRATION_TEST_JOBS`, or invoke `scripts/integration_test.py` directly. `scripts/integration_test.py` discovers `integration_test/test_*` projects. `pytest.ini` in this folder sets `--target esp32 --embedded-services idf,qemu`.
 
 ## Generated artifacts
 

@@ -64,7 +64,8 @@ FORMAT_SOURCES := $(sort \
 # Vendored esp_littlefs keeps its own style; lint-db still covers it via the build graph.
 SOURCES := $(filter-out components/esp_littlefs/%,$(FORMAT_SOURCES))
 
-INTEGRATION_TEST_PROJECTS := $(patsubst %/,%,$(wildcard integration_test/test_*/))
+INTEGRATION_TEST_PROJECTS := $(patsubst %/,%,$(notdir $(wildcard integration_test/test_*/)))
+INTEGRATION_TEST_SUITE = $(if $(filter test_%,$1),$1,test_$1)
 
 build:
 	$(IDF_PY) build
@@ -119,6 +120,16 @@ integration-test-run:
 
 integration-test: integration-test-build integration-test-run
 
+# Per-suite targets: `make integration-test-build-<suite>` / `integration-test-run-<suite>`
+# `<suite>` may be the project name (test_shell_fs) or short name (shell_fs).
+integration-test-build-%:
+	$(IDF_PYTHON) scripts/integration_test.py build $(call INTEGRATION_TEST_SUITE,$*) $(INTEGRATION_TEST_BUILD_ARGS) $(if $(INTEGRATION_TEST_JOBS),-j $(INTEGRATION_TEST_JOBS),)
+
+integration-test-run-%:
+	$(IDF_PYTHON) scripts/integration_test.py run $(call INTEGRATION_TEST_SUITE,$*) $(INTEGRATION_TEST_RUN_ARGS)
+
+integration-test-%: integration-test-build-% integration-test-run-%
+
 docs:
 	@cmake -E make_directory build/docs
 	( cat Doxyfile ; echo "WARN_AS_ERROR = NO" ) | doxygen -
@@ -136,3 +147,4 @@ size-components:
   
 reconfigure:
 	$(IDF_PY) reconfigure
+.PHONY: integration-test-build-% integration-test-run-% integration-test-%
