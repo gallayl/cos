@@ -940,7 +940,7 @@ esp_err_t shell_input_init(void)
     }
     else if (err == ESP_ERR_INVALID_STATE)
     {
-        err = ESP_OK; /* driver/VFS likely already set up by console */
+        /* driver/VFS likely already set up by console */
     }
     else
     {
