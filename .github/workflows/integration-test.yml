@@ -11,7 +11,7 @@ jobs:
     name: Integration Tests (${{ matrix.suite }})
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v6.1.1
+      image: espressif/idf:v6.1
     strategy:
       fail-fast: false
       matrix:
@@ -48,27 +48,27 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-integration-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-${{ hashFiles('integration_test/requirements.txt', '.github/workflows/integration-test.yml') }}
+          key: pip-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('integration_test/requirements.txt', '.github/workflows/integration-test.yml') }}
           restore-keys: |
-            pip-integration-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-
-            pip-integration-${{ runner.os }}-idf-v6.1.1-
+            pip-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
+            pip-integration-${{ runner.os }}-idf-v6.1-
 
       - name: Restore ccache
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: ccache-integration-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
+          key: ccache-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
           restore-keys: |
-            ccache-integration-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-
-            ccache-integration-${{ runner.os }}-idf-v6.1.1-
+            ccache-integration-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
+            ccache-integration-${{ runner.os }}-idf-v6.1-
 
       - name: Restore integration test build directory
         uses: actions/cache@v4
         with:
           path: integration_test/test_${{ matrix.suite }}/build
-          key: itest-build-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
+          key: itest-build-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', format('integration_test/test_{0}/**', matrix.suite), '.github/workflows/integration-test.yml') }}
           restore-keys: |
-            itest-build-${{ runner.os }}-idf-v6.1.1-${{ matrix.suite }}-
+            itest-build-${{ runner.os }}-idf-v6.1-${{ matrix.suite }}-
 
       - name: Build integration test firmware (${{ matrix.suite }})
         shell: bash
