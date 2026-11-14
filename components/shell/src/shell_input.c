@@ -931,19 +931,31 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
+    bool driver_installed = false;
     esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+    if (err == ESP_OK)
+    {
+        driver_installed = true;
+        uart_vfs_dev_use_driver(UART_NUM);
+    }
+    else if (err == ESP_ERR_INVALID_STATE)
+    {
+        err = ESP_OK; /* driver/VFS likely already set up by console */
+    }
+    else
     {
         ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
         return err;
     }
-    uart_vfs_dev_use_driver(UART_NUM);
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
     {
         ESP_LOGE(TAG, "Failed to create input stream buffer");
-        uart_driver_delete(UART_NUM);
+        if (driver_installed)
+        {
+            uart_driver_delete(UART_NUM);
+        }
         return ESP_ERR_NO_MEM;
     }
 
@@ -963,7 +975,10 @@ esp_err_t shell_input_init(void)
         ESP_LOGE(TAG, "Failed to create UART RX task");
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        uart_driver_delete(UART_NUM);
+        if (driver_installed)
+        {
+            uart_driver_delete(UART_NUM);
+        }
         return ESP_ERR_NO_MEM;
     }
 
@@ -975,7 +990,10 @@ esp_err_t shell_input_init(void)
         s_uart_rx_task = NULL;
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        uart_driver_delete(UART_NUM);
+        if (driver_installed)
+        {
+            uart_driver_delete(UART_NUM);
+        }
         return ESP_ERR_NO_MEM;
     }
 
