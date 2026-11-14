@@ -96,6 +96,8 @@ static void reset_state(void)
     atomic_store(&s_line_input_owner, NULL);
     s_input_task = NULL;
     s_input_stream = &s_test_stream;
+    s_read_fn = NULL;
+    s_read_ctx = NULL;
 }
 
 void setUp(void)

@@ -91,6 +91,6 @@ For a concrete, evidence-based breakdown of **host unit-test misses** and **inte
 - [x] Detailed coverage/integration-rebalancing inventory documented — see [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md) (2026-11-14)
 - [ ] Triaged into consolidated improvement plan
 - [ ] Quick wins implemented (#3, #5)
-- [ ] Testability seams/reset hooks implemented (#4)
+- [~] Testability seams/reset hooks implemented (#4) — console transport/read seam added in `components/shell/src/shell_input` (injectable RX byte source, default stdin preserved) via unblock plan; Berry/UI/runtime reset hooks still pending
 - [ ] Structural decompositions in progress (#1, #6, #7)
 - [ ] Validation evidence collected

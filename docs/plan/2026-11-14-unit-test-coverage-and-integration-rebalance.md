@@ -72,7 +72,7 @@ Aligned with R25 execution order ([`docs/ideas/2026-11-10-refactoring-and-testab
 
 1. **Quick wins, no/low refactor:** extend host tests for existing seams — HTTP path/multipart/static helpers, `network_url` edges, `time_sync` edges, shell FS command cases via `mock_filesystem`, and any missing `calibration_storage` contract cases mirrored from integration (R25 #11a/#11d).
 2. **Extract-and-test helpers:** factor JSON/path/error/response helpers out of `http_api.c` (R25 #3) and pure request/state helpers out of `network_http.c` (R25 #6) with unit tests.
-3. **Add testability seams:** introduce/increase injectable interfaces for VFS backend, websocket transport, and Berry binding/runtime touchpoints (R25 #4) to move more contract checks host-side.
+3. **Add testability seams:** introduce/increase injectable interfaces for VFS backend, websocket transport, and Berry binding/runtime touchpoints (R25 #4) to move more contract checks host-side. *Progress:* console input transport/read seam landed in `shell_input` (see unblock plan / R25 #4 follow-up), enabling future host-testable input/REPL policy checks.
 4. **Rebalance integration suite:** after unit coverage lands, trim or keep only high-value end-to-end assertions in integration tests (real mount/init/REPL/runtime) to reduce duplication and runtime while preserving confidence.
 5. **Process guardrails:** when adding logic to currently under-tested areas, require accompanying host tests in the same change (and run `make test` per `AGENTS.md`).
 

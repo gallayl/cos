@@ -32,6 +32,9 @@ static TaskHandle_t s_input_task;
 static atomic_bool s_line_input_owned;
 static _Atomic(void *) s_line_input_owner;
 
+static shell_input_read_fn_t s_read_fn;
+static void *s_read_ctx;
+
 /* ── Line buffer ───────────────────────────────────────────── */
 
 static char s_line[INPUT_LINE_MAX];
@@ -767,23 +770,37 @@ static void process_input_buffer(const uint8_t *buf, size_t length)
 
 /* ── Tasks ─────────────────────────────────────────────────── */
 
+static size_t shell_input_default_read(uint8_t *buf, size_t size, void *ctx)
+{
+    (void)ctx;
+    size_t n = fread(buf, 1, size, stdin);
+    if (n == 0)
+    {
+        clearerr(stdin);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    return n;
+}
+
 static void uart_rx_task(void *arg)
 {
     (void)arg;
     uint8_t buf[32];
     for (;;)
     {
-        size_t n = fread(buf, 1, sizeof(buf), stdin);
+        shell_input_read_fn_t read_fn = s_read_fn ? s_read_fn : shell_input_default_read;
+        size_t n = read_fn(buf, sizeof(buf), s_read_ctx);
         if (n > 0)
         {
             xStreamBufferSend(s_input_stream, buf, n, portMAX_DELAY);
         }
-        else
-        {
-            clearerr(stdin);
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
     }
+}
+
+void shell_input_set_transport(shell_input_read_fn_t read_fn, void *ctx)
+{
+    s_read_fn = read_fn;
+    s_read_ctx = ctx;
 }
 
 static void input_task(void *arg)
@@ -931,7 +948,6 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
-
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
     {

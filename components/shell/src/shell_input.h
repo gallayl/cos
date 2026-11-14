@@ -4,6 +4,19 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+
+/**
+ * Console input byte source used by the RX task. Return number of bytes read into
+ * buf (0 to wait/retry). Default reads from stdin with a short backoff on no data.
+ */
+typedef size_t (*shell_input_read_fn_t)(uint8_t *buf, size_t size, void *ctx);
+
+/**
+ * Override console transport read source (R25 #4 seam). Call before shell_input_init;
+ * NULL restores the default stdin reader.
+ */
+void shell_input_set_transport(shell_input_read_fn_t read_fn, void *ctx);
 
 typedef void (*shell_line_input_callback_t)(esp_err_t result, const char *line, void *context);
 

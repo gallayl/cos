@@ -41,6 +41,7 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 | 1 — Shell FS command unit tests (quick win) | `5c52857` | Done (host) | Strengthened `mock_filesystem` stream/copy behavior and added host `shell_fs_cmds` tests (`cat` read/missing/dir, `rm` missing, `touch` preserves content, `cp` preserves content). `make format-check`/`make test` pass locally. |
 | 2 — VFS contract tests / minimal seam + targeted fix | `faa0ecb`, `27d7e69`, (this commit) | In progress | Added `vfs_path` normalization contract test. Narrow B mitigations: `vfs_list_dir` skips dir `stat` when unsynced; `cmd_ls` prefers direct `opendir/readdir` (avoids per-entry stat/sizes) with fallback to `vfs_list_dir` for mocked/compat paths. CI validation pending for remaining non-`ls` stalls (open/mkdir/copy/read hangs). |
 | 3 — Console/input seam (only if needed) | `3d5f4ed`, `f8192fd`, `abf7e89`, `667704c` | Done (evidence-backed) | `667704c` switched RX to `stdin`/`fread` (no UART driver install/attach APIs). [43622457867](https://github.com/gallayl/cos/actions/runs/43622457867): `system` and `init_sequence` passed; `shell_fs` reached interactive REPL (`Shell input ready`, prompt, commands delivered). Remaining `shell_fs` failures are runtime FS/VFS/LittleFS stalls (B), no longer input/init hangs. |
+| 4 — R25 #4 console transport/input seam (follow-up) | (this commit) | Done (host) | Added injectable console read transport seam in `components/shell/src/shell_input.{h,c}` (`shell_input_set_transport`, default stdin reader preserved) per [R25 #4](../ideas/2026-11-10-refactoring-and-testability.md) / [coverage plan](2026-11-14-unit-test-coverage-and-integration-rebalance.md) to decouple RX policy from transport and enable host-testable input paths; `make format-check`/`make test` pass locally. Integration behavior unchanged by default. |
 | Pipeline green | — | Pending | Required PR checks green; root causes evidence-backed |
 
 ## Phase details
@@ -75,9 +76,9 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 ### Phase 3 — Console/input seam (only if Phase 0 shows A blocking)
 *Aligns with R25 #4 (console transport/task/driver seams), narrowly scoped.*
 
-- Introduce a minimal injectable seam for `shell_input` transport/init/read policy (default behavior unchanged) to make init/error decisions host-testable.
-- Implement evidence-backed fix for the specific blocking boot issue with unit tests for seam logic + integration confirmation. **No** reintroduction of speculative install/probe/VFS-reattach loops in init.
-- `init_sequence`/`system` remain E2E; extract only pure decisions if necessary.
+- Evidence-backed fix delivered (`667704c`, stdin RX) to unblock A without UART driver/VFS attach churn.
+- **R25 #4 follow-up (implemented):** added minimal injectable console read transport seam in `shell_input` (`shell_input_set_transport`, default stdin reader unchanged) so transport/read policy is decoupled from the RX task and host-testable. Further init/task seams remain future work if needed.
+- `init_sequence`/`system` remain E2E; no speculative install/probe/VFS-reattach loops in init.
 
 **Validation:** `make format-check`, `make test`; CI integration.
 
