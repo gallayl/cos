@@ -8,6 +8,8 @@ PROMPT_RE = re.compile(r"COS.+>")
 
 def _wait_ready(dut):
     """Wait for shell boot (test app formats flash and seeds files on startup)."""
+    dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
+    dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
     dut.write("\n")
     dut.expect(PROMPT_RE, timeout=BOOT_TIMEOUT)
 
@@ -16,8 +18,7 @@ def _wait_ready(dut):
 
 
 def test_shell_boots(dut):
-    dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
-    dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
+    _wait_ready(dut)
 
 
 def test_pwd_default(dut):

@@ -936,17 +936,17 @@ esp_err_t shell_input_init(void)
     if (err == ESP_OK)
     {
         driver_installed = true;
+        uart_vfs_dev_use_driver(UART_NUM);
     }
     else if (err == ESP_ERR_INVALID_STATE)
     {
-        err = ESP_OK; /* driver likely already installed by console */
+        err = ESP_OK; /* driver/VFS likely already set up by console */
     }
     else
     {
         ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
         return err;
     }
-    uart_vfs_dev_use_driver(UART_NUM);
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
