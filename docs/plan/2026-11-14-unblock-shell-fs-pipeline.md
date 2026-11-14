@@ -127,5 +127,6 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 
 ## Skipped / risks (living)
 
-- `273115c` baseline may still exhibit integration failures; runtime FS/transport issues may require Phase 2/3 evidence-backed work beyond unit tests.
+- **Blocker for full green:** remaining 12 `shell_fs` B stalls ([43626452654](https://github.com/gallayl/cos/actions/runs/43626452654), 19/31 pass) are intermittent mid-command hangs inside LittleFS/VFS syscalls (`mkdir`, `fopen` for read/write/copy, alias persistence, Berry FS API paths) after successful boot/REPL/seeding in QEMU. Mitigations applied (`vfs_list_dir` dir-stat skip, `cmd_ls` direct readdir fast path) improved ls-related cases but did not eliminate driver/runtime stalls. Root-cause fix likely requires ESP-IDF v6.1 + QEMU/local repro and deeper `components/esp_littlefs`/flash/VFS locking or driver investigation; CI-only iteration is slow and evidence-limited. `init_sequence`, `system`, `vfs_ops`, `nvs_calibration`, `stability`, `esp_littlefs` are green on latest runs.
 - Over-rebalancing can drop needed platform coverage — keep REPL/console/mounted-FS/Berry-on-target paths in integration.
+- Not run locally: `make build`, `make lint`, integration/QEMU (environment unavailable).
