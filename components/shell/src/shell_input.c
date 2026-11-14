@@ -933,14 +933,16 @@ esp_err_t shell_input_init(void)
 {
     bool driver_installed = false;
     esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    if (err == ESP_ERR_INVALID_STATE)
+    {
+        /* Console may own the driver; take over for shell input. */
+        uart_driver_delete(UART_NUM);
+        err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    }
     if (err == ESP_OK)
     {
         driver_installed = true;
         uart_vfs_dev_use_driver(UART_NUM);
-    }
-    else if (err == ESP_ERR_INVALID_STATE)
-    {
-        /* driver/VFS likely already set up by console */
     }
     else
     {
