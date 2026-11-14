@@ -940,6 +940,7 @@ esp_err_t shell_input_init(void)
     else if (err == ESP_ERR_INVALID_STATE)
     {
         /* driver likely already installed by console */
+        ESP_LOGD(TAG, "UART driver already installed");
     }
     else
     {
@@ -947,6 +948,7 @@ esp_err_t shell_input_init(void)
         return err;
     }
     uart_vfs_dev_use_driver(UART_NUM);
+    ESP_LOGI(TAG, "UART VFS attached");
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
