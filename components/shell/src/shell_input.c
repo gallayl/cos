@@ -783,6 +783,11 @@ static void uart_rx_task(void *arg)
         {
             xStreamBufferSend(s_input_stream, buf, (size_t)n, portMAX_DELAY);
         }
+        else if (n < 0)
+        {
+            /* UART driver unavailable in this context; avoid a tight error-log loop. */
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
     }
 }
 

@@ -62,3 +62,8 @@ void vTaskDelete(TaskHandle_t xTask)
 {
     (void)xTask;
 }
+
+void vTaskDelay(TickType_t xTicksToDelay)
+{
+    (void)xTicksToDelay;
+}
