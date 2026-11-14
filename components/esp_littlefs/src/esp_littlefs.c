@@ -2151,7 +2151,9 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 
 #ifndef CONFIG_LITTLEFS_MALLOC_STRATEGY_DISABLE
     /* Open File */
+    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_file_opencfg start: %s", path);
     res = lfs_file_opencfg(efs->fs, &file->file, path, lfs_flags, &file->lfs_file_config);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_file_opencfg done: %s res=%d", path, res);
 #if CONFIG_LITTLEFS_MTIME_USE_NONCE
     if (!(lfs_flags & LFS_O_RDONLY))
     {
@@ -2931,7 +2933,9 @@ static int vfs_littlefs_mkdir(void *ctx, const char *name, mode_t mode)
     ESP_LOGV(ESP_LITTLEFS_TAG, "mkdir \"%s\"", name);
 
     sem_take(efs);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_mkdir start: %s", name);
     res = lfs_mkdir(efs->fs, name);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_mkdir done: %s res=%d", name, res);
     sem_give(efs);
     if (res < 0)
     {
