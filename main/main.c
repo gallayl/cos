@@ -73,38 +73,112 @@ static esp_err_t init_nvs(void)
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
         ESP_LOGW(TAG, "NVS partition corrupted, erasing...");
-        ESP_ERROR_CHECK(nvs_flash_erase());
+        esp_err_t erase_err = nvs_flash_erase();
+        if (erase_err != ESP_OK)
+        {
+            return erase_err;
+        }
         err = nvs_flash_init();
     }
     return err;
 }
 
+static void log_init_result(const char *name, esp_err_t err, bool *ok_out)
+{
+    if (err == ESP_OK)
+    {
+        if (ok_out != NULL)
+        {
+            *ok_out = true;
+        }
+        return;
+    }
+
+    ESP_LOGE(TAG, "%s init failed: %s", name, esp_err_to_name(err));
+    if (ok_out != NULL)
+    {
+        *ok_out = false;
+    }
+}
+
 void app_main(void)
 {
-    ESP_ERROR_CHECK(init_nvs());
-    text_console_apply_saved_log_level();
+    esp_err_t err = init_nvs();
+    bool nvs_ok = (err == ESP_OK);
+    if (!nvs_ok)
+    {
+        ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
+    }
+
     ESP_LOGI(TAG, "COS starting up...");
 
-    ESP_ERROR_CHECK(display_init());
-    ESP_ERROR_CHECK(calibration_init());
-    ESP_ERROR_CHECK(light_sensor_init());
-    ESP_ERROR_CHECK(rgb_led_init());
-    ESP_ERROR_CHECK(brightness_init());
-    ESP_ERROR_CHECK(text_console_init());
-    ESP_ERROR_CHECK(i2c_bus_init());
-    ESP_ERROR_CHECK(filesystem_init());
-    ESP_ERROR_CHECK(wifi_init());
-    ESP_ERROR_CHECK(network_init());
-    ESP_ERROR_CHECK(bluetooth_init());
-    ESP_ERROR_CHECK(time_sync_init());
-    ESP_ERROR_CHECK(http_server_init());
-    ESP_ERROR_CHECK(websocket_init());
-    ESP_ERROR_CHECK(system_init());
-    ESP_ERROR_CHECK(shell_init());
-    bluetooth_hid_set_keyboard_callback(NULL);
-    bluetooth_hid_set_key_event_callback(route_keyboard_event);
-    text_console_set_output_listener(broadcast_console_output, NULL);
-    websocket_set_text_handler(submit_console_text, NULL);
+    bool console_ok = false;
+    bool fs_ok = false;
+    bool bt_ok = false;
+    bool http_ok = false;
+    bool ws_ok = false;
+    bool shell_ok = false;
 
-    ESP_LOGI(TAG, "COS ready");
+    log_init_result("Display", display_init(), NULL);
+    log_init_result("Calibration", calibration_init(), NULL);
+    log_init_result("Light sensor", light_sensor_init(), NULL);
+    log_init_result("RGB LED", rgb_led_init(), NULL);
+    log_init_result("Brightness", brightness_init(), NULL);
+    log_init_result("Text console", text_console_init(), &console_ok);
+    if (console_ok && nvs_ok)
+    {
+        text_console_apply_saved_log_level();
+    }
+    log_init_result("I2C bus", i2c_bus_init(), NULL);
+    log_init_result("Filesystem", filesystem_init(), &fs_ok);
+    log_init_result("Wi-Fi", wifi_init(), NULL);
+    log_init_result("Network", network_init(), NULL);
+    log_init_result("Bluetooth", bluetooth_init(), &bt_ok);
+    log_init_result("Time sync", time_sync_init(), NULL);
+
+    err = http_server_init();
+    log_init_result("HTTP server", err, &http_ok);
+    if (http_ok)
+    {
+        err = websocket_init();
+        log_init_result("WebSocket", err, &ws_ok);
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Skipping WebSocket init because HTTP server is unavailable");
+    }
+
+    log_init_result("System", system_init(), NULL);
+    log_init_result("Shell", shell_init(), &shell_ok);
+
+    if (bt_ok && console_ok && shell_ok)
+    {
+        bluetooth_hid_set_keyboard_callback(NULL);
+        bluetooth_hid_set_key_event_callback(route_keyboard_event);
+    }
+    else if (bt_ok)
+    {
+        ESP_LOGW(TAG, "Bluetooth keyboard routing disabled because console/shell is unavailable");
+    }
+    if (console_ok)
+    {
+        text_console_set_output_listener(broadcast_console_output, NULL);
+    }
+    if (ws_ok && shell_ok)
+    {
+        websocket_set_text_handler(submit_console_text, NULL);
+    }
+    else if (ws_ok)
+    {
+        ESP_LOGW(TAG, "WebSocket text input disabled because shell is unavailable");
+    }
+
+    if (fs_ok)
+    {
+        ESP_LOGI(TAG, "COS ready (filesystem available)");
+    }
+    else
+    {
+        ESP_LOGW(TAG, "COS ready with limited functionality (filesystem unavailable)");
+    }
 }

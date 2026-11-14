@@ -8,12 +8,48 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <time.h>
 
 static const char *const TAG = "vfs";
+
+/* Treat clearly invalid early dates (pre-2021, common unsynced defaults) as not synced. */
+static bool is_system_time_synced(void)
+{
+    time_t now = time(NULL);
+    if (now == (time_t)-1)
+    {
+        return false;
+    }
+
+    struct tm t;
+#if defined(_WIN32) || defined(__MINGW32__)
+    if (gmtime_s(&t, &now) != 0)
+    {
+        return false;
+    }
+#else
+    if (gmtime_r(&now, &t) == NULL)
+    {
+        return false;
+    }
+#endif
+    return (t.tm_year + 1900) >= 2021;
+}
+
+static void mask_unsynced_times(vfs_dir_entry_t *entry, bool time_synced)
+{
+    if (entry == NULL || time_synced)
+    {
+        return;
+    }
+    entry->mtime = 0;
+    entry->ctime = 0;
+}
 
 esp_err_t filesystem_init(void)
 {
@@ -90,6 +126,8 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         return ESP_ERR_NOT_FOUND;
     }
 
+    bool time_synced = is_system_time_synced();
+
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && *count < max_entries)
     {
@@ -123,6 +161,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
             }
         }
 
+        mask_unsynced_times(&entries[*count], time_synced);
         (*count)++;
     }
 
