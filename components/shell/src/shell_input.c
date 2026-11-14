@@ -936,19 +936,17 @@ esp_err_t shell_input_init(void)
     if (err == ESP_OK)
     {
         driver_installed = true;
+        uart_vfs_dev_use_driver(UART_NUM);
     }
     else if (err == ESP_ERR_INVALID_STATE)
     {
-        /* driver likely already installed by console */
-        ESP_LOGD(TAG, "UART driver already installed");
+        /* Console already owns the driver/VFS. Reconfiguring VFS here can hang in QEMU. */
     }
     else
     {
         ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
         return err;
     }
-    uart_vfs_dev_use_driver(UART_NUM);
-    ESP_LOGI(TAG, "UART VFS attached");
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
