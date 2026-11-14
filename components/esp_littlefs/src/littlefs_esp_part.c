@@ -43,7 +43,9 @@ int littlefs_esp_part_read(const struct lfs_config *c, lfs_block_t block, lfs_of
     esp_task_wdt_reset();
 #endif
 
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_read start blk=%u off=%u size=%u", (unsigned)block, (unsigned)off, (unsigned)size);
     esp_err_t err = esp_partition_read(efs->partition, part_off, buffer, size);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_read done blk=%u err=%d", (unsigned)block, (int)err);
     if (err)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "failed to read addr %08x, size %08x, err %d", (unsigned int)part_off,
@@ -63,7 +65,9 @@ int littlefs_esp_part_write(const struct lfs_config *c, lfs_block_t block, lfs_o
     esp_task_wdt_reset();
 #endif
 
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_write start blk=%u off=%u size=%u", (unsigned)block, (unsigned)off, (unsigned)size);
     esp_err_t err = esp_partition_write(efs->partition, part_off, buffer, size);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_write done blk=%u err=%d", (unsigned)block, (int)err);
     if (err)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "failed to write addr %08x, size %08x, err %d", (unsigned int)part_off,
@@ -82,7 +86,9 @@ int littlefs_esp_part_erase(const struct lfs_config *c, lfs_block_t block)
     esp_task_wdt_reset();
 #endif
 
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_erase start blk=%u", (unsigned)block);
     esp_err_t err = esp_partition_erase_range(efs->partition, part_off, c->block_size);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_erase done blk=%u err=%d", (unsigned)block, (int)err);
     if (err)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "failed to erase addr %08x, size %08x, err %d", (unsigned int)part_off,
