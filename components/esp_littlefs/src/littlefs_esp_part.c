@@ -65,7 +65,8 @@ int littlefs_esp_part_write(const struct lfs_config *c, lfs_block_t block, lfs_o
     esp_task_wdt_reset();
 #endif
 
-    ESP_LOGI(ESP_LITTLEFS_TAG, "part_write start blk=%u off=%u size=%u", (unsigned)block, (unsigned)off, (unsigned)size);
+    ESP_LOGI(ESP_LITTLEFS_TAG, "part_write start blk=%u off=%u size=%u", (unsigned)block, (unsigned)off,
+             (unsigned)size);
     esp_err_t err = esp_partition_write(efs->partition, part_off, buffer, size);
     ESP_LOGI(ESP_LITTLEFS_TAG, "part_write done blk=%u err=%d", (unsigned)block, (int)err);
     if (err)
