@@ -14,3 +14,4 @@ BaseType_t xTaskCreate(void (*pxTaskCode)(void *), const char *pcName, unsigned 
 TaskHandle_t xTaskGetCurrentTaskHandle(void);
 
 void vTaskDelete(TaskHandle_t xTask);
+void vTaskDelay(TickType_t xTicksToDelay);

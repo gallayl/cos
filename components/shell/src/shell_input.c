@@ -36,6 +36,7 @@ static StreamBufferHandle_t s_input_stream;
 static TaskHandle_t s_input_task;
 static atomic_bool s_line_input_owned;
 static _Atomic(void *) s_line_input_owner;
+static atomic_bool s_uart_driver_owned;
 
 /* ── Line buffer ───────────────────────────────────────────── */
 
@@ -776,12 +777,36 @@ static void uart_rx_task(void *arg)
 {
     (void)arg;
     uint8_t buf[32];
+    bool install_attempted = false;
     for (;;)
     {
         int n = uart_read_bytes(UART_NUM, buf, sizeof(buf), pdMS_TO_TICKS(100));
         if (n > 0)
         {
             xStreamBufferSend(s_input_stream, buf, (size_t)n, portMAX_DELAY);
+            continue;
+        }
+
+        if (n < 0)
+        {
+            if (!install_attempted && !atomic_load(&s_uart_driver_owned))
+            {
+                install_attempted = true;
+                esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+                if (err == ESP_OK)
+                {
+                    atomic_store(&s_uart_driver_owned, true);
+                    uart_vfs_dev_use_driver(UART_NUM);
+                    continue;
+                }
+                if (err == ESP_ERR_INVALID_STATE)
+                {
+                    /* Console driver became available/owned elsewhere. */
+                    continue;
+                }
+            }
+            /* Avoid tight error-log loop when driver unavailable/contended. */
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
@@ -931,31 +956,14 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
-    bool driver_installed = false;
-    esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    if (err == ESP_OK)
-    {
-        driver_installed = true;
-        uart_vfs_dev_use_driver(UART_NUM);
-    }
-    else if (err == ESP_ERR_INVALID_STATE)
-    {
-        /* Console owns UART driver/VFS; reattaching can hang in QEMU. */
-    }
-    else
-    {
-        ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
-        return err;
-    }
+    /* Avoid uart_driver_install/uart_vfs_dev_use_driver in init: can hang in QEMU when
+     * console owns UART. RX task lazily installs driver only if reads fail. */
+    atomic_init(&s_uart_driver_owned, false);
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
     {
         ESP_LOGE(TAG, "Failed to create input stream buffer");
-        if (driver_installed)
-        {
-            uart_driver_delete(UART_NUM);
-        }
         return ESP_ERR_NO_MEM;
     }
 
@@ -975,10 +983,6 @@ esp_err_t shell_input_init(void)
         ESP_LOGE(TAG, "Failed to create UART RX task");
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        if (driver_installed)
-        {
-            uart_driver_delete(UART_NUM);
-        }
         return ESP_ERR_NO_MEM;
     }
 
@@ -990,10 +994,6 @@ esp_err_t shell_input_init(void)
         s_uart_rx_task = NULL;
         vStreamBufferDelete(s_input_stream);
         s_input_stream = NULL;
-        if (driver_installed)
-        {
-            uart_driver_delete(UART_NUM);
-        }
         return ESP_ERR_NO_MEM;
     }
 
