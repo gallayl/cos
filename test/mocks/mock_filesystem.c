@@ -246,9 +246,25 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
 
 esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, void *context)
 {
-    (void)path;
-    (void)callback;
-    (void)context;
+    if (path == NULL || callback == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (vfs_is_directory(path))
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    for (int i = 0; i < s_file_count; i++)
+    {
+        if (strcmp(s_files[i], path) == 0)
+        {
+            if (s_file_lengths[i] == 0)
+            {
+                return ESP_OK;
+            }
+            return callback(s_file_data[i], s_file_lengths[i], context);
+        }
+    }
     return ESP_ERR_NOT_FOUND;
 }
 
@@ -287,8 +303,20 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 
 esp_err_t vfs_copy_file(const char *source, const char *destination)
 {
-    if (source == NULL || destination == NULL ||
-        !path_in_list((const char(*)[VFS_PATH_MAX])s_files, s_file_count, source))
+    if (source == NULL || destination == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    int src = -1;
+    for (int i = 0; i < s_file_count; i++)
+    {
+        if (strcmp(s_files[i], source) == 0)
+        {
+            src = i;
+            break;
+        }
+    }
+    if (src < 0)
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -296,8 +324,7 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
     {
         return ESP_ERR_INVALID_STATE;
     }
-    mock_filesystem_add_file(destination);
-    return ESP_OK;
+    return vfs_write_file(destination, s_file_data[src], s_file_lengths[src]);
 }
 
 esp_err_t vfs_rename_file(const char *source, const char *destination)

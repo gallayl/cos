@@ -349,6 +349,56 @@ static void test_cmd_rmdir_protects_current_directory(void)
     TEST_ASSERT_TRUE(vfs_is_directory("/flash/working"));
 }
 
+static void test_cmd_cat_reads_file(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/hello.txt", "Hello", 5));
+    char *argv[] = {"cat", "hello.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_cat_missing_file(void)
+{
+    char *argv[] = {"cat", "missing.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_cat_rejects_directory(void)
+{
+    mock_filesystem_add_directory("/flash/dir");
+    char *argv[] = {"cat", "dir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_rm_missing_file(void)
+{
+    char *argv[] = {"rm", "missing.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rm", 2, argv));
+}
+
+static void test_cmd_touch_existing_preserves_content(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/keep.txt", "data", 4));
+    char *argv[] = {"touch", "keep.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("touch", 2, argv));
+    char buf[16];
+    size_t n = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/keep.txt", buf, sizeof(buf), &n));
+    TEST_ASSERT_EQUAL(4, n);
+    TEST_ASSERT_EQUAL_MEMORY("data", buf, 4);
+}
+
+static void test_cmd_cp_preserves_content(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/src.txt", "abc", 3));
+    char *argv[] = {"cp", "src.txt", "dst.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("cp", 3, argv));
+    char buf[16];
+    size_t n = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/dst.txt", buf, sizeof(buf), &n));
+    TEST_ASSERT_EQUAL(3, n);
+    TEST_ASSERT_EQUAL_MEMORY("abc", buf, 3);
+}
+
 static void test_complete_registered_command(void)
 {
     char line[32] = "ber";
@@ -599,6 +649,12 @@ int main(void)
     RUN_TEST(test_cmd_rmdir_only_removes_empty_directories);
     RUN_TEST(test_cmd_rmdir_protects_filesystem_roots);
     RUN_TEST(test_cmd_rmdir_protects_current_directory);
+    RUN_TEST(test_cmd_cat_reads_file);
+    RUN_TEST(test_cmd_cat_missing_file);
+    RUN_TEST(test_cmd_cat_rejects_directory);
+    RUN_TEST(test_cmd_rm_missing_file);
+    RUN_TEST(test_cmd_touch_existing_preserves_content);
+    RUN_TEST(test_cmd_cp_preserves_content);
     RUN_TEST(test_complete_registered_command);
     RUN_TEST(test_complete_path_and_preserve_command);
     RUN_TEST(test_complete_ambiguous_path_common_prefix);

@@ -36,9 +36,9 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 
 | Phase | Commit(s) | Status | Notes |
 |---|---|---|---|
-| Plan doc + tracking | (this change) | In progress | Persist plan, cross-refs, baseline |
-| 0 — Baseline gate | `ab11e98` (+ push) | In progress | Push revert, observe CI once, classify failures (A transport/init, B VFS/LittleFS runtime, C deterministic logic) |
-| 1 — Shell FS command unit tests (quick win) | TBD | Pending | Host tests for `shell_fs_cmds.c` handlers via mocks; cover deterministic cases incl. original `shell_fs` failures where command-layer |
+| Plan doc + tracking | `37075c2` | Done | Persist plan, cross-refs, baseline |
+| 0 — Baseline gate | `ab11e98`, `37075c2` (pushed) | In progress | Revert+plan pushed; observing CI run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861) to classify failures (A transport/init, B VFS/LittleFS runtime, C deterministic logic) |
+| 1 — Shell FS command unit tests (quick win) | (this phase commit) | Done (host) | Strengthened `mock_filesystem` stream/copy behavior and added host `shell_fs_cmds` tests (`cat` read/missing/dir, `rm` missing, `touch` preserves content, `cp` preserves content). `make format-check`/`make test` pass locally; CI integration impact pending |
 | 2 — VFS contract tests / minimal seam + targeted fix | TBD | Pending | `vfs.c` contract tests (mocked/seamed backend as needed); evidence-backed fixes; keep real LittleFS integration |
 | 3 — Console/input seam (only if needed) | TBD | Pending | Minimal seam for `shell_input` init/read policy if Phase 0 shows transport/init blocking; no init guesswork |
 | Pipeline green | — | Pending | Required PR checks green; root causes evidence-backed |
@@ -90,7 +90,7 @@ Unblock the PR pipeline by **refactoring problematic areas and increasing host u
 
 ## CI observations
 
-- *(to be filled during Phase 0 and subsequent pushes)*
+- **Phase 0 push (baseline revert `ab11e98` + plan `37075c2`)** — Integration run [43613402861](https://github.com/gallayl/cos/actions/runs/43613402861), Build/Lint [43613402894](https://github.com/gallayl/cos/actions/runs/43613402894): in progress at time of Phase 1 commit. Non-integration PR checks observed passing (Format, Doxygen, Unit Tests, Frontend/Lint-format-test-build). Failure signatures/artifacts to be recorded when complete.
 
 ## Skipped / risks (living)
 
