@@ -11,7 +11,7 @@ jobs:
     name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v6.1
+      image: espressif/idf:v6.1.1
     env:
       IDF_CCACHE_ENABLE: "1"
       CCACHE_DIR: ${{ github.workspace }}/.ccache
@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .ccache
-          key: ccache-build-lint-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', '.github/workflows/build-and-lint.yml') }}
+          key: ccache-build-lint-${{ runner.os }}-idf-v6.1.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', '.github/workflows/build-and-lint.yml') }}
           restore-keys: |
-            ccache-build-lint-${{ runner.os }}-idf-v6.1-
+            ccache-build-lint-${{ runner.os }}-idf-v6.1.1-
 
       - name: Build firmware
         shell: bash
