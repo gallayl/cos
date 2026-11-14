@@ -932,12 +932,15 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 esp_err_t shell_input_init(void)
 {
     esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+    if (err == ESP_OK)
+    {
+        uart_vfs_dev_use_driver(UART_NUM);
+    }
+    else if (err != ESP_ERR_INVALID_STATE)
     {
         ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
         return err;
     }
-    uart_vfs_dev_use_driver(UART_NUM);
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
