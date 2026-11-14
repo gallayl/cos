@@ -10,6 +10,8 @@
 #include "esp_log.h"
 #include "esp_partition.h"
 #include "esp_vfs.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "littlefs/lfs.h"
 #include "littlefs_api.h"
 
@@ -43,6 +45,8 @@ int littlefs_esp_part_read(const struct lfs_config *c, lfs_block_t block, lfs_of
     esp_task_wdt_reset();
 #endif
 
+    /* Yield to reduce QEMU flash-emulation read stalls seen in CI (shell_fs). */
+    vTaskDelay(1);
     ESP_LOGI(ESP_LITTLEFS_TAG, "part_read start blk=%u off=%u size=%u", (unsigned)block, (unsigned)off, (unsigned)size);
     esp_err_t err = esp_partition_read(efs->partition, part_off, buffer, size);
     ESP_LOGI(ESP_LITTLEFS_TAG, "part_read done blk=%u err=%d", (unsigned)block, (int)err);
