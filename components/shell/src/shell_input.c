@@ -937,10 +937,12 @@ esp_err_t shell_input_init(void)
     {
         driver_installed = true;
         uart_vfs_dev_use_driver(UART_NUM);
+        ESP_LOGI(TAG, "UART VFS attached");
     }
     else if (err == ESP_ERR_INVALID_STATE)
     {
-        /* Console already owns the driver/VFS. Reconfiguring VFS here can hang in QEMU. */
+        /* Console already owns driver/VFS; reattaching here can hang in QEMU. */
+        ESP_LOGI(TAG, "UART driver already installed");
     }
     else
     {
