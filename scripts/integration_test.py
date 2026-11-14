@@ -103,6 +103,27 @@ def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = No
     return completed.returncode
 
 
+def cleanup_stale_qemu() -> None:
+    """Best-effort: stop dangling QEMU processes that can hang local test runs."""
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "qemu-system-xtensa.exe", "/T"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        else:
+            subprocess.run(
+                ["pkill", "-f", "qemu-system-xtensa"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+    except OSError:
+        pass
+
+
 def find_qemu_bin_dir() -> Path | None:
     exe_name = "qemu-system-xtensa.exe" if os.name == "nt" else "qemu-system-xtensa"
     found = shutil.which(exe_name)
@@ -186,24 +207,28 @@ def cmd_build(projects: list[Path], idf_py: list[str], jobs: int) -> int:
 def cmd_run(projects: list[Path], python: str) -> int:
     status = 0
     env = pytest_env()
-    for project in projects:
-        rc = run(
-            [
-                python,
-                "-m",
-                "pytest",
-                str(project),
-                "--target",
-                "esp32",
-                "--embedded-services",
-                "idf,qemu",
-                "-v",
-            ],
-            env=env,
-        )
-        if rc != 0:
-            status = 1
-    return status
+    cleanup_stale_qemu()
+    try:
+        for project in projects:
+            rc = run(
+                [
+                    python,
+                    "-m",
+                    "pytest",
+                    str(project),
+                    "--target",
+                    "esp32",
+                    "--embedded-services",
+                    "idf,qemu",
+                    "-v",
+                ],
+                env=env,
+            )
+            if rc != 0:
+                status = 1
+        return status
+    finally:
+        cleanup_stale_qemu()
 
 
 def main(argv: list[str] | None = None) -> int:

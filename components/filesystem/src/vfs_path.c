@@ -162,7 +162,7 @@ esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len
         return ESP_ERR_INVALID_ARG;
     }
 
-    char normalized[VFS_COMPOSE_MAX];
+    char normalized[VFS_COMPOSE_MAX] = {0};
     esp_err_t err = normalize_absolute(virtual_path, normalized, sizeof(normalized));
     if (err != ESP_OK)
     {
