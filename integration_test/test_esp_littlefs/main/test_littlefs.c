@@ -624,7 +624,7 @@ done:
 
 static void test_littlefs_concurrent_rw(const char *filename_prefix)
 {
-#define TASK_SIZE 4096
+#define TASK_SIZE 8192
     const TickType_t timeout = pdMS_TO_TICKS(120000);
     char names[4][64];
     for (size_t i = 0; i < 4; ++i)
