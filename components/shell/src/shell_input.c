@@ -932,31 +932,22 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 esp_err_t shell_input_init(void)
 {
     bool driver_installed = false;
-
-    if (uart_is_driver_installed(UART_NUM))
+    esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
+    if (err == ESP_OK)
     {
-        /* Console or another component already owns the driver. Avoid uart_driver_install,
-         * which can hang in some QEMU boots when driver state is contested. */
-        ESP_LOGI(TAG, "UART driver already installed");
+        driver_installed = true;
+        uart_vfs_dev_use_driver(UART_NUM);
+        ESP_LOGI(TAG, "UART VFS attached");
+    }
+    else if (err == ESP_ERR_INVALID_STATE)
+    {
+        /* Console already owns driver/VFS; avoid uart_is_driver_installed() and VFS reattach,
+         * both can hang in some QEMU boots. */
     }
     else
     {
-        esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-        if (err == ESP_OK)
-        {
-            driver_installed = true;
-            uart_vfs_dev_use_driver(UART_NUM);
-            ESP_LOGI(TAG, "UART VFS attached");
-        }
-        else if (err == ESP_ERR_INVALID_STATE)
-        {
-            ESP_LOGI(TAG, "UART driver already installed");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
-            return err;
-        }
+        ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
+        return err;
     }
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
