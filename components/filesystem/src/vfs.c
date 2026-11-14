@@ -144,20 +144,23 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].mtime = 0;
         entries[*count].ctime = 0;
 
-        char entry_path[VFS_PATH_MAX];
-        int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
-        if (written > 0 && (size_t)written < sizeof(entry_path))
+        if (entry->d_type != DT_DIR || time_synced)
         {
-            struct stat st;
-            if (stat(entry_path, &st) == 0)
+            char entry_path[VFS_PATH_MAX];
+            int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
+            if (written > 0 && (size_t)written < sizeof(entry_path))
             {
-                entries[*count].is_dir = S_ISDIR(st.st_mode);
-                if (S_ISREG(st.st_mode) && st.st_size >= 0)
+                struct stat st;
+                if (stat(entry_path, &st) == 0)
                 {
-                    entries[*count].size = (size_t)st.st_size;
+                    entries[*count].is_dir = S_ISDIR(st.st_mode);
+                    if (S_ISREG(st.st_mode) && st.st_size >= 0)
+                    {
+                        entries[*count].size = (size_t)st.st_size;
+                    }
+                    entries[*count].mtime = st.st_mtime;
+                    entries[*count].ctime = st.st_ctime;
                 }
-                entries[*count].mtime = st.st_mtime;
-                entries[*count].ctime = st.st_ctime;
             }
         }
 
