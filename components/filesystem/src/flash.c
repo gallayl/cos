@@ -33,21 +33,17 @@ esp_err_t flash_init(void)
         return ESP_OK;
     }
 
-    /* Clean up any stale registration left by a previous failed mount/format attempt. */
-    (void)esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
-
     esp_vfs_littlefs_conf_t conf = {
         .base_path = FLASH_MOUNT_POINT,
         .partition_label = FLASH_PARTITION_LABEL,
-        .format_if_mount_failed = 0,
-        .dont_mount = 0,
+        .format_if_mount_failed = false,
+        .dont_mount = false,
     };
 
     esp_err_t ret = esp_vfs_littlefs_register(&conf);
     if (ret != ESP_OK)
     {
         ESP_LOGW(TAG, "LittleFS mount failed (%s) -- run 'format' command to initialize", esp_err_to_name(ret));
-        (void)esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
         return ESP_OK;
     }
 
@@ -70,9 +66,7 @@ void flash_deinit(void)
     if (esp_littlefs_mounted(FLASH_PARTITION_LABEL))
     {
         esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
-        return;
     }
-    (void)esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
 }
 
 esp_err_t flash_format(void)
@@ -80,19 +74,6 @@ esp_err_t flash_format(void)
     ESP_LOGW(TAG, "Formatting LittleFS...");
     flash_log_partition_info();
     flash_deinit();
-    /* Ensure no stale registration remains before formatting. */
-    (void)esp_vfs_littlefs_unregister(FLASH_PARTITION_LABEL);
-
-    const esp_partition_t *part =
-        esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, FLASH_PARTITION_LABEL);
-    if (part != NULL)
-    {
-        esp_err_t erase_ret = esp_partition_erase_range(part, 0, part->size);
-        if (erase_ret != ESP_OK)
-        {
-            ESP_LOGW(TAG, "Partition erase failed before format: %s", esp_err_to_name(erase_ret));
-        }
-    }
 
     esp_err_t ret = esp_littlefs_format(FLASH_PARTITION_LABEL);
     if (ret != ESP_OK)

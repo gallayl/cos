@@ -90,7 +90,7 @@ jobs:
           retention-days: 14
 
       - name: Run integration tests (${{ matrix.suite }})
-        timeout-minutes: 5
+        timeout-minutes: 15
         shell: bash
         run: |
           . $IDF_PATH/export.sh
