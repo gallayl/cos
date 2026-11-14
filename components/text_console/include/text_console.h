@@ -3,12 +3,14 @@
 #include "esp_err.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
+    // NOLINTBEGIN(performance-enum-size)
     typedef enum
     {
         TEXT_CONSOLE_LOG_ERROR,
@@ -30,6 +32,7 @@ extern "C"
         TEXT_CONSOLE_COLOR_CYAN,
         TEXT_CONSOLE_COLOR_WHITE,
     } text_console_color_t;
+    // NOLINTEND(performance-enum-size)
 
 /** Longest string accepted by text_console_write_text() and text_console_write_at(). */
 #define TEXT_CONSOLE_WRITE_MAX 1024

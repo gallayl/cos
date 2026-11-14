@@ -45,6 +45,58 @@ describe('file cache', () => {
     cache.dispose()
   })
 
+  it('invalidates a cached file so it is read again', async () => {
+    let content = 'old'
+    const fetchImpl = vi.fn(async () => new Response(content, { status: 200 }))
+    const cache = createFileCaches({
+      fetchImpl,
+      directoryStaleTimeMs: 0,
+      directoryCacheTimeMs: 0,
+      fileStaleTimeMs: 0,
+      fileCacheTimeMs: 0,
+    })
+
+    expect(await cache.contents.get('/flash/app.ts', '')).toBe('old')
+    content = 'new'
+    cache.invalidateFile('/flash/app.ts', '')
+    expect(await cache.contents.get('/flash/app.ts', '')).toBe('new')
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    cache.dispose()
+  })
+
+  it('invalidates a path tree for directories and files', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.startsWith('/api/files?path=')) {
+        const path = decodeURIComponent(url.slice('/api/files?path='.length))
+        return json([{ name: `${path.split('/').pop()}.child.ts`, size: 1, is_dir: false, mtime: 1, ctime: 1 }])
+      }
+      return new Response(`content:${decodeURIComponent(url.slice('/api/file?path='.length))}`, { status: 200 })
+    })
+    const cache = createFileCaches({
+      fetchImpl: fetchImpl as typeof fetch,
+      directoryStaleTimeMs: 0,
+      directoryCacheTimeMs: 0,
+      fileStaleTimeMs: 0,
+      fileCacheTimeMs: 0,
+    })
+
+    await cache.directories.get('/flash/dir', '')
+    await cache.directories.get('/flash/dir/sub', '')
+    await cache.contents.get('/flash/dir/a.ts', '')
+    await cache.contents.get('/flash/dir/sub/b.ts', '')
+    const callsBefore = fetchImpl.mock.calls.length
+
+    cache.invalidatePathTree('/flash/dir', '')
+
+    await cache.directories.get('/flash/dir', '')
+    await cache.directories.get('/flash/dir/sub', '')
+    await cache.contents.get('/flash/dir/a.ts', '')
+    await cache.contents.get('/flash/dir/sub/b.ts', '')
+
+    expect(fetchImpl.mock.calls.length).toBe(callsBefore + 4)
+    cache.dispose()
+  })
+
   it('is registered as an injector singleton', async () => {
     const injector = createInjector()
     const cache = injector.get(FileCache)

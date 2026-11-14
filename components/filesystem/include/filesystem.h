@@ -23,6 +23,7 @@ extern "C"
         size_t size;             /**< File size in bytes (0 for directories). */
         bool is_dir;             /**< True if the entry is a directory. */
         time_t mtime;            /**< Last modification time (epoch seconds). */
+        time_t ctime;            /**< Creation/status-change time (epoch seconds). */
     } vfs_dir_entry_t;
 
     /** Callback invoked with each bounded chunk read by vfs_read_file_stream(). */

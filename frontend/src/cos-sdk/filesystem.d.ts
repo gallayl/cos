@@ -30,6 +30,8 @@ declare global {
       is_dir: boolean;
       /** Last modification time, in seconds since the Unix epoch. */
       mtime: number;
+      /** Creation or status-change time, in seconds since the Unix epoch. */
+      ctime: number;
     }
 
     /** Successful listing. At most 64 entries are returned. */

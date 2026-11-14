@@ -312,7 +312,27 @@ static int cmd_rmdir(int argc, char **argv)
         return 1;
     }
 
-    esp_err_t err = vfs_remove(abs_path);
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    if (entries == NULL)
+    {
+        printf("rmdir: out of memory\n");
+        return 1;
+    }
+    size_t count = 0;
+    esp_err_t err = vfs_list_dir(abs_path, entries, VFS_ENTRIES_MAX, &count);
+    free(entries);
+    if (err != ESP_OK)
+    {
+        printf("rmdir: failed to inspect '%s'\n", abs_path);
+        return 1;
+    }
+    if (count != 0)
+    {
+        printf("rmdir: failed to remove '%s' (directory must be empty)\n", abs_path);
+        return 1;
+    }
+
+    err = vfs_remove(abs_path);
     if (err != ESP_OK)
     {
         printf("rmdir: failed to remove '%s' (directory must be empty)\n", abs_path);

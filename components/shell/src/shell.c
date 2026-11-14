@@ -128,10 +128,11 @@ esp_err_t shell_resolve_relative(const char *input, char *abs_path, size_t len)
         }
         else
         {
-            if (depth < 32)
+            if (depth >= 32)
             {
-                components[depth++] = token;
+                return ESP_ERR_INVALID_SIZE;
             }
+            components[depth++] = token;
         }
         // NOLINTNEXTLINE(performance-no-int-to-ptr) -- strtok_r newlib implementation artifact
         token = strtok_r(NULL, "/", &saveptr);
@@ -139,15 +140,25 @@ esp_err_t shell_resolve_relative(const char *input, char *abs_path, size_t len)
 
     if (depth == 0)
     {
-        strncpy(abs_path, "/", len);
+        if (len < 2)
+        {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        abs_path[0] = '/';
+        abs_path[1] = '\0';
         return ESP_OK;
     }
 
+    size_t cur_len = 0;
     abs_path[0] = '\0';
     for (int i = 0; i < depth; i++)
     {
-        size_t cur_len = strlen(abs_path);
-        snprintf(abs_path + cur_len, len - cur_len, "/%s", components[i]);
+        int written = snprintf(abs_path + cur_len, len - cur_len, "/%s", components[i]);
+        if (written < 0 || (size_t)written >= len - cur_len)
+        {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        cur_len += (size_t)written;
     }
 
     return ESP_OK;

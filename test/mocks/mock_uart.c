@@ -60,3 +60,9 @@ esp_err_t uart_driver_install(uart_port_t uart_num, int rx_buffer_size, int tx_b
     (void)intr_alloc_flags;
     return ESP_OK;
 }
+
+esp_err_t uart_driver_delete(uart_port_t uart_num)
+{
+    (void)uart_num;
+    return ESP_OK;
+}

@@ -16,16 +16,19 @@
 
 namespace
 {
-enum class ElementType
+enum class ElementType : std::uint8_t // NOLINT(performance-enum-size,readability-identifier-naming) - local enum
+                                      // values/style kept for consistency
 {
-    Root,
-    Label,
-    Button,
-    GroupBox,
-    Checkbox
+    kRoot,     // NOLINT(readability-identifier-naming)
+    kLabel,    // NOLINT(readability-identifier-naming)
+    kButton,   // NOLINT(readability-identifier-naming)
+    kGroupBox, // NOLINT(readability-identifier-naming)
+    kCheckbox  // NOLINT(readability-identifier-naming)
 };
 
-struct Handle
+struct UiHandle // NOLINT(readability-identifier-naming) - local UI handle type used consistently in this translation
+                // unit
+
 {
     ui::Element *element;
     ElementType type;
@@ -38,26 +41,26 @@ bvm *s_vm = nullptr;
 bool s_app_active = false;
 bool s_key_down[128] = {};
 int s_next_callback = 0;
-std::vector<Handle> s_handles;
+std::vector<UiHandle> s_handles;
 std::vector<std::string> s_callback_globals;
 
-struct Timer
+struct UiTimer // NOLINT(readability-identifier-naming) - local UI timer type used consistently in this translation unit
 {
     int callback_id;
     int64_t interval_us;
     int64_t due_us;
 };
 
-std::vector<Timer> s_timers;
+std::vector<UiTimer> s_timers;
 
-Handle *get_handle(int value)
+UiHandle *get_handle(int value)
 {
     if (value < 0 || static_cast<size_t>(value) >= s_handles.size())
     {
         return nullptr;
     }
 
-    Handle &handle = s_handles[static_cast<size_t>(value)];
+    UiHandle &handle = s_handles[static_cast<size_t>(value)];
     return handle.element != nullptr ? &handle : nullptr;
 }
 
@@ -111,7 +114,7 @@ void invoke_callback(int callback_id, bool has_bool, bool value)
     int argc = 0;
     if (has_bool)
     {
-        be_pushbool(s_vm, value);
+        be_pushbool(s_vm, value ? 1 : 0);
         argc = 1;
     }
     if (be_pcall(s_vm, argc) != 0)
@@ -132,7 +135,7 @@ bool parent_bounds(int handle, int &x, int &y)
         return true;
     }
 
-    Handle *parent = get_handle(handle);
+    const UiHandle *parent = get_handle(handle);
     if (parent == nullptr || parent->element == nullptr)
     {
         return false;
@@ -170,8 +173,8 @@ int add_element(bvm *vm, ElementType type, std::unique_ptr<ElementTypeT> element
     }
     else
     {
-        Handle *parent = get_handle(parent_handle);
-        if (parent->type != ElementType::GroupBox)
+        const UiHandle *parent = get_handle(parent_handle);
+        if (parent->type != ElementType::kGroupBox)
         {
             be_pushnil(vm);
             be_return(vm);
@@ -192,7 +195,7 @@ int native_label(bvm *vm)
         be_return(vm);
     }
     const char *text = be_tostring(vm, 2);
-    return add_element(vm, ElementType::Label, std::make_unique<ui::Label>(text != nullptr ? text : ""),
+    return add_element(vm, ElementType::kLabel, std::make_unique<ui::Label>(text != nullptr ? text : ""),
                        static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 3)),
                        static_cast<int>(be_toint(vm, 4)), static_cast<int>(be_toint(vm, 5)),
                        static_cast<int>(be_toint(vm, 6)));
@@ -206,7 +209,7 @@ int native_button(bvm *vm)
         be_return(vm);
     }
     const char *text = be_tostring(vm, 2);
-    return add_element(vm, ElementType::Button, std::make_unique<ui::Button>(text != nullptr ? text : ""),
+    return add_element(vm, ElementType::kButton, std::make_unique<ui::Button>(text != nullptr ? text : ""),
                        static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 3)),
                        static_cast<int>(be_toint(vm, 4)), static_cast<int>(be_toint(vm, 5)),
                        static_cast<int>(be_toint(vm, 6)));
@@ -220,7 +223,7 @@ int native_groupbox(bvm *vm)
         be_return(vm);
     }
     const char *title = be_tostring(vm, 2);
-    return add_element(vm, ElementType::GroupBox, std::make_unique<ui::GroupBox>(title != nullptr ? title : ""),
+    return add_element(vm, ElementType::kGroupBox, std::make_unique<ui::GroupBox>(title != nullptr ? title : ""),
                        static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 3)),
                        static_cast<int>(be_toint(vm, 4)), static_cast<int>(be_toint(vm, 5)),
                        static_cast<int>(be_toint(vm, 6)));
@@ -234,7 +237,7 @@ int native_checkbox(bvm *vm)
         be_return(vm);
     }
     const char *text = be_tostring(vm, 2);
-    return add_element(vm, ElementType::Checkbox, std::make_unique<ui::Checkbox>(text != nullptr ? text : ""),
+    return add_element(vm, ElementType::kCheckbox, std::make_unique<ui::Checkbox>(text != nullptr ? text : ""),
                        static_cast<int>(be_toint(vm, 1)), static_cast<int>(be_toint(vm, 3)),
                        static_cast<int>(be_toint(vm, 4)), static_cast<int>(be_toint(vm, 5)),
                        static_cast<int>(be_toint(vm, 6)));
@@ -246,19 +249,19 @@ int native_set_text(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     const char *text = be_tostring(vm, 2);
     if (handle != nullptr && text != nullptr)
     {
-        if (handle->type == ElementType::Label)
+        if (handle->type == ElementType::kLabel)
         {
             static_cast<ui::Label *>(handle->element)->set_text(text);
         }
-        else if (handle->type == ElementType::Button)
+        else if (handle->type == ElementType::kButton)
         {
             static_cast<ui::Button *>(handle->element)->set_text(text);
         }
-        else if (handle->type == ElementType::Checkbox)
+        else if (handle->type == ElementType::kCheckbox)
         {
             static_cast<ui::Checkbox *>(handle->element)->set_text(text);
         }
@@ -272,10 +275,10 @@ int native_set_text_color(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     const uint16_t foreground = static_cast<uint16_t>(be_toint(vm, 2));
     const uint16_t background = be_top(vm) >= 3 ? static_cast<uint16_t>(be_toint(vm, 3)) : 0xFFFF;
-    if (handle != nullptr && handle->type == ElementType::Label)
+    if (handle != nullptr && handle->type == ElementType::kLabel)
     {
         static_cast<ui::Label *>(handle->element)->set_colors(foreground, background);
     }
@@ -288,7 +291,7 @@ int native_set_bounds(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     if (handle != nullptr)
     {
         const ui::Bounds old_bounds = handle->element->bounds();
@@ -308,7 +311,7 @@ int native_bounds(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
     if (handle == nullptr)
     {
         be_return_nil(vm);
@@ -333,8 +336,8 @@ int native_on_click(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
-    if (handle != nullptr && handle->type == ElementType::Button)
+    UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    if (handle != nullptr && handle->type == ElementType::kButton)
     {
         remove_callback(handle->click_callback);
         const int callback_id = store_callback(vm, 2);
@@ -351,8 +354,8 @@ int native_on_change(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
-    if (handle != nullptr && handle->type == ElementType::Checkbox)
+    UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    if (handle != nullptr && handle->type == ElementType::kCheckbox)
     {
         remove_callback(handle->change_callback);
         const int callback_id = store_callback(vm, 2);
@@ -369,8 +372,8 @@ int native_set_checked(bvm *vm)
     {
         be_return_nil(vm);
     }
-    Handle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
-    if (handle != nullptr && handle->type == ElementType::Checkbox)
+    const UiHandle *handle = get_handle(static_cast<int>(be_toint(vm, 1)));
+    if (handle != nullptr && handle->type == ElementType::kCheckbox)
     {
         static_cast<ui::Checkbox *>(handle->element)->set_checked(be_tobool(vm, 2));
     }
@@ -379,20 +382,20 @@ int native_set_checked(bvm *vm)
 
 int native_get_checked(bvm *vm)
 {
-    Handle *handle = be_top(vm) >= 1 ? get_handle(static_cast<int>(be_toint(vm, 1))) : nullptr;
-    if (handle != nullptr && handle->type == ElementType::Checkbox)
+    const UiHandle *handle = be_top(vm) >= 1 ? get_handle(static_cast<int>(be_toint(vm, 1))) : nullptr;
+    if (handle != nullptr && handle->type == ElementType::kCheckbox)
     {
-        be_pushbool(vm, static_cast<ui::Checkbox *>(handle->element)->is_checked());
+        be_pushbool(vm, static_cast<ui::Checkbox *>(handle->element)->is_checked() ? 1 : 0);
         be_return(vm);
     }
-    be_pushbool(vm, false);
+    be_pushbool(vm, 0);
     be_return(vm);
 }
 
 int native_clear(bvm *vm)
 {
-    Handle *handle = be_top(vm) >= 1 ? get_handle(static_cast<int>(be_toint(vm, 1))) : nullptr;
-    if (handle != nullptr && handle->type == ElementType::GroupBox)
+    const UiHandle *handle = be_top(vm) >= 1 ? get_handle(static_cast<int>(be_toint(vm, 1))) : nullptr;
+    if (handle != nullptr && handle->type == ElementType::kGroupBox)
     {
         auto *group = static_cast<ui::GroupBox *>(handle->element);
         group->clear();
@@ -412,15 +415,15 @@ int native_clear(bvm *vm)
             }
         }
     }
-    else if (handle != nullptr && handle->type == ElementType::Root)
+    else if (handle != nullptr && handle->type == ElementType::kRoot)
     {
         ui::app_root().clear();
-        for (Handle &entry : s_handles)
+        for (const UiHandle &entry : s_handles)
         {
             remove_callback(entry.click_callback);
             remove_callback(entry.change_callback);
         }
-        s_handles.assign(1, {&ui::app_root(), ElementType::Root, -1, -1, -1});
+        s_handles.assign(1, {&ui::app_root(), ElementType::kRoot, -1, -1, -1});
     }
     ui::invalidate();
     be_return_nil(vm);
@@ -476,7 +479,7 @@ int native_launch(bvm *vm)
         be_raise(vm, "value_error", "ui.launch(app) requires an app class or instance");
     }
 
-    esp_err_t err = berry_runtime_ui_launch(vm, 1);
+    const esp_err_t err = berry_runtime_ui_launch(vm, 1);
     if (err != ESP_OK)
     {
         be_raise(vm, "runtime_error", "ui.launch failed");
@@ -527,14 +530,14 @@ int native_key_down(bvm *vm)
 {
     if (be_top(vm) < 1 || !be_isint(vm, 1))
     {
-        be_pushbool(vm, false);
+        be_pushbool(vm, 0);
         be_return(vm);
     }
 
     const int keycode = static_cast<int>(be_toint(vm, 1));
     const bool down =
         keycode > 0 && keycode < static_cast<int>(sizeof(s_key_down) / sizeof(s_key_down[0])) && s_key_down[keycode];
-    be_pushbool(vm, down);
+    be_pushbool(vm, down ? 1 : 0);
     be_return(vm);
 }
 
@@ -554,7 +557,6 @@ int native_touch(bvm *vm)
     be_pop(vm, 1);
     be_pushint(vm, y);
     be_data_push(vm, -2);
-    be_pop(vm, 1);
     be_pop(vm, 1);
     be_return(vm);
 }
@@ -615,11 +617,13 @@ int native_ui_init(bvm *vm)
 }
 } // namespace
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) - referenced from other translation units
 void berry_ui_tick(void)
 {
     berry_ui_tick_impl();
 }
 
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry module table naming convention
 static bntvmodobj_t const ui_attrs[] = {
     be_native_module_function("init", native_ui_init),
     be_native_module_function("label", native_label),
@@ -666,6 +670,7 @@ static bntvmodobj_t const ui_attrs[] = {
     be_native_module_int("BUTTON_SHADOW", 0x0000),
 };
 
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry native module symbol name
 extern "C" const bntvmodule_t be_native_module_ui = {
     "ui",
     ui_attrs,
@@ -673,6 +678,7 @@ extern "C" const bntvmodule_t be_native_module_ui = {
     nullptr,
 };
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) - referenced from other translation units
 void berry_ui_begin_app(bvm *vm)
 {
     s_vm = vm;
@@ -681,9 +687,10 @@ void berry_ui_begin_app(bvm *vm)
     s_next_callback = 0;
     s_timers.clear();
     s_callback_globals.clear();
-    s_handles.assign(1, {&ui::app_root(), ElementType::Root, -1, -1, -1});
+    s_handles.assign(1, {&ui::app_root(), ElementType::kRoot, -1, -1, -1});
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) - referenced from other translation units
 void berry_ui_end_app(void)
 {
     s_app_active = false;
@@ -703,6 +710,7 @@ void berry_ui_end_app(void)
     s_next_callback = 0;
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) - referenced from other translation units
 void berry_ui_set_key_state(uint8_t keycode, bool pressed)
 {
     if (s_app_active && keycode > 0 && keycode < sizeof(s_key_down) / sizeof(s_key_down[0]))

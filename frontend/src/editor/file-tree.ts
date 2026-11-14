@@ -187,7 +187,10 @@ export class FileTreeStore {
   }
 
   /** Replace a directory listing. Draft rows and unchanged entry objects are kept. */
-  setListing(directory: string, entries: ReadonlyArray<Pick<CosDirEntry, 'name' | 'is_dir'>>): void {
+  setListing(
+    directory: string,
+    entries: ReadonlyArray<Pick<CosDirEntry, 'name' | 'is_dir' | 'size' | 'mtime' | 'ctime'>>,
+  ): void {
     const previous = new Map<string, FileNode>()
     for (const child of this.children.get(directory) ?? []) {
       if (child.kind === 'file' || child.kind === 'directory') {

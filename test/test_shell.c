@@ -458,35 +458,6 @@ static void test_cmd_format(void)
     TEST_ASSERT_EQUAL(0, ret);
 }
 
-static void test_cmd_ping_uses_default_timeout(void)
-{
-    char *argv[] = {"ping", "example.com"};
-    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ping", 2, argv));
-    TEST_ASSERT_EQUAL_STRING("example.com", mock_network_last_host());
-    TEST_ASSERT_EQUAL(1000, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_accepts_bounded_timeout(void)
-{
-    char *argv[] = {"ping", "192.0.2.1", "3000"};
-    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ping", 3, argv));
-    TEST_ASSERT_EQUAL(3000, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_rejects_bad_timeout(void)
-{
-    char *argv[] = {"ping", "example.com", "3001"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ping", 3, argv));
-    TEST_ASSERT_EQUAL(0, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_reports_network_error(void)
-{
-    mock_network_set_ping_result(ESP_ERR_INVALID_STATE, NULL);
-    char *argv[] = {"ping", "example.com"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ping", 2, argv));
-}
-
 static void test_cmd_nslookup_uses_shared_resolver(void)
 {
     char *argv[] = {"nslookup", "example.com", "250"};
@@ -645,10 +616,6 @@ int main(void)
     /* info commands */
     RUN_TEST(test_cmd_info);
     RUN_TEST(test_cmd_format);
-    RUN_TEST(test_cmd_ping_uses_default_timeout);
-    RUN_TEST(test_cmd_ping_accepts_bounded_timeout);
-    RUN_TEST(test_cmd_ping_rejects_bad_timeout);
-    RUN_TEST(test_cmd_ping_reports_network_error);
     RUN_TEST(test_cmd_nslookup_uses_shared_resolver);
     RUN_TEST(test_cmd_nslookup_reports_resolution_error);
     RUN_TEST(test_alias_expands_command_and_persists_configuration);

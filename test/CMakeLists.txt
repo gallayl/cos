@@ -108,6 +108,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
     ${COMPONENT_DIR}/components/shell/src/shell_script.c
+    ${COMPONENT_DIR}/components/shell/src/shell_redirection.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -125,7 +126,7 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp system_logic)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic vfs_path)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)

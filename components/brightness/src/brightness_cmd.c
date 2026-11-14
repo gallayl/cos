@@ -35,7 +35,10 @@ static esp_err_t save_rotation(uint8_t rotation)
 
 static void print_status(void)
 {
-    printf("Brightness: %u (%s)\n", brightness_get(), brightness_is_auto() ? "auto" : "manual");
+    printf("Brightness: %u (%s)\n", brightness_get(),
+           // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+           brightness_is_auto() ? "auto"
+                                : "manual"); // NOLINT(readability-implicit-bool-conversion) - bool selects string label
     printf("Rotation:   %u\n", display_get_rotation());
 }
 
@@ -52,7 +55,12 @@ static int cmd_screen(int argc, char **argv)
     {
         if (argc == 2)
         {
-            printf("Brightness: %u (%s)\n", brightness_get(), brightness_is_auto() ? "auto" : "manual");
+            printf("Brightness: %u (%s)\n", brightness_get(),
+                   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+                   brightness_is_auto() ? "auto"
+                                        : "manual"); // NOLINT(readability-implicit-bool-conversion) - bool selects
+                                                     // string label // NOLINT(readability-implicit-bool-conversion) -
+                                                     // ternary selects string literal for printf
             return 0;
         }
 

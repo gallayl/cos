@@ -104,7 +104,7 @@ void DisplayRenderer::draw_text(const Bounds &bounds, const char *text, uint16_t
     display_draw_text(bounds.x, bounds.y, text, foreground, background);
 }
 
-void queue_action(std::function<void()> action)
+static void queue_action(std::function<void()> action)
 {
     if (action)
     {
@@ -112,7 +112,7 @@ void queue_action(std::function<void()> action)
     }
 }
 
-void execute_queued_actions()
+static void execute_queued_actions()
 {
     auto actions = std::move(action_queue());
     action_queue().clear();
@@ -169,7 +169,7 @@ bool start()
     const size_t largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
     ESP_LOGI(TAG, "Starting UI task (free heap: %u, largest block: %u)", static_cast<unsigned>(free_heap),
              static_cast<unsigned>(largest_block));
-    BaseType_t result = xTaskCreate(ui_task, "ui", 4096, nullptr, 5, &ui_task_handle);
+    const BaseType_t result = xTaskCreate(ui_task, "ui", 4096, nullptr, 5, &ui_task_handle);
     if (result != pdPASS)
     {
         ui_task_handle = nullptr;
@@ -249,6 +249,7 @@ void Element::on_touch(int, int) {}
 
 void Element::on_touch_end(int, int) {}
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) -- member method; cannot be static without API change
 Element *Container::add_child(std::unique_ptr<Element> child)
 {
     if (!child)
@@ -394,7 +395,7 @@ void GroupBox::draw(Renderer &renderer)
 
     if (!title_.empty())
     {
-        renderer.draw_text({bounds_.x + left_top_width + title_gap, bounds_.y - 4, title_width, 12}, title_.c_str(),
+        renderer.draw_text({bounds_.x + left_top_width + title_gap, bounds_.y + 1, title_width, 12}, title_.c_str(),
                            foreground_, background_);
     }
     Container::draw(renderer);
@@ -405,6 +406,7 @@ Label::Label(std::string text)
 {
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) -- member method; cannot be static without API change
 void Label::set_text(std::string text)
 {
     text_ = std::move(text);
@@ -437,6 +439,7 @@ Checkbox::Checkbox(std::string text)
 {
 }
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) -- member method; cannot be static without API change
 void Checkbox::set_text(std::string text)
 {
     text_ = std::move(text);

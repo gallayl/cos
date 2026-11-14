@@ -8,12 +8,48 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <time.h>
 
 static const char *const TAG = "vfs";
+
+/* Treat clearly invalid early dates (pre-2021, common unsynced defaults) as not synced. */
+static bool is_system_time_synced(void)
+{
+    time_t now = time(NULL);
+    if (now == (time_t)-1)
+    {
+        return false;
+    }
+
+    struct tm t;
+#if defined(_WIN32) || defined(__MINGW32__)
+    if (gmtime_s(&t, &now) != 0)
+    {
+        return false;
+    }
+#else
+    if (gmtime_r(&now, &t) == NULL)
+    {
+        return false;
+    }
+#endif
+    return (t.tm_year + 1900) >= 2021;
+}
+
+static void mask_unsynced_times(vfs_dir_entry_t *entry, bool time_synced)
+{
+    if (entry == NULL || time_synced)
+    {
+        return;
+    }
+    entry->mtime = 0;
+    entry->ctime = 0;
+}
 
 esp_err_t filesystem_init(void)
 {
@@ -58,15 +94,20 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         entries[*count].size = 0;
         entries[*count].is_dir = true;
         entries[*count].mtime = 0;
+        entries[*count].ctime = 0;
         (*count)++;
 
-        if (sdcard_is_mounted() && *count < max_entries)
+        if (sdcard_is_mounted())
         {
-            strncpy(entries[*count].name, "sdcard", VFS_NAME_MAX);
-            entries[*count].size = 0;
-            entries[*count].is_dir = true;
-            entries[*count].mtime = 0;
-            (*count)++;
+            if (*count < max_entries)
+            {
+                strncpy(entries[*count].name, "sdcard", VFS_NAME_MAX);
+                entries[*count].size = 0;
+                entries[*count].is_dir = true;
+                entries[*count].mtime = 0;
+                entries[*count].ctime = 0;
+                (*count)++;
+            }
         }
         return ESP_OK;
     }
@@ -85,6 +126,8 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         return ESP_ERR_NOT_FOUND;
     }
 
+    bool time_synced = is_system_time_synced();
+
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && *count < max_entries)
     {
@@ -96,34 +139,29 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
         strncpy(entries[*count].name, entry->d_name, VFS_NAME_MAX - 1);
         entries[*count].name[VFS_NAME_MAX - 1] = '\0';
 
+        entries[*count].is_dir = (entry->d_type == DT_DIR);
+        entries[*count].size = 0;
+        entries[*count].mtime = 0;
+        entries[*count].ctime = 0;
+
         char entry_path[VFS_PATH_MAX];
-        size_t rp_len = strlen(real_path);
-        const char *sep = (rp_len > 0 && real_path[rp_len - 1] == '/') ? "" : "/";
-        int written = snprintf(entry_path, sizeof(entry_path), "%s%s%s", real_path, sep, entry->d_name);
-
-        struct stat st;
-        if (written < 0 || (size_t)written >= sizeof(entry_path))
+        int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
+        if (written > 0 && (size_t)written < sizeof(entry_path))
         {
-            entries[*count].is_dir = (entry->d_type == DT_DIR);
-            entries[*count].size = 0;
-            entries[*count].mtime = 0;
-            (*count)++;
-            continue;
+            struct stat st;
+            if (stat(entry_path, &st) == 0)
+            {
+                entries[*count].is_dir = S_ISDIR(st.st_mode);
+                if (S_ISREG(st.st_mode) && st.st_size >= 0)
+                {
+                    entries[*count].size = (size_t)st.st_size;
+                }
+                entries[*count].mtime = st.st_mtime;
+                entries[*count].ctime = st.st_ctime;
+            }
         }
 
-        if (stat(entry_path, &st) == 0)
-        {
-            entries[*count].is_dir = S_ISDIR(st.st_mode);
-            entries[*count].size = (size_t)st.st_size;
-            entries[*count].mtime = st.st_mtime;
-        }
-        else
-        {
-            entries[*count].is_dir = (entry->d_type == DT_DIR);
-            entries[*count].size = 0;
-            entries[*count].mtime = 0;
-        }
-
+        mask_unsynced_times(&entries[*count], time_synced);
         (*count)++;
     }
 
@@ -148,7 +186,7 @@ esp_err_t vfs_read_file(const char *path, char *buf, size_t buf_size, size_t *by
         return err;
     }
 
-    FILE *f = fopen(real_path, "r");
+    FILE *f = fopen(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
@@ -173,7 +211,7 @@ esp_err_t vfs_read_file_stream(const char *path, vfs_read_callback_t callback, v
         return err;
     }
 
-    FILE *f = fopen(real_path, "r");
+    FILE *f = fopen(real_path, "rb");
     if (f == NULL)
     {
         return ESP_ERR_NOT_FOUND;
@@ -223,7 +261,9 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
         return err;
     }
 
-    FILE *f = fopen(real_path, "w");
+    ESP_LOGI(TAG, "vfs_write_file: fopen %s", real_path);
+    FILE *f = fopen(real_path, "wb");
+    ESP_LOGI(TAG, "vfs_write_file: fopen=%p", (void *)f);
     if (f == NULL)
     {
         return ESP_FAIL;
@@ -232,6 +272,7 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
     if (len > 0)
     {
         size_t written = fwrite(data, 1, len, f);
+        ESP_LOGI(TAG, "vfs_write_file: fwrite=%u/%u", (unsigned)written, (unsigned)len);
         if (written != len)
         {
             fclose(f);
@@ -239,7 +280,8 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
         }
     }
 
-    fclose(f);
+    int rc = fclose(f);
+    ESP_LOGI(TAG, "vfs_write_file: fclose=%d", rc);
     return ESP_OK;
 }
 
@@ -261,6 +303,21 @@ static bool vfs_paths_share_mount(const char *first, const char *second)
     return strncmp(first, second, first_mount_len) == 0;
 }
 
+typedef struct
+{
+    FILE *dst;
+} vfs_copy_context_t;
+
+static esp_err_t vfs_copy_stream_chunk(const void *data, size_t len, void *context)
+{
+    vfs_copy_context_t *copy_ctx = (vfs_copy_context_t *)context;
+    if (fwrite(data, 1, len, copy_ctx->dst) != len)
+    {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 esp_err_t vfs_copy_file(const char *source, const char *destination)
 {
     if (source == NULL || destination == NULL)
@@ -268,88 +325,37 @@ esp_err_t vfs_copy_file(const char *source, const char *destination)
         return ESP_ERR_INVALID_ARG;
     }
 
-    char source_path[VFS_PATH_MAX];
-    char destination_path[VFS_PATH_MAX];
-    esp_err_t err = vfs_resolve_path(source, source_path, sizeof(source_path));
-    if (err != ESP_OK)
+    /* Refuse to overwrite an existing destination. */
+    if (vfs_exists(destination))
     {
-        return err;
+        return ESP_ERR_INVALID_STATE;
     }
-    err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
-    if (err != ESP_OK)
+    if (!vfs_exists(source))
     {
-        return err;
+        return ESP_ERR_NOT_FOUND;
     }
-
-    int source_fd = open(source_path, O_RDONLY);
-    if (source_fd < 0)
+    if (vfs_is_directory(source))
     {
         return ESP_ERR_NOT_FOUND;
     }
 
-    struct stat source_stat;
-    if (fstat(source_fd, &source_stat) != 0)
+    char destination_path[VFS_PATH_MAX];
+    esp_err_t err = vfs_resolve_path(destination, destination_path, sizeof(destination_path));
+    if (err != ESP_OK)
     {
-        close(source_fd);
+        return err;
+    }
+
+    FILE *dst = fopen(destination_path, "wb");
+    if (dst == NULL)
+    {
         return ESP_FAIL;
     }
-    if (!S_ISREG(source_stat.st_mode))
-    {
-        close(source_fd);
-        return ESP_ERR_INVALID_ARG;
-    }
 
-    int destination_fd = open(destination_path, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (destination_fd < 0)
-    {
-        int open_error = errno;
-        if (close(source_fd) != 0)
-        {
-            return ESP_FAIL;
-        }
-        return (open_error == EEXIST) ? ESP_ERR_INVALID_STATE : ESP_FAIL;
-    }
+    vfs_copy_context_t copy_ctx = {.dst = dst};
+    err = vfs_read_file_stream(source, vfs_copy_stream_chunk, &copy_ctx);
 
-    char buffer[512];
-    while (err == ESP_OK)
-    {
-        ssize_t bytes_read = read(source_fd, buffer, sizeof(buffer));
-        if (bytes_read < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            err = ESP_FAIL;
-            break;
-        }
-        if (bytes_read == 0)
-        {
-            break;
-        }
-
-        ssize_t offset = 0;
-        while (offset < bytes_read)
-        {
-            ssize_t bytes_written = write(destination_fd, buffer + offset, (size_t)(bytes_read - offset));
-            if (bytes_written < 0 && errno == EINTR)
-            {
-                continue;
-            }
-            if (bytes_written <= 0)
-            {
-                err = ESP_FAIL;
-                break;
-            }
-            offset += bytes_written;
-        }
-    }
-
-    if (close(source_fd) != 0 && err == ESP_OK)
-    {
-        err = ESP_FAIL;
-    }
-    if (close(destination_fd) != 0 && err == ESP_OK)
+    if (fclose(dst) != 0 && err == ESP_OK)
     {
         err = ESP_FAIL;
     }
@@ -423,13 +429,25 @@ esp_err_t vfs_mkdir(const char *path)
         return err;
     }
 
-    if (mkdir(real_path, 0775) != 0)
+    ESP_LOGI(TAG, "vfs_mkdir: %s", real_path);
+    if (mkdir(real_path, 0775) == 0)
     {
-        ESP_LOGE(TAG, "mkdir failed: %s", real_path);
-        return ESP_FAIL;
+        ESP_LOGI(TAG, "vfs_mkdir: ok %s", real_path);
+        return ESP_OK;
     }
 
-    return ESP_OK;
+    if (errno == EEXIST)
+    {
+        struct stat st;
+        if (stat(real_path, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+            return ESP_OK;
+        }
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGE(TAG, "mkdir failed: %s (errno=%d)", real_path, errno);
+    return ESP_FAIL;
 }
 
 esp_err_t vfs_remove(const char *path)

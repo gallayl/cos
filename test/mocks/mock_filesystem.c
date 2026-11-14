@@ -57,6 +57,7 @@ static void add_entry(vfs_dir_entry_t *entries, size_t max_entries, size_t *coun
     entries[*count].size = is_dir ? 0 : 1;
     entries[*count].is_dir = is_dir;
     entries[*count].mtime = 0;
+    entries[*count].ctime = 0;
     (*count)++;
 }
 
@@ -402,3 +403,5 @@ bool vfs_is_directory(const char *path)
     }
     return path_in_list((const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, path);
 }
+
+

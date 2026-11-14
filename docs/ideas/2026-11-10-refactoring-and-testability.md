@@ -4,10 +4,13 @@
 - **Source:** Whole-repo analysis (`main/`, `components/`, `frontend/`, `storage/ts` + `storage/flash_data`, `test/`, `integration_test/`, build/scripts/docs)
 - **Date:** 2026-11-10
 - **Status:** Idea / proposal (not yet committed to consolidated plan)
+- **Related:** [Unit test coverage gaps and integration-to-unit rebalancing](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md) (detailed inventory for #11 and integration→unit candidates)
 
 ## Summary
 
 Persisted analysis findings identifying refactor opportunities, coding-practice issues (SOLID, DRY, KISS, YAGNI), and unit/integration test coverage enablement gaps. No code changes are proposed as part of this document; items should be promoted deliberately into `docs/plan/consolidated-improvement-plan.md` when scheduled.
+
+For a concrete, evidence-based breakdown of **host unit-test misses** and **integration scenarios that can be front-loaded to unit level** (with priorities, seams, and "keep in integration" boundaries), see [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md). That plan complements this document: #3/#4/#6 focus on refactors/seams, while #11 and the plan focus on coverage and test-boundary rebalancing.
 
 **Notable context**
 - No actionable `TODO`/`FIXME`/`HACK` markers found in source during analysis (only a non-actionable reserved define noted in `scripts/berry_conf.host_validation.h`).
@@ -49,7 +52,7 @@ Persisted analysis findings identifying refactor opportunities, coding-practice 
 | 8 | ISP, SRP | **`network` API conflates concerns** (ping/DNS, URL/base, HTTP fetch, Wi-Fi/host info) in one header/surface. | Broad interface increases coupling; extension harder. | Segregate by concern with compatibility wrappers; clarify ownership boundaries. | `components/network/include/network.h`, `components/network/src/network.c`, `network_url.c`, `network_http.c`, `network_status.c` | Med | Med | M |
 | 9 | DRY, contract drift | **Firmware bindings vs frontend COS SDK/types maintained manually**. | IDE types and device behavior can diverge. | Shared contract/source-of-truth (generate or validate `.d.ts`/inventory against Berry/native registrations and C APIs). | `frontend/src/cos-sdk/**`, `frontend/src/ide/cos-binding-inventory.ts`, `cos-sdk-registration.ts`, `components/berry_lang/src/berry_runtime.cpp`, `berry_ui.cpp`, `berry_network.cpp` | Med-High | Med | M |
 | 10 | KISS | **Diagnostics/policy interleaved with core execution** (heap/GC telemetry/guards/checkpoints in Berry runtime). | Obscures primary control flow in critical code. | Extract diagnostics/guard/telemetry helpers behind small interfaces/helpers; preserve behavior/logging. | `components/berry_lang/src/berry_runtime.cpp` | Med | Med | M |
-| 11 | Coverage enablement | **Thin/absent host coverage in areas**: HTTP API/static/multipart/path end-to-end behavior, websocket, time_sync edges, filesystem VFS ops beyond path helpers, Berry/network bindings, shell cmd modules as units; integration breadth narrow (Wi-Fi/HTTP API/BT-HID/websocket/Berry lifecycle under pressure). | Regressions in integration paths can slip past current tests/mocks. | (a) Add host tests for extracted HTTP helpers/handlers and `network_url` edge cases. (b) Strengthen generator/storage parity tests for tricky TS→Berry cases. (c) Add targeted QEMU/integration scenarios where feasible (websocket bridge, basic HTTP API CRUD, Berry app launch/close memory smoke). | `test/test_http_*`, `test/test_network_url.c`, `test/CMakeLists.txt`, `frontend/src/ide/ast-to-berry.test.ts`, `frontend/tools/compile-storage.ts`, `integration_test/*` | Med-High | Low–Med | S–M / M–L |
+| 11 | Coverage enablement | **Thin/absent host coverage in areas**: HTTP API/static/multipart/path end-to-end behavior, websocket, time_sync edges, filesystem VFS ops beyond path helpers, Berry/network bindings, shell cmd modules as units; integration breadth narrow (Wi-Fi/HTTP API/BT-HID/websocket/Berry lifecycle under pressure). | Regressions in integration paths can slip past current tests/mocks. | (a) Add host tests for extracted HTTP helpers/handlers and `network_url` edge cases. (b) Strengthen generator/storage parity tests for tricky TS→Berry cases. (c) Add targeted QEMU/integration scenarios where feasible (websocket bridge, basic HTTP API CRUD, Berry app launch/close memory smoke). (d) Rebalance integration→unit where logic/contracts are deterministic; see detailed inventory in [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md). | `test/test_http_*`, `test/test_network_url.c`, `test/CMakeLists.txt`, `frontend/src/ide/ast-to-berry.test.ts`, `frontend/tools/compile-storage.ts`, `integration_test/*` | Med-High | Low–Med | S–M / M–L |
 
 ### Priority 3 — Lower urgency / incremental or strategic
 
@@ -65,11 +68,11 @@ Persisted analysis findings identifying refactor opportunities, coding-practice 
 - **Architecture/SOLID:** god modules and hidden global control flow (`berry_runtime`, `ui`), manual composition (`main.c`), broad interfaces (`network.h`, `display.h`, `text_console.h`).
 - **Duplication/DRY:** HTTP API response/path/JSON handling; TS source vs generated `.be` parity; firmware bindings vs frontend COS SDK/types; repeated lowering patterns in compiler.
 - **Complexity/KISS/YAGNI:** concentrated state machines and interleaved diagnostics in hot paths; potential unused surface (verify before removal).
-- **Testability/coverage:** global state and hardware/RTOS coupling limit isolation; rich mocks exist but seams/reset hooks needed in hotspots; gaps in HTTP API/handler, websocket, time_sync, VFS ops, Berry/network bindings, and integration scenarios.
+- **Testability/coverage:** global state and hardware/RTOS coupling limit isolation; rich mocks exist but seams/reset hooks needed in hotspots; gaps in HTTP API/handler, websocket, time_sync, VFS ops, Berry/network bindings, and integration scenarios. See also the coverage/integration-rebalancing inventory in [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md) (obvious unit misses, integration→unit candidates, and platform-boundary guidance).
 
 ## Suggested execution order
 
-1. **Quick, low-risk wins:** #3, #5 and host-test additions (#11a/b) to lock behavior before deeper changes.
+1. **Quick, low-risk wins:** #3, #5 and host-test additions (#11a/b, #11d) to lock behavior before deeper changes (prioritized cases and integration→unit mapping in [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md)).
 2. **Stabilize core hotspots:** #4 (seams/reset hooks) alongside incremental #1 decomposition (behind stable APIs) and #6.
 3. **Architecture/coupling cleanup:** #2, then #7/#8/#9/#10.
 4. **Strategic/hygiene:** #12–#15 as capacity allows.
@@ -85,6 +88,7 @@ Persisted analysis findings identifying refactor opportunities, coding-practice 
 ## Progress
 
 - [x] Analysis performed and documented (2026-11-10)
+- [x] Detailed coverage/integration-rebalancing inventory documented — see [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md) (2026-11-14)
 - [ ] Triaged into consolidated improvement plan
 - [ ] Quick wins implemented (#3, #5)
 - [ ] Testability seams/reset hooks implemented (#4)

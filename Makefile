@@ -1,4 +1,4 @@
-.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint test integration-test integration-test-build integration-test-run menuconfig docs docs-check
+.PHONY: build flash flash-data monitor clean fullclean erase-flash format format-check lint lint-db test integration-test integration-test-build integration-test-run menuconfig docs docs-check
 
 # --- ESP-IDF environment setup (portable: Windows + Linux) ---
 
@@ -24,50 +24,48 @@ else
   IDF_PYTHON ?= python
 endif
 IDF_PY ?= $(IDF_PYTHON) $(IDF_PATH)/tools/idf.py
+export IDF_PYTHON
+export IDF_PY
 
-# Portable source file listing (works with both GNU and Windows find)
-SOURCES := $(wildcard main/*.c main/*.h) \
-           $(wildcard components/display/include/*.h) \
-           $(wildcard components/display/src/*.cpp components/display/src/*.h) \
-           $(wildcard components/calibration/include/*.h) \
-           $(wildcard components/calibration/src/*.c components/calibration/src/*.h) \
-           $(wildcard components/rgb_led/include/*.h) \
-           $(wildcard components/rgb_led/src/*.c components/rgb_led/src/*.h) \
-           $(wildcard components/light_sensor/include/*.h) \
-           $(wildcard components/light_sensor/src/*.c components/light_sensor/src/*.h) \
-           $(wildcard components/brightness/include/*.h) \
-           $(wildcard components/brightness/src/*.c components/brightness/src/*.h) \
-           $(wildcard components/filesystem/include/*.h) \
-           $(wildcard components/filesystem/src/*.c components/filesystem/src/*.h) \
-           $(wildcard components/shell/include/*.h) \
-           $(wildcard components/shell/src/*.c components/shell/src/*.h) \
-           $(wildcard components/wifi/include/*.h) \
-           $(wildcard components/wifi/src/*.c components/wifi/src/*.h) \
-           $(wildcard components/bluetooth/include/*.h) \
-           $(wildcard components/bluetooth/src/*.c components/bluetooth/src/*.h) \
-           $(wildcard components/input/include/*.h) \
-           $(wildcard components/input/src/*.c components/input/src/*.h) \
-           $(wildcard components/network/include/*.h) \
-           $(wildcard components/network/src/*.c components/network/src/*.h) \
-           $(wildcard components/i2c_bus/include/*.h) \
-           $(wildcard components/i2c_bus/src/*.c components/i2c_bus/src/*.h) \
-           $(wildcard components/time_sync/include/*.h) \
-           $(wildcard components/time_sync/src/*.c components/time_sync/src/*.h) \
-           $(wildcard components/system/include/*.h) \
-           $(wildcard components/system/src/*.c components/system/src/*.h) \
-           $(wildcard components/http_server/include/*.h) \
-           $(wildcard components/http_server/src/*.c components/http_server/src/*.h) \
-           $(wildcard components/websocket/include/*.h) \
-           $(wildcard components/websocket/src/*.c components/websocket/src/*.h) \
-           $(wildcard components/text_console/include/*.h) \
-           $(wildcard components/text_console/src/*.cpp components/text_console/src/*.c components/text_console/src/*.h) \
-           $(wildcard components/berry_lang/include/*.h) \
-           $(wildcard components/berry_lang/src/*.cpp components/berry_lang/src/*.c components/berry_lang/src/*.h) \
-           $(wildcard components/ui/include/*.h) \
-           $(wildcard components/ui/src/*.cpp components/ui/src/*.h) \
-           $(wildcard components/shell/src/shell_berry_cmd.c)
+# Optional compiler cache (DX3): set USE_CCACHE=1 (or IDF_CCACHE_ENABLE=1) to
+# enable ESP-IDF ccache/sccache integration for faster rebuilds. If the ccache
+# executable is installed under IDF tools but not on PATH, add it automatically.
+USE_CCACHE ?=
+ifneq ($(strip $(USE_CCACHE)),)
+  ifneq ($(filter 0 false FALSE no NO,$(USE_CCACHE)),0 false FALSE no NO)
+    IDF_CCACHE_ENABLE ?= 1
+  endif
+endif
+ifneq ($(strip $(IDF_CCACHE_ENABLE)),)
+  ifneq ($(filter 1 true TRUE yes YES,$(IDF_CCACHE_ENABLE)),)
+    SEP ?= $(if $(findstring ;,$(PATH)),;,:)
+    ifdef IDF_TOOLS_PATH
+      CCACHE_TOOL_DIRS := $(dir $(wildcard $(IDF_TOOLS_PATH)/ccache/*/*/ccache.exe) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/*/ccache) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/ccache.exe) $(wildcard $(IDF_TOOLS_PATH)/ccache/*/ccache))
+      ifneq ($(strip $(CCACHE_TOOL_DIRS)),)
+        export PATH := $(subst $(eval ) ,$(SEP),$(CCACHE_TOOL_DIRS))$(SEP)$(PATH)
+      endif
+    endif
+  endif
+endif
+ifdef IDF_CCACHE_ENABLE
+  export IDF_CCACHE_ENABLE
+endif
 
-INTEGRATION_TEST_PROJECTS := $(patsubst %/,%,$(wildcard integration_test/test_*/))
+# Deterministic source discovery for format-check/lint (portable: GNU/Windows Make).
+# Covers project-owned C/C++/headers under main and component include/src trees.
+FORMAT_SOURCES := $(sort \
+	$(wildcard main/*.c main/*.h) \
+	$(wildcard components/*/include/*.h) \
+	$(wildcard components/*/src/*.c) \
+	$(wildcard components/*/src/*.cpp) \
+	$(wildcard components/*/src/*.h) \
+	$(wildcard components/esp_littlefs/src/littlefs/*.c) \
+	$(wildcard components/esp_littlefs/src/littlefs/*.h))
+# Vendored esp_littlefs keeps its own style; lint-db still covers it via the build graph.
+SOURCES := $(filter-out components/esp_littlefs/%,$(FORMAT_SOURCES))
+
+INTEGRATION_TEST_PROJECTS := $(patsubst %/,%,$(notdir $(wildcard integration_test/test_*/)))
+INTEGRATION_TEST_SUITE = $(if $(filter test_%,$1),$1,test_$1)
 
 build:
 	$(IDF_PY) build
@@ -94,10 +92,13 @@ menuconfig:
 	$(IDF_PY) menuconfig
 
 format:
-	clang-format -i $(SOURCES)
+	clang-format -i $(FORMAT_SOURCES)
 
 format-check:
-	clang-format --dry-run --Werror $(SOURCES)
+	clang-format --dry-run --Werror $(FORMAT_SOURCES)
+
+lint-db:
+	@$(IDF_PYTHON) scripts/prepare_lint_db.py
 
 lint:
 	@$(IDF_PYTHON) scripts/run_tidy.py $(SOURCES)
@@ -108,20 +109,26 @@ test:
 	ctest --test-dir test/build --output-on-failure
 	python -m unittest discover -s scripts -p "test_*.py"
 
+integration-test-install:
+	$(IDF_PYTHON) $(IDF_PATH)/tools/idf_tools.py install qemu-xtensa
+
 integration-test-build:
-	@test -n "$(INTEGRATION_TEST_PROJECTS)" || { echo "No integration-test projects found"; exit 1; }
-	@for test_dir in $(INTEGRATION_TEST_PROJECTS); do \
-		$(IDF_PY) -C "$$test_dir" build || exit $$?; \
-	done
+	$(IDF_PYTHON) scripts/integration_test.py build $(INTEGRATION_TEST_BUILD_ARGS) $(if $(INTEGRATION_TEST_JOBS),-j $(INTEGRATION_TEST_JOBS),)
 
 integration-test-run:
-	@status=0; \
-	for test_dir in $(INTEGRATION_TEST_PROJECTS); do \
-		$(IDF_PYTHON) -m pytest "$$test_dir" --target esp32 --embedded-services idf,qemu -v || status=1; \
-	done; \
-	exit $$status
+	$(IDF_PYTHON) scripts/integration_test.py run $(INTEGRATION_TEST_RUN_ARGS)
 
 integration-test: integration-test-build integration-test-run
+
+# Per-suite targets: `make integration-test-build-<suite>` / `integration-test-run-<suite>`
+# `<suite>` may be the project name (test_shell_fs) or short name (shell_fs).
+integration-test-build-%:
+	$(IDF_PYTHON) scripts/integration_test.py build $(call INTEGRATION_TEST_SUITE,$*) $(INTEGRATION_TEST_BUILD_ARGS) $(if $(INTEGRATION_TEST_JOBS),-j $(INTEGRATION_TEST_JOBS),)
+
+integration-test-run-%:
+	$(IDF_PYTHON) scripts/integration_test.py run $(call INTEGRATION_TEST_SUITE,$*) $(INTEGRATION_TEST_RUN_ARGS)
+
+integration-test-%: integration-test-build-% integration-test-run-%
 
 docs:
 	@cmake -E make_directory build/docs
@@ -140,3 +147,4 @@ size-components:
   
 reconfigure:
 	$(IDF_PY) reconfigure
+.PHONY: integration-test-build-% integration-test-run-% integration-test-%

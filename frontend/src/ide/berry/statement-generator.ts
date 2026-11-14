@@ -3,8 +3,9 @@ import ts from '@typescript/typescript6'
 import { BOOLEAN_CONDITION_MESSAGE, isStructurallyBoolean } from './boolean-expression'
 import { emitClass } from './class-generator'
 import type { GenerationContext } from './context'
-import { CALL_PRECEDENCE, emitGrouped } from './expression-generator'
+import { CALL_PRECEDENCE, emitExpressionMapped, emitGroupedMapped } from './expression-generator'
 import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from './function-emitter'
+import { emitExportDeclaration, emitImportDeclaration } from './module-declarations'
 import {
   hasDecorators,
   hasModifier,
@@ -74,12 +75,20 @@ export function emitStatement(ctx: GenerationContext, node: ts.Statement): void 
     return
   }
   if (ts.isExpressionStatement(node)) {
-    if (isIncrement(node.expression)) writeUpdate(ctx, node.expression)
-    else ctx.writeLine(ctx.emitExpression(node.expression))
+    if (isIncrement(node.expression)) {
+      ctx.noteMapping(node.expression)
+      writeUpdate(ctx, node.expression)
+    } else {
+      ctx.writeLine(emitExpressionMapped(ctx, node.expression, 0))
+    }
     return
   }
   if (ts.isReturnStatement(node)) {
-    ctx.writeLine(node.expression ? `return ${ctx.emitExpression(node.expression)}` : 'return')
+    if (node.expression) {
+      ctx.writeLine(`return ${emitExpressionMapped(ctx, node.expression, 'return '.length)}`)
+    } else {
+      ctx.writeLine('return')
+    }
     return
   }
   if (ts.isBreakStatement(node) || ts.isContinueStatement(node)) {
@@ -146,6 +155,7 @@ function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclar
   }
   if (node.name) ctx.declareName(node.name.text, node.name)
   else ctx.declareName(name, node)
+  ctx.noteMapping(node)
   if (!beginFunction(ctx, `def ${name}`, node.parameters)) return
   for (const statement of node.body.statements) ctx.emitStatement(statement)
   endFunction(ctx)
@@ -169,13 +179,15 @@ function emitExportAssignment(ctx: GenerationContext, node: ts.ExportAssignment)
   ) {
     const name = ctx.nextTemp('__cos_default_')
     ctx.declareName(name, node)
-    ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
+    const prefix = `var ${name} = `
+    ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, node.expression, prefix.length)}`)
     ctx.noteDefaultExport(name, node)
     return
   }
   const name = ctx.nextTemp('__cos_default_')
   ctx.declareName(name, node)
-  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
+  const prefix = `var ${name} = `
+  ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, node.expression, prefix.length)}`)
   ctx.noteDefaultExport(name, node)
 }
 
@@ -191,8 +203,10 @@ function emitVariableDeclarationList(ctx: GenerationContext, list: ts.VariableDe
     }
     ctx.declareName(declaration.name.text, declaration.name)
     if (declaration.initializer) {
-      ctx.writeLine(`var ${declaration.name.text} = ${ctx.emitExpression(declaration.initializer)}`)
+      const prefix = `var ${declaration.name.text} = `
+      ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, declaration.initializer, prefix.length)}`)
     } else {
+      ctx.noteMapping(declaration, 'var '.length)
       ctx.writeLine(`var ${declaration.name.text}`)
     }
   }
@@ -202,13 +216,15 @@ function emitIf(ctx: GenerationContext, node: ts.IfStatement, keyword: 'if' | 'e
   if (!isStructurallyBoolean(node.expression)) {
     ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE)
   }
-  ctx.writeLine(`${keyword} ${ctx.emitExpression(node.expression)}`)
+  const prefix = `${keyword} `
+  ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, node.expression, prefix.length)}`)
   ctx.indent()
   ctx.emitStatement(node.thenStatement)
   ctx.dedent()
   if (node.elseStatement && ts.isIfStatement(node.elseStatement)) {
     emitIf(ctx, node.elseStatement, 'elif')
   } else if (node.elseStatement) {
+    ctx.noteMapping(node.elseStatement)
     ctx.writeLine('else')
     ctx.indent()
     ctx.emitStatement(node.elseStatement)
@@ -221,7 +237,7 @@ function emitWhile(ctx: GenerationContext, node: ts.WhileStatement): void {
   if (!isStructurallyBoolean(node.expression)) {
     ctx.report(node.expression, BOOLEAN_CONDITION_MESSAGE)
   }
-  ctx.writeLine(`while ${ctx.emitExpression(node.expression)}`)
+  ctx.writeLine(`while ${emitExpressionMapped(ctx, node.expression, 'while '.length)}`)
   ctx.indent()
   ctx.emitStatement(node.statement)
   ctx.dedent()
@@ -235,14 +251,16 @@ function emitFor(ctx: GenerationContext, node: ts.ForStatement): void {
     if (ts.isVariableDeclarationList(node.initializer)) {
       emitVariableDeclarationList(ctx, node.initializer)
     } else {
-      ctx.writeLine(ctx.emitExpression(node.initializer))
+      ctx.writeLine(emitExpressionMapped(ctx, node.initializer, 0))
     }
   }
   if (node.condition && !isStructurallyBoolean(node.condition)) {
     ctx.report(node.condition, BOOLEAN_CONDITION_MESSAGE)
   }
-  const condition = node.condition ? ctx.emitExpression(node.condition) : 'true'
-  ctx.writeLine(`while ${condition}`)
+  const conditionPrefix = 'while '
+  const condition = node.condition ? emitExpressionMapped(ctx, node.condition, conditionPrefix.length) : 'true'
+  if (!node.condition) ctx.noteMapping(node, conditionPrefix.length)
+  ctx.writeLine(`${conditionPrefix}${condition}`)
   ctx.indent()
   ctx.emitStatement(node.statement)
   if (node.incrementor) writeStep(ctx, node.incrementor)
@@ -256,10 +274,11 @@ function emitForOf(ctx: GenerationContext, node: ts.ForOfStatement): void {
   const binding = forOfBinding(ctx, node.initializer)
   if (!binding) return
   if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE)
-  const target = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
+  const prefix = `for ${binding.name}: `
+  const target = emitGroupedMapped(ctx, node.expression, CALL_PRECEDENCE, prefix.length)
   ctx.pushScope()
   ctx.declareName(binding.name, binding.node)
-  ctx.writeLine(`for ${binding.name}: ${target}`)
+  ctx.writeLine(`${prefix}${target}`)
   ctx.indent()
   ctx.emitStatement(node.statement)
   ctx.dedent()
@@ -313,12 +332,12 @@ function containsNewClosure(node: ts.Node): boolean {
 
 function writeStep(ctx: GenerationContext, expression: ts.Expression): void {
   if (isIncrement(expression)) writeUpdate(ctx, expression)
-  else ctx.writeLine(ctx.emitExpression(expression))
+  else ctx.writeLine(emitExpressionMapped(ctx, expression, 0))
 }
 
 function writeUpdate(ctx: GenerationContext, node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression): void {
   const operator = node.operator === ts.SyntaxKind.PlusPlusToken ? '+=' : '-='
-  ctx.writeLine(`${ctx.emitExpression(node.operand)} ${operator} 1`)
+  ctx.writeLine(`${emitExpressionMapped(ctx, node.operand, 0)} ${operator} 1`)
 }
 
 interface SwitchArm {
@@ -333,12 +352,14 @@ function emitSwitch(ctx: GenerationContext, node: ts.SwitchStatement): void {
 
   const name = ctx.nextTemp('__cos_switch_')
   ctx.declareName(name, node)
-  ctx.writeLine(`var ${name} = ${ctx.emitExpression(node.expression)}`)
+  const discPrefix = `var ${name} = `
+  ctx.writeLine(`${discPrefix}${emitExpressionMapped(ctx, node.expression, discPrefix.length)}`)
 
   const conditional = arms.filter((arm) => !arm.isDefault)
   const defaultArm = arms.find((arm) => arm.isDefault)
   ctx.pushScope()
   if (conditional.length === 0) {
+    if (defaultArm) ctx.noteMapping(node.caseBlock)
     for (const statement of defaultArm?.statements ?? []) ctx.emitStatement(statement)
     ctx.popScope()
     return
@@ -346,15 +367,22 @@ function emitSwitch(ctx: GenerationContext, node: ts.SwitchStatement): void {
 
   conditional.forEach((arm, index) => {
     const keyword = index === 0 ? 'if' : 'elif'
-    const test = arm.tests
-      .map((expression) => `(${name} == ${emitGrouped(ctx, expression, CALL_PRECEDENCE)})`)
-      .join(' || ')
-    ctx.writeLine(`${keyword} ${test}`)
+    const prefix = `${keyword} `
+    let test = ''
+    arm.tests.forEach((expression, testIndex) => {
+      if (testIndex > 0) test += ' || '
+      const left = `(${name} == `
+      const base = prefix.length + test.length + left.length
+      const grouped = emitGroupedMapped(ctx, expression, CALL_PRECEDENCE, base)
+      test += `${left}${grouped})`
+    })
+    ctx.writeLine(`${prefix}${test}`)
     ctx.indent()
     for (const statement of arm.statements) ctx.emitStatement(statement)
     ctx.dedent()
   })
   if (defaultArm) {
+    ctx.noteMapping(node.caseBlock)
     ctx.writeLine('else')
     ctx.indent()
     for (const statement of defaultArm.statements) ctx.emitStatement(statement)
@@ -435,7 +463,7 @@ function terminatesClause(statement: ts.Statement | undefined): boolean {
 }
 
 function emitThrow(ctx: GenerationContext, node: ts.ThrowStatement): void {
-  ctx.writeLine(`raise ${ctx.emitExpression(node.expression)}`)
+  ctx.writeLine(`raise ${emitExpressionMapped(ctx, node.expression, 'raise '.length)}`)
 }
 
 function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
@@ -453,6 +481,7 @@ function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
     return
   }
 
+  ctx.noteMapping(node.tryBlock)
   ctx.writeLine('try')
   ctx.indent()
   ctx.pushScope()
@@ -461,6 +490,7 @@ function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
   ctx.dedent()
 
   const binding = catchClause.variableDeclaration
+  ctx.noteMapping(catchClause)
   if (!binding) {
     ctx.writeLine('except ..')
   } else if (!ts.isIdentifier(binding.name)) {
@@ -492,158 +522,4 @@ function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
 
 function emitClassDeclaration(ctx: GenerationContext, node: ts.ClassDeclaration): void {
   emitClass(ctx, node)
-}
-
-function emitExportDeclaration(ctx: GenerationContext, node: ts.ExportDeclaration): void {
-  if (node.isTypeOnly) return
-
-  const specifierNode = node.moduleSpecifier
-  const specifier = specifierNode && ts.isStringLiteral(specifierNode) ? specifierNode.text : undefined
-  if (specifierNode && specifier === undefined) {
-    ctx.report(node, 'Only string module specifiers are supported.')
-    return
-  }
-  if (
-    specifier !== undefined &&
-    !specifier.startsWith('./') &&
-    !specifier.startsWith('../') &&
-    !specifier.startsWith('@cos/') &&
-    !specifier.startsWith('@berry/')
-  ) {
-    ctx.report(node, 'Only relative re-exports and @cos/* module re-exports are supported.')
-    return
-  }
-
-  const { exportClause } = node
-  if (!exportClause) {
-    ctx.report(node, 'export * re-exports are not supported yet.')
-    return
-  }
-
-  if (ts.isNamespaceExport(exportClause)) {
-    if (specifier === undefined) {
-      ctx.report(node, 'Namespace exports require a module specifier.')
-      return
-    }
-    const moduleTemp = ctx.nextTemp('__cos_re_')
-    ctx.declareName(moduleTemp, node)
-    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
-    ctx.noteNamedExport(exportClause.name.text, moduleTemp, node)
-    return
-  }
-
-  let moduleTemp: string | undefined
-  if (specifier !== undefined) {
-    moduleTemp = ctx.nextTemp('__cos_re_')
-    ctx.declareName(moduleTemp, node)
-    ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
-  }
-
-  for (const element of exportClause.elements) {
-    if (element.isTypeOnly) continue
-    const exported = element.name.text
-    if (moduleTemp) {
-      const source = (element.propertyName ?? element.name).text
-      const localTemp = ctx.nextTemp('__cos_export_')
-      ctx.declareName(localTemp, element)
-      ctx.writeLine(`var ${localTemp} = ${moduleTemp}.find(${JSON.stringify(source)})`)
-      ctx.noteNamedExport(exported, localTemp, element)
-    } else {
-      const local = element.propertyName !== undefined ? element.propertyName.text : element.name.text
-      if (exported === 'default') {
-        ctx.noteDefaultExport(local, element)
-      } else {
-        ctx.noteNamedExport(exported, local, element)
-      }
-    }
-  }
-}
-
-function emitImportDeclaration(ctx: GenerationContext, node: ts.ImportDeclaration): void {
-  if (node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return
-  if (!node.moduleSpecifier || !ts.isStringLiteral(node.moduleSpecifier)) {
-    ctx.report(node, 'Only string module specifiers are supported.')
-    return
-  }
-
-  const specifier = node.moduleSpecifier.text
-  if (
-    !specifier.startsWith('./') &&
-    !specifier.startsWith('../') &&
-    !specifier.startsWith('@cos/') &&
-    !specifier.startsWith('@berry/')
-  ) {
-    ctx.report(node, 'Only relative imports and @cos/* module imports are supported.')
-    return
-  }
-
-  const clause = node.importClause
-  if (!clause) {
-    ctx.report(node, 'Side-effect imports are not supported.')
-    return
-  }
-
-  const { namedBindings } = clause
-  const hasNamed = !!namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length > 0
-  const hasNamespace = !!namedBindings && ts.isNamespaceImport(namedBindings)
-
-  if (hasNamespace) {
-    const local = namedBindings.name.text
-    ctx.declareName(local, namedBindings.name)
-    if (specifier.startsWith('@cos/') || specifier.startsWith('@berry/')) {
-      const moduleTemp = ctx.nextTemp('__cos_mod_')
-      ctx.declareName(moduleTemp, node)
-      ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
-      ctx.writeLine(`var ${local} = ${moduleTemp}.find("default")`)
-    } else {
-      ctx.writeLine(`var ${local} = cos_import(${JSON.stringify(specifier)})`)
-    }
-    if (clause.name) {
-      ctx.report(clause.name, 'Default imports cannot be combined with namespace imports.')
-    }
-    return
-  }
-
-  if (!clause.name && !hasNamed) {
-    if (namedBindings && ts.isNamedImports(namedBindings) && namedBindings.elements.length === 0) {
-      ctx.report(node, 'Empty named imports are not supported.')
-      return
-    }
-    ctx.report(node, 'Only default, named, and namespace imports are supported.')
-    return
-  }
-
-  const moduleTemp = ctx.nextTemp('__cos_mod_')
-  ctx.declareName(moduleTemp, node)
-  ctx.writeLine(`var ${moduleTemp} = cos_import(${JSON.stringify(specifier)})`)
-  const isCosModule = specifier.startsWith('@cos/') || specifier.startsWith('@berry/')
-
-  if (clause.name) {
-    ctx.declareName(clause.name.text, clause.name)
-    ctx.writeLine(`var ${clause.name.text} = ${moduleTemp}.find("default")`)
-  }
-
-  if (namedBindings && ts.isNamedImports(namedBindings)) {
-    let defaultTemp: string | undefined
-    if (isCosModule && (clause.name == null || namedBindings.elements.length > 0)) {
-      if (clause.name) {
-        defaultTemp = clause.name.text
-      } else {
-        defaultTemp = ctx.nextTemp('__cos_def_')
-        ctx.declareName(defaultTemp, node)
-        ctx.writeLine(`var ${defaultTemp} = ${moduleTemp}.find("default")`)
-      }
-    }
-    for (const element of namedBindings.elements) {
-      if (element.isTypeOnly) continue
-      const imported = (element.propertyName ?? element.name).text
-      const local = element.name.text
-      ctx.declareName(local, element.name)
-      if (isCosModule) {
-        ctx.writeLine(`var ${local} = ${defaultTemp}.${imported}`)
-      } else {
-        ctx.writeLine(`var ${local} = ${moduleTemp}.find(${JSON.stringify(imported)})`)
-      }
-    }
-  }
 }

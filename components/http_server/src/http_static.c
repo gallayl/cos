@@ -81,7 +81,8 @@ void http_static_init(void)
 esp_err_t http_static_set_enabled(bool enabled)
 {
     s_enabled = enabled;
-    return save_uint8(NVS_KEY_ENABLED, enabled ? 1 : 0);
+    return save_uint8(NVS_KEY_ENABLED,
+                      enabled ? 1U : 0U); // NOLINT(readability-implicit-bool-conversion) - bool selects byte value
 }
 
 bool http_static_is_enabled(void)
@@ -118,7 +119,8 @@ const char *http_static_get_root(void)
 esp_err_t http_static_set_spa(bool enabled)
 {
     s_spa = enabled;
-    return save_uint8(NVS_KEY_SPA, enabled ? 1 : 0);
+    return save_uint8(NVS_KEY_SPA,
+                      enabled ? 1U : 0U); // NOLINT(readability-implicit-bool-conversion) - bool selects byte value
 }
 
 bool http_static_is_spa(void)
@@ -128,7 +130,9 @@ bool http_static_is_spa(void)
 
 static bool is_api_route(const char *uri)
 {
-    return (strncmp(uri, "/api/", 5) == 0 || strncmp(uri, "/ws", 3) == 0);
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return (strncmp(uri, "/api/", 5) == 0) ||
+           (strncmp(uri, "/ws", 3) == 0); // NOLINT(readability-implicit-bool-conversion)
 }
 
 static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
@@ -171,7 +175,7 @@ static esp_err_t serve_file(httpd_req_t *req, const char *real_path)
 
     int close_result = fclose(f);
     httpd_resp_send_chunk(req, NULL, 0);
-    return read_error || close_result != 0 ? ESP_FAIL : ESP_OK;
+    return (read_error || (close_result != 0)) ? ESP_FAIL : ESP_OK; // NOLINT(readability-implicit-bool-conversion)
 }
 
 esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)
@@ -207,21 +211,36 @@ esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)
         strncpy(clean_uri, "/index.html", sizeof(clean_uri) - 1);
     }
 
-    /* Resolve root + URI to real filesystem path */
-    char virtual_path[REAL_PATH_MAX];
-    snprintf(virtual_path, sizeof(virtual_path), "%s%s", s_root, clean_uri);
-
-    char real_path[REAL_PATH_MAX];
-    if (vfs_resolve_path(virtual_path, real_path, sizeof(real_path)) != ESP_OK)
+    /* Resolve root and confine served files under it */
+    char root_real[REAL_PATH_MAX];
+    if (vfs_resolve_path(s_root, root_real, sizeof(root_real)) != ESP_OK)
     {
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not found");
         return ESP_OK;
     }
-
-    struct stat st;
-    if (stat(real_path, &st) == 0)
+    size_t root_len = strlen(root_real);
+    while (root_len > 1 && root_real[root_len - 1] == '/')
     {
-        return serve_file(req, real_path);
+        root_real[--root_len] = '\0';
+    }
+
+    char virtual_path[REAL_PATH_MAX];
+    snprintf(virtual_path, sizeof(virtual_path), "%s%s", s_root, clean_uri);
+
+    char real_path[REAL_PATH_MAX];
+    if (vfs_resolve_path(virtual_path, real_path, sizeof(real_path)) == ESP_OK)
+    {
+        size_t path_len = strlen(real_path);
+        bool in_root = (strncmp(real_path, root_real, root_len) == 0) &&
+                       (root_len == 1 || path_len == root_len || real_path[root_len] == '/');
+        if (in_root)
+        {
+            struct stat st;
+            if (stat(real_path, &st) == 0)
+            {
+                return serve_file(req, real_path);
+            }
+        }
     }
 
     /* SPA fallback: serve index.html for unmatched paths */
@@ -231,9 +250,19 @@ esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)
         snprintf(index_virtual, sizeof(index_virtual), "%s/index.html", s_root);
 
         char index_real[REAL_PATH_MAX];
-        if (vfs_resolve_path(index_virtual, index_real, sizeof(index_real)) == ESP_OK && stat(index_real, &st) == 0)
+        if (vfs_resolve_path(index_virtual, index_real, sizeof(index_real)) == ESP_OK)
         {
-            return serve_file(req, index_real);
+            size_t path_len = strlen(index_real);
+            bool in_root = (strncmp(index_real, root_real, root_len) == 0) &&
+                           (root_len == 1 || path_len == root_len || index_real[root_len] == '/');
+            if (in_root)
+            {
+                struct stat st;
+                if (stat(index_real, &st) == 0)
+                {
+                    return serve_file(req, index_real);
+                }
+            }
         }
     }
 

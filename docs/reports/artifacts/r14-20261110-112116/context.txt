@@ -1,0 +1,9 @@
+﻿timestamp=2026-11-10T11:21:16.7243691+01:00
+repoRoot=E:\dev\cos
+outDir=E:\dev\cos\docs\reports\artifacts\r14-20261110-112116
+port=
+deviceIp=
+firmwareEval=False
+idfPy=idf.py
+gitCommit=04a7d49c9a5d70ebc63699e8c024efe9426f2c6f
+gitStatus=7 changed lines

@@ -12,24 +12,40 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
+    env:
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ESP-IDF clang tools
-        run: python3 "$IDF_PATH/tools/idf_tools.py" install esp-clang
+      - name: Install ESP-IDF clang tools and ccache
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ccache
+          python3 "$IDF_PATH/tools/idf_tools.py" install esp-clang
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-build-lint-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', '.github/workflows/build-and-lint.yml') }}
+          restore-keys: |
+            ccache-build-lint-${{ runner.os }}-idf-v6.1-
 
       - name: Build firmware
         shell: bash
         run: |
           . $IDF_PATH/export.sh
+          ccache --zero-stats || true
           make build
+          ccache --show-stats || true
 
       - name: Generate Clang compile database
         shell: bash
         run: |
           . $IDF_PATH/export.sh
-          mkdir -p build/clang
-          IDF_TOOLCHAIN=clang idf.py -B build/clang reconfigure
+          make lint-db
 
       - name: Run clang-tidy
         shell: bash

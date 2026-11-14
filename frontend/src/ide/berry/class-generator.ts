@@ -1,6 +1,7 @@
 import ts from '@typescript/typescript6'
 
 import type { GenerationContext } from './context'
+import { emitExpressionMapped } from './expression-generator'
 import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from './function-emitter'
 import { hasDecorators, hasModifier, isAmbient, isDefaultExport, isNamedExport } from './syntax'
 
@@ -104,6 +105,7 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): Co
     ctx.report(member, `Unsupported syntax: ${ts.SyntaxKind[member.kind]}.`, 'error', 'cos/unsupported')
   }
 
+  ctx.noteMapping(node)
   ctx.writeLine(`class ${name}`)
   ctx.indent()
   for (const field of fields) ctx.writeLine(`var ${field.name}`)
@@ -111,10 +113,12 @@ export function emitClass(ctx: GenerationContext, node: ts.ClassDeclaration): Co
   const initializers = fields.filter((field) => field.initializer !== undefined)
   if (constructor || initializers.length > 0) {
     const parameters = constructor?.parameters ?? []
+    ctx.noteMapping(constructor ?? node)
     if (beginFunction(ctx, 'def init', parameters)) {
       for (const field of initializers) {
         if (!field.initializer) continue
-        ctx.writeLine(`self.${field.name} = ${ctx.emitExpression(field.initializer)}`)
+        const prefix = `self.${field.name} = `
+        ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, field.initializer, prefix.length)}`)
       }
       for (const statement of constructor?.body?.statements ?? []) {
         ctx.emitStatement(statement)
@@ -163,6 +167,7 @@ function emitMethod(ctx: GenerationContext, node: ts.MethodDeclaration): void {
     ctx.report(node.name, 'Only identifier method names are supported.', 'error', 'cos/method-name')
     return
   }
+  ctx.noteMapping(node)
   const header = `def ${node.name.text}`
   if (!beginFunction(ctx, header, node.parameters)) return
   for (const statement of node.body.statements) ctx.emitStatement(statement)

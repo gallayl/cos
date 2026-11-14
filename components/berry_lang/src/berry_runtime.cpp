@@ -42,16 +42,16 @@ int s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
 constexpr char CONSOLE_INPUT_CALLBACK_GLOBAL[] = "_cos_console_input_callback";
 constexpr char MODULE_CACHE_GLOBAL[] = "_cos_modules";
 std::recursive_mutex s_vm_mutex;
-berry_console_read_line_fn s_console_read_line = nullptr;
-berry_console_cancel_line_fn s_console_cancel_line = nullptr;
-berry_console_read_key_fn s_console_read_key = nullptr;
-berry_console_read_key_fn s_console_read_char = nullptr;
+berry_console_read_line_fn_t s_console_read_line = nullptr;
+berry_console_cancel_line_fn_t s_console_cancel_line = nullptr;
+berry_console_read_key_fn_t s_console_read_key = nullptr;
+berry_console_read_key_fn_t s_console_read_char = nullptr;
 bool s_console_line_pending = false;
 int s_console_line_token;
 const char *s_app_class_global_name = nullptr;
-constexpr int kScriptPathStack = 4;
-constexpr size_t kScriptTextMax = 4096;
-char s_script_paths[kScriptPathStack][VFS_PATH_MAX];
+constexpr int SCRIPT_PATH_STACK = 4;
+constexpr size_t SCRIPT_TEXT_MAX = 4096;
+char s_script_paths[SCRIPT_PATH_STACK][VFS_PATH_MAX];
 int s_script_depth = 0;
 char s_app_script[VFS_PATH_MAX];
 bool s_app_script_set = false;
@@ -98,6 +98,7 @@ bool can_emit_r5_checkpoint_log()
 
 void log_lifecycle_checkpoint(const char *phase)
 {
+    (void)phase;
     if (!can_emit_r5_checkpoint_log())
     {
         return;
@@ -112,11 +113,6 @@ void log_lifecycle_checkpoint(const char *phase)
              static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
              static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)),
              static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)));
-}
-
-void log_heap_snapshot(const char *phase)
-{
-    log_lifecycle_checkpoint(phase);
 }
 
 void collect_berry_garbage()
@@ -158,7 +154,7 @@ void clear_app_class_global(const char *class_name)
 
 void close_app_from_ui()
 {
-    esp_err_t err = berry_runtime_close_app();
+    const esp_err_t err = berry_runtime_close_app();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Could not close Berry app from UI: %s", esp_err_to_name(err));
@@ -186,7 +182,7 @@ int native_action(bvm *vm)
 
     const char *command = be_tostring(vm, 1);
     int command_result = 0;
-    esp_err_t err = esp_console_run(command, &command_result);
+    const esp_err_t err = esp_console_run(command, &command_result);
     if (err != ESP_OK)
     {
         be_pushstring(vm, esp_err_to_name(err));
@@ -229,7 +225,7 @@ esp_err_t cancel_pending_console_input()
 void console_line_complete(esp_err_t result, const char *line, void *context)
 {
     (void)context;
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr || !s_console_line_pending)
     {
         return;
@@ -288,7 +284,7 @@ int native_console_read_line(bvm *vm)
         be_return(vm);
     }
 
-    be_pushbool(vm, true);
+    be_pushbool(vm, 1);
     be_return(vm);
 }
 
@@ -296,7 +292,7 @@ int native_console_cancel_line(bvm *vm)
 {
     if (!s_console_line_pending || s_console_cancel_line == nullptr)
     {
-        be_pushbool(vm, false);
+        be_pushbool(vm, 0);
         be_return(vm);
     }
 
@@ -306,14 +302,14 @@ int native_console_cancel_line(bvm *vm)
         be_pushstring(vm, esp_err_to_name(err));
         be_return(vm);
     }
-    be_pushbool(vm, true);
+    be_pushbool(vm, 1);
     be_return(vm);
 }
 
 void map_set_bool(bvm *vm, const char *key, bool value)
 {
     be_pushstring(vm, key);
-    be_pushbool(vm, value);
+    be_pushbool(vm, value ? 1 : 0);
     be_data_insert(vm, -3);
     be_pop(vm, 2);
 }
@@ -469,7 +465,7 @@ int push_write_status(bvm *vm, esp_err_t err)
 {
     if (err == ESP_OK)
     {
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
     }
     else
     {
@@ -478,7 +474,7 @@ int push_write_status(bvm *vm, esp_err_t err)
     be_return(vm);
 }
 
-esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn start)
+esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn_t start)
 {
     if (start == nullptr || s_console_line_pending)
     {
@@ -509,7 +505,7 @@ int native_console_read_key(bvm *vm)
     const esp_err_t err = begin_console_callback(vm, 1, s_console_read_key);
     if (err == ESP_OK)
     {
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
     }
     else
     {
@@ -529,7 +525,7 @@ int native_console_read_char(bvm *vm)
     const esp_err_t err = begin_console_callback(vm, 1, s_console_read_char);
     if (err == ESP_OK)
     {
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
     }
     else
     {
@@ -616,7 +612,7 @@ void push_console_status(bvm *vm, esp_err_t err)
 {
     if (err == ESP_OK)
     {
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
     }
     else
     {
@@ -808,16 +804,14 @@ int native_fs_list(bvm *vm)
         map_set_number(vm, "size", static_cast<double>(entries[index].size));
         map_set_bool(vm, "is_dir", entries[index].is_dir);
         map_set_number(vm, "mtime", static_cast<double>(entries[index].mtime));
-        be_pop(vm, 1);
+        map_set_number(vm, "ctime", static_cast<double>(entries[index].ctime));
         be_data_push(vm, -2);
         be_pop(vm, 1);
     }
-    be_pop(vm, 1);
     be_pushstring(vm, "entries");
     be_pushvalue(vm, -2);
     be_data_insert(vm, -4);
     be_pop(vm, 2);
-    be_pop(vm, 1);
     map_set_number(vm, "count", static_cast<double>(count));
     be_pop(vm, 1);
     be_return(vm);
@@ -843,7 +837,7 @@ int native_fs_read_text(bvm *vm)
     {
         return push_fs_error(vm, ESP_ERR_INVALID_ARG);
     }
-    if (file_size > kScriptTextMax)
+    if (file_size > SCRIPT_TEXT_MAX)
     {
         return push_fs_error(vm, ESP_ERR_INVALID_SIZE);
     }
@@ -885,7 +879,7 @@ int native_fs_write_text(bvm *vm)
     }
 
     const int length = be_strlen(vm, 2);
-    if (length < 0 || static_cast<size_t>(length) > kScriptTextMax)
+    if (length < 0 || static_cast<size_t>(length) > SCRIPT_TEXT_MAX)
     {
         return push_write_status(vm, ESP_ERR_INVALID_SIZE);
     }
@@ -917,7 +911,7 @@ int native_fs_read_json(bvm *vm)
     {
         return push_fs_error(vm, ESP_ERR_INVALID_ARG);
     }
-    if (file_size > kScriptTextMax)
+    if (file_size > SCRIPT_TEXT_MAX)
     {
         return push_fs_error(vm, ESP_ERR_INVALID_SIZE);
     }
@@ -1004,7 +998,7 @@ int native_fs_write_json(bvm *vm)
 
     const int length = be_strlen(vm, -1);
     const char *encoded = be_tostring(vm, -1);
-    if (length < 0 || encoded == nullptr || static_cast<size_t>(length) > kScriptTextMax)
+    if (length < 0 || encoded == nullptr || static_cast<size_t>(length) > SCRIPT_TEXT_MAX)
     {
         be_pop(vm, 1);
         return push_write_status(vm, ESP_ERR_INVALID_SIZE);
@@ -1026,10 +1020,10 @@ int native_fs_exists(bvm *vm)
     if (!read_script_path(vm, resolved, &path_error))
     {
         (void)path_error;
-        be_pushbool(vm, false);
+        be_pushbool(vm, 0);
         be_return(vm);
     }
-    be_pushbool(vm, vfs_exists(resolved));
+    be_pushbool(vm, vfs_exists(resolved) ? 1 : 0);
     be_return(vm);
 }
 
@@ -1044,10 +1038,10 @@ int native_fs_is_dir(bvm *vm)
     if (!read_script_path(vm, resolved, &path_error))
     {
         (void)path_error;
-        be_pushbool(vm, false);
+        be_pushbool(vm, 0);
         be_return(vm);
     }
-    be_pushbool(vm, vfs_is_directory(resolved));
+    be_pushbool(vm, vfs_is_directory(resolved) ? 1 : 0);
     be_return(vm);
 }
 
@@ -1062,14 +1056,14 @@ int native_fs_is_file(bvm *vm)
     if (!read_script_path(vm, resolved, &path_error))
     {
         (void)path_error;
-        be_pushbool(vm, false);
+        be_pushbool(vm, 0);
         be_return(vm);
     }
 
     bool is_dir = false;
     size_t file_size = 0;
     const bool file = vfs_stat(resolved, &is_dir, &file_size) == ESP_OK && !is_dir;
-    be_pushbool(vm, file);
+    be_pushbool(vm, file ? 1 : 0);
     be_return(vm);
 }
 
@@ -1105,7 +1099,8 @@ int native_fs_size(bvm *vm)
     be_return(vm);
 }
 
-static bntvmodobj_t const console_attrs[] = {
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry native module attribute table name
+static bntvmodobj_t const kConsoleAttrs[] = {
     be_native_module_function("read_line", native_console_read_line),
     be_native_module_function("cancel_input", native_console_cancel_line),
     be_native_module_function("read_key", native_console_read_key),
@@ -1120,16 +1115,18 @@ static bntvmodobj_t const console_attrs[] = {
     be_native_module_function("font_size", native_console_font_size),
 };
 } // namespace
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry native module symbol required by runtime/module table
 extern "C" const bntvmodule_t be_native_module_console = {
     "console",
-    console_attrs,
-    sizeof(console_attrs) / sizeof(console_attrs[0]),
+    kConsoleAttrs,
+    sizeof(kConsoleAttrs) / sizeof(kConsoleAttrs[0]),
     nullptr,
 };
 namespace
 {
 
-static bntvmodobj_t const fs_attrs[] = {
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry native module attribute table name
+static bntvmodobj_t const kFsAttrs[] = {
     be_native_module_function("list", native_fs_list),
     be_native_module_function("read_text", native_fs_read_text),
     be_native_module_function("write_text", native_fs_write_text),
@@ -1141,10 +1138,11 @@ static bntvmodobj_t const fs_attrs[] = {
     be_native_module_function("size", native_fs_size),
 };
 } // namespace
+// NOLINTNEXTLINE(readability-identifier-naming) - Berry native module symbol required by runtime/module table
 extern "C" const bntvmodule_t be_native_module_fs = {
     "fs",
-    fs_attrs,
-    sizeof(fs_attrs) / sizeof(fs_attrs[0]),
+    kFsAttrs,
+    sizeof(kFsAttrs) / sizeof(kFsAttrs[0]),
     nullptr,
 };
 namespace
@@ -1219,7 +1217,7 @@ class ScriptPathScope
     explicit ScriptPathScope(const char *virtual_path)
         : pushed_(false)
     {
-        if (s_script_depth >= kScriptPathStack || virtual_path == nullptr || virtual_path[0] != '/')
+        if (s_script_depth >= SCRIPT_PATH_STACK || virtual_path == nullptr || virtual_path[0] != '/')
         {
             return;
         }
@@ -1366,7 +1364,7 @@ esp_err_t execute_main_entry(BerrySourceBuffer source, size_t length, const char
         be_pop(s_vm, 3); // error, args/self/method context, entry
         return ESP_FAIL;
     }
-    else if (exit_status != nullptr && be_isnil(s_vm, -3))
+    if (exit_status != nullptr && be_isnil(s_vm, -3))
     {
         *exit_status = 0;
     }
@@ -1464,7 +1462,7 @@ esp_err_t close_active_app()
     collect_berry_garbage();
     if (had_active_app)
     {
-        esp_err_t visible_err = text_console_set_visible(true);
+        const esp_err_t visible_err = text_console_set_visible(true);
         if (visible_err != ESP_OK)
         {
             ESP_LOGE(TAG, "Could not restore console display: %s", esp_err_to_name(visible_err));
@@ -1603,7 +1601,10 @@ extern "C" esp_err_t berry_runtime_ui_launch(bvm *vm, int index)
     return ESP_OK;
 }
 
-esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source, size_t *length)
+esp_err_t read_virtual_file(const char *virtual_path,
+                            BerrySourceBuffer *source, // NOLINT(readability-non-const-parameter) - output object
+                                                       // reset/populated by this function
+                            size_t *length)
 {
     // R5: stat first, then allocate the short-lived source buffer before opening/reading.
     // This avoids stdio/VFS read-path allocations fragmenting the heap before the large
@@ -1682,7 +1683,9 @@ esp_err_t read_virtual_file(const char *virtual_path, BerrySourceBuffer *source,
     return ESP_OK;
 }
 
-bool resolve_module_path(const char *specifier, char *resolved, size_t resolved_size)
+bool resolve_module_path(const char *specifier,
+                         char *resolved, // NOLINT(readability-non-const-parameter) - output path buffer
+                         size_t resolved_size)
 {
     char composed[VFS_PATH_MAX];
     const esp_err_t composed_err =
@@ -1702,7 +1705,7 @@ bool resolve_module_path(const char *specifier, char *resolved, size_t resolved_
         const size_t len = std::strlen(candidate);
         if (len + 1 > resolved_size)
         {
-            return false;
+            return false; // NOLINT(readability-simplify-boolean-expr) - explicit guard return
         }
         std::memcpy(resolved, candidate, len + 1);
         return true;
@@ -1800,7 +1803,7 @@ int native_cos_module(bvm *vm)
     be_getmember(vm, inst_index, ".p");
     const int map_index = be_absindex(vm, -1);
     be_pushstring(vm, "__cos_module__");
-    be_pushbool(vm, true);
+    be_pushbool(vm, 1);
     be_data_insert(vm, map_index);
     be_pop(vm, 2);
     be_pushstring(vm, "default");
@@ -1929,7 +1932,7 @@ int native_cos_import(bvm *vm)
         be_getmember(vm, inst_index, ".p");
         const int dst = be_absindex(vm, -1);
         be_pushstring(vm, "__cos_module__");
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
         be_data_insert(vm, dst);
         be_pop(vm, 2);
         be_pushstring(vm, "default");
@@ -1948,7 +1951,7 @@ int native_cos_import(bvm *vm)
     }
 
     BerrySourceBuffer source(nullptr, &std::free);
-    size_t length = 0;
+    size_t length = 0; // NOLINT(misc-const-correctness) - written via read_virtual_file output parameter
     const esp_err_t read_err = read_virtual_file(resolved, &source, &length);
     if (read_err != ESP_OK)
     {
@@ -2010,7 +2013,7 @@ int native_cos_import(bvm *vm)
         be_getmember(vm, inst_index, ".p");
         const int dst = be_absindex(vm, -1);
         be_pushstring(vm, "__cos_module__");
-        be_pushbool(vm, true);
+        be_pushbool(vm, 1);
         be_data_insert(vm, dst);
         be_pop(vm, 2);
         be_pushstring(vm, "default");
@@ -2061,7 +2064,6 @@ static int native_cos_lazy_member(bvm *vm)
     // Stack: [..., real_module]
     be_pushvalue(vm, -1);
     be_setglobal(vm, module_name);
-    be_pop(vm, 1);
 
     if (!be_getmember(vm, -1, attr))
     {
@@ -2103,6 +2105,12 @@ static void install_lazy_module_global(bvm *vm, const char *name)
         be_pop(vm, be_top(vm) - base);
         return;
     }
+
+    if (be_top(vm) - base != 2 || !be_isfunction(vm, -1))
+    {
+        be_pop(vm, be_top(vm) - base);
+        return;
+    }
     // stack: module, closure
     be_setmember(vm, -2, "member");
     be_pop(vm, 1); // be_setmember does not pop value in Berry 1.x API
@@ -2114,7 +2122,7 @@ static void install_lazy_module_global(bvm *vm, const char *name)
 
 extern "C" esp_err_t berry_runtime_init(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm != nullptr)
     {
         return ESP_OK;
@@ -2162,7 +2170,7 @@ extern "C" esp_err_t berry_runtime_init(void)
 
 extern "C" void berry_runtime_deinit(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm != nullptr)
     {
         cancel_pending_console_input();
@@ -2174,7 +2182,7 @@ extern "C" void berry_runtime_deinit(void)
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (source == nullptr || source_name == nullptr)
     {
         return ESP_ERR_INVALID_ARG;
@@ -2190,7 +2198,7 @@ extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_n
 
 extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, char *const argv[], int *exit_status)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (virtual_path == nullptr || argc < 0 || (argc > 0 && argv == nullptr))
     {
         return ESP_ERR_INVALID_ARG;
@@ -2214,8 +2222,8 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, 
     }
 
     BerrySourceBuffer source(nullptr, &std::free);
-    size_t length = 0;
-    esp_err_t err = read_virtual_file(virtual_path, &source, &length);
+    size_t length = 0; // NOLINT(misc-const-correctness) - written via read_virtual_file output parameter
+    const esp_err_t err = read_virtual_file(virtual_path, &source, &length);
     if (err != ESP_OK)
     {
         if (err == ESP_ERR_NO_MEM)
@@ -2235,7 +2243,7 @@ extern "C" esp_err_t berry_runtime_run_file(const char *virtual_path, int argc, 
 extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
 {
     int exit_status = 1;
-    esp_err_t err = berry_runtime_run_file(virtual_path, 0, nullptr, &exit_status);
+    const esp_err_t err = berry_runtime_run_file(virtual_path, 0, nullptr, &exit_status);
     if (err != ESP_OK)
     {
         return err;
@@ -2245,7 +2253,7 @@ extern "C" esp_err_t berry_runtime_open_app(const char *virtual_path)
 
 extern "C" esp_err_t berry_runtime_close_app(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         return ESP_ERR_INVALID_STATE;
@@ -2260,7 +2268,7 @@ extern "C" bool berry_runtime_handle_key_event(const keyboard_event_t *event)
         return false;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr || !has_active_app())
     {
         return false;
@@ -2269,19 +2277,21 @@ extern "C" bool berry_runtime_handle_key_event(const keyboard_event_t *event)
     return true;
 }
 
-extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line_fn read_line,
-                                                         berry_console_cancel_line_fn cancel_line,
-                                                         berry_console_read_key_fn read_key,
-                                                         berry_console_read_key_fn read_char)
+extern "C" void berry_runtime_set_console_input_provider(berry_console_read_line_fn_t read_line,
+                                                         berry_console_cancel_line_fn_t cancel_line,
+                                                         berry_console_read_key_fn_t read_key,
+                                                         berry_console_read_key_fn_t read_char)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     s_console_read_line = read_line;
     s_console_cancel_line = cancel_line;
     s_console_read_key = read_key;
     s_console_read_char = read_char;
 }
 
-std::recursive_mutex &berry_runtime_mutex()
+std::recursive_mutex &
+berry_runtime_mutex() // NOLINT(misc-use-internal-linkage) - external runtime API used across translation units
+
 {
     return s_vm_mutex;
 }
@@ -2303,7 +2313,7 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
         return ESP_ERR_INVALID_ARG;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
 
     info->initialized = (s_vm != nullptr);
     info->gc_managed_bytes = s_vm != nullptr ? be_gc_memcount(s_vm) : 0;
@@ -2321,7 +2331,7 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
 
 extern "C" esp_err_t berry_runtime_gc_collect(size_t *before_bytes, size_t *after_bytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         if (before_bytes != nullptr)
@@ -2356,7 +2366,7 @@ extern "C" esp_err_t berry_runtime_set_gc_step_rate(int rate)
         return ESP_ERR_INVALID_ARG;
     }
 
-    std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
     if (s_vm == nullptr)
     {
         return ESP_ERR_INVALID_STATE;

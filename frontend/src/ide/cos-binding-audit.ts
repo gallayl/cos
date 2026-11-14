@@ -6,7 +6,7 @@ export function extractNativeModuleBindings(
 ): { functions: string[]; constants: string[] } {
   const moduleMatch = source.match(
     new RegExp(
-      String.raw`extern\s+"C"\s+const\s+bntvmodule_t\s+be_native_module_${moduleName}\s*=\s*\{\s*"[^"]+"\s*,\s*(\w+)\s*,`,
+      String.raw`extern\s+"C"\s+const\s+bntvmodule_t\s+be_native_module_${moduleName}\s*=\s*\{[\s\S]*?"[^"]+"\s*,\s*(\w+)\s*,`,
       'm',
     ),
   )
@@ -16,7 +16,7 @@ export function extractNativeModuleBindings(
   const tableVar = moduleMatch[1]
   const tableMatch = source.match(
     new RegExp(
-      String.raw`static\s+(?:const\s+)?bntvmodobj_t\s+const\s+${tableVar}\s*\[\s*\]\s*=\s*\{([\s\S]*?)\n\};`,
+      String.raw`static\s+(?:const\s+)?bntvmodobj_t\s+(?:const\s+)?${tableVar}\s*\[\s*\]\s*=\s*\{([\s\S]*?)\n\};`,
       'm',
     ),
   )

@@ -89,11 +89,11 @@ esp_err_t http_sanitize_upload_path(const char *raw, char *out_path, size_t len)
         {
             c = '/';
         }
-        if (c == '/' && prev_slash)
+        if ((c == '/') && prev_slash) // NOLINT(readability-implicit-bool-conversion)
         {
             continue;
         }
-        prev_slash = (c == '/');
+        prev_slash = (c == '/'); // NOLINT(readability-implicit-bool-conversion)
         out_path[out_i++] = c;
     }
 

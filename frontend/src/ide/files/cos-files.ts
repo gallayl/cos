@@ -5,6 +5,10 @@ export interface CosDirEntry {
   name: string
   size: number
   is_dir: boolean
+  /** Last modification time in epoch seconds. */
+  mtime: number
+  /** Creation or status-change time in epoch seconds. */
+  ctime: number
 }
 
 /** Options for device filesystem requests. */
@@ -148,7 +152,9 @@ function isDirEntry(value: unknown): value is CosDirEntry {
     typeof entry.name === 'string' &&
     isSafeEntryName(entry.name) &&
     typeof entry.size === 'number' &&
-    typeof entry.is_dir === 'boolean'
+    typeof entry.is_dir === 'boolean' &&
+    typeof entry.mtime === 'number' &&
+    typeof entry.ctime === 'number'
   )
 }
 

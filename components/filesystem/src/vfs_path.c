@@ -162,9 +162,16 @@ esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (strncmp(virtual_path, "/flash", 6) == 0)
+    char normalized[VFS_COMPOSE_MAX] = {0};
+    esp_err_t err = normalize_absolute(virtual_path, normalized, sizeof(normalized));
+    if (err != ESP_OK)
     {
-        const char *rest = virtual_path + 6;
+        return err;
+    }
+
+    if (strncmp(normalized, "/flash", 6) == 0)
+    {
+        const char *rest = normalized + 6;
         if (rest[0] == '\0')
         {
             rest = "/";
@@ -177,9 +184,9 @@ esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len
         return ESP_OK;
     }
 
-    if (strncmp(virtual_path, "/sdcard", 7) == 0)
+    if (strncmp(normalized, "/sdcard", 7) == 0)
     {
-        const char *rest = virtual_path + 7;
+        const char *rest = normalized + 7;
         if (rest[0] == '\0')
         {
             rest = "/";
