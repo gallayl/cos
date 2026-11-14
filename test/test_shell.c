@@ -258,6 +258,44 @@ static void test_cmd_hexdump_no_arg(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+static void test_cmd_hexdump_reads_file(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/bin.dat", "\x00\x01""ABC", 6));
+    char *argv[] = {"hexdump", "bin.dat"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("hexdump", 2, argv));
+}
+
+static void test_cmd_hexdump_missing_file(void)
+{
+    char *argv[] = {"hexdump", "missing.bin"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("hexdump", 2, argv));
+}
+
+static void test_cmd_cp_no_args(void)
+{
+    char *argv[] = {"cp"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 1, argv));
+}
+
+static void test_cmd_mv_no_args(void)
+{
+    char *argv[] = {"mv"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mv", 1, argv));
+}
+
+static void test_cmd_rmdir_no_arg(void)
+{
+    char *argv[] = {"rmdir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 1, argv));
+}
+
+static void test_cmd_ls_empty_directory(void)
+{
+    mock_filesystem_add_directory("/flash/emptydir");
+    char *argv[] = {"ls", "/flash/emptydir"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ls", 2, argv));
+}
+
 static void test_cmd_cp_file(void)
 {
     mock_filesystem_add_file("/flash/source.txt");
@@ -639,16 +677,22 @@ int main(void)
     RUN_TEST(test_cmd_touch);
     RUN_TEST(test_cmd_touch_no_arg);
     RUN_TEST(test_cmd_hexdump_no_arg);
+    RUN_TEST(test_cmd_hexdump_reads_file);
+    RUN_TEST(test_cmd_hexdump_missing_file);
+    RUN_TEST(test_cmd_cp_no_args);
     RUN_TEST(test_cmd_cp_file);
     RUN_TEST(test_cmd_cp_refuses_overwrite);
     RUN_TEST(test_cmd_cp_rejects_directory);
     RUN_TEST(test_cmd_cp_rejects_missing_source);
+    RUN_TEST(test_cmd_mv_no_args);
     RUN_TEST(test_cmd_mv_file);
     RUN_TEST(test_cmd_mv_refuses_overwrite);
     RUN_TEST(test_cmd_mv_cross_filesystem);
+    RUN_TEST(test_cmd_rmdir_no_arg);
     RUN_TEST(test_cmd_rmdir_only_removes_empty_directories);
     RUN_TEST(test_cmd_rmdir_protects_filesystem_roots);
     RUN_TEST(test_cmd_rmdir_protects_current_directory);
+    RUN_TEST(test_cmd_ls_empty_directory);
     RUN_TEST(test_cmd_cat_reads_file);
     RUN_TEST(test_cmd_cat_missing_file);
     RUN_TEST(test_cmd_cat_rejects_directory);
