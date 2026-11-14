@@ -931,24 +931,11 @@ esp_err_t shell_input_read_char(shell_line_input_callback_t callback, void *cont
 
 esp_err_t shell_input_init(void)
 {
+    /* Console owns this UART in normal/QEMU runs. Installing, probing, or reattaching the driver
+     * can hang in some boots, so rely on the existing UART driver and read directly. */
     bool driver_installed = false;
-    esp_err_t err = uart_driver_install(UART_NUM, UART_RX_BUF_SIZE, 0, 0, NULL, 0);
-    if (err == ESP_OK)
-    {
-        driver_installed = true;
-        uart_vfs_dev_use_driver(UART_NUM);
-        ESP_LOGI(TAG, "UART VFS attached");
-    }
-    else if (err == ESP_ERR_INVALID_STATE)
-    {
-        /* Console already owns driver/VFS; avoid uart_is_driver_installed() and VFS reattach,
-         * both can hang in some QEMU boots. */
-    }
-    else
-    {
-        ESP_LOGE(TAG, "uart_driver_install failed: %s", esp_err_to_name(err));
-        return err;
-    }
+    (void)driver_installed;
+    ESP_LOGI(TAG, "Using existing UART driver");
 
     s_input_stream = xStreamBufferCreate(INPUT_STREAM_SIZE, 1);
     if (s_input_stream == NULL)
