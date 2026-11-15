@@ -6,52 +6,54 @@
 
 namespace
 {
+static void map_set_bool(bvm *vm, const char *key, bool value)
+{
+    be_pushstring(vm, key);
+    be_pushbool(vm, value ? 1 : 0);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+}
+
+static void map_set_string(bvm *vm, const char *key, const char *value)
+{
+    be_pushstring(vm, key);
+    be_pushstring(vm, value != nullptr ? value : "");
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+}
+
+static void map_set_int(bvm *vm, const char *key, bint value)
+{
+    be_pushstring(vm, key);
+    be_pushint(vm, value);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+}
+
 static int native_system_meminfo(bvm *vm)
 {
     system_info_t info;
     const esp_err_t err = system_get_info(&info);
+
+    be_newobject(vm, "map");
     if (err != ESP_OK)
     {
-        be_map_new(vm);
-        be_pushbool(vm, bfalse);
-        be_data_push(vm, (const char *)"ok");
-        be_pop(vm, 1);
-        be_pushstring(vm, esp_err_to_name(err));
-        be_data_push(vm, (const char *)"error");
+        map_set_bool(vm, "ok", false);
+        map_set_string(vm, "error", esp_err_to_name(err));
         be_pop(vm, 1);
         be_return(vm);
     }
 
-    be_map_new(vm);
-    be_pushbool(vm, btrue);
-    be_data_push(vm, (const char *)"ok");
+    map_set_bool(vm, "ok", true);
+    map_set_int(vm, "free_heap", (bint)info.free_heap);
+    map_set_int(vm, "min_free_heap", (bint)info.min_free_heap);
+    map_set_int(vm, "total_heap", (bint)info.total_heap);
+    map_set_int(vm, "max_alloc_block", (bint)info.max_alloc_block);
+    map_set_int(vm, "internal_free_heap", (bint)info.internal_free_heap);
+    map_set_int(vm, "internal_min_free_heap", (bint)info.internal_min_free_heap);
+    map_set_int(vm, "internal_total_heap", (bint)info.internal_total_heap);
+    map_set_int(vm, "internal_max_alloc_block", (bint)info.internal_max_alloc_block);
     be_pop(vm, 1);
-
-    be_pushint(vm, (bint)info.free_heap);
-    be_data_push(vm, (const char *)"free_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.min_free_heap);
-    be_data_push(vm, (const char *)"min_free_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.total_heap);
-    be_data_push(vm, (const char *)"total_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.max_alloc_block);
-    be_data_push(vm, (const char *)"max_alloc_block");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.internal_free_heap);
-    be_data_push(vm, (const char *)"internal_free_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.internal_min_free_heap);
-    be_data_push(vm, (const char *)"internal_min_free_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.internal_total_heap);
-    be_data_push(vm, (const char *)"internal_total_heap");
-    be_pop(vm, 1);
-    be_pushint(vm, (bint)info.internal_max_alloc_block);
-    be_data_push(vm, (const char *)"internal_max_alloc_block");
-    be_pop(vm, 1);
-
     be_return(vm);
 }
 
