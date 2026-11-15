@@ -130,6 +130,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
     specifiers: ['@cos/net', '@cos/network', '@berry/net', '@berry/network'],
     bindings: [
       { kind: 'function', name: 'ping' },
+      { kind: 'function', name: 'resolve' },
       { kind: 'function', name: 'host' },
       { kind: 'function', name: 'wifi' },
       { kind: 'function', name: 'wifi_connect' },

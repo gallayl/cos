@@ -142,7 +142,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `server`, `ws`                    | Inspect and control the HTTP server and WebSocket clients |
 | `restart`, `uptime`               | Restart the device or show uptime                         |
 | `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request (Berry script command, resolved via CWD/`path`; stock: `/flash/scripts/ping.be`) |
-| `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4 (native command)               |
+| `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4 (Berry script command, resolved via CWD/`path`; stock: `/flash/scripts/nslookup.be`) |
 | `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
@@ -188,14 +188,15 @@ logs. Use `mem` for current free heap, minimum free heap since boot, total
 heap, and largest allocatable block. Berry app startup also logs heap snapshots
 at INFO level; set `logging info` to see them.
 
-`nslookup` is a native command that performs DNS resolution only. `ping` is
-provided as a Berry command script (stock: `/flash/scripts/ping.be`, resolved
-from the current directory or configured `path` dirs like other script commands)
-and sends one ICMP echo request via Berry `net.ping`. Both accept an optional
-100–3000 ms overall deadline (default 1000 ms), which includes DNS resolution,
-and require Wi-Fi station connectivity. They use the same serialized worker as
-Berry `net.ping`; if DNS continues after a caller times out, another request is
-rejected until the lookup finishes.
+`nslookup` and `ping` are provided as Berry command scripts (stock:
+`/flash/scripts/nslookup.be` and `/flash/scripts/ping.be`, resolved from the
+current directory or configured `path` dirs like other script commands).
+`nslookup` performs DNS resolution via Berry `net.resolve`; `ping` sends one
+ICMP echo request via Berry `net.ping`. Both accept an optional 100-3000 ms
+overall deadline (default 1000 ms), which includes DNS resolution, and require
+Wi-Fi station connectivity. They use the same serialized worker as Berry
+`net.ping`/`net.resolve`; if DNS continues after a caller times out, another
+request is rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory.
 
@@ -235,10 +236,11 @@ The Berry runtime also provides:
 | `console.read_line(prompt, callback)` | Start a non-blocking console prompt. The callback receives the entered string, or `nil` after Ctrl+C. It returns `true` when the request starts or an ESP error name on failure.                                                                                                                                                          |
 | `console.cancel_input()`              | Cancel the pending prompt; the callback receives `nil`. Returns `true` when cancellation is accepted, `false` if none is pending, or an ESP error name. Cancellation from another task is handed to the console input task.                                                                                                               |
 | `fs.list(path)`                       | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, `mtime`, and `ctime`. Traversal segments are rejected.                                                                                                                 |
-| `net.ping(host, timeout_ms=1000)`     | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
+| `net.ping(host, timeout_ms=1000)`     | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100-3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
+| `net.resolve(host, timeout_ms=1000)`  | Resolve an IPv4 host without sending ICMP echo. Returns `{ok, host, address, error}` by the 100-3000 ms caller deadline, including DNS time. Uses the same serialized worker as `net.ping`. Wi-Fi must be connected. |
 
 Small Berry starter scripts are included in `/flash/scripts`: run
-`berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, or `prompt.be`.
+`berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, `nslookup.be`, or `prompt.be`.
 The prompt example uses asynchronous input and returns control to the shell
 input loop while it waits for a response.
 

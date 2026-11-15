@@ -74,7 +74,7 @@
 | R19 | In-browser COS simulator (Berry WASM)                                                 |       P3 | ⬜ Not started                                                                | M10              |
 | R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) |       P3 | 🟡 In progress (R20-scoped parsing/design)                                    | Backlog          |
 | R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch              |       P2 | ✅ Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10) | M9               |
-| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | ⬜ Not started                                                                | M10              |
+| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | 🟡 In progress (M1 implemented on branch, validation pending)                 | M10              |
 
 ## Detailed plan
 
@@ -414,7 +414,7 @@
 ### R22 — Berry command-script migrations (follow-on, API-gated)
 
 - **Priority:** P1 | **Complexity:** M–L (phased) | **ROI:** Medium–High (DX/consistency, reduces native command surface) | **Risk:** Medium–High (API parity, hardware/network/sensor/time dependent, output/contract compatibility)
-- **Status:** ⬜ **Not started** (planned). Detailed plan: [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md)
+- **Status:** 🟡 **In progress (M1 implemented on `feat/r22-m1-nslookup-script`, validation/PR pending).** Detailed plan: [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md)
 - **Source:** [`docs/history/2026-11-01-improvements.md`](../history/2026-11-01-improvements.md) “Follow-on command refactors”; built on R9 resolver/`path` (complete, native `ping` migrated 2026-11-12).
 - **Scope:** Migrate selected native shell commands to Berry command scripts in API-gated order (M1–M5). Each migration requires a structured Berry API first, contract preservation (or documented/approved diffs), stock `.be` scripts discoverable via CWD/`path`, native registration removed only after validation, and tests/evidence updated. Commands kept native unless justified.
 - **Planned order (proposed, not a commitment):**
@@ -425,7 +425,8 @@
   5. **M5 `ls`, `dir`** — needs complete/stable `fs.list`/listing API contract; scope/format parity carefully; access/traversal controls remain native.
 - **Keep native for now (revalidate):** core shell/file mutation/navigation (`cd`, `pwd`, `mkdir`, `rm`, `cp`, `mv`, `rmdir`, `touch`, SD mount mgmt), system control/runtime (`restart`, `format`, command/runtime mgmt), interactive/async/hardware/lifecycle (`calibrate`, `wifi`, `bt`, `i2c`, `server`, `ws`, `screen`, `display_mode`).
 - **Acceptance criteria (program level):** No migration uses `action()` + human-readable output parsing; structured APIs documented; contract preserved or diffs approved/documented; resolver/native-precedence behavior unchanged; per-command tests and validation evidence recorded; README/help/docs updated per migration; `AGENTS.md` DoD followed.
-- **Progress:** see [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md) for per-item checklist/status/prerequisites. No migrations started yet.
+- **Progress:** see [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md) for per-item checklist/status/prerequisites.
+  - [x] **M1 (2026-11-15, branch):** added `net.resolve(host, timeout_ms)` in `components/berry_lang/src/berry_network.cpp` (structured `{ok, host, address, error}`, same timeout bounds/serialized worker as `network_resolve`/`net.ping`); added stock scripts `storage/flash_data/scripts/nslookup.be` and `storage/ts/scripts/nslookup.ts` preserving usage/timeout/success/failure contract; removed native `nslookup` registration from `components/shell/src/shell_network_cmds.c`; updated `frontend/src/cos-sdk/network.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`, README, and host tests (`test/test_shell.c` native nslookup cases removed). Validation/PR evidence pending (see progress log). On-device Wi‑Fi/DNS and bare-`nslookup` resolver behavior should be validated on hardware.
 
 ## Progress log
 
@@ -500,3 +501,4 @@
 - [ ] Memory/runtime changes include before/after measurements (heap, largest block, watermark, `.bss`/binary size as relevant).
 - [ ] Docs/source specs updated to match shipped behavior.
 - [ ] Hardware validation recorded when behavior depends on physical CYD/touch/network.
+| 2026-11-15 | **R22 M1 `nslookup` migration implemented (branch `feat/r22-m1-nslookup-script`, validation pending).** Baseline CI for `main` HEAD `b811630` confirmed green after monitoring (Build & Lint 43709892158 success, Integration Tests 43709892086 success). Added Berry API `net.resolve(host, timeout_ms)` (`components/berry_lang/src/berry_network.cpp`) returning `{ok, host, address, error}` with 100-3000 ms validation and shared serialized DNS/resolve worker (`network_resolve`). Added stock command scripts `storage/flash_data/scripts/nslookup.be` and `storage/ts/scripts/nslookup.ts` preserving contract (usage, timeout validation, `Name:`/`Address:` output, failure `nslookup: <host> failed (<err>)`). Removed native `nslookup` console registration (`components/shell/src/shell_network_cmds.c`) so bare `nslookup` resolves via R9 script resolver/CWD+`path`. Updated `frontend/src/cos-sdk/network.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`, `README.md`, and R22 plan/docs. Host tests updated: removed native nslookup cases from `test/test_shell.c`. Local validation, firmware/frontend/integration checks as feasible, PR/CI iteration, and on-device Wi-Fi/DNS evidence pending. |
