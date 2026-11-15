@@ -1,7 +1,7 @@
 # Berry Command-Script Migrations (Follow-on Plan)
 
 **Created:** 2026-11-12  
-**Status:** Planned / partially in progress (M1/M2 done, M3 in progress, M4 clarified/spec drafted 2026-11-15 pending approval, M5 needs clarification)  
+**Status:** Planned / partially in progress (M1/M2 done, M3 in progress, M4 ready/approved 2026-11-15, M5 spec approved 2026-11-15 but blocked/deferred until M4 lands)  
 **Owner/tracking:** Tracked as **R22** in [`docs/plan/consolidated-improvement-plan.md`](./consolidated-improvement-plan.md) (canonical status/evidence). This document provides implementation planning details.  
 **Source:** [`docs/history/2026-11-01-improvements.md`](../history/2026-11-01-improvements.md) “Follow-on command refactors”, R9 resolver/`path`/pilot infrastructure (complete; native `ping` migrated 2026-11-12).
 
@@ -116,7 +116,7 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 | M2c | `mem`, `memory` | P1 | Done (merged via #34) | `system.meminfo` Berry API + `storage/{flash_data,ts}/scripts/mem.*` and `memory.*` added; native `mem`/`memory` registration removed; **keep both scripts** (2026-11-15 decision) |
 | M3 | `light` | P2 | In progress (implemented on `feat/r22-m3-light-script`, validation/PR pending) | Structured Berry API `light.read()` (`components/berry_lang/src/berry_light.cpp`) + `storage/{flash_data,ts}/scripts/light.*`; native `light` console registration removed; on-device sensor validation pending |
 | M4 | `time` (read-only view) | P2 | Ready (approved 2026-11-15, pre-approved for implementation/PR flow) | `system.time_info()` + strict parity script + default `/flash/scripts` resolver behavior; sync remains native; host/automated + on-device spot-check validation. See [`ready/r22-m4-time-read-only.md`](./ready/r22-m4-time-read-only.md) and [`needs-clarification/r22-command-script-migrations-open.md`](./needs-clarification/r22-command-script-migrations-open.md). |
-| M5 | `ls`, `dir` | P2 | Needs clarification (deferred after M4) | `fs.list` parity/contract and output/scope decisions pending (64-entry cap, real sizes vs native quirk, root/errors/ordering); host+targeted QEMU where feasible + on-device spot-check. |
+| M5 | `ls`, `dir` | P2 | Spec approved, needs-clarification (blocked until M4 lands) | Spec approved 2026-11-15 in [`needs-clarification/r22-command-script-migrations-open.md`](./needs-clarification/r22-command-script-migrations-open.md): `[-a][-l][-la/-al] [path]`, real file sizes (intentional diff), name-sorted, simple `-l` rows + summary, count==64 truncation warning (exit 0), defined root/errors/usage; `dir` identical. Keep in needs-clarification until M4 implementation/validation evidence lands; `fs.list` sufficiency to confirm in implementation. Host+targeted QEMU where feasible + on-device spot-check. |
 
 ## Open questions (resolved / remaining, 2026-11-15 clarification)
 
