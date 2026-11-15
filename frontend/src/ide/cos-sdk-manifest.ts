@@ -16,7 +16,6 @@ import introspectModuleTypes from '../cos-sdk/modules/introspect.d.ts?raw' with 
 import jsonModuleTypes from '../cos-sdk/modules/json.d.ts?raw' with { type: 'text' }
 import mathModuleTypes from '../cos-sdk/modules/math.d.ts?raw' with { type: 'text' }
 import netModuleTypes from '../cos-sdk/modules/net.d.ts?raw' with { type: 'text' }
-import systemModuleTypes from '../cos-sdk/modules/system.d.ts?raw' with { type: 'text' }
 import stringModuleTypes from '../cos-sdk/modules/string.d.ts?raw' with { type: 'text' }
 import systemModuleTypes from '../cos-sdk/modules/system.d.ts?raw' with { type: 'text' }
 import uiModuleTypes from '../cos-sdk/modules/ui.d.ts?raw' with { type: 'text' }
@@ -70,7 +69,6 @@ export const cosModuleLibs: readonly CosSdkModuleLib[] = [
     filePath: `${modulesRoot}/net.d.ts`,
     specifiers: ['@cos/net', '@cos/network', '@berry/net', '@berry/network'],
   },
-  { content: systemModuleTypes, filePath: `${modulesRoot}/system.d.ts`, specifiers: ['@cos/system', '@berry/system'] },
   { content: stringModuleTypes, filePath: `${modulesRoot}/string.d.ts`, specifiers: ['@cos/string', '@berry/string'] },
   { content: systemModuleTypes, filePath: `${modulesRoot}/system.d.ts`, specifiers: ['@cos/system', '@berry/system'] },
   { content: uiModuleTypes, filePath: `${modulesRoot}/ui.d.ts`, specifiers: ['@cos/ui', '@berry/ui'] },
