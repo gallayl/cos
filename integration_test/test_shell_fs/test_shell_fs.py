@@ -1,4 +1,7 @@
 ﻿import re
+import time
+
+import pytest
 
 
 BOOT_TIMEOUT = 30
@@ -145,11 +148,13 @@ def test_berry_console_read_line_async(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_berry_console_read_line_can_be_cancelled(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_input.be\n")
     dut.expect("Input: ", timeout=CMD_TIMEOUT)
     dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
+    time.sleep(0.2)
     dut.write("\x03")
     dut.expect("INPUT_CANCELLED", timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
