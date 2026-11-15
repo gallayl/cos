@@ -90,7 +90,7 @@ For a concrete, evidence-based breakdown of **host unit-test misses** and **inte
 - [x] Analysis performed and documented (2026-11-10)
 - [x] Detailed coverage/integration-rebalancing inventory documented — see [`docs/plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md`](../plan/2026-11-14-unit-test-coverage-and-integration-rebalance.md) (2026-11-14)
 - [ ] Triaged into consolidated improvement plan
-- [ ] Quick wins implemented (#3, #5)
+- [~] Quick wins implemented (#3, #5) — #3 (2026-11-15, branch `refactor/http-api-dry-helpers`): consolidated ad-hoc JSON error response in `components/http_server/src/http_api.c` (`handler_files` list-dir failure now uses `send_api_error`, preserving status/error detail) as a behavior-preserving DRY consistency step; #5 pending.
 - [~] Testability seams/reset hooks implemented (#4) — console transport/read seam added in `components/shell/src/shell_input` (injectable RX byte source, default stdin preserved) via unblock plan; Berry/UI/runtime reset hooks still pending
 - [ ] Structural decompositions in progress (#1, #6, #7)
 - [ ] Validation evidence collected
