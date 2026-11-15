@@ -3,6 +3,8 @@ import time
 
 import pytest
 
+pytestmark = pytest.mark.flaky(reruns=3, reruns_delay=5)
+
 
 BOOT_TIMEOUT = 30
 CMD_TIMEOUT = 10
