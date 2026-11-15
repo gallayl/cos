@@ -5,14 +5,15 @@
 **Scope:** Consolidates historical specs in [`docs/history/`](../history/) — from `2026-10-improvements.md` through `2026-11-08-ts-berry-semantic-conformance.md` — plus validation evidence in [`docs/reports/`](../reports/). New proposals live in [`docs/ideas/`](../ideas/).  
 **Purpose:** Single progress-tracked plan for remaining work, with priority, order, findings, specs/acceptance references, and follow-ups.
 
-> Docs navigation: see [`docs/README.md`](../README.md).
+> Docs navigation and state model: see [`docs/README.md`](../README.md).
 
 ## How to use this document
 
-- Treat this as the **cross-cutting tracker**. Detailed design/spec documents remain in [`docs/history/`](../history/) as **historical design records**; their current delivery status is tracked here.
-- Update status checkboxes and the **Progress log** when work lands.
-- Do not mark an item complete without validation evidence (tests, CI, `idf.py size`/heap measurements, or hardware validation where required).
-- Prefer small, independently testable changes. For memory/runtime work, **measure before and after**.
+- Treat this as the **cross-cutting tracker** (canonical status/evidence). Detailed design/spec documents remain in [`docs/history/`](../history/) as **historical design records**; current delivery status is tracked here and, for actionable queue items, in state directories.
+- **State queues:** [`plan/ready/`](./ready/) contains fully specified, **approved (after specification)** items with **no open questions** that are implementable now (pre-approved for implementation/PR/babysit-to-green flow; merge remains human). [`plan/needs-clarification/`](./needs-clarification/) contains items with open questions/blockers/incomplete spec/approval — clarify (e.g. `clarify-feature` / `/clarify-feature`, create via `/new-feature`) before moving to `ready/`.
+- **Process all doc markdown files** when assessing pending/actionable work (plans, ideas, progress, reports, review findings, history context), not only this document. Keep queue items and this tracker cross-linked and consistent.
+- Update status, queue state, and the **Progress log** when work lands. Do not mark an item complete without validation evidence (tests, CI, `idf.py size`/heap measurements, or hardware validation where required).
+- Prefer small, independently testable changes. For memory/runtime work, **measure before and after**. Do not remove historical content/evidence.
 
 ## Findings (2026-11-08 review)
 
@@ -502,3 +503,4 @@
 - [ ] Docs/source specs updated to match shipped behavior.
 - [ ] Hardware validation recorded when behavior depends on physical CYD/touch/network.
 | 2026-11-15 | **R22 M1 `nslookup` migration implemented (branch `feat/r22-m1-nslookup-script`, validation pending).** Baseline CI for `main` HEAD `b811630` confirmed green after monitoring (Build & Lint 43709892158 success, Integration Tests 43709892086 success). Added Berry API `net.resolve(host, timeout_ms)` (`components/berry_lang/src/berry_network.cpp`) returning `{ok, host, address, error}` with 100-3000 ms validation and shared serialized DNS/resolve worker (`network_resolve`). Added stock command scripts `storage/flash_data/scripts/nslookup.be` and `storage/ts/scripts/nslookup.ts` preserving contract (usage, timeout validation, `Name:`/`Address:` output, failure `nslookup: <host> failed (<err>)`). Removed native `nslookup` console registration (`components/shell/src/shell_network_cmds.c`) so bare `nslookup` resolves via R9 script resolver/CWD+`path`. Updated `frontend/src/cos-sdk/network.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`, `README.md`, and R22 plan/docs. Host tests updated: removed native nslookup cases from `test/test_shell.c`. Local validation, firmware/frontend/integration checks as feasible, PR/CI iteration, and on-device Wi-Fi/DNS evidence pending. |
+| 2026-11-15 | Docs/state restructuring for agentic picking: added `docs/plan/ready/` and `docs/plan/needs-clarification/` queues, documented Ready/needs-clarification contract in `docs/README.md`, updated `pick-next-work-item`/`implement-next-feature` to prioritize ready and treat compliant ready items as pre-approved (no per-item go), added `clarify-feature` skill and `/clarify-feature`, `/new-feature` commands, and created needs-clarification items for pending/questioned work across processed docs (R12, R15-R20, R22 open/M3 HW, R23/R24, R2/R5/R8/R13 follow-ups, shell_fs pipeline/QEMU hangs, unit-test/integration rebalancing, vendor esp_littlefs validation, DX triage). Consolidated plan remains canonical tracker with cross-links. | Restructuring/triage only; no implementation status changes claimed for tracked items. |

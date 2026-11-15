@@ -1,0 +1,25 @@
+# Vendor `esp_littlefs` component — validation and follow-up
+
+- **ID:** vendor-esp-littlefs-component-validation
+- **Status:** needs-clarification
+- **Created:** 2026-11-15
+- **Source/links:** [`plan/2026-11-13-vendor-esp-littlefs-component.md`](../2026-11-13-vendor-esp-littlefs-component.md) (implemented, local build/QEMU validation pending ESP-IDF v6.1 env), [`progress/2026-11-13-vendor-esp-littlefs.md`](../../progress/2026-11-13-vendor-esp-littlefs.md)
+- **Approval:** pending
+
+## Summary
+Vendoring implemented in repo; local/CI validation in an ESP-IDF v6.1 (+ QEMU where relevant) environment and any remaining follow-ups need confirmation/evidence.
+
+## Open questions
+- [ ] What validation remains outstanding in the current environment/CI (build, flash image layout, `shell_fs`/filesystem integration given known QEMU hang issues, on-device sanity) and what constitutes “done”?
+- [ ] Are there required follow-ups (pin/update policy, config parity, docs) beyond validation?
+- [ ] How does this interact with the `shell_fs` QEMU hang investigation/unblock work?
+
+## Acceptance criteria
+- [ ] Required validation executed and recorded with evidence; plan/progress docs updated; any identified follow-ups scoped/approved.
+
+## Validation plan
+- Automated: `make format-check`, `make test`; `make build`/`make lint` and integration tests in ESP-IDF v6.1/QEMU environment as applicable.
+- Hardware/manual: as needed for flash/filesystem sanity.
+
+## Progress / evidence
+- 2026-11-15: created (implementation present; validation/follow-up clarification needed).

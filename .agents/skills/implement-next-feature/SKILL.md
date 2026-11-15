@@ -23,7 +23,7 @@ Repo-specific workflow that composes the **generic** `implementation-workflow` w
 
 ## Gates (must preserve)
 
-- **Explicit approval ("go")** after proposal before implementation/Git writes; then proceed autonomously within scope, pausing only for necessary clarifications or hard blockers.
+- **Approval:** items in `docs/plan/ready/` that satisfy the Ready contract (explicit approval recorded after specification, `Open questions: none`, implementable now) are **pre-approved** for implementation/PR/babysit-to-green flow (merge remains human). For non-ready/questioned/incomplete items, **stop and wait for explicit user approval ("go")** after proposal before implementation/Git writes; route questioned items to `docs/plan/needs-clarification/` and `clarify-feature` instead of implementing.
 - **Green baseline required;** baseline fixes on a separate branch/PR and merged before unrelated feature work.
 - **Never auto-upgrade dependencies** unless explicitly in-scope/requested.
 - **No force-push/history rewrites, no destructive commands, no merging PRs,** no discarding unrelated user changes.
