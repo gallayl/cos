@@ -15,14 +15,14 @@ Applies to `frontend/**` (TypeScript/TSX/CSS). These conventions complement the 
 
 ```typescript
 export const DeviceAccess = defineService({
-  name: "cos/DeviceAccess",
-  lifetime: "singleton",
+  name: 'cos/DeviceAccess',
+  lifetime: 'singleton',
   factory: ({ onDispose }) => {
-    const service = createDeviceAccess();
-    onDispose(() => service[Symbol.dispose]());
-    return service;
+    const service = createDeviceAccess()
+    onDispose(() => service[Symbol.dispose]())
+    return service
   },
-});
+})
 ```
 
 ## Pages and lazy loading
