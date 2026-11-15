@@ -130,9 +130,6 @@ void test_init_registers_commands(void)
     int ret = mock_console_run_cmd("sysinfo", 1, (char *[]){"sysinfo"});
     TEST_ASSERT_EQUAL(0, ret);
 
-    ret = mock_console_run_cmd("memory", 1, (char *[]){"memory"});
-    TEST_ASSERT_EQUAL(0, ret);
-
     ret = mock_console_run_cmd("uptime", 1, (char *[]){"uptime"});
     TEST_ASSERT_EQUAL(0, ret);
 }

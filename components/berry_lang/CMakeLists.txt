@@ -1,5 +1,5 @@
 if(CMAKE_BUILD_EARLY_EXPANSION)
-    idf_component_register(REQUIRES console filesystem input network text_console ui esp_timer esp_hw_support)
+    idf_component_register(REQUIRES console filesystem input network text_console ui esp_timer esp_hw_support system)
     return()
 endif()
 
@@ -69,13 +69,14 @@ idf_component_register(
         "src/berry_ui.cpp"
         "src/berry_runtime.cpp"
         "src/berry_network.cpp"
+        "src/berry_system.cpp"
     INCLUDE_DIRS
         "include"
         "src"
         "${COS_BERRY_SOURCE_DIR}/src"
         "${COS_BERRY_SOURCE_DIR}/default"
         "${COS_BERRY_SOURCE_DIR}/generate"
-    REQUIRES console filesystem input network text_console ui esp_timer esp_hw_support
+    REQUIRES console filesystem input network text_console ui esp_timer esp_hw_support system
 )
 
 # Upstream be_filelib.c defines i_savecode unconditionally but only registers it
