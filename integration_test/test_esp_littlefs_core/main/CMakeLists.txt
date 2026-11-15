@@ -2,10 +2,6 @@ set(TEST_SRCS
     "test_main.c"
     "test_littlefs.c"
     "test_littlefs_common.c"
-    "test_dir.c"
-    "test_benchmark.c"
-    "test_littlefs_static_partition.c"
-    "test_littlefs_raw_api.c"
 )
 
 set(TEST_REQUIRES

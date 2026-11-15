@@ -84,7 +84,7 @@ make integration-test-run-shell_fs
 make integration-test-shell_fs   # build + run
 ```
 
-Available suites: `esp_littlefs`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
+Available suites: `esp_littlefs_core`, `esp_littlefs_extra`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
 
 You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` / `INTEGRATION_TEST_RUN_ARGS`, or invoke `scripts/integration_test.py` directly.
 

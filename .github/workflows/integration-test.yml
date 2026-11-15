@@ -16,7 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          - esp_littlefs
+          - esp_littlefs_core
+          - esp_littlefs_extra
           - init_sequence
           - nvs_calibration
           - shell_fs

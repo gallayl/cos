@@ -5,4 +5,4 @@ set(EXTRA_COMPONENT_DIRS
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(test_esp_littlefs)
+project(test_esp_littlefs_core)
