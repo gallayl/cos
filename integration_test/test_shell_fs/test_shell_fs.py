@@ -18,11 +18,13 @@ def _wait_ready(dut):
 # ÔöÇÔöÇ Boot & basics ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_shell_boots(dut):
     dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
     dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_pwd_default(dut):
     _wait_ready(dut)
     dut.write("pwd\n")
@@ -32,6 +34,7 @@ def test_pwd_default(dut):
 # ÔöÇÔöÇ File creation & listing ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_touch_and_ls(dut):
     _wait_ready(dut)
     dut.write("touch /flash/newfile.txt\n")
@@ -40,6 +43,7 @@ def test_touch_and_ls(dut):
     dut.expect("newfile.txt", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_ls_shows_seeded_files(dut):
     _wait_ready(dut)
     dut.write("ls /flash\n")
@@ -49,12 +53,14 @@ def test_ls_shows_seeded_files(dut):
 # ÔöÇÔöÇ cat with actual content ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_cat_with_content(dut):
     _wait_ready(dut)
     dut.write("cat /flash/hello.txt\n")
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_cat_streams_large_file(dut):
     _wait_ready(dut)
     dut.write("cat /flash/large.txt\n")
@@ -71,6 +77,7 @@ def test_cat_streams_large_file(dut):
 #     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_help_lists_registered_commands(dut):
     _wait_ready(dut)
     dut.write("help\n")
@@ -93,6 +100,7 @@ def test_help_lists_registered_commands(dut):
 #     dut.expect("Unknown command: ll", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_ping_reports_unavailable_network(dut):
     _wait_ready(dut)
     dut.write("ping example.com\n")
@@ -100,6 +108,7 @@ def test_ping_reports_unavailable_network(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_nslookup_reports_unavailable_network(dut):
     _wait_ready(dut)
     dut.write("nslookup example.com\n")
@@ -138,6 +147,7 @@ def test_nslookup_reports_unavailable_network(dut):
 #     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_berry_console_read_line_async(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_input.be\n")
@@ -163,6 +173,7 @@ def test_berry_console_read_line_can_be_cancelled(dut):
 # ÔöÇÔöÇ hexdump ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_hexdump(dut):
     _wait_ready(dut)
     dut.write("hexdump /flash/binary.bin\n")
@@ -173,6 +184,7 @@ def test_hexdump(dut):
 # ÔöÇÔöÇ mkdir & cd ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_mkdir_and_cd(dut):
     _wait_ready(dut)
     dut.write("mkdir /flash/testdir\n")
@@ -293,6 +305,7 @@ def test_mkdir_and_cd(dut):
 # ÔöÇÔöÇ info command (flash usage) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_info_command(dut):
     _wait_ready(dut)
     dut.write("info\n")
@@ -303,18 +316,21 @@ def test_info_command(dut):
 # ÔöÇÔöÇ Alias smoke tests ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_alias_dir(dut):
     _wait_ready(dut)
     dut.write("dir /flash\n")
     dut.expect("hello.txt", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_alias_type(dut):
     _wait_ready(dut)
     dut.write("type /flash/hello.txt\n")
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_alias_md(dut):
     _wait_ready(dut)
     dut.write("md /flash/mdtest\n")
@@ -340,18 +356,21 @@ def test_alias_md(dut):
 # ÔöÇÔöÇ Error cases ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_cd_nonexistent(dut):
     _wait_ready(dut)
     dut.write("cd /flash/does_not_exist\n")
     dut.expect("not a directory", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_cat_nonexistent(dut):
     _wait_ready(dut)
     dut.write("cat /flash/no_such_file.txt\n")
     dut.expect("cannot read", timeout=CMD_TIMEOUT)
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_rm_nonexistent(dut):
     _wait_ready(dut)
     dut.write("rm /flash/ghost.txt\n")

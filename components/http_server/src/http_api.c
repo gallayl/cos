@@ -88,11 +88,7 @@ static esp_err_t handler_files(httpd_req_t *req)
     if (err != ESP_OK)
     {
         free(entries);
-        httpd_resp_set_type(req, "application/json");
-        httpd_resp_set_status(req, "400 Bad Request");
-        char errbuf[64];
-        snprintf(errbuf, sizeof(errbuf), "{\"error\":\"%s\"}", esp_err_to_name(err));
-        return httpd_resp_send(req, errbuf, HTTPD_RESP_USE_STRLEN);
+        return send_api_error(req, "400 Bad Request", esp_err_to_name(err));
     }
 
     httpd_resp_set_type(req, "application/json");
