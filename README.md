@@ -132,7 +132,8 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `cp`, `mv`, `rmdir`               | Copy, move, or remove files/directories                   |
 | `cat`, `type`, `touch`, `hexdump` | Read, create, or inspect files                            |
 | `sd`                              | Mount, unmount, or inspect the SD card                    |
-| `info`, `format`                  | Show filesystem usage or format flash                     |
+| `info`                            | Show filesystem usage statistics (Berry script; use `path`/CWD) |
+| `format`                          | Format flash (LittleFS) filesystem                        |
 | `display_mode`                    | Inspect or clear the display                              |
 | `wifi`                            | Show Wi-Fi status, scan, and connect or disconnect        |
 | `bt`                              | Show Bluetooth status and manage device connections       |
@@ -188,17 +189,17 @@ logs. Use `mem` (Berry script, resolved via CWD/`path`) for current free heap, m
 heap, and largest allocatable block. Berry app startup also logs heap snapshots
 at INFO level; set `logging info` to see them.
 
-`nslookup`, `ping`, and `uptime` are provided as Berry command scripts (stock:
-`/flash/scripts/nslookup.be`, `/flash/scripts/ping.be`, and
-`/flash/scripts/uptime.be`, resolved from the current directory or configured
+`nslookup`, `ping`, `uptime`, and `info` are provided as Berry command scripts (stock:
+`/flash/scripts/nslookup.be`, `/flash/scripts/ping.be`, `/flash/scripts/uptime.be`,
+and `/flash/scripts/info.be`, resolved from the current directory or configured
 `path` dirs like other script commands). `nslookup` performs DNS resolution via
 Berry `net.resolve`; `ping` sends one ICMP echo request via Berry `net.ping`;
-`uptime` reports time since boot via the Berry `system` module. `nslookup` and
-`ping` accept an optional 100-3000 ms overall deadline (default 1000 ms); for
-`ping` this includes DNS resolution. Both require Wi-Fi station connectivity and
-use the same serialized worker as Berry `net.ping`/`net.resolve`; if DNS
-continues after a caller times out, another request is rejected until the lookup
-finishes.
+`uptime` reports time since boot via the Berry `system` module; `info` reports
+flash and SD card usage via the Berry `fs` module. `nslookup` and `ping` accept
+an optional 100-3000 ms overall deadline (default 1000 ms); for `ping` this
+includes DNS resolution. Both require Wi-Fi station connectivity and use the
+same serialized worker as Berry `net.ping`/`net.resolve`; if DNS continues after
+a caller times out, another request is rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory.
 
@@ -242,7 +243,7 @@ The Berry runtime also provides:
 | `net.resolve(host, timeout_ms=1000)`  | Resolve an IPv4 host without sending ICMP echo. Returns `{ok, host, address, error}` by the 100-3000 ms caller deadline, including DNS time. Uses the same serialized worker as `net.ping`. Wi-Fi must be connected. |
 
 Small Berry starter scripts are included in `/flash/scripts`: run
-`berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, `nslookup.be`, or `prompt.be`.
+`berry run /flash/scripts/hello.be`, `list_files.be`, `ping.be`, `nslookup.be`, `info.be`, or `prompt.be`.
 The prompt example uses asynchronous input and returns control to the shell
 input loop while it waits for a response.
 

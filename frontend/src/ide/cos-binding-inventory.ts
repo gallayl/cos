@@ -121,6 +121,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'is_dir' },
       { kind: 'function', name: 'is_file' },
       { kind: 'function', name: 'size' },
+      { kind: 'function', name: 'storage_info' },
     ],
   },
   {

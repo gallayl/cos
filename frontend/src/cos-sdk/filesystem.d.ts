@@ -158,6 +158,27 @@ declare global {
      * @returns The size when `ok` is true. A directory or missing path fails.
      */
     function size(path: string): FileSize | FileError;
+
+    /** Filesystem/storage usage information (flash and SD card). */
+    interface StorageInfo {
+      /** Total bytes on the internal flash (LittleFS). */
+      flash_total: number;
+      /** Used bytes on the internal flash (LittleFS). */
+      flash_used: number;
+      /** `true` when an SD card is mounted. */
+      sd_mounted: boolean;
+      /** SD card type name when mounted, otherwise empty string. */
+      sd_type: string;
+      /** Total bytes on the SD card when mounted, otherwise 0. */
+      sd_total: number;
+      /** Used bytes on the SD card when mounted, otherwise 0. */
+      sd_used: number;
+    }
+
+    /**
+     * Read flash and SD card storage usage (same data as the `info` command).
+     */
+    function storage_info(): StorageInfo;
   }
 }
 
