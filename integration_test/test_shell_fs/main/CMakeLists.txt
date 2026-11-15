@@ -1,8 +1,19 @@
-set(SHELL_FS_FIXTURE_AUTOEXEC "${CMAKE_CURRENT_LIST_DIR}/../fixtures/autoexec.be")
+set(SHELL_FS_FIXTURES_DIR "${CMAKE_CURRENT_LIST_DIR}/../fixtures")
 
-file(READ "${SHELL_FS_FIXTURE_AUTOEXEC}" SHELL_FS_AUTOEXEC_HEX HEX)
-string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1, " SHELL_FS_AUTOEXEC_BYTES "${SHELL_FS_AUTOEXEC_HEX}")
-file(SIZE "${SHELL_FS_FIXTURE_AUTOEXEC}" SHELL_FS_AUTOEXEC_SIZE)
+function(shell_fs_embed_fixture script_name var_prefix)
+    set(fixture_path "${SHELL_FS_FIXTURES_DIR}/${script_name}")
+    file(READ "${fixture_path}" _hex HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1, " _bytes "${_hex}")
+    file(SIZE "${fixture_path}" _size)
+    set(${var_prefix}_BYTES "${_bytes}" PARENT_SCOPE)
+    set(${var_prefix}_SIZE "${_size}" PARENT_SCOPE)
+endfunction()
+
+shell_fs_embed_fixture("autoexec.be" SHELL_FS_AUTOEXEC)
+shell_fs_embed_fixture("berry_api.be" SHELL_FS_BERRY_API)
+shell_fs_embed_fixture("berry_net.be" SHELL_FS_BERRY_NET)
+shell_fs_embed_fixture("berry_input.be" SHELL_FS_BERRY_INPUT)
+shell_fs_embed_fixture("ping.be" SHELL_FS_PING)
 
 set(SHELL_FS_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${SHELL_FS_GENERATED_DIR}")

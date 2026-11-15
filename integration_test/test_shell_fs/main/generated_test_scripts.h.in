@@ -4,3 +4,15 @@
 
 static const unsigned char shell_fs_fixture_autoexec_be[] = { @SHELL_FS_AUTOEXEC_BYTES@ };
 static const size_t shell_fs_fixture_autoexec_be_len = @SHELL_FS_AUTOEXEC_SIZE@;
+
+static const unsigned char shell_fs_fixture_berry_api_be[] = { @SHELL_FS_BERRY_API_BYTES@ };
+static const size_t shell_fs_fixture_berry_api_be_len = @SHELL_FS_BERRY_API_SIZE@;
+
+static const unsigned char shell_fs_fixture_berry_net_be[] = { @SHELL_FS_BERRY_NET_BYTES@ };
+static const size_t shell_fs_fixture_berry_net_be_len = @SHELL_FS_BERRY_NET_SIZE@;
+
+static const unsigned char shell_fs_fixture_berry_input_be[] = { @SHELL_FS_BERRY_INPUT_BYTES@ };
+static const size_t shell_fs_fixture_berry_input_be_len = @SHELL_FS_BERRY_INPUT_SIZE@;
+
+static const unsigned char shell_fs_fixture_ping_be[] = { @SHELL_FS_PING_BYTES@ };
+static const size_t shell_fs_fixture_ping_be_len = @SHELL_FS_PING_SIZE@;
