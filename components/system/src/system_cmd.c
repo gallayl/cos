@@ -40,30 +40,6 @@ static int cmd_info(int argc, char **argv)
     return 0;
 }
 
-static int cmd_memory(int argc, char **argv)
-{
-    (void)argc;
-    (void)argv;
-
-    system_info_t info;
-    esp_err_t err = system_get_info(&info);
-    if (err != ESP_OK)
-    {
-        printf("memory: failed (%s)\n", esp_err_to_name(err));
-        return 1;
-    }
-
-    printf("Free heap:      %u bytes\n", (unsigned)info.free_heap);
-    printf("Min free heap:  %u bytes\n", (unsigned)info.min_free_heap);
-    printf("Total heap:     %u bytes\n", (unsigned)info.total_heap);
-    printf("Max alloc:      %u bytes\n", (unsigned)info.max_alloc_block);
-    printf("Internal free:  %u bytes\n", (unsigned)info.internal_free_heap);
-    printf("Internal min:   %u bytes\n", (unsigned)info.internal_min_free_heap);
-    printf("Internal total: %u bytes\n", (unsigned)info.internal_total_heap);
-    printf("Internal max:   %u bytes\n", (unsigned)info.internal_max_alloc_block);
-    return 0;
-}
-
 static int cmd_restart(int argc, char **argv)
 {
     (void)argc;
@@ -83,22 +59,6 @@ void system_register_commands(void)
         .func = &cmd_info,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&info_cmd));
-
-    const esp_console_cmd_t memory_cmd = {
-        .command = "memory",
-        .help = "Show detailed heap memory statistics",
-        .hint = NULL,
-        .func = &cmd_memory,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&memory_cmd));
-
-    const esp_console_cmd_t mem_cmd = {
-        .command = "mem",
-        .help = "Show detailed heap memory statistics",
-        .hint = NULL,
-        .func = &cmd_memory,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&mem_cmd));
 
     const esp_console_cmd_t restart_cmd = {
         .command = "restart",

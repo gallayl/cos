@@ -146,7 +146,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
-| `mem` / `memory`                  | Show current, minimum, and largest free heap metrics      |
+| `mem` / `memory`                  | Show current, minimum, and largest free heap metrics (Berry script; use `path`/CWD)      |
 | `logging [error\|warn\|info]`     | Set the persistent global ESP log threshold               |
 | `help`                            | List all registered commands                              |
 
@@ -184,7 +184,7 @@ display, but is not retained in console history.
 The global ESP log threshold defaults to `warn`. Use `logging` to show the
 current setting, or `logging error`, `logging warn`, and `logging info` to
 change it; the selection persists across reboots and affects UART and console
-logs. Use `mem` for current free heap, minimum free heap since boot, total
+logs. Use `mem` (Berry script, resolved via CWD/`path`) for current free heap, minimum free heap since boot, total
 heap, and largest allocatable block. Berry app startup also logs heap snapshots
 at INFO level; set `logging info` to see them.
 
