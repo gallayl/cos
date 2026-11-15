@@ -24,7 +24,7 @@ make integration-test-run-shell_fs
 make integration-test-shell_fs   # build + run
 ```
 
-Available suites: `esp_littlefs`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
+Available suites: `esp_littlefs_core`, `esp_littlefs_extra`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
 
 Build/run all projects:
 
