@@ -29,7 +29,8 @@ extern "C"
     /**
      * @brief Initialize the system component and register shell commands.
      *
-     * Registers the info, restart, and uptime commands (mem/memory are provided by Berry scripts).
+     * Registers sysinfo and restart. `mem`/`memory` and `uptime` are provided
+     * by Berry command scripts.
      */
     esp_err_t system_init(void);
 

@@ -18,6 +18,7 @@ import mathModuleTypes from '../cos-sdk/modules/math.d.ts?raw' with { type: 'tex
 import netModuleTypes from '../cos-sdk/modules/net.d.ts?raw' with { type: 'text' }
 import systemModuleTypes from '../cos-sdk/modules/system.d.ts?raw' with { type: 'text' }
 import stringModuleTypes from '../cos-sdk/modules/string.d.ts?raw' with { type: 'text' }
+import systemModuleTypes from '../cos-sdk/modules/system.d.ts?raw' with { type: 'text' }
 import uiModuleTypes from '../cos-sdk/modules/ui.d.ts?raw' with { type: 'text' }
 
 export type CosSdkLib = { content: string; filePath: string }
@@ -71,6 +72,7 @@ export const cosModuleLibs: readonly CosSdkModuleLib[] = [
   },
   { content: systemModuleTypes, filePath: `${modulesRoot}/system.d.ts`, specifiers: ['@cos/system', '@berry/system'] },
   { content: stringModuleTypes, filePath: `${modulesRoot}/string.d.ts`, specifiers: ['@cos/string', '@berry/string'] },
+  { content: systemModuleTypes, filePath: `${modulesRoot}/system.d.ts`, specifiers: ['@cos/system', '@berry/system'] },
   { content: uiModuleTypes, filePath: `${modulesRoot}/ui.d.ts`, specifiers: ['@cos/ui', '@berry/ui'] },
 ]
 

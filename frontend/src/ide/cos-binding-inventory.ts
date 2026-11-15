@@ -144,7 +144,10 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
     source: 'components/berry_lang/src/berry_system.cpp',
     globalNamespace: 'system',
     specifiers: ['@cos/system', '@berry/system'],
-    bindings: [{ kind: 'function', name: 'meminfo' }],
+    bindings: [
+      { kind: 'function', name: 'meminfo' },
+      { kind: 'function', name: 'uptime' },
+    ],
   },
 ]
 

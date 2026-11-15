@@ -1,3 +1,8 @@
+/**
+ * `system` module.
+ * Device system information and control.
+ */
+
 declare global {
   /** System and memory information. */
   namespace system {
@@ -25,6 +30,12 @@ declare global {
      * Use this from Berry scripts (e.g. command scripts) instead of parsing console output.
      */
     function meminfo(): MemInfoOk | MemInfoFailed;
+
+    /**
+     * Time since boot as a human-readable string (for example `45s`, `2m 30s`, `1h 23m 45s`).
+     * Uses the same format as the `uptime` shell command.
+     */
+    function uptime(): string;
   }
 }
 

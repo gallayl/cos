@@ -52,22 +52,6 @@ static int cmd_restart(int argc, char **argv)
     return 0;
 }
 
-static int cmd_uptime(int argc, char **argv)
-{
-    (void)argc;
-    (void)argv;
-
-    char buf[32];
-    esp_err_t err = system_format_uptime(buf, sizeof(buf));
-    if (err != ESP_OK)
-    {
-        printf("uptime: error\n");
-        return 1;
-    }
-    printf("Up %s\n", buf);
-    return 0;
-}
-
 void system_register_commands(void)
 {
     const esp_console_cmd_t info_cmd = {
@@ -88,13 +72,5 @@ void system_register_commands(void)
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&restart_cmd));
 
-    const esp_console_cmd_t uptime_cmd = {
-        .command = "uptime",
-        .help = "Show time since boot",
-        .hint = NULL,
-        .func = &cmd_uptime,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&uptime_cmd));
-
-    ESP_LOGI(TAG, "System commands registered");
+    ESP_LOGI(TAG, "System commands registered (uptime provided by Berry script)");
 }

@@ -126,11 +126,7 @@ void test_init_registers_commands(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, system_init());
 
-    /* Verify sysinfo command was registered and runs */
     int ret = mock_console_run_cmd("sysinfo", 1, (char *[]){"sysinfo"});
-    TEST_ASSERT_EQUAL(0, ret);
-
-    ret = mock_console_run_cmd("uptime", 1, (char *[]){"uptime"});
     TEST_ASSERT_EQUAL(0, ret);
 }
 

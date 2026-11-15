@@ -111,7 +111,7 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 | ID | Command(s) | Priority | Status | Prerequisites / notes |
 |---|---|---:|---|---|
 | M1 | `nslookup` | P1 | ⬜ Not started | Needs `net.resolve` (or equivalent) Berry API; preserve timeout/output/error contract; on-device DNS validation |
-| M2a | `uptime` | P1 | ⬜ Not started | Needs typed system uptime Berry API |
+| M2a | `uptime` | P1 | 🟡 In progress (implemented on `feat/r22-m2a-uptime-script`, validation/PR pending) | `system.uptime` Berry API + `storage/{flash_data,ts}/scripts/uptime.*` added; native `uptime` registration removed; host/frontend/integration checks pending |
 | M2b | `info` | P1 | ⬜ Not started | Needs typed system/info Berry API |
 | M2c | `mem`, `memory` | P1 | ⬜ Not started | Needs typed heap/system Berry API; migrate together |
 | M3 | `light` | P2 | ⬜ Not started | Needs sensor reading/error Berry API; hardware validation |

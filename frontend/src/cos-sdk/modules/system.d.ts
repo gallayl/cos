@@ -17,13 +17,17 @@ declare module '@cos/system' {
   }
 
   export function meminfo(): MemInfoOk | MemInfoFailed;
+  export function uptime(): string;
 
   const system: {
     meminfo: typeof meminfo;
+    uptime: typeof uptime;
   };
   export default system;
 }
 
 declare module '@berry/system' {
   export * from '@cos/system';
+  import _default from '@cos/system';
+  export default _default;
 }
