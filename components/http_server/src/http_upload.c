@@ -4,8 +4,11 @@
 
 #include "esp_log.h"
 
+#include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static const char *const TAG = "http_upload";
 
@@ -39,9 +42,10 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
                            bool is_first, bool is_final, void *ctx)
 {
     (void)field_name;
+    (void)file_name;
     upload_ctx_t *uctx = (upload_ctx_t *)ctx;
 
-    if (is_first && !uctx->has_path)
+    if (is_first && !uctx->has_path) // NOLINT(readability-implicit-bool-conversion)
     {
         snprintf(uctx->error, sizeof(uctx->error), "Missing path field");
         return false;
@@ -58,7 +62,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         }
         strncpy(uctx->target_path, real_path, sizeof(uctx->target_path) - 1);
 
-        /* Create parent directory */
+        /* Create parent directories on the resolved real path. */
         char parent[VFS_PATH_MAX];
         strncpy(parent, uctx->target_path, sizeof(parent) - 1);
         parent[sizeof(parent) - 1] = '\0';
@@ -66,7 +70,49 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         if (last_slash && last_slash != parent)
         {
             *last_slash = '\0';
-            vfs_mkdir(parent);
+            for (char *p = parent + 1; *p != '\0'; p++)
+            {
+                if (*p == '/')
+                {
+                    *p = '\0';
+                    struct stat st;
+                    if (stat(parent, &st) != 0)
+                    {
+                        if (mkdir(parent, 0775) != 0)
+                        {
+                            if (errno != EEXIST || stat(parent, &st) != 0 || !S_ISDIR(st.st_mode))
+                            {
+                                snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                                return false;
+                            }
+                        }
+                    }
+                    else if (!S_ISDIR(st.st_mode))
+                    {
+                        snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                        return false;
+                    }
+                    *p = '/';
+                }
+            }
+
+            struct stat st;
+            if (stat(parent, &st) != 0)
+            {
+                if (mkdir(parent, 0775) != 0)
+                {
+                    if (errno != EEXIST || stat(parent, &st) != 0 || !S_ISDIR(st.st_mode))
+                    {
+                        snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                        return false;
+                    }
+                }
+            }
+            else if (!S_ISDIR(st.st_mode))
+            {
+                snprintf(uctx->error, sizeof(uctx->error), "Failed to create directory");
+                return false;
+            }
         }
 
         uctx->file = fopen(uctx->target_path, "wb");
@@ -88,6 +134,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
         }
     }
 
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (is_final && uctx->file)
     {
         fclose(uctx->file);

@@ -17,10 +17,46 @@ UNSUPPORTED_FLAGS = {
     "-fno-shrink-wrap",
     "-fno-tree-switch-conversion",
     "-fstrict-volatile-bitfields",
+    "-fno-malloc-dce",
+    "-fzero-init-padding-bits=all",
+    "-fno-builtin-memcpy",
+    "-fno-builtin-memset",
+    "-fno-builtin-bzero",
+    "-Wno-old-style-declaration",
 }
 
-SRC_PATH = os.environ.get("TIDY_COMPILE_COMMANDS", "build/compile_commands.json")
+DEFAULT_SRC_PATHS = ("build/clang/compile_commands.json", "build/compile_commands.json")
 DST_PATH = "build/tidy/compile_commands.json"
+
+
+def resolve_compile_commands_path():
+    configured = os.environ.get("TIDY_COMPILE_COMMANDS")
+    if configured:
+        return configured
+    for path in DEFAULT_SRC_PATHS:
+        if os.path.exists(path):
+            return path
+    return DEFAULT_SRC_PATHS[-1]
+
+
+def unescape_windows_arg(arg):
+    # shlex.split(posix=False) can preserve escaped quotes in -D...=\"...\" tokens.
+    # Convert common escaped forms so compile_commands arguments contain the intended values.
+    if '\\"' in arg:
+        arg = arg.replace('\\"', '"')
+    return arg
+
+
+def ensure_target_args(command_args):
+    if any(arg == "--target" or arg.startswith("--target=") or arg == "-target" for arg in command_args):
+        return command_args
+    target = os.environ.get("LINT_TARGET_TRIPLE", "xtensa-esp-unknown-elf")
+    mcpu = os.environ.get("LINT_MCPU", "esp32")
+    insert_at = 1 if command_args else 0
+    extras = [f"--target={target}"]
+    if mcpu:
+        extras.append(f"-mcpu={mcpu}")
+    return command_args[:insert_at] + extras + command_args[insert_at:]
 
 
 def sanitize_compile_commands(src_path, dst_path):
@@ -31,27 +67,44 @@ def sanitize_compile_commands(src_path, dst_path):
         if "arguments" in entry:
             if not isinstance(entry["arguments"], list) or not all(isinstance(arg, str) for arg in entry["arguments"]):
                 raise ValueError("compile database arguments must be a list of strings")
-            entry["arguments"] = [arg for arg in entry["arguments"] if arg not in UNSUPPORTED_FLAGS]
-            command_args = entry["arguments"]
+            command_args = list(entry["arguments"])
         elif "command" in entry:
             words = shlex.split(entry["command"], posix=os.name != "nt")
             if os.name == "nt":
                 words = [
-                    word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word for word in words
+                    word[1:-1] if len(word) >= 2 and word[0] == word[-1] == '"' else word
+                    for word in words
                 ]
-            words = [word for word in words if word not in UNSUPPORTED_FLAGS]
+                words = [unescape_windows_arg(word) for word in words]
             command_args = words
         else:
             raise ValueError("compile database entry must contain command or arguments")
 
+        command_args = [
+            arg
+            for arg in command_args
+            if arg not in UNSUPPORTED_FLAGS
+            and not arg.startswith("@")
+            and not arg.startswith("-specs=")
+        ]
+
         if os.path.splitext(entry.get("file", ""))[1].lower() in {".cc", ".cpp", ".cxx", ".c++"}:
             # clang-tidy cannot parse LovyanGFX's dead throw branch with ESP-IDF's no-exceptions flag.
-            command_args[:] = [arg for arg in command_args if arg != "-fno-exceptions"]
+            command_args = [arg for arg in command_args if arg != "-fno-exceptions"]
             if "-fexceptions" not in command_args:
                 command_args.append("-fexceptions")
 
-        if "command" in entry:
-            entry["command"] = subprocess.list2cmdline(command_args) if os.name == "nt" else shlex.join(command_args)
+        command_args = ensure_target_args(command_args)
+
+        if "arguments" in entry:
+            entry.pop("command", None)
+            entry["arguments"] = command_args
+        elif os.name == "nt":
+            entry.pop("arguments", None)
+            entry["command"] = subprocess.list2cmdline(command_args)
+        else:
+            entry.pop("arguments", None)
+            entry["command"] = shlex.join(command_args)
 
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     with open(dst_path, "w", encoding="utf-8") as f:
@@ -82,7 +135,13 @@ def main():
         print("Usage: run_tidy.py <source files...>", file=sys.stderr)
         return 1
 
-    sanitize_compile_commands(SRC_PATH, DST_PATH)
+    src = resolve_compile_commands_path()
+    if not os.path.exists(src):
+        print(f"Compile commands database not found: {src}", file=sys.stderr)
+        print("Run 'make lint-db' (in an ESP-IDF/esp-clang environment) or set TIDY_COMPILE_COMMANDS.", file=sys.stderr)
+        return 1
+
+    sanitize_compile_commands(src, DST_PATH)
     return run_clang_tidy("build/tidy", sources)
 
 

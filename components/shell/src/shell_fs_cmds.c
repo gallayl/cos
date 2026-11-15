@@ -5,9 +5,11 @@
 #include "esp_log.h"
 
 #include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static const char *const TAG = "shell_fs";
 
@@ -67,6 +69,103 @@ static int cmd_ls(int argc, char **argv)
     {
         printf("ls: invalid path\n");
         return 1;
+    }
+
+    /* Virtual root: list available filesystems */
+    if (strcmp(abs_path, "/") == 0)
+    {
+        printf("  <DIR>  flash/\n");
+        if (vfs_exists("/sdcard"))
+        {
+            printf("  <DIR>  sdcard/\n");
+            printf("0 file(s), 2 dir(s), 0 bytes\n");
+        }
+        else
+        {
+            printf("0 file(s), 1 dir(s), 0 bytes\n");
+        }
+        return 0;
+    }
+
+    char real_path[VFS_PATH_MAX];
+    err = vfs_resolve_path(abs_path, real_path, sizeof(real_path));
+    if (err != ESP_OK)
+    {
+        printf("ls: cannot open '%s'\n", abs_path);
+        return 1;
+    }
+
+    /* Prefer direct readdir to avoid per-entry stat stalls on target; fall back to vfs_list_dir for mocks. */
+    DIR *dir = opendir(real_path);
+    if (dir != NULL)
+    {
+        size_t total_bytes = 0;
+        size_t file_count = 0;
+        size_t dir_count = 0;
+        bool any = false;
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            {
+                continue;
+            }
+
+            any = true;
+            bool is_dir = false;
+#ifdef DT_DIR
+            if (entry->d_type == DT_DIR)
+            {
+                is_dir = true;
+            }
+            else if (entry->d_type == DT_UNKNOWN)
+            {
+                char entry_path[VFS_PATH_MAX];
+                int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
+                if (written > 0 && (size_t)written < sizeof(entry_path))
+                {
+                    struct stat st;
+                    if (stat(entry_path, &st) == 0)
+                    {
+                        is_dir = S_ISDIR(st.st_mode);
+                    }
+                }
+            }
+#else
+            char entry_path[VFS_PATH_MAX];
+            int written = snprintf(entry_path, sizeof(entry_path), "%s/%s", real_path, entry->d_name);
+            if (written > 0 && (size_t)written < sizeof(entry_path))
+            {
+                struct stat st;
+                if (stat(entry_path, &st) == 0)
+                {
+                    is_dir = S_ISDIR(st.st_mode);
+                }
+            }
+#endif
+            if (!is_dir)
+            {
+                printf("  %5u  %s\n", 0U, entry->d_name);
+                file_count++;
+            }
+            else
+            {
+                printf("  <DIR>  %s/\n", entry->d_name);
+                dir_count++;
+            }
+        }
+
+        closedir(dir);
+
+        if (!any)
+        {
+            printf("(empty)\n");
+            return 0;
+        }
+
+        printf("%u file(s), %u dir(s), %u bytes\n", (unsigned)file_count, (unsigned)dir_count, (unsigned)total_bytes);
+        return 0;
     }
 
     vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
@@ -312,7 +411,27 @@ static int cmd_rmdir(int argc, char **argv)
         return 1;
     }
 
-    esp_err_t err = vfs_remove(abs_path);
+    vfs_dir_entry_t *entries = malloc(VFS_ENTRIES_MAX * sizeof(vfs_dir_entry_t));
+    if (entries == NULL)
+    {
+        printf("rmdir: out of memory\n");
+        return 1;
+    }
+    size_t count = 0;
+    esp_err_t err = vfs_list_dir(abs_path, entries, VFS_ENTRIES_MAX, &count);
+    free(entries);
+    if (err != ESP_OK)
+    {
+        printf("rmdir: failed to inspect '%s'\n", abs_path);
+        return 1;
+    }
+    if (count != 0)
+    {
+        printf("rmdir: failed to remove '%s' (directory must be empty)\n", abs_path);
+        return 1;
+    }
+
+    err = vfs_remove(abs_path);
     if (err != ESP_OK)
     {
         printf("rmdir: failed to remove '%s' (directory must be empty)\n", abs_path);

@@ -32,34 +32,6 @@ static esp_err_t parse_timeout(int argc, char **argv, uint32_t *timeout_ms)
     return ESP_OK;
 }
 
-static int cmd_ping(int argc, char **argv)
-{
-    if (argc < 2 || argc > 3)
-    {
-        printf("Usage: ping <host> [timeout_ms]\n");
-        return 1;
-    }
-
-    uint32_t timeout_ms;
-    esp_err_t err = parse_timeout(argc, argv, &timeout_ms);
-    if (err != ESP_OK)
-    {
-        printf("ping: timeout must be %u-%u ms\n", NETWORK_PING_TIMEOUT_MIN_MS, NETWORK_PING_TIMEOUT_MAX_MS);
-        return 1;
-    }
-
-    network_ping_result_t result = {0};
-    err = network_ping(argv[1], timeout_ms, &result);
-    if (err != ESP_OK)
-    {
-        printf("ping: %s failed (%s)\n", argv[1], esp_err_to_name(err));
-        return 1;
-    }
-
-    printf("Reply from %s: time=%u ms\n", result.address, (unsigned)result.rtt_ms);
-    return 0;
-}
-
 static int cmd_nslookup(int argc, char **argv)
 {
     if (argc < 2 || argc > 3)
@@ -90,14 +62,6 @@ static int cmd_nslookup(int argc, char **argv)
 
 void shell_register_network_commands(void)
 {
-    const esp_console_cmd_t ping_cmd = {
-        .command = "ping",
-        .help = "Resolve a host and send one ICMP echo request",
-        .hint = "<host> [timeout_ms]",
-        .func = &cmd_ping,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&ping_cmd));
-
     const esp_console_cmd_t nslookup_cmd = {
         .command = "nslookup",
         .help = "Resolve a hostname to IPv4",
@@ -106,5 +70,5 @@ void shell_register_network_commands(void)
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&nslookup_cmd));
 
-    ESP_LOGI(TAG, "Registered ping and nslookup commands");
+    ESP_LOGI(TAG, "Registered nslookup command (ping provided by Berry script)");
 }

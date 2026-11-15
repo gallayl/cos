@@ -13,32 +13,23 @@ export interface EditorDocument {
   language: string
 }
 
-/** Scratch buffer shown at startup and after Reset. */
-export const initialSource = `export default class Counter implements CosUiApplication {
-  private ticks = 0;
+/** @deprecated No default scratch buffer; editor opens with no file selected. */
+export const initialSource = ''
 
-  setup(_content: unknown, _width: number, _height: number): void {
-    ui.timer(1000, () => {
-      this.tick();
-    });
-  }
-
-  private tick(): void {
-    this.ticks += 1;
-    log("ticks: " + this.ticks);
-  }
-}
-`
-
-/** A new unsaved TypeScript buffer. */
+/** @deprecated Unsaved scratch buffers are not supported in the editor UI. */
 export function createScratchDocument(): EditorDocument {
   return {
     origin: 'none',
     path: '',
-    text: initialSource,
-    savedText: initialSource,
+    text: '',
+    savedText: '',
     language: 'typescript',
   }
+}
+
+/** True when the open file can be saved back to its source. */
+export function canSaveDocument(document: EditorDocument | null): boolean {
+  return document?.origin === 'device' && document.path !== ''
 }
 
 /** Document opened from the device or the local disk. */
@@ -119,6 +110,19 @@ export function formatDiagnostics(
       return `${prefix}${diagnostic.line}:${diagnostic.column} ${diagnostic.message}${code}`
     })
     .join('\n')
+}
+
+/** Format compiler metadata for incremental diagnostics UX. */
+export function formatCompileSummary(result: {
+  ok: boolean
+  diagnostics: ReadonlyArray<{ severity?: string }>
+  metadata?: { profile?: string; mappings?: readonly unknown[]; notes?: readonly string[] }
+}): string {
+  const profile = result.metadata?.profile ?? 'dev'
+  const errors = result.diagnostics.filter((d) => (d.severity ?? 'error') === 'error').length
+  const mappings = result.metadata?.mappings?.length ?? 0
+  const status = result.ok ? 'Compiled' : `${errors} error(s)`
+  return `${status} · profile: ${profile} · mappings: ${mappings}`
 }
 
 /** True when Create Berry can compile the open buffer. */

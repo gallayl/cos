@@ -8,6 +8,7 @@
 #include "shell.h"
 #include "shell_alias.h"
 #include "shell_cmds.h"
+#include "shell_redirection.h"
 #include "shell_script.h"
 
 #include <stdio.h>
@@ -279,6 +280,237 @@ static void test_path_list_and_no_args_succeed(void)
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 1, plain));
 }
 
+static void test_redirection_parse_none_for_plain_command(void)
+{
+    shell_redirection_t redir;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("echo hello world", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_NONE, redir.type);
+}
+
+static void test_redirection_parse_truncate_and_append(void)
+{
+    shell_redirection_t redir;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("echo hi > /sdcard/out.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("echo hi", redir.command);
+    TEST_ASSERT_EQUAL_STRING("/sdcard/out.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("echo hi>>out.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("echo hi", redir.command);
+    TEST_ASSERT_EQUAL_STRING("out.txt", redir.target);
+}
+
+static void test_redirection_parse_quoted_target_and_quoted_operator_ignored(void)
+{
+    shell_redirection_t redir;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("ls > \"my file.txt\"", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("ls", redir.command);
+    TEST_ASSERT_EQUAL_STRING("my file.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("echo \"a > b\"", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_NONE, redir.type);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("echo 'x >> y' >> real.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("echo 'x >> y'", redir.command);
+    TEST_ASSERT_EQUAL_STRING("real.txt", redir.target);
+}
+
+static void test_redirection_parse_rejects_malformed_or_unsupported_forms(void)
+{
+    shell_redirection_t redir;
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, shell_parse_redirection("> out.txt", &redir));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, shell_parse_redirection("echo hi >", &redir));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, shell_parse_redirection("echo hi > a > b", &redir));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, shell_parse_redirection("echo hi >>> out.txt", &redir));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, shell_parse_redirection("echo hi > \"unterminated", &redir));
+}
+
+static void test_dispatch_reports_invalid_redirection_syntax(void)
+{
+    int ret = -1;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info >", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi > a > b", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_dispatch_rejects_redirection_target_directory(void)
+{
+    mock_filesystem_add_directory("/flash/outdir");
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("ls > /flash/outdir", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_pipeline_parse_none_for_plain_or_quoted_pipe(void)
+{
+    shell_pipeline_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("echo hi", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_NONE, info.status);
+    TEST_ASSERT_EQUAL(0, info.segment_count);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("echo \"a|b\"", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("echo 'x|y'", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_NONE, info.status);
+}
+
+static void test_pipeline_parse_detects_unsupported_pipelines(void)
+{
+    shell_pipeline_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("cat a.txt | grep b", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_UNSUPPORTED, info.status);
+    TEST_ASSERT_EQUAL(2, info.segment_count);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("cat a.txt|grep b", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_UNSUPPORTED, info.status);
+    TEST_ASSERT_EQUAL(2, info.segment_count);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("a | b | c", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_UNSUPPORTED, info.status);
+    TEST_ASSERT_EQUAL(3, info.segment_count);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("a | b > out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_UNSUPPORTED, info.status);
+    TEST_ASSERT_EQUAL(2, info.segment_count);
+}
+
+static void test_pipeline_parse_rejects_invalid_syntax(void)
+{
+    shell_pipeline_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("| a", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_INVALID, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("a |", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_INVALID, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("a |   ", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_INVALID, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_pipeline("a || b", &info));
+    TEST_ASSERT_EQUAL(SHELL_PIPELINE_INVALID, info.status);
+}
+
+static void test_dispatch_reports_unsupported_and_invalid_pipes(void)
+{
+    int ret = -1;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi | cat", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi | cat > /flash/out.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("| echo hi", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi |", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi || cat", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms(void)
+{
+    shell_fd_redirect_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("info > out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("info >> out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("echo \"2> err.txt\"", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("echo '&> all.txt'", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_NONE, info.status);
+}
+
+static void test_fd_redirection_parse_detects_stderr_and_combined_forms(void)
+{
+    shell_fd_redirect_info_t info;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2> err.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2>>err.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd &> all.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd &>>all.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_fd_redirection("cmd 2> err.txt > out.txt", &info));
+    TEST_ASSERT_EQUAL(SHELL_FD_REDIRECT_UNSUPPORTED, info.status);
+}
+
+static void test_redirection_parse_stderr_and_combined_forms(void)
+{
+    shell_redirection_t redir;
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd 2> err.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_STDERR_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("cmd", redir.command);
+    TEST_ASSERT_EQUAL_STRING("err.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd 2>> \"err.log\"", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_STDERR_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("err.log", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd &> all.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_BOTH_TRUNCATE, redir.type);
+    TEST_ASSERT_EQUAL_STRING("all.txt", redir.target);
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_parse_redirection("cmd &>>all.txt", &redir));
+    TEST_ASSERT_EQUAL(SHELL_REDIRECT_BOTH_APPEND, redir.type);
+    TEST_ASSERT_EQUAL_STRING("all.txt", redir.target);
+}
+
+static void test_dispatch_handles_stderr_fd_redirection_runtime_path(void)
+{
+    int ret = -1;
+
+    /* Best-effort runtime redirection is attempted (not rejected as unsupported).
+     * In this host test environment the target fopen may fail; dispatch must still
+     * handle the line and report non-zero status without mis-executing as plain args. */
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info 2> /flash/err.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info 2>> /flash/err.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info &> /flash/all.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("info &>> /flash/all.txt", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -301,5 +533,19 @@ int main(void)
     RUN_TEST(test_script_runtime_error_reported);
     RUN_TEST(test_unknown_command_without_script_still_not_found);
     RUN_TEST(test_command_name_with_be_extension_resolves);
+    RUN_TEST(test_redirection_parse_none_for_plain_command);
+    RUN_TEST(test_redirection_parse_truncate_and_append);
+    RUN_TEST(test_redirection_parse_quoted_target_and_quoted_operator_ignored);
+    RUN_TEST(test_redirection_parse_rejects_malformed_or_unsupported_forms);
+    RUN_TEST(test_dispatch_reports_invalid_redirection_syntax);
+    RUN_TEST(test_dispatch_rejects_redirection_target_directory);
+    RUN_TEST(test_pipeline_parse_none_for_plain_or_quoted_pipe);
+    RUN_TEST(test_pipeline_parse_detects_unsupported_pipelines);
+    RUN_TEST(test_pipeline_parse_rejects_invalid_syntax);
+    RUN_TEST(test_dispatch_reports_unsupported_and_invalid_pipes);
+    RUN_TEST(test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms);
+    RUN_TEST(test_fd_redirection_parse_detects_stderr_and_combined_forms);
+    RUN_TEST(test_redirection_parse_stderr_and_combined_forms);
+    RUN_TEST(test_dispatch_handles_stderr_fd_redirection_runtime_path);
     return UNITY_END();
 }

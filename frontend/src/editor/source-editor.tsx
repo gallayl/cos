@@ -97,6 +97,7 @@ export const SourceEditor = Shade<SourceEditorProps>({
         const uri = modelUri
         const text = props.value
         const languageId = props.language
+        const previousUri = (instance.value as { currentUri?: string } | undefined)?.currentUri
         queueMicrotask(() => {
           if (props.path) {
             registerWorkspaceTypeScriptFile(props.path, text)
@@ -106,11 +107,20 @@ export const SourceEditor = Shade<SourceEditorProps>({
           if (editorInstance && editorInstance.getModel() !== model) {
             editorInstance.setModel(model)
           }
+          if (instance.value) {
+            ;(instance.value as { currentUri?: string }).currentUri = uri.toString()
+          }
           if (model.getLanguageId() !== languageId) {
             editor.setModelLanguage(model, languageId)
           }
           if (model.getValue() !== text) {
             model.setValue(text)
+          }
+          if (previousUri && previousUri !== uri.toString()) {
+            const previous = editor.getModel(Uri.parse(previousUri))
+            if (previous && previous !== model) {
+              previous.dispose()
+            }
           }
         })
         return { [Symbol.dispose]() {} }

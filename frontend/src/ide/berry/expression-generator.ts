@@ -17,9 +17,19 @@ const PREC_UNARY = 80
 export const CALL_PRECEDENCE = 90
 const PREC_ATOM = 100
 
-interface Emitted {
+/** Span-aware debug mapping: node starts at (line, column) within emitted expression text (0-based). */
+export interface ExpressionSpan {
+  /** 0-based line delta within the emitted expression text. */
+  line: number
+  /** 0-based column within that line of the emitted expression text. */
+  column: number
+  node: ts.Node
+}
+
+export interface EmittedExpression {
   text: string
   precedence: number
+  spans: readonly ExpressionSpan[]
 }
 
 interface BinaryOperator {
@@ -71,14 +81,65 @@ export function emitExpression(ctx: GenerationContext, node: ts.Expression): str
 }
 
 /**
+ * @brief Lower an expression with span-aware debug mapping offsets.
+ */
+export function emitExpressionWithSpans(ctx: GenerationContext, node: ts.Expression): EmittedExpression {
+  return lowerExpression(ctx, node)
+}
+
+/**
+ * @brief Record expression subexpression mappings at a known generated line/column base.
+ * `baseColumnOffset` is 0-based from statement/writer indent start and applies to expression line 0.
+ * For multiline expressions, subsequent lines are mapped relative to writer indent (no statement prefix).
+ */
+export function noteExpressionSpans(
+  ctx: GenerationContext,
+  baseColumnOffset: number,
+  spans: readonly ExpressionSpan[],
+): void {
+  for (const span of spans) {
+    if (span.line === 0) {
+      ctx.noteMapping(span.node, baseColumnOffset + span.column)
+    } else {
+      ctx.noteMappingAt(span.node, span.line, span.column)
+    }
+  }
+}
+
+/**
+ * @brief Emit an expression and record its span mappings at `baseColumnOffset`.
+ */
+export function emitExpressionMapped(ctx: GenerationContext, node: ts.Expression, baseColumnOffset: number): string {
+  const emitted = lowerExpression(ctx, node)
+  noteExpressionSpans(ctx, baseColumnOffset, emitted.spans)
+  return emitted.text
+}
+
+/**
  * @brief Like {@link emitExpression}, but parenthesizes values looser than `parentPrecedence`.
+ * Returns text for compatibility; spans are not exposed (use grouped-with-spans helpers internally).
  */
 export function emitGrouped(ctx: GenerationContext, node: ts.Expression, parentPrecedence: number): string {
   const emitted = lowerExpression(ctx, node)
-  return parenthesize(emitted, parentPrecedence, 'left', 'left')
+  return parenthesize(emitted, parentPrecedence, 'left', 'left').text
 }
 
-function lowerExpression(ctx: GenerationContext, node: ts.Expression): Emitted {
+/**
+ * @brief Emit grouped expression and record span mappings at `baseColumnOffset`.
+ */
+export function emitGroupedMapped(
+  ctx: GenerationContext,
+  node: ts.Expression,
+  parentPrecedence: number,
+  baseColumnOffset: number,
+): string {
+  const emitted = lowerExpression(ctx, node)
+  const grouped = parenthesize(emitted, parentPrecedence, 'left', 'left')
+  noteExpressionSpans(ctx, baseColumnOffset, grouped.spans)
+  return grouped.text
+}
+
+function lowerExpression(ctx: GenerationContext, node: ts.Expression): EmittedExpression {
   const unwrapped = unwrapAssertion(node)
   if (unwrapped !== node && !ts.isParenthesizedExpression(node)) {
     return lowerExpression(ctx, unwrapped)
@@ -86,23 +147,24 @@ function lowerExpression(ctx: GenerationContext, node: ts.Expression): Emitted {
 
   if (ts.isParenthesizedExpression(node)) {
     const inner = lowerExpression(ctx, node.expression)
-    return { text: `(${inner.text})`, precedence: PREC_ATOM }
+    return wrapParens(inner)
   }
-  if (node.kind === ts.SyntaxKind.TrueKeyword) return atom('true')
-  if (node.kind === ts.SyntaxKind.FalseKeyword) return atom('false')
-  if (node.kind === ts.SyntaxKind.NullKeyword) return atom('nil')
-  if (node.kind === ts.SyntaxKind.ThisKeyword) return atom('self')
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return atom('true', node)
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return atom('false', node)
+  if (node.kind === ts.SyntaxKind.NullKeyword) return atom('nil', node)
+  if (node.kind === ts.SyntaxKind.ThisKeyword) return atom('self', node)
 
   if (ts.isIdentifier(node)) {
-    if (node.text === 'undefined' && !ctx.isDeclared('undefined')) return atom('nil')
-    return atom(node.text)
+    if (node.text === 'undefined' && !ctx.isDeclared('undefined')) return atom('nil', node)
+    return atom(node.text, node)
   }
-  if (ts.isNumericLiteral(node)) return atom(numericLiteralText(node))
-  if (ts.isStringLiteral(node)) return atom(berryString(node.text))
-  if (ts.isNoSubstitutionTemplateLiteral(node)) return atom(berryString(node.text))
+  if (ts.isNumericLiteral(node)) return atom(numericLiteralText(node), node)
+  if (ts.isStringLiteral(node)) return atom(berryString(node.text), node)
+  if (ts.isNoSubstitutionTemplateLiteral(node)) return atom(berryString(node.text), node)
   if (ts.isTemplateExpression(node)) return emitTemplate(ctx, node)
   if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
-    return { text: emitInlineFunction(ctx, node), precedence: PREC_ATOM }
+    const inline = emitInlineFunction(ctx, node)
+    return { text: inline.text, precedence: PREC_ATOM, spans: [{ line: 0, column: 0, node }, ...inline.spans] }
   }
   if (ts.isPrefixUnaryExpression(node)) return emitPrefix(ctx, node)
   if (ts.isBinaryExpression(node)) return emitBinary(ctx, node)
@@ -146,8 +208,32 @@ function lowerExpression(ctx: GenerationContext, node: ts.Expression): Emitted {
   return atom('nil')
 }
 
-function atom(text: string): Emitted {
-  return { text, precedence: PREC_ATOM }
+function atom(text: string, node?: ts.Node): EmittedExpression {
+  return { text, precedence: PREC_ATOM, spans: node ? [{ line: 0, column: 0, node }] : [] }
+}
+
+function shiftSpans(spans: readonly ExpressionSpan[], prefix: string | number): ExpressionSpan[] {
+  if (typeof prefix === 'number') {
+    if (prefix === 0) return [...spans]
+    return spans.map((span) => (span.line === 0 ? { ...span, column: span.column + prefix } : { ...span }))
+  }
+  if (prefix.length === 0) return [...spans]
+  const parts = prefix.split('\n')
+  if (parts.length === 1) {
+    const delta = prefix.length
+    return spans.map((span) => (span.line === 0 ? { ...span, column: span.column + delta } : { ...span }))
+  }
+  const lineDelta = parts.length - 1
+  const lastLen = (parts[parts.length - 1] ?? '').length
+  return spans.map((span) =>
+    span.line === 0
+      ? { ...span, line: lineDelta, column: span.column + lastLen }
+      : { ...span, line: span.line + lineDelta },
+  )
+}
+
+function withNode(node: ts.Node, emitted: EmittedExpression): EmittedExpression {
+  return { ...emitted, spans: [{ line: 0, column: 0, node }, ...emitted.spans] }
 }
 
 function unwrapAssertion(node: ts.Expression): ts.Expression {
@@ -162,18 +248,27 @@ function unwrapAssertion(node: ts.Expression): ts.Expression {
   return node
 }
 
+interface Parenthesized {
+  text: string
+  spans: ExpressionSpan[]
+}
+
 function parenthesize(
-  operand: Emitted,
+  operand: EmittedExpression,
   parentPrecedence: number,
   side: 'left' | 'right',
   associativity: 'left' | 'right',
-): string {
+): Parenthesized {
   const looser = operand.precedence < parentPrecedence
   const sameSideNeedsParens =
     operand.precedence === parentPrecedence &&
     ((associativity === 'left' && side === 'right') || (associativity === 'right' && side === 'left'))
-  if (!looser && !sameSideNeedsParens) return operand.text
-  return `(${operand.text})`
+  if (!looser && !sameSideNeedsParens) return { text: operand.text, spans: [...operand.spans] }
+  return { text: `(${operand.text})`, spans: shiftSpans(operand.spans, 1) }
+}
+
+function wrapParens(inner: EmittedExpression): EmittedExpression {
+  return { text: `(${inner.text})`, precedence: PREC_ATOM, spans: shiftSpans(inner.spans, 1) }
 }
 
 function rejectFunctionOperand(ctx: GenerationContext, node: ts.Expression): void {
@@ -183,7 +278,7 @@ function rejectFunctionOperand(ctx: GenerationContext, node: ts.Expression): voi
   }
 }
 
-function emitPrefix(ctx: GenerationContext, node: ts.PrefixUnaryExpression): Emitted {
+function emitPrefix(ctx: GenerationContext, node: ts.PrefixUnaryExpression): EmittedExpression {
   if (node.operator === ts.SyntaxKind.ExclamationToken) {
     if (!isStructurallyBoolean(node.operand)) ctx.report(node.operand, BOOLEAN_OPERAND_MESSAGE)
   } else if (node.operator === ts.SyntaxKind.PlusToken) {
@@ -199,13 +294,12 @@ function emitPrefix(ctx: GenerationContext, node: ts.PrefixUnaryExpression): Emi
   rejectFunctionOperand(ctx, node.operand)
   const berry = node.operator === ts.SyntaxKind.ExclamationToken ? '!' : '-'
   const operand = lowerExpression(ctx, node.operand)
-  return {
-    text: `${berry}${parenthesize(operand, PREC_UNARY, 'right', 'right')}`,
-    precedence: PREC_UNARY,
-  }
+  const paren = parenthesize(operand, PREC_UNARY, 'right', 'right')
+  const text = `${berry}${paren.text}`
+  return withNode(node, { text, precedence: PREC_UNARY, spans: shiftSpans(paren.spans, berry.length) })
 }
 
-function emitBinary(ctx: GenerationContext, node: ts.BinaryExpression): Emitted {
+function emitBinary(ctx: GenerationContext, node: ts.BinaryExpression): EmittedExpression {
   const { kind } = node.operatorToken
   const rejected = rejectedBinary(kind)
   if (rejected) {
@@ -231,12 +325,15 @@ function emitBinary(ctx: GenerationContext, node: ts.BinaryExpression): Emitted 
   }
   rejectFunctionOperand(ctx, node.left)
   rejectFunctionOperand(ctx, node.right)
-  const left = lowerExpression(ctx, node.left)
-  const right = lowerExpression(ctx, node.right)
-  return {
-    text: `${parenthesize(left, operator.precedence, 'left', operator.associativity)} ${operator.berry} ${parenthesize(right, operator.precedence, 'right', operator.associativity)}`,
+  const left = parenthesize(lowerExpression(ctx, node.left), operator.precedence, 'left', operator.associativity)
+  const right = parenthesize(lowerExpression(ctx, node.right), operator.precedence, 'right', operator.associativity)
+  const middle = ` ${operator.berry} `
+  const text = `${left.text}${middle}${right.text}`
+  return withNode(node, {
+    text,
     precedence: operator.precedence,
-  }
+    spans: [...left.spans, ...shiftSpans(right.spans, left.text + middle)],
+  })
 }
 
 function numericLiteralText(node: ts.NumericLiteral): string {
@@ -297,48 +394,86 @@ function rejectedBinary(kind: ts.SyntaxKind): string | undefined {
   }
 }
 
-function emitArgument(ctx: GenerationContext, node: ts.Expression): string {
+function emitArgument(ctx: GenerationContext, node: ts.Expression): EmittedExpression {
   if (ts.isSpreadElement(node)) {
     ctx.report(node, 'Spread syntax is not supported.')
-    return 'nil'
+    return atom('nil')
   }
-  return lowerExpression(ctx, node).text
+  return lowerExpression(ctx, node)
 }
 
-function emitCall(ctx: GenerationContext, node: ts.CallExpression): Emitted {
+function emitCall(ctx: GenerationContext, node: ts.CallExpression): EmittedExpression {
   if (node.questionDotToken) ctx.report(node, 'Optional chaining is not supported.')
-  const callee = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
-  const args = node.arguments.map((argument) => emitArgument(ctx, argument))
-  return { text: `${callee}(${args.join(', ')})`, precedence: CALL_PRECEDENCE }
+  const callee = parenthesize(lowerExpression(ctx, node.expression), CALL_PRECEDENCE, 'left', 'left')
+  const { text: argsText, spans: argSpans } = emitArguments(ctx, node.arguments)
+  const text = `${callee.text}(${argsText})`
+  return withNode(node, {
+    text,
+    precedence: CALL_PRECEDENCE,
+    spans: [...callee.spans, ...shiftSpans(argSpans, callee.text.length + 1)],
+  })
 }
 
-function emitNew(ctx: GenerationContext, node: ts.NewExpression): Emitted {
-  const callee = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
-  const args = (node.arguments ?? []).map((argument) => emitArgument(ctx, argument))
-  return { text: `${callee}(${args.join(', ')})`, precedence: CALL_PRECEDENCE }
+function emitNew(ctx: GenerationContext, node: ts.NewExpression): EmittedExpression {
+  const callee = parenthesize(lowerExpression(ctx, node.expression), CALL_PRECEDENCE, 'left', 'left')
+  const { text: argsText, spans: argSpans } = emitArguments(ctx, node.arguments ?? [])
+  const text = `${callee.text}(${argsText})`
+  return withNode(node, {
+    text,
+    precedence: CALL_PRECEDENCE,
+    spans: [...callee.spans, ...shiftSpans(argSpans, callee.text.length + 1)],
+  })
 }
 
-function emitProperty(ctx: GenerationContext, node: ts.PropertyAccessExpression): Emitted {
+function emitArguments(
+  ctx: GenerationContext,
+  args: readonly ts.Expression[],
+): { text: string; spans: ExpressionSpan[] } {
+  let text = ''
+  const spans: ExpressionSpan[] = []
+  for (let i = 0; i < args.length; i++) {
+    const node = args[i]
+    if (!node) continue
+    if (i > 0) text += ', '
+    const arg = emitArgument(ctx, node)
+    spans.push(...shiftSpans(arg.spans, text))
+    text += arg.text
+  }
+  return { text, spans }
+}
+
+function emitProperty(ctx: GenerationContext, node: ts.PropertyAccessExpression): EmittedExpression {
   if (node.questionDotToken) ctx.report(node, 'Optional chaining is not supported.')
   if (ts.isPrivateIdentifier(node.name)) {
     ctx.report(node.name, 'Private identifiers are not supported.')
     return atom('nil')
   }
-  const objectText = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
+  const object = parenthesize(lowerExpression(ctx, node.expression), CALL_PRECEDENCE, 'left', 'left')
   const called = isCallee(node)
   if (node.name.text === 'length' && !called) {
     // Berry global size() handles strings (byte length) and objects exposing size().
     // `obj.size()` would fail for plain Berry strings, so prefer `size(obj)`.
-    return { text: `size(${objectText})`, precedence: CALL_PRECEDENCE }
+    const text = `size(${object.text})`
+    return withNode(node, {
+      text,
+      precedence: CALL_PRECEDENCE,
+      spans: shiftSpans(object.spans, 'size('),
+    })
   }
-  return { text: `${objectText}.${node.name.text}`, precedence: CALL_PRECEDENCE }
+  const text = `${object.text}.${node.name.text}`
+  return withNode(node, { text, precedence: CALL_PRECEDENCE, spans: object.spans })
 }
 
-function emitElement(ctx: GenerationContext, node: ts.ElementAccessExpression): Emitted {
+function emitElement(ctx: GenerationContext, node: ts.ElementAccessExpression): EmittedExpression {
   if (node.questionDotToken) ctx.report(node, 'Optional chaining is not supported.')
-  const objectText = emitGrouped(ctx, node.expression, CALL_PRECEDENCE)
-  const index = lowerExpression(ctx, node.argumentExpression).text
-  return { text: `${objectText}[${index}]`, precedence: CALL_PRECEDENCE }
+  const object = parenthesize(lowerExpression(ctx, node.expression), CALL_PRECEDENCE, 'left', 'left')
+  const index = lowerExpression(ctx, node.argumentExpression)
+  const text = `${object.text}[${index.text}]`
+  return withNode(node, {
+    text,
+    precedence: CALL_PRECEDENCE,
+    spans: [...object.spans, ...shiftSpans(index.spans, `${object.text}[`)],
+  })
 }
 
 function isCallee(node: ts.Node): boolean {
@@ -346,24 +481,35 @@ function isCallee(node: ts.Node): boolean {
   return !!parent && ts.isCallExpression(parent) && parent.expression === node
 }
 
-function emitArray(ctx: GenerationContext, node: ts.ArrayLiteralExpression): Emitted {
-  const elements: string[] = []
+function emitArray(ctx: GenerationContext, node: ts.ArrayLiteralExpression): EmittedExpression {
+  let text = '['
+  const spans: ExpressionSpan[] = []
+  let first = true
   for (const element of node.elements) {
     if (ts.isOmittedExpression(element)) {
       ctx.report(element, 'Array holes are not supported.')
       continue
     }
+    if (!first) text += ', '
+    first = false
     if (ts.isSpreadElement(element)) {
       ctx.report(element, 'Spread syntax is not supported.')
+      spans.push(...shiftSpans([{ line: 0, column: 0, node: element }], text))
+      text += 'nil'
       continue
     }
-    elements.push(lowerExpression(ctx, element).text)
+    const emitted = lowerExpression(ctx, element)
+    spans.push(...shiftSpans(emitted.spans, text))
+    text += emitted.text
   }
-  return atom(`[${elements.join(', ')}]`)
+  text += ']'
+  return withNode(node, { text, precedence: PREC_ATOM, spans })
 }
 
-function emitObject(ctx: GenerationContext, node: ts.ObjectLiteralExpression): Emitted {
-  const fields: string[] = []
+function emitObject(ctx: GenerationContext, node: ts.ObjectLiteralExpression): EmittedExpression {
+  let text = '{'
+  const spans: ExpressionSpan[] = []
+  let first = true
   for (const property of node.properties) {
     if (!ts.isPropertyAssignment(property)) {
       ctx.report(property, 'Only explicit object fields are supported.')
@@ -371,9 +517,15 @@ function emitObject(ctx: GenerationContext, node: ts.ObjectLiteralExpression): E
     }
     const key = objectKey(ctx, property.name)
     if (!key) continue
-    fields.push(`${key}: ${lowerExpression(ctx, property.initializer).text}`)
+    if (!first) text += ', '
+    first = false
+    text += `${key}: `
+    const value = lowerExpression(ctx, property.initializer)
+    spans.push(...shiftSpans(value.spans, text))
+    text += value.text
   }
-  return atom(`{${fields.join(', ')}}`)
+  text += '}'
+  return withNode(node, { text, precedence: PREC_ATOM, spans })
 }
 
 function objectKey(ctx: GenerationContext, name: ts.PropertyName): string | undefined {
@@ -384,21 +536,34 @@ function objectKey(ctx: GenerationContext, name: ts.PropertyName): string | unde
   return undefined
 }
 
-function emitTemplate(ctx: GenerationContext, node: ts.TemplateExpression): Emitted {
-  const parts: Emitted[] = []
-  if (node.head.text.length > 0) parts.push(atom(berryString(node.head.text)))
+function emitTemplate(ctx: GenerationContext, node: ts.TemplateExpression): EmittedExpression {
+  // Build as additive chain with span-aware parts.
+  const parts: EmittedExpression[] = []
+  if (node.head.text.length > 0) parts.push(atom(berryString(node.head.text), node.head))
   for (const span of node.templateSpans) {
-    const value = lowerExpression(ctx, span.expression).text
-    parts.push({ text: `str(${value})`, precedence: CALL_PRECEDENCE })
-    if (span.literal.text.length > 0) parts.push(atom(berryString(span.literal.text)))
+    const value = lowerExpression(ctx, span.expression)
+    parts.push(
+      withNode(span.expression, {
+        text: `str(${value.text})`,
+        precedence: CALL_PRECEDENCE,
+        spans: shiftSpans(value.spans, 'str('),
+      }),
+    )
+    if (span.literal.text.length > 0) parts.push(atom(berryString(span.literal.text), span.literal))
   }
-  if (parts.length === 0) return atom('""')
-  let current = parts[0] ?? atom('""')
-  for (const part of parts.slice(1)) {
+  if (parts.length === 0) return atom('""', node)
+  const [first, ...rest] = parts
+  if (!first) return atom('""', node)
+  let current = first
+  for (const part of rest) {
+    const left = parenthesize(current, PREC_ADDITIVE, 'left', 'left')
+    const right = parenthesize(part, PREC_ADDITIVE, 'right', 'left')
+    const middle = ' + '
     current = {
-      text: `${parenthesize(current, PREC_ADDITIVE, 'left', 'left')} + ${parenthesize(part, PREC_ADDITIVE, 'right', 'left')}`,
+      text: `${left.text}${middle}${right.text}`,
       precedence: PREC_ADDITIVE,
+      spans: [...left.spans, ...shiftSpans(right.spans, left.text + middle)],
     }
   }
-  return current
+  return withNode(node, current)
 }

@@ -70,6 +70,35 @@ python -m pip install -r integration_test/requirements.txt
 python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
 ```
 
+To build integration-test firmware projects in parallel, pass a job count:
+
+```bash
+make integration-test-build INTEGRATION_TEST_JOBS=4
+```
+
+Build or run a single suite (by project name or short name without `test_` prefix):
+
+```bash
+make integration-test-build-shell_fs
+make integration-test-run-shell_fs
+make integration-test-shell_fs   # build + run
+```
+
+Available suites: `esp_littlefs`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`.
+
+You can still pass extra script arguments via `INTEGRATION_TEST_BUILD_ARGS` / `INTEGRATION_TEST_RUN_ARGS`, or invoke `scripts/integration_test.py` directly.
+
+### Optional: compiler caching (faster rebuilds)
+
+ESP-IDF supports compiler caching via ccache/sccache. If a compatible `ccache` is installed and on `PATH`, enable it for firmware builds:
+
+```bash
+export IDF_CCACHE_ENABLE=1   # PowerShell: $env:IDF_CCACHE_ENABLE = "1"
+make build
+```
+
+On Windows with Espressif tools, `ccache` may already be installed under `%IDF_TOOLS_PATH%\ccache\...` (add its directory to `PATH` before building). Local DX measurements on 2026-11-11 showed a clean firmware rebuild improved from ~139.5 s to ~72.1 s with a warm cache (~1.94× faster); see `docs/reports/2026-11-11-dx1-baseline-measurements.md`. CI enablement is tracked under DX7.
+
 ## Build and flash
 
 ```bash
@@ -112,8 +141,8 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `time`                            | Show local/UTC time, sync status, or epoch                |
 | `server`, `ws`                    | Inspect and control the HTTP server and WebSocket clients |
 | `restart`, `uptime`               | Restart the device or show uptime                         |
-| `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request             |
-| `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4                                |
+| `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request (Berry script command, resolved via CWD/`path`; stock: `/flash/scripts/ping.be`) |
+| `nslookup <host> [timeout_ms]`    | Resolve a hostname to IPv4 (native command)               |
 | `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
@@ -159,11 +188,14 @@ logs. Use `mem` for current free heap, minimum free heap since boot, total
 heap, and largest allocatable block. Berry app startup also logs heap snapshots
 at INFO level; set `logging info` to see them.
 
-`ping` sends one ICMP echo request; `nslookup` performs DNS resolution only.
-Both accept an optional 100–3000 ms overall deadline (default 1000 ms), which
-includes DNS resolution, and require Wi-Fi station connectivity. They use the
-same serialized worker as Berry `net.ping`; if DNS continues after a caller
-times out, another request is rejected until the lookup finishes.
+`nslookup` is a native command that performs DNS resolution only. `ping` is
+provided as a Berry command script (stock: `/flash/scripts/ping.be`, resolved
+from the current directory or configured `path` dirs like other script commands)
+and sends one ICMP echo request via Berry `net.ping`. Both accept an optional
+100–3000 ms overall deadline (default 1000 ms), which includes DNS resolution,
+and require Wi-Fi station connectivity. They use the same serialized worker as
+Berry `net.ping`; if DNS continues after a caller times out, another request is
+rejected until the lookup finishes.
 
 Berry scripts use COS virtual paths. For example, `berry run /flash/apps/demo.be` runs a flash script, and `berry run /sdcard/apps/demo.be` runs one from an inserted SD card. Relative paths are resolved from the shell's current directory.
 
@@ -202,7 +234,7 @@ The Berry runtime also provides:
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `console.read_line(prompt, callback)` | Start a non-blocking console prompt. The callback receives the entered string, or `nil` after Ctrl+C. It returns `true` when the request starts or an ESP error name on failure.                                                                                                                                                          |
 | `console.cancel_input()`              | Cancel the pending prompt; the callback receives `nil`. Returns `true` when cancellation is accepted, `false` if none is pending, or an ESP error name. Cancellation from another task is handed to the console input task.                                                                                                               |
-| `fs.list(path)`                       | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, and `mtime`. Traversal segments are rejected.                                                                                                                 |
+| `fs.list(path)`                       | List up to 64 entries from an absolute `/`, `/flash`, or `/sdcard` virtual path. Returns `{ok, entries, count}` or `{ok, error}`; entries contain `name`, `size`, `is_dir`, `mtime`, and `ctime`. Traversal segments are rejected.                                                                                                                 |
 | `net.ping(host, timeout_ms=1000)`     | Resolve an IPv4 host and send one ICMP echo request. Returns `{ok, host, address, rtt_ms, error}` by the 100–3000 ms caller deadline, including DNS time. DNS and ICMP run on one serialized worker; if DNS outlives the caller, a later ping is rejected until the worker finishes the configured lwIP retries. Wi-Fi must be connected. |
 
 Small Berry starter scripts are included in `/flash/scripts`: run
@@ -239,9 +271,12 @@ make format       # auto-format all source files
 make format-check # check formatting (CI-friendly, fails on violations)
 make lint         # run clang-tidy static analysis
 make test         # build and run host-based unit tests
-make integration-test       # build and run all discovered QEMU integration tests
-make integration-test-build # build all integration-test firmware projects
-make integration-test-run   # run all integration tests (after building)
+make integration-test              # build and run all discovered QEMU integration tests
+make integration-test-build        # build all integration-test firmware projects
+make integration-test-run          # run all integration tests (after building)
+make integration-test-<suite>      # build and run one suite (e.g. shell_fs)
+make integration-test-build-<suite># build one suite
+make integration-test-run-<suite>  # run one suite
 make docs-check   # validate Doxygen documentation
 make menuconfig   # open ESP-IDF configuration menu
 make clean        # remove build artifacts

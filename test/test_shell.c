@@ -258,6 +258,44 @@ static void test_cmd_hexdump_no_arg(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+static void test_cmd_hexdump_reads_file(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/bin.dat", "\x00\x01""ABC", 6));
+    char *argv[] = {"hexdump", "bin.dat"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("hexdump", 2, argv));
+}
+
+static void test_cmd_hexdump_missing_file(void)
+{
+    char *argv[] = {"hexdump", "missing.bin"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("hexdump", 2, argv));
+}
+
+static void test_cmd_cp_no_args(void)
+{
+    char *argv[] = {"cp"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 1, argv));
+}
+
+static void test_cmd_mv_no_args(void)
+{
+    char *argv[] = {"mv"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mv", 1, argv));
+}
+
+static void test_cmd_rmdir_no_arg(void)
+{
+    char *argv[] = {"rmdir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 1, argv));
+}
+
+static void test_cmd_ls_empty_directory(void)
+{
+    mock_filesystem_add_directory("/flash/emptydir");
+    char *argv[] = {"ls", "/flash/emptydir"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ls", 2, argv));
+}
+
 static void test_cmd_cp_file(void)
 {
     mock_filesystem_add_file("/flash/source.txt");
@@ -347,6 +385,56 @@ static void test_cmd_rmdir_protects_current_directory(void)
     char *argv[] = {"rmdir", "."};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, argv));
     TEST_ASSERT_TRUE(vfs_is_directory("/flash/working"));
+}
+
+static void test_cmd_cat_reads_file(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/hello.txt", "Hello", 5));
+    char *argv[] = {"cat", "hello.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_cat_missing_file(void)
+{
+    char *argv[] = {"cat", "missing.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_cat_rejects_directory(void)
+{
+    mock_filesystem_add_directory("/flash/dir");
+    char *argv[] = {"cat", "dir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cat", 2, argv));
+}
+
+static void test_cmd_rm_missing_file(void)
+{
+    char *argv[] = {"rm", "missing.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rm", 2, argv));
+}
+
+static void test_cmd_touch_existing_preserves_content(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/keep.txt", "data", 4));
+    char *argv[] = {"touch", "keep.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("touch", 2, argv));
+    char buf[16];
+    size_t n = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/keep.txt", buf, sizeof(buf), &n));
+    TEST_ASSERT_EQUAL(4, n);
+    TEST_ASSERT_EQUAL_MEMORY("data", buf, 4);
+}
+
+static void test_cmd_cp_preserves_content(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/src.txt", "abc", 3));
+    char *argv[] = {"cp", "src.txt", "dst.txt"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("cp", 3, argv));
+    char buf[16];
+    size_t n = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/dst.txt", buf, sizeof(buf), &n));
+    TEST_ASSERT_EQUAL(3, n);
+    TEST_ASSERT_EQUAL_MEMORY("abc", buf, 3);
 }
 
 static void test_complete_registered_command(void)
@@ -456,35 +544,6 @@ static void test_cmd_format(void)
     char *argv[] = {"format"};
     int ret = mock_console_run_cmd("format", 1, argv);
     TEST_ASSERT_EQUAL(0, ret);
-}
-
-static void test_cmd_ping_uses_default_timeout(void)
-{
-    char *argv[] = {"ping", "example.com"};
-    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ping", 2, argv));
-    TEST_ASSERT_EQUAL_STRING("example.com", mock_network_last_host());
-    TEST_ASSERT_EQUAL(1000, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_accepts_bounded_timeout(void)
-{
-    char *argv[] = {"ping", "192.0.2.1", "3000"};
-    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ping", 3, argv));
-    TEST_ASSERT_EQUAL(3000, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_rejects_bad_timeout(void)
-{
-    char *argv[] = {"ping", "example.com", "3001"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ping", 3, argv));
-    TEST_ASSERT_EQUAL(0, mock_network_last_timeout());
-}
-
-static void test_cmd_ping_reports_network_error(void)
-{
-    mock_network_set_ping_result(ESP_ERR_INVALID_STATE, NULL);
-    char *argv[] = {"ping", "example.com"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ping", 2, argv));
 }
 
 static void test_cmd_nslookup_uses_shared_resolver(void)
@@ -618,16 +677,28 @@ int main(void)
     RUN_TEST(test_cmd_touch);
     RUN_TEST(test_cmd_touch_no_arg);
     RUN_TEST(test_cmd_hexdump_no_arg);
+    RUN_TEST(test_cmd_hexdump_reads_file);
+    RUN_TEST(test_cmd_hexdump_missing_file);
+    RUN_TEST(test_cmd_cp_no_args);
     RUN_TEST(test_cmd_cp_file);
     RUN_TEST(test_cmd_cp_refuses_overwrite);
     RUN_TEST(test_cmd_cp_rejects_directory);
     RUN_TEST(test_cmd_cp_rejects_missing_source);
+    RUN_TEST(test_cmd_mv_no_args);
     RUN_TEST(test_cmd_mv_file);
     RUN_TEST(test_cmd_mv_refuses_overwrite);
     RUN_TEST(test_cmd_mv_cross_filesystem);
+    RUN_TEST(test_cmd_rmdir_no_arg);
     RUN_TEST(test_cmd_rmdir_only_removes_empty_directories);
     RUN_TEST(test_cmd_rmdir_protects_filesystem_roots);
     RUN_TEST(test_cmd_rmdir_protects_current_directory);
+    RUN_TEST(test_cmd_ls_empty_directory);
+    RUN_TEST(test_cmd_cat_reads_file);
+    RUN_TEST(test_cmd_cat_missing_file);
+    RUN_TEST(test_cmd_cat_rejects_directory);
+    RUN_TEST(test_cmd_rm_missing_file);
+    RUN_TEST(test_cmd_touch_existing_preserves_content);
+    RUN_TEST(test_cmd_cp_preserves_content);
     RUN_TEST(test_complete_registered_command);
     RUN_TEST(test_complete_path_and_preserve_command);
     RUN_TEST(test_complete_ambiguous_path_common_prefix);
@@ -645,10 +716,6 @@ int main(void)
     /* info commands */
     RUN_TEST(test_cmd_info);
     RUN_TEST(test_cmd_format);
-    RUN_TEST(test_cmd_ping_uses_default_timeout);
-    RUN_TEST(test_cmd_ping_accepts_bounded_timeout);
-    RUN_TEST(test_cmd_ping_rejects_bad_timeout);
-    RUN_TEST(test_cmd_ping_reports_network_error);
     RUN_TEST(test_cmd_nslookup_uses_shared_resolver);
     RUN_TEST(test_cmd_nslookup_reports_resolution_error);
     RUN_TEST(test_alias_expands_command_and_persists_configuration);

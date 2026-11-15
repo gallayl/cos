@@ -14,6 +14,7 @@ This directory is organized so you can quickly see what is **done/historical**, 
 ## Quick guide
 
 - **Want the current picture of what's left / planned?** Start with [`plan/consolidated-improvement-plan.md`](./plan/consolidated-improvement-plan.md).
+- **Want detailed plans for active/planned workstreams?** See [`plan/2026-11-11-developer-tooling-dx-improvement-plan.md`](./plan/2026-11-11-developer-tooling-dx-improvement-plan.md) and [`plan/2026-11-12-berry-command-script-migrations.md`](./plan/2026-11-12-berry-command-script-migrations.md).
 - **Want design rationale or historical context for a delivered area?** Read the relevant file in [`history/`](./history/), then check the plan item status/evidence.
 - **Want raw proposals / future possibilities?** Read [`ideas/2026-11-09-new-ideas.md`](./ideas/2026-11-09-new-ideas.md).
 - **Want proof (tests, hardware runs, measurements, audits)?** See [`reports/`](./reports/).

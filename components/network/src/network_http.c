@@ -20,7 +20,7 @@
 #define HTTP_TASK_STACK 6144
 #define HTTP_TASK_PRIORITY 4
 
-static const char *TAG = "net_http";
+static const char *tag = "net_http";
 
 // Single-flight HTTP worker: one request at a time. Request/response buffers and
 // s_response are shared static state owned by the worker/request path while
@@ -65,7 +65,7 @@ static char s_req_url[NETWORK_URL_MAX + 1];
 static char s_req_body[NETWORK_HTTP_BODY_MAX + 1];
 static network_http_header_t s_req_headers[NETWORK_HTTP_HEADER_MAX];
 static char s_resp_body[NETWORK_HTTP_BODY_MAX + 1];
-static const char s_empty_body[] = "";
+static const char S_EMPTY_BODY[] = "";
 static network_http_response_t s_response;
 
 static network_http_worker_stack_info_t s_http_stack_info;
@@ -75,7 +75,8 @@ static bool http_request_abandoned(uint32_t request_id)
     bool abandoned = false;
     if (s_http_mutex != NULL && xSemaphoreTake(s_http_mutex, pdMS_TO_TICKS(20)) == pdTRUE)
     {
-        abandoned = s_http_abandoned && s_http_active && s_active_request_id == request_id;
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+        abandoned = s_http_abandoned && s_http_active && (s_active_request_id == request_id);
         xSemaphoreGive(s_http_mutex);
     }
     return abandoned;
@@ -86,7 +87,7 @@ static void http_clear_public_response(void)
     s_response.status = 0;
     s_response.header_count = 0;
     s_response.body_len = 0;
-    s_response.body = s_empty_body;
+    s_response.body = S_EMPTY_BODY;
 }
 
 static const char *http_method_name(esp_http_client_method_t method)
@@ -117,14 +118,15 @@ static void log_http_worker_stack(const char *method, bool https, int status, es
     const uint32_t configured = (uint32_t)HTTP_TASK_STACK;
     const uint32_t used_bytes = configured > hwm_bytes ? configured - hwm_bytes : 0;
 
-    ESP_LOGI(TAG,
+    ESP_LOGI(tag,
              "R8/P4 stack: cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u min_free=%u method=%s scheme=%s status=%d "
              "err=%s",
              (unsigned)configured, (unsigned)stack_unit, (unsigned)hwm_words, (unsigned)hwm_bytes, (unsigned)used_bytes,
              (unsigned)hwm_bytes, method != NULL ? method : "?", https ? "https" : "http", status,
              esp_err_to_name(err));
 
-    network_http_worker_stack_info_t sample = {0};
+    network_http_worker_stack_info_t sample = {
+        0}; // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
     sample.available = true;
     sample.configured_stack = configured;
     sample.stack_unit_bytes = stack_unit;
@@ -409,7 +411,10 @@ static void http_worker(void *argument)
         const bool https = strncmp(s_req_url, "https://", 8) == 0;
         log_http_worker_stack(http_method_name(message.method), https, status, err);
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
-        if (s_http_active && s_active_request_id == message.request_id)
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+        if (s_http_active &&
+            (s_active_request_id ==
+             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
         {
             s_http_active = false;
             if (!s_http_abandoned)
@@ -475,7 +480,7 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
         return ESP_ERR_INVALID_ARG;
     }
     memset(&s_response, 0, sizeof(s_response));
-    s_response.body = s_empty_body;
+    s_response.body = S_EMPTY_BODY;
     *response = &s_response;
     if (url == NULL || request == NULL)
     {
@@ -514,14 +519,14 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     {
         return ESP_ERR_TIMEOUT;
     }
-    if (s_http_active || s_http_completed)
+    if (s_http_active || s_http_completed) // NOLINT(readability-implicit-bool-conversion) - bools in C logical op
     {
         xSemaphoreGive(s_http_mutex);
         return ESP_ERR_INVALID_STATE;
     }
 
     memset(&s_response, 0, sizeof(s_response));
-    s_response.body = s_empty_body;
+    s_response.body = S_EMPTY_BODY;
     s_response.url[0] = '\0';
     s_resp_body[0] = '\0';
     const esp_err_t compose_err = network_compose_url(url, s_req_url, sizeof(s_req_url));
@@ -575,9 +580,17 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
     if (remaining_ticks > 0 && xSemaphoreTake(s_http_done, remaining_ticks) == pdTRUE)
     {
         xSemaphoreTake(s_http_mutex, portMAX_DELAY);
-        const esp_err_t err = s_http_completed && s_completed_request_id == message.request_id ? s_completed_error
-                                                                                               : ESP_ERR_INVALID_STATE;
-        if (s_http_completed && s_completed_request_id == message.request_id)
+        const esp_err_t err =
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+            (s_http_completed &&
+             (s_completed_request_id ==
+              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
+                ? s_completed_error
+                : ESP_ERR_INVALID_STATE;
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+        if (s_http_completed &&
+            (s_completed_request_id ==
+             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
         {
             s_http_completed = false;
         }
@@ -587,13 +600,18 @@ esp_err_t network_http_fetch(const char *url, const network_http_request_t *requ
 
     xSemaphoreTake(s_http_mutex, portMAX_DELAY);
     esp_err_t err = ESP_ERR_TIMEOUT;
-    if (s_http_completed && s_completed_request_id == message.request_id)
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    if (s_http_completed && (s_completed_request_id ==
+                             message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
         err = s_completed_error;
         s_http_completed = false;
         (void)xSemaphoreTake(s_http_done, 0);
     }
-    else if (s_http_active && s_active_request_id == message.request_id)
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    else if (s_http_active &&
+             (s_active_request_id ==
+              message.request_id)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix
     {
         // R8/R2: the worker may still be inside esp_http_client_perform. Mark
         // abandoned so worker/event paths stop mutating the public response, and

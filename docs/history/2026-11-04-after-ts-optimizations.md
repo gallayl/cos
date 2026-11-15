@@ -4,20 +4,35 @@
 
 ### Status
 
-**Mostly proposed / not started** (as of 2026-11-08). The browser TS→Berry
+**Mostly proposed / in progress** (as of 2026-11-10). The browser TS→Berry
 compiler and COS SDK foundations exist (see
-[2026-11-03-ts-sdk.md](./2026-11-03-ts-sdk.md)), but the memory-focused compiler
-rules, profiles, bytecode/solidification work, native UI allocation changes, and
-editor diagnostics described here are not implemented as specified.
+[2026-11-03-ts-sdk.md](./2026-11-03-ts-sdk.md)). **R14 slice 1 (2026-11-10):**
+compiler `dev`/`prod` profiles, debug metadata foundation, statement-level
+source-map utilities, and incremental editor compile-summary diagnostics were
+implemented in the frontend compiler/editor with tests (see
+[docs/reports/2026-11-10-r14-compiler-profiles-debug-metadata.md](../reports/2026-11-10-r14-compiler-profiles-debug-metadata.md)).
+Remaining R14 work (finer/runtime-error mapping, `BE_DEBUG_RUNTIME_INFO`
+evaluation with measurements, runtime-memory editor diagnostics), bytecode/
+solidification work, and native UI allocation changes are not implemented as
+specified. R13 memory-conscious compiler rules and entrypoint/resource-contract
+standardization were delivered separately (2026-11-09).
 
 ### Progress snapshot
 
-- [ ] **Memory-conscious compiler rules:** no configurable documented rule set for
-      globals, lifecycle methods, top-level statements, or hot-callback
-      allocations was found beyond existing unsupported-syntax diagnostics.
-- [ ] **Resource lifecycle / `Disposable` / `CosApplication`:** not present as a
-      standardized SDK/runtime contract with guaranteed native cleanup registration.
-- [ ] **Compiler profiles (dev/prod), debug metadata, source maps:** not found.
+- [x] **Memory-conscious compiler rules (R13, 2026-11-09):** always-on entrypoint
+      diagnostics/rules implemented for app structure/state/lifecycle contract
+      (`cos/default-class-entrypoint`, `cos/entrypoint-contract`,
+      `cos/no-top-level-exec`, `cos/no-module-state`,
+      `cos/no-top-level-function`, `cos/top-level-class`, etc.). Broader
+      configurable hot-callback/allocation rules remain follow-up.
+- [~] **Resource lifecycle / `Disposable` / `CosApplication`:** `CosApplication` /
+      `CosUiApplication` SDK/compiler contract standardized in R13; guaranteed
+      native cleanup registration beyond conventions remains follow-up.
+- [~] **Compiler profiles (dev/prod), debug metadata, source maps (R14, 2026-11-10
+      slice 1):** `dev`/`prod` profiles, debug metadata, statement-level
+      source-map foundation/utilities, and incremental editor compile-summary
+      diagnostics implemented; finer/runtime-error mapping and firmware debug/
+      `BE_DEBUG_RUNTIME_INFO` evaluation pending.
 - [ ] **Persistent Berry bytecode (`.bec`) workflow/loader:** not found.
 - [ ] **Native UI allocation benchmarking/policy changes (`berry_ui.cpp`/`ui.cpp`):**
       not evidenced as part of this phase.

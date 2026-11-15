@@ -78,4 +78,11 @@ idf_component_register(
     REQUIRES console filesystem input network text_console ui esp_timer esp_hw_support
 )
 
+# Upstream be_filelib.c defines i_savecode unconditionally but only registers it
+# when BE_USE_BYTECODE_SAVER is enabled. Suppress the resulting warning for this
+# pinned upstream file when the saver is disabled in berry_conf.h.
+set_source_files_properties("${COS_BERRY_SOURCE_DIR}/src/be_filelib.c"
+    PROPERTIES COMPILE_OPTIONS "-Wno-unused-function"
+)
+
 add_dependencies(${COMPONENT_LIB} berry_generate)

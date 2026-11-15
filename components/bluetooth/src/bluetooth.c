@@ -71,7 +71,7 @@ static void nvs_save_enabled(bool enabled)
     nvs_handle_t h;
     if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK)
     {
-        nvs_set_u8(h, NVS_KEY_ENABLED, enabled ? 1 : 0);
+        nvs_set_u8(h, NVS_KEY_ENABLED, (uint8_t)enabled);
         nvs_commit(h);
         nvs_close(h);
     }

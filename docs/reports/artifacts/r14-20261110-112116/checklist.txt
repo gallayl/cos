@@ -1,0 +1,34 @@
+﻿R14 Hardware Validation Checklist (record pass/fail and notes)
+
+PART A - Source-map/runtime error mapping (real device output)
+[ ] A1 Prep: frontend served, device auth OK, editor shows dev profile + mappings > 0, serial log capture started
+    - Firmware commit/build: ____________________
+    - Frontend/browser: _________________________
+    - Device/port/IP:  / 
+[ ] A2 Compile/load/runtime errors captured (>=2-3 cases): serial + console + editor observations saved
+    - Case 1: ____________________  format: ____________________  manual annotate: ____  auto annotate: ____
+    - Case 2: ____________________  format: ____________________  manual annotate: ____  auto annotate: ____
+    - Case 3: ____________________  format: ____________________  manual annotate: ____  auto annotate: ____
+[ ] A3 Runtime app exception/raise mapped to correct TS source (sample captured)
+[ ] A4 Source-map fidelity spot checks (nested expr/calls/inline/control flow) documented
+[ ] A5 Raw unrecognized formats/mismatches saved for follow-up
+
+PART B - Editor runtime memory diagnostics (/api/heap)
+[ ] B1 Refresh shows free heap bytes + formatted value + raw response + timestamp (auth OK, device reachable)
+[ ] B2 Auto-refresh (5s) updates/stable during short observation
+[ ] B3 Unauthorized handled (401/sign-in state) and unreachable handled (error state) gracefully
+[ ] B4 Compared with serial/shell metrics if available (sanity): ______________________________
+
+PART C - BE_DEBUG_RUNTIME_INFO / prod firmware evaluation (optional, measure before any config change)
+[ ] C1 Baseline recorded: commit, berry_conf.h values, idf.py size/components, boot/runtime heap, error/trace samples
+[ ] C2 Candidate (temporary local change only) measured with identical environment; config restored unless decided
+[ ] C3 Comparison documented: size/heap/error quality/R14 mapping impact; decision/recommendation recorded
+
+RESULT SUMMARY
+- Overall: PENDING / PASS / FAIL (with caveats)
+- Key findings:
+  1. __________________________________________
+  2. __________________________________________
+- Follow-ups:
+  1. __________________________________________
+  2. __________________________________________

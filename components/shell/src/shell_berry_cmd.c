@@ -54,12 +54,15 @@ static void print_http_stack(void)
     }
     if (http_stack.available)
     {
-        printf("HTTP worker stack (R8/P4): cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u method=%s scheme=%s "
-               "status=%d err=%s\n",
-               (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
-               (unsigned)http_stack.hwm_words, (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes,
-               http_stack.last_method, http_stack.https ? "https" : "http", http_stack.last_status,
-               esp_err_to_name(http_stack.last_error));
+        printf(
+            "HTTP worker stack (R8/P4): cfg=%u unit=%u hwm_words=%u hwm_bytes=%u used~=%u method=%s scheme=%s "
+            "status=%d err=%s\n",
+            (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
+            (unsigned)http_stack.hwm_words, (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes,
+            // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+            http_stack.last_method, http_stack.https ? "https" : "http",
+            http_stack.last_status, // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+            esp_err_to_name(http_stack.last_error));
     }
     else
     {
@@ -92,7 +95,11 @@ static void print_profile(void)
     }
     if (berry_err == ESP_OK)
     {
-        printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n", berry_info.initialized ? "yes" : "no",
+        printf("  Berry GC:      initialized=%s managed=%u bytes step_rate=%d\n",
+               // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+               berry_info.initialized
+                   ? "yes"
+                   : "no", // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
                (unsigned)berry_info.gc_managed_bytes, berry_info.gc_step_rate);
         printf("  Heap snapshot: free=%u min=%u largest=%u internal_free=%u internal_min=%u internal_largest=%u\n",
                (unsigned)berry_info.heap_free, (unsigned)berry_info.heap_min_free,
@@ -110,7 +117,10 @@ static void print_profile(void)
             printf("  HTTP worker:   cfg=%u unit=%u hwm=%u used~=%u bytes method=%s %s status=%d err=%s\n",
                    (unsigned)http_stack.configured_stack, (unsigned)http_stack.stack_unit_bytes,
                    (unsigned)http_stack.hwm_bytes, (unsigned)http_stack.used_bytes, http_stack.last_method,
-                   http_stack.https ? "https" : "http", http_stack.last_status, esp_err_to_name(http_stack.last_error));
+                   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+                   http_stack.https ? "https" : "http", http_stack.last_status,
+                   esp_err_to_name(http_stack.last_error)); // NOLINT(readability-implicit-bool-conversion) - preserve
+                                                            // existing behavior/types
         }
         else
         {

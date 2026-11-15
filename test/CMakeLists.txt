@@ -108,6 +108,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
     ${COMPONENT_DIR}/components/shell/src/shell_script.c
+    ${COMPONENT_DIR}/components/shell/src/shell_redirection.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -125,7 +126,7 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp system_logic)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic vfs_path)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
@@ -156,6 +157,16 @@ target_include_directories(test_vfs_path PRIVATE
 )
 target_link_libraries(test_vfs_path PRIVATE unity vfs_path mock_esp)
 add_test(NAME test_vfs_path COMMAND test_vfs_path)
+
+# --- Test: vfs (contract tests with seam/mocked backend) ---
+add_executable(test_vfs test_vfs.c)
+target_include_directories(test_vfs PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/filesystem/include
+    ${COMPONENT_DIR}/components/filesystem/src
+)
+target_link_libraries(test_vfs PRIVATE unity mock_esp)
+add_test(NAME test_vfs COMMAND test_vfs)
 
 # --- Test: shell ---
 add_executable(test_shell test_shell.c)

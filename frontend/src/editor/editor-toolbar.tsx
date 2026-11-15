@@ -2,12 +2,13 @@ import { createComponent, NestedRouteLink, Shade } from '@furystack/shades'
 import { Button, ButtonGroup, Typography, cssVariableTheme } from '@furystack/shades-common-components'
 
 export interface EditorToolbarProps {
-  canCreateBerry: boolean
-  onOpen: () => void
+  canSave: boolean
+  canPreview: boolean
+  showCompile: boolean
+  canCompile: boolean
   onSave: () => void
-  onCreateBerry: () => void
   onCompile: () => void
-  onReset: () => void
+  onPreview: () => void
 }
 
 /** Primary editor actions. */
@@ -45,39 +46,46 @@ export const EditorToolbar = Shade<EditorToolbarProps>({
       justifyContent: 'flex-end',
     },
   },
-  render: ({ props }) => (
-    <header>
-      <div className="title">
-        <NestedRouteLink path="/">Home</NestedRouteLink>
-        <Typography variant="subtitle2">COS TypeScript</Typography>
-      </div>
-      <ButtonGroup variant="outlined">
-        <Button type="button" size="small" onclick={props.onOpen}>
-          Open
-        </Button>
-        <Button type="button" size="small" onclick={props.onSave}>
-          Save
-        </Button>
-        <Button
-          type="button"
-          size="small"
-          onclick={props.onCreateBerry}
-          aria-disabled={props.canCreateBerry ? 'false' : 'true'}
-          style={
-            props.canCreateBerry
-              ? undefined
-              : { opacity: cssVariableTheme.action.disabledOpacity, pointerEvents: 'none' }
-          }
-        >
-          Create Berry
-        </Button>
-        <Button type="button" size="small" onclick={props.onCompile}>
-          Compile
-        </Button>
-        <Button type="button" size="small" onclick={props.onReset}>
-          Reset
-        </Button>
-      </ButtonGroup>
-    </header>
-  ),
+  render: ({ props }) => {
+    const disabledStyle = { opacity: cssVariableTheme.action.disabledOpacity, pointerEvents: 'none' as const }
+    return (
+      <header>
+        <div className="title">
+          <NestedRouteLink path="/">Home</NestedRouteLink>
+          <Typography variant="subtitle2">COS TypeScript</Typography>
+        </div>
+        <ButtonGroup variant="outlined">
+          <Button
+            type="button"
+            size="small"
+            onclick={props.onSave}
+            aria-disabled={props.canSave ? 'false' : 'true'}
+            style={props.canSave ? undefined : disabledStyle}
+          >
+            Save
+          </Button>
+          <Button
+            type="button"
+            size="small"
+            onclick={props.onPreview}
+            aria-disabled={props.canPreview ? 'false' : 'true'}
+            style={props.canPreview ? undefined : disabledStyle}
+          >
+            Preview
+          </Button>
+          {props.showCompile ? (
+            <Button
+              type="button"
+              size="small"
+              onclick={props.onCompile}
+              aria-disabled={props.canCompile ? 'false' : 'true'}
+              style={props.canCompile ? undefined : disabledStyle}
+            >
+              Compile
+            </Button>
+          ) : null}
+        </ButtonGroup>
+      </header>
+    )
+  },
 })

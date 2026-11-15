@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const uint16_t s_ansi_color_table[8] = {
+static const uint16_t S_ANSI_COLOR_TABLE[8] = {
     TEXT_BUF_COLOR_BLACK, TEXT_BUF_COLOR_RED,     TEXT_BUF_COLOR_GREEN, TEXT_BUF_COLOR_YELLOW,
     TEXT_BUF_COLOR_BLUE,  TEXT_BUF_COLOR_MAGENTA, TEXT_BUF_COLOR_CYAN,  TEXT_BUF_COLOR_WHITE,
 };
@@ -11,9 +11,9 @@ static const uint16_t s_ansi_color_table[8] = {
 
 static uint8_t history_color_index(uint16_t foreground)
 {
-    for (size_t i = 0; i < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]); i++)
+    for (size_t i = 0; i < sizeof(S_ANSI_COLOR_TABLE) / sizeof(S_ANSI_COLOR_TABLE[0]); i++)
     {
-        if (s_ansi_color_table[i] == foreground)
+        if (S_ANSI_COLOR_TABLE[i] == foreground)
         {
             return (uint8_t)i;
         }
@@ -23,7 +23,7 @@ static uint8_t history_color_index(uint16_t foreground)
 
 static uint16_t history_foreground(uint8_t index)
 {
-    return index < sizeof(s_ansi_color_table) / sizeof(s_ansi_color_table[0]) ? s_ansi_color_table[index]
+    return index < sizeof(S_ANSI_COLOR_TABLE) / sizeof(S_ANSI_COLOR_TABLE[0]) ? S_ANSI_COLOR_TABLE[index]
                                                                               : TEXT_BUF_DEFAULT_FG;
 }
 
@@ -248,7 +248,7 @@ static void apply_sgr(text_buffer_t *buf)
         }
         else if (p >= 30 && p <= 37)
         {
-            buf->current_fg = s_ansi_color_table[p - 30];
+            buf->current_fg = S_ANSI_COLOR_TABLE[p - 30];
         }
         else if (p == 1)
         {

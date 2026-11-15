@@ -18,6 +18,16 @@ export class BerryWriter {
     if (this.level > 0) this.level -= 1
   }
 
+  /** 1-based line number of the next written line. */
+  get nextLine(): number {
+    return this.lines.length + 1
+  }
+
+  /** 1-based column number of the next written line (after indentation). */
+  get nextColumn(): number {
+    return this.level * 4 + 1
+  }
+
   /**
    * @brief Run `build` at column 0 and return the text it wrote.
    * The caller inserts that text into an expression, then the surrounding

@@ -7,17 +7,26 @@ static char s_base[NETWORK_URL_MAX + 1];
 
 static bool is_digit(unsigned char character)
 {
-    return character >= '0' && character <= '9';
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return (character >= '0') &&
+           (character <= '9'); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool is_alpha(unsigned char character)
 {
-    return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z');
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return ((character >= 'a') && (character <= 'z')) ||
+           ((character >= 'A') &&
+            (character <= 'Z')); // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
 }
 
 static bool is_alnum(unsigned char character)
 {
-    return is_alpha(character) || is_digit(character);
+    if (is_alpha(character))
+    {
+        return true;
+    }
+    return is_digit(character);
 }
 
 static bool is_url_char(unsigned char character)
@@ -118,7 +127,8 @@ static bool valid_hostname(const char *host)
     {
         if (*character == '.')
         {
-            if (label_length == 0 || previous_hyphen)
+            if (label_length == 0 ||
+                previous_hyphen) // NOLINT(readability-implicit-bool-conversion) - bool in C logical op
             {
                 return false;
             }
@@ -134,13 +144,15 @@ static bool valid_hostname(const char *host)
         {
             return false;
         }
-        previous_hyphen = *character == '-';
+        previous_hyphen = (*character == '-');
         if (++label_length > 63)
         {
             return false;
         }
     }
-    return label_length > 0 && !previous_hyphen;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return (label_length > 0) &&
+           !previous_hyphen; // NOLINT(readability-implicit-bool-conversion) - bool expression in C return
 }
 
 static bool chars_allowed(const char *url)
@@ -213,7 +225,11 @@ static bool looks_like_host_url(const char *url)
         }
     }
     host[host_length] = '\0';
-    return dot && valid_hostname(host);
+    if (!dot)
+    {
+        return false;
+    }
+    return valid_hostname(host);
 }
 
 typedef struct
@@ -236,8 +252,8 @@ static bool parse_port(const char *start, const char **end, uint16_t *port)
     const char *cursor = start;
     while (is_digit((unsigned char)*cursor))
     {
-        value = value * 10u + (unsigned)(*cursor - '0');
-        if (value > 65535u)
+        value = (value * 10U) + (unsigned)(*cursor - '0');
+        if (value > 65535U)
         {
             return false;
         }
@@ -346,7 +362,10 @@ static esp_err_t parse_absolute(const char *url, url_parts_t *parts)
             return ESP_ERR_INVALID_ARG;
         }
     }
-    if ((!parts->https && parts->port == 80) || (parts->https && parts->port == 443))
+    if ((!parts->https && parts->port == 80U) ||
+        // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+        (parts->https &&
+         parts->port == 443U)) // NOLINT(readability-implicit-bool-conversion) - bool field compared as condition
     {
         parts->port = 0;
     }
@@ -355,7 +374,8 @@ static esp_err_t parse_absolute(const char *url, url_parts_t *parts)
 
 static esp_err_t format_url(const url_parts_t *parts, char *out, size_t out_size)
 {
-    const char *scheme = parts->https ? "https" : "http";
+    const char *scheme =
+        parts->https ? "https" : "http"; // NOLINT(readability-implicit-bool-conversion) - ternary selects scheme string
     int written;
     if (parts->port == 0)
     {
@@ -482,7 +502,11 @@ static bool url_is_absolute(const char *url)
 {
     bool https = false;
     const char *rest = NULL;
-    return http_scheme(url, &https, &rest) || looks_like_host_url(url);
+    if (http_scheme(url, &https, &rest))
+    {
+        return true;
+    }
+    return looks_like_host_url(url);
 }
 
 /** Resolve a relative reference against an absolute base URL. When the reference
@@ -561,15 +585,29 @@ static esp_err_t join_relative(const char *base, const char *url, char *out, siz
 
 bool network_http_method_valid(const char *method)
 {
-    return method != NULL &&
-           (strcmp(method, "GET") == 0 || strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
-            strcmp(method, "PATCH") == 0 || strcmp(method, "DELETE") == 0 || strcmp(method, "HEAD") == 0);
+    if (method == NULL)
+    {
+        return false;
+    }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return ((strcmp(method, "GET") == 0) || (strcmp(method, "POST") == 0) ||
+            (strcmp(method, "PUT") ==
+             0) || // NOLINT(readability-implicit-bool-conversion) - preserve existing behavior/types
+            (strcmp(method, "PATCH") == 0) ||
+            (strcmp(method, "DELETE") == 0) || (strcmp(method, "HEAD") == 0));
 }
 
 bool network_http_method_allows_body(const char *method)
 {
-    return method != NULL && strcmp(method, "GET") != 0 && strcmp(method, "HEAD") != 0 &&
-           network_http_method_valid(method);
+    if (method == NULL)
+    {
+        return false;
+    }
+    if ((strcmp(method, "GET") == 0) || (strcmp(method, "HEAD") == 0))
+    {
+        return false;
+    }
+    return network_http_method_valid(method);
 }
 
 bool network_http_header_valid(const char *name, const char *value)
@@ -604,7 +642,10 @@ bool network_http_header_valid(const char *name, const char *value)
 
 bool network_http_timeout_valid(uint32_t timeout_ms)
 {
-    return timeout_ms >= NETWORK_HTTP_TIMEOUT_MIN_MS && timeout_ms <= NETWORK_HTTP_TIMEOUT_MAX_MS;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    return ((timeout_ms >= NETWORK_HTTP_TIMEOUT_MIN_MS) &&
+            (timeout_ms <= NETWORK_HTTP_TIMEOUT_MAX_MS)); // NOLINT(readability-implicit-bool-conversion) - preserve
+                                                          // existing behavior/types
 }
 
 esp_err_t network_compose_url(const char *url, char *out, size_t out_size)

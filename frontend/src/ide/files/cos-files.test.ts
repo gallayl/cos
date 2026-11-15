@@ -25,10 +25,10 @@ describe('cos files', () => {
   it('lists a directory with directories first', async () => {
     const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse([
-        { name: 'b.txt', size: 2, is_dir: false },
-        { name: 'apps', size: 0, is_dir: true },
-        { name: 'a.txt', size: 1, is_dir: false },
-        { name: '../secret', size: 1, is_dir: false },
+        { name: 'b.txt', size: 2, is_dir: false, mtime: 20, ctime: 10 },
+        { name: 'apps', size: 0, is_dir: true, mtime: 30, ctime: 15 },
+        { name: 'a.txt', size: 1, is_dir: false, mtime: 10, ctime: 5 },
+        { name: '../secret', size: 1, is_dir: false, mtime: 1, ctime: 1 },
       ]),
     )
 

@@ -13,3 +13,4 @@ size_t xStreamBufferSend(StreamBufferHandle_t xStreamBuffer, const void *pvTxDat
 
 size_t xStreamBufferReceive(StreamBufferHandle_t xStreamBuffer, void *pvRxData, size_t xBufferLengthBytes,
                             TickType_t xTicksToWait);
+void vStreamBufferDelete(StreamBufferHandle_t xStreamBuffer);

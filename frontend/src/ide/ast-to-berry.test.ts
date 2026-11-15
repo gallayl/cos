@@ -852,3 +852,38 @@ var __cos_entry = Hello()
     expect(result.diagnostics.map((d) => d.code)).toContain('cos/entrypoint-contract')
   })
 })
+
+describe('astToBerry R14 profiles and debug metadata', () => {
+  it('defaults to dev profile metadata with statement mappings', () => {
+    const result = compile(`const value = 1\nlog(value)`)
+    expect(result.ok).toBe(true)
+    expect(result.metadata?.profile).toBe('dev')
+    expect((result.metadata?.mappings.length ?? 0) >= 2).toBe(true)
+    expect(result.metadata?.notes?.length).toBeGreaterThan(0)
+  })
+
+  it('keeps generated Berry identical across dev and prod for supported input', () => {
+    const source = `
+      function greet(name: string): string {
+        return "hi " + name
+      }
+      const msg = greet("cos")
+      log(msg)
+    `
+    const dev = astToBerry(getAst(source), { profile: 'dev', entrypoint: false })
+    const prod = astToBerry(getAst(source), { profile: 'prod', entrypoint: false })
+    expect(dev.ok).toBe(true)
+    expect(prod.ok).toBe(true)
+    expect(prod.code).toBe(dev.code)
+    expect(prod.metadata?.profile).toBe('prod')
+    expect(prod.metadata?.mappings).toEqual([])
+    expect((dev.metadata?.mappings.length ?? 0) > 0).toBe(true)
+  })
+
+  it('includes metadata on parse failures', () => {
+    const result = astToBerry(getAst('const value ='), { profile: 'prod', entrypoint: false })
+    expect(result.ok).toBe(false)
+    expect(result.metadata?.profile).toBe('prod')
+    expect(result.metadata?.mappings).toEqual([])
+  })
+})

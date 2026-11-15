@@ -58,13 +58,13 @@ describe('file tree store', () => {
     expect(store.getChildren(store.roots[0])[0]?.kind).toBe('pending')
 
     store.setListing('/flash', [
-      { name: 'apps', is_dir: true },
-      { name: 'app.ts', is_dir: false },
+      { name: 'apps', is_dir: true, size: 0, mtime: 0, ctime: 0 },
+      { name: 'app.ts', is_dir: false, size: 1, mtime: 0, ctime: 0 },
     ])
     const first = store.getChildren(store.roots[0])
     store.setListing('/flash', [
-      { name: 'apps', is_dir: true },
-      { name: 'app.ts', is_dir: false },
+      { name: 'apps', is_dir: true, size: 0, mtime: 0, ctime: 0 },
+      { name: 'app.ts', is_dir: false, size: 1, mtime: 0, ctime: 0 },
     ])
     const second = store.getChildren(store.roots[0])
     expect(second[0]).toBe(first[0])
@@ -76,12 +76,12 @@ describe('file tree store', () => {
 
   it('renames a folder and its loaded children', () => {
     const store = new FileTreeStore()
-    store.setListing('/flash', [{ name: 'apps', is_dir: true }])
+    store.setListing('/flash', [{ name: 'apps', is_dir: true, size: 0, mtime: 0, ctime: 0 }])
     const folder = store.getChildren(store.roots[0])[0]
     if (!folder) {
       throw new Error('missing folder')
     }
-    store.setListing('/flash/apps', [{ name: 'app.ts', is_dir: false }])
+    store.setListing('/flash/apps', [{ name: 'app.ts', is_dir: false, size: 1, mtime: 0, ctime: 0 }])
     const file = store.getChildren(folder)[0]
 
     expect(store.applyRename(folder, 'widgets')).toEqual({ from: '/flash/apps', to: '/flash/widgets' })
@@ -94,9 +94,9 @@ describe('file tree store', () => {
 
   it('keeps a draft across a refresh and drops it when editing is cancelled', () => {
     const store = new FileTreeStore()
-    store.setListing('/flash', [{ name: 'app.ts', is_dir: false }])
+    store.setListing('/flash', [{ name: 'app.ts', is_dir: false, size: 1, mtime: 0, ctime: 0 }])
     const draft = store.insertDraft('/flash', 'file')
-    store.setListing('/flash', [{ name: 'app.ts', is_dir: false }])
+    store.setListing('/flash', [{ name: 'app.ts', is_dir: false, size: 1, mtime: 0, ctime: 0 }])
     expect(store.getChildren(store.roots[0])[0]).toBe(draft)
 
     store.cancelEdit()
@@ -108,7 +108,7 @@ describe('file tree store', () => {
     store.setError('/sdcard', 'Not found')
     expect(store.getChildren(store.roots[1])[0]).toMatchObject({ kind: 'error', message: 'Not found' })
 
-    store.setListing('/sdcard', [{ name: 'notes.txt', is_dir: false }])
+    store.setListing('/sdcard', [{ name: 'notes.txt', is_dir: false, size: 1, mtime: 0, ctime: 0 }])
     store.setError('/sdcard', 'Cannot reach the device')
     expect(store.getChildren(store.roots[1])[0]?.kind).toBe('file')
   })

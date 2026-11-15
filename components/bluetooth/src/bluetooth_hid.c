@@ -222,7 +222,7 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
     for (int i = 0; i < MAX_KEYS; i++)
     {
         uint8_t kc = keys[i];
-        if (kc == 0 || key_in_prev(kc))
+        if (kc == 0U || key_in_prev(kc)) // NOLINT(readability-implicit-bool-conversion) - C bool/int predicate mix
         {
             continue;
         }
@@ -271,7 +271,8 @@ void bluetooth_hid_keyboard_input(const uint8_t *data, size_t len)
     for (int i = 0; i < MAX_KEYS; i++)
     {
         const uint8_t kc = s_prev_keys[i];
-        if (kc == 0 || key_in_current(keys, kc))
+        if (kc == 0U ||
+            key_in_current(keys, kc)) // NOLINT(readability-implicit-bool-conversion) - C bool/int predicate mix
         {
             continue;
         }

@@ -15,12 +15,42 @@ export interface BerryDiagnostic {
   code?: string
 }
 
+/** Compiler profile. `dev` favors debugging metadata; `prod` favors lean output/metadata. */
+export type BerryCompileProfile = 'dev' | 'prod'
+
+/** 1-based source location. */
+export interface BerrySourceLocation {
+  line: number
+  column: number
+}
+
+/** Best-effort mapping from generated Berry output back to original TypeScript. */
+export interface BerrySourceMapEntry {
+  generated: BerrySourceLocation
+  source: BerrySourceLocation
+  /** Optional TypeScript syntax kind/name hint for diagnostics and tooling. */
+  kind?: string
+}
+
+/** Debug/diagnostic metadata produced alongside generated Berry code. */
+export interface BerryCompileMetadata {
+  profile: BerryCompileProfile
+  /** Source file name/path when available (useful for editor/source-map consumers). */
+  sourceFileName?: string
+  /** Statement-level mappings collected during generation (profile-dependent). */
+  mappings: readonly BerrySourceMapEntry[]
+  /** Informational notes about profile/runtime debug behavior. */
+  notes: readonly string[]
+}
+
 /** Berry source plus diagnostics. Compilation fails when any error diagnostic exists. */
 export interface BerryGenerationResult {
   /** False when any error-severity diagnostic exists. */
   ok: boolean
   code: string
   diagnostics: readonly BerryDiagnostic[]
+  /** Optional debug/metadata (present for successful and parse-failed compilations where available). */
+  metadata?: BerryCompileMetadata
 }
 
 /** @returns True when diagnostics contain at least one error. */

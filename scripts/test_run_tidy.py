@@ -41,23 +41,26 @@ class SanitizeCompileCommandsTests(unittest.TestCase):
             with open(source, "w", encoding="utf-8") as compile_commands:
                 json.dump(entries, compile_commands)
 
-            sanitize_compile_commands(source, destination)
+            with patch.dict(os.environ, {"LINT_TARGET_TRIPLE": "xtensa-esp-unknown-elf", "LINT_MCPU": "esp32"}, clear=False):
+                sanitize_compile_commands(source, destination)
 
             with open(destination, encoding="utf-8") as compile_commands:
                 sanitized = json.load(compile_commands)
+            target_args = ["--target=xtensa-esp-unknown-elf", "-mcpu=esp32"]
             self.assertNotIn("-mlongcalls", sanitized[0]["command"])
             self.assertTrue(sanitized[0]["command"].startswith("cc "))
             self.assertIn("-DNAME=one", sanitized[0]["command"])
+            self.assertIn("--target=xtensa-esp-unknown-elf", sanitized[0]["command"])
             self.assertEqual(
-                ["cc", "-I", "include path", "-IC:/tools/xtensa/include", "-c", "other.c"],
+                ["cc"] + target_args + ["-I", "include path", "-IC:/tools/xtensa/include", "-c", "other.c"],
                 sanitized[1]["arguments"],
             )
-            expected_command = ["cc", "-c", "C:\\path with spaces\\source.c"]
+            expected_command = ["cc"] + target_args + ["-c", "C:\\path with spaces\\source.c"]
             expected_command = (
                 subprocess.list2cmdline(expected_command) if os.name == "nt" else shlex.join(expected_command)
             )
             self.assertEqual(expected_command, sanitized[2]["command"])
-            self.assertEqual(["c++", "-c", "source.cpp", "-fexceptions"], sanitized[3]["arguments"])
+            self.assertEqual(["c++"] + target_args + ["-c", "source.cpp", "-fexceptions"], sanitized[3]["arguments"])
             self.assertEqual(temp_dir, sanitized[1]["directory"])
 
 

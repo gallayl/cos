@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 set(EXTRA_COMPONENT_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../../components/filesystem
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/esp_littlefs
     ${CMAKE_CURRENT_LIST_DIR}/../../components/shell
     ${CMAKE_CURRENT_LIST_DIR}/../../components/system
     ${CMAKE_CURRENT_LIST_DIR}/../../components/display

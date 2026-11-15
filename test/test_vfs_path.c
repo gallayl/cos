@@ -147,6 +147,15 @@ static void test_virtual_path_mounts(void)
     TEST_ASSERT_FALSE(vfs_is_virtual_path(NULL));
 }
 
+static void test_resolve_normalizes_dot_segments(void)
+{
+    char real[VFS_PATH_MAX];
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_resolve_path("/flash/a/../b/./c.txt", real, sizeof(real)));
+    TEST_ASSERT_EQUAL_STRING("/littlefs/b/c.txt", real);
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_resolve_path("/sdcard/x/../y", real, sizeof(real)));
+    TEST_ASSERT_EQUAL_STRING("/sdcard/y", real);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -167,6 +176,7 @@ int main(void)
     RUN_TEST(test_compose_relative_to_script);
     RUN_TEST(test_compose_rejects_paths_that_do_not_fit);
     RUN_TEST(test_virtual_path_mounts);
+    RUN_TEST(test_resolve_normalizes_dot_segments);
 
     return UNITY_END();
 }
