@@ -1,11 +1,11 @@
 # R20 — Pipes runtime v1 (minimal sequential buffered pipeline)
 
 - **ID:** r20-pipes-runtime-v1
-- **Status:** needs-clarification (specification complete; **explicit approval pending** to mark Ready and move)
+- **Status:** ready (approved)
 - **Created:** 2026-11-15
-- **Updated:** 2026-11-15 (clarification completed; approval pending)
-- **Source/links:** [`r20-deferred-backlog.md`](./r20-deferred-backlog.md) (umbrella), [`plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R20, P3, in progress), [`reports/2026-11-10-r20-pipes-parsing-design.md`](../../reports/2026-11-10-r20-pipes-parsing-design.md), [`reports/2026-11-10-r20-pipes-runtime-design.md`](../../reports/2026-11-10-r20-pipes-runtime-design.md) (primary proposal), [`reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md`](../../reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md)
-- **Approval:** pending — ready/pre-approved for implementation/PR flow requires explicit user approval after this specification (merge remains human).
+- **Updated:** 2026-11-15 (clarified, explicitly approved, moved to ready)
+- **Source/links:** [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (umbrella), [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R20, P3, in progress), [`../../reports/2026-11-10-r20-pipes-parsing-design.md`](../../reports/2026-11-10-r20-pipes-parsing-design.md), [`../../reports/2026-11-10-r20-pipes-runtime-design.md`](../../reports/2026-11-10-r20-pipes-runtime-design.md) (primary proposal), [`../../reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md`](../../reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md)
+- **Approval:** Approved by user in chat on 2026-11-15 (explicit). Pre-approved for implementation/PR flow; merge remains human.
 
 ## Summary
 Implement a minimal, safe in-process pipes runtime for COS shell as R20 sub-item (v1): sequential buffered **2-stage** pipeline `lhs | rhs` with **bounded temp-file capture (8 KiB)**, **Berry-first stdin contract** (`console.stdin()`), Berry-only `rhs` consumers, conservative diagnostics for unsupported forms, and documented limits/evidence.
@@ -39,42 +39,47 @@ Implement a minimal, safe in-process pipes runtime for COS shell as R20 sub-item
 - [x] **Hardware validation (2026-11-15):** **Minimal on-device (CYD) smoke required** for v1 validation/DoD: (1) happy path — Berry producer `|` Berry consumer script using `console.stdin()` produces expected output/status and console restored; (2) one handled failure/diagnostic case — e.g. overflow or unsupported form/consumer with correct diagnostic and console restored. Record device/storage/firmware notes and evidence in docs/reports or linked evidence.
 - [x] **Diagnostics/limits (2026-11-15):** reuse existing pipeline diagnostics where applicable (`pipes: invalid syntax`, `pipes: not supported yet` for unsupported runtime forms not enabled by v1). Add/ensure specific clear handled diagnostics for: unsupported `rhs` consumer in v1 (Berry-only), overflow/capture-too-large, and capture/wiring failures. Exact strings may be finalized in implementation but must be unambiguous and tested.
 - [x] **ESP log/stdout capture caveat (2026-11-15):** accepted limitation — v1 pipes only stdio/fd-captured stdout; ESP-IDF `ESP_LOGx` output may bypass capture depending on routing. Must be documented.
-- [ ] **Explicit approval to mark Ready/pre-approved for implementation:** pending after specification.
+- [x] **Explicit approval to mark Ready/pre-approved for implementation (2026-11-15):** approved by user in chat; item moved to `docs/plan/ready/`.
 
 ## Open questions
-- none (all Ready-contract fields specified below; pending explicit approval only)
+- none
 
-## Acceptance criteria / definition of done (draft, to finalize)
-- [ ] v1 contract and scope explicitly specified and approved (no open questions).
-- [ ] `lhs | rhs` (2-stage) works for approved consumer/producer forms using bounded sequential capture and documented stdin contract.
-- [ ] Overflow, unsupported forms, and setup/capture/wiring failures produce clear handled diagnostics/non-zero status; stdout and piped-input state restored on all paths.
-- [ ] Host unit tests cover segment planning/gating, capture/overflow, stdin delivery/cleanup, restoration-on-error, and exit-status mapping; existing shell tests remain passing.
-- [ ] Docs updated (behavior, limits, unsupported forms, examples as applicable).
-- [ ] Validation evidence recorded: `make format-check`, `make test`, firmware build/lint and other scope checks per `AGENTS.md` as applicable; hardware smoke if required by finalized plan.
+## Acceptance criteria / definition of done
+- [ ] Spec approved explicitly and item moved to `docs/plan/ready/` with **open questions: none** (pre-approved for implementation/PR flow; merge remains human).
+- [ ] `lhs | rhs` (exactly 2 stages) executes sequentially: `lhs` stdout (stdio/fd-captured, best-effort) captured via temp VFS file up to 8192 bytes and delivered to Berry `rhs` through `console.stdin()` (`string | nil`, set only during piped `rhs`, cleared/restored after).
+- [ ] On successful capture+wiring to supported Berry `rhs`, `rhs` runs and pipeline returns `rhs` status (including when `lhs` returned non-zero with captured output).
+- [ ] Overflow (>8192 bytes), capture/wiring/I-O/setup failures, unsupported forms (3+ stages, pipe+redirection), and non-Berry `rhs` consumers produce clear handled non-zero diagnostics; no partial/ambiguous execution; `rhs` not run when piping cannot be completed correctly. Stdout, piped-input state, and temp capture file restored/cleaned up on all paths.
+- [ ] Berry `console.stdin()` native binding and TS SDK declaration updated in sync and documented (including `nil` when not piped and capture limitations).
+- [ ] Host unit tests cover: v1 gating/segment planning, capture and 8 KiB overflow, stdin delivery/cleanup, stdout/piped-input/temp-file restoration on error paths, exit-status mapping (including `rhs`-status-on-success rule), and unsupported-form/consumer diagnostics. Existing shell/Berry/related tests remain passing.
+- [ ] User-facing/docs updated as needed (shell behavior, limits, unsupported forms, `console.stdin()` usage, stdout-only/ESP-log caveat).
+- [ ] Validation evidence recorded: `make format-check`, `make test`; firmware `make build` and `make lint` when feasible per AGENTS for touched C/C++/shell/Berry areas; other scope checks as applicable. **Minimal on-device (CYD) smoke** recorded: (1) happy path Berry producer | Berry consumer using `console.stdin()` with expected output/status and console restored; (2) one handled failure/diagnostic case (overflow or unsupported form/consumer) with correct diagnostic and console restored. Device/storage/firmware notes included.
 
-## Validation plan (draft, to finalize)
-- **Automated:** `make format-check`, `make test`. Scope checks per `AGENTS.md`: firmware build (`make build`) and `make lint` if feasible for `components/shell`/runtime changes; integration/QEMU if relevant test coverage added; docs-check if docs/comments affected.
-- **Hardware/manual (likely):** minimal smoke on CYD hardware for one happy-path piped case and console restoration/overflow or unsupported-form sanity as specified (pending confirmation).
-- **Not in scope unless specified:** broad HW matrix, ESP log capture semantics, multi-stage/streaming performance benchmarking.
+## Validation plan
+- **Automated (required):** `make format-check`, `make test`. For firmware/shell/Berry changes: `make build` and `make lint` when feasible (ESP-IDF v6.1 env required; report blockers with actionable setup if unavailable). Run `make docs-check` if Doxygen/public headers/docs comments in scope.
+- **Hardware/manual (required for DoD):** minimal CYD smoke with evidence recorded: happy-path `lhs | rhs` (Berry->Berry, `console.stdin()`) and one handled failure/diagnostic case (overflow or unsupported form/consumer), confirming diagnostics/output, exit behavior as testable, and console/stdout restoration. Note device, storage paths, firmware/build details.
+- **Optional/if relevant:** targeted integration/QEMU coverage if a deterministic case fits existing harness (not required for this item).
 
 ## Expected areas/files (rough)
-- `components/shell/src/shell_redirection.{h,c}` (pipeline parsing/segment extraction helpers as needed)
-- `components/shell/src/shell_script.c` / dispatch + pipeline executor
-- `components/berry_lang/` (Berry stdin API/runtime hook if Option 1 chosen)
-- `test/` (host shell/script/pipeline unit tests, mocks as needed)
-- `integration_test/` (only if feasible/relevant)
-- `docs/reports/` (implementation/HW evidence), `README.md` or shell docs if user-facing behavior documented
+- `components/shell/src/shell_redirection.{h,c}` — pipeline segment extraction/helpers and temp-capture support as needed
+- `components/shell/src/shell_script.c` (and related dispatch headers) — v1-gated pipeline execution, diagnostics, status/restore handling
+- `components/berry_lang/src/berry_runtime.cpp` and/or console binding implementation — `console.stdin()` runtime state/API
+- `frontend/src/cos-sdk/console.d.ts` — `stdin()` declaration/docs (TSDoc) in sync with binding
+- `test/` — host unit tests for shell pipeline/runtime behavior and mocks/stubs as needed
+- `docs/reports/` — implementation/HW validation evidence (and update this/umbrella/consolidated plan links on completion)
 
 ## Dependencies / prerequisites
-- Existing pipeline parse/diagnostic foundation and stdout redirection mechanics (present).
-- Decision on Berry stdin API shape and where it lives (shell/berry runtime binding) consistent with R21 command-script contract.
+- Existing pipeline parse/diagnostic foundation and stdout redirection/fd mechanics in shell components.
+- Writable VFS temp location available at runtime for capture file (implementation must handle/diagnose I-O failures cleanly).
+- Consistency with R21 command-script execution contract for Berry `rhs` scripts.
 
 ## Risks / constraints
-- ESP32 memory limits (capture cap, temp-file availability/wear if file-backed).
-- In-process global stdout capture is not concurrency-safe beyond current shell model; must restore on all paths.
-- ESP-IDF log output may bypass stdio capture (piped content may exclude logs).
-- Contract choice can affect script compatibility; must be explicit and tested.
-- Temp-file cleanup on failures/interruptions must be robust.
+- ESP32 RAM/flash/temp-storage limits: 8 KiB cap bounds capture, but temp-file creation/write/read/delete and dispatch still require care.
+- Global in-process stdout redirection is not concurrency-safe beyond current shell model; restoration/cleanup must be robust on all paths.
+- ESP-IDF log output may bypass stdio capture (documented limitation).
+- `console.stdin()` is new script-facing API surface: must match Berry name/args/return and SDK typing exactly.
+- Temp-file uniqueness/cleanup failures could leave artifacts or affect later runs; implementation must minimize and handle this.
 
 ## Progress / evidence
-- 2026-11-15: item created from R20 clarification (user prioritized pipes v1; umbrella retained). Drafted scope/non-goals/AC/validation from `docs/reports/2026-11-10-r20-pipes-runtime-design.md`. Open questions pending user answers. No implementation/approval yet.
+- 2026-11-15: item created from R20 clarification (user prioritized pipes v1; umbrella `../needs-clarification/r20-deferred-backlog.md` retained). Reviewed R20 plan/reports.
+- 2026-11-15 (clarification): user decisions recorded — `console.stdin() -> string|nil`; Berry-only `rhs` in v1; only 2-stage `lhs | rhs` (no 3+ stages, no pipe+redirection); 8 KiB hard cap/no truncation; `lhs` any capturable stdout producer (best-effort); temp VFS file capture with cleanup; return `rhs` status when piped execution runs (lhs non-zero with captured output still piped), handled non-zero diagnostics on overflow/wiring/unsupported/capture/setup failures; minimal CYD HW smoke required (happy path + one failure/diagnostic); stdout-only capture caveat accepted/documented. Open questions: none.
+- 2026-11-15 (approval): explicitly approved by user in chat and moved to `docs/plan/ready/r20-pipes-runtime-v1.md` (pre-approved for implementation/PR flow; merge remains human). No implementation yet.
