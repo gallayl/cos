@@ -40,8 +40,6 @@ static int cmd_info(int argc, char **argv)
     return 0;
 }
 
-
-
 static int cmd_restart(int argc, char **argv)
 {
     (void)argc;
@@ -61,8 +59,6 @@ void system_register_commands(void)
         .func = &cmd_info,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&info_cmd));
-
-
 
     const esp_console_cmd_t restart_cmd = {
         .command = "restart",
