@@ -683,9 +683,58 @@ static int native_net_ping(bvm *vm)
     be_return(vm);
 }
 
+static int native_net_resolve(bvm *vm)
+{
+    const char *host = nullptr;
+    uint32_t timeout_ms = 1000;
+    esp_err_t err = ESP_OK;
+    network_ping_result_t result = {};
+
+    if (be_top(vm) < 1 || !be_isstring(vm, 1))
+    {
+        err = ESP_ERR_INVALID_ARG;
+    }
+    else
+    {
+        host = be_tostring(vm, 1);
+        if (be_top(vm) >= 2)
+        {
+            if (!be_isint(vm, 2))
+            {
+                err = ESP_ERR_INVALID_ARG;
+            }
+            else
+            {
+                const bint requested_timeout = be_toint(vm, 2);
+                if (requested_timeout < NETWORK_PING_TIMEOUT_MIN_MS || requested_timeout > NETWORK_PING_TIMEOUT_MAX_MS)
+                {
+                    err = ESP_ERR_INVALID_ARG;
+                }
+                else
+                {
+                    timeout_ms = static_cast<uint32_t>(requested_timeout);
+                }
+            }
+        }
+        if (err == ESP_OK)
+        {
+            err = network_resolve(host, timeout_ms, &result);
+        }
+    }
+
+    be_newobject(vm, "map");
+    map_set_bool(vm, "ok", err == ESP_OK);
+    map_set_string(vm, "host", host != nullptr ? host : "");
+    map_set_string(vm, "address", result.address);
+    map_set_string(vm, "error", err == ESP_OK ? "" : esp_err_to_name(err));
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
 // NOLINTNEXTLINE(readability-identifier-naming)
 static bntvmodobj_t const net_attrs[] = {
     be_native_module_function("ping", native_net_ping),
+    be_native_module_function("resolve", native_net_resolve),
     be_native_module_function("host", native_net_host),
     be_native_module_function("wifi", native_net_wifi),
     be_native_module_function("wifi_connect", native_net_wifi_connect),

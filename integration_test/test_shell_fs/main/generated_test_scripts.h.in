@@ -16,3 +16,6 @@ static const size_t shell_fs_fixture_berry_input_be_len = @SHELL_FS_BERRY_INPUT_
 
 static const unsigned char shell_fs_fixture_ping_be[] = { @SHELL_FS_PING_BYTES@ };
 static const size_t shell_fs_fixture_ping_be_len = @SHELL_FS_PING_SIZE@;
+
+static const unsigned char shell_fs_fixture_nslookup_be[] = { @SHELL_FS_NSLOOKUP_BYTES@ };
+static const size_t shell_fs_fixture_nslookup_be_len = @SHELL_FS_NSLOOKUP_SIZE@;

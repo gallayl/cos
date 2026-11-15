@@ -33,6 +33,7 @@ describe('storage TypeScript scripts', () => {
       'scripts/list_files',
       'scripts/mem',
       'scripts/memory',
+      'scripts/nslookup',
       'scripts/ping',
       'scripts/prompt',
       'scripts/set_base',

@@ -39,6 +39,7 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_input.be", (const char *)shell_fs_fixture_berry_input_be, shell_fs_fixture_berry_input_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/autoexec.be", (const char *)shell_fs_fixture_autoexec_be, shell_fs_fixture_autoexec_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/ping.be", (const char *)shell_fs_fixture_ping_be, shell_fs_fixture_ping_be_len));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/nslookup.be", (const char *)shell_fs_fixture_nslookup_be, shell_fs_fixture_nslookup_be_len));
 
     memset(s_large_file, 'A', 600);
     memset(s_large_file + 600, 'B', sizeof(s_large_file) - 600);
