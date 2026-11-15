@@ -1,7 +1,7 @@
 # Integration Test Script Deduplication
 
 **Created:** 2026-11-12  
-**Status:** In progress (pilot started in `integration_test/test_shell_fs`)  
+**Status:** Complete for `integration_test/test_shell_fs` (canonical-vs-fixture decisions resolved; convention documented)  
 **Scope:** Integration tests that seed flash with hardcoded Berry scripts (initial focus: `integration_test/test_shell_fs`)  
 **Related:** `docs/plan/2026-11-12-berry-command-script-migrations.md`, `storage/flash_data/`, `AGENTS.md` (DoD/validation)
 
@@ -46,11 +46,15 @@ This creates duplication and maintenance risk:
 
 ### 2026-11-15 follow-up (remaining `test_shell_fs` test-only fixtures)
 
-- **Migrated (test-only, byte-for-byte fixture extraction, no contract changes):** `berry_api.be`, `berry_net.be`, `berry_input.be`, and `ping.be` are now authored as suite-local fixtures in `integration_test/test_shell_fs/fixtures/` and embedded/generated via the same build-time mechanism (`CMakeLists.txt` + `generated_test_scripts.h.in`); `test_shell_fs.c` no longer contains inline Berry script string literals for seeded `.be` files (seeding remains deterministic).
-- **Classification preserved:** all migrated scripts remain **test-only fixtures** (including `ping.be`, whose behavior/contract differs from `storage/flash_data/scripts/ping.be`); **no canonical `storage/flash_data/...` substitutions** were made.
-- **Broader rollout note:** a quick inventory (`grep` for inline `s_*script[]` / embedded `.be` seeding patterns under `integration_test/`) found no other remaining inline Berry script literals outside `integration_test/test_shell_fs` at this time. Continue to apply the established convention to any future or newly discovered inline-script cases in other suites.
+- **Migrated (test-only, byte-for-byte fixture extraction, no contract changes):** `berry_api.be`, `berry_net.be`, `berry_input.be`, and `ping.be` were authored as suite-local fixtures in `integration_test/test_shell_fs/fixtures/` and embedded/generated via the same build-time mechanism (`CMakeLists.txt` + `generated_test_scripts.h.in`); `test_shell_fs.c` no longer contains inline Berry script string literals for seeded `.be` files (seeding remains deterministic).
+- **Classification preserved:** migrated scripts remained **test-only fixtures** at that point (including `ping.be`, pending canonical alignment evaluation); **no canonical `storage/flash_data/...` substitutions** were made in that increment.
+- **Broader rollout note:** inventories (`grep` for inline `s_*script[]` / embedded `.be` seeding patterns under `integration_test/`) found no other remaining inline Berry script literals outside `integration_test/test_shell_fs` at the time of these changes. Apply the established convention to any future or newly discovered inline-script cases in other suites.
 
-- **Next steps (deferred):** evaluate canonical sourcing for `ping.be`/`autoexec.be` only with coordinated contract/test-environment alignment (intentional change, requires test/runtime updates); apply convention to other integration suites if/when inline script duplication is introduced or discovered.
+### 2026-11-15 follow-up (canonical alignment evaluation: `ping.be` / `autoexec.be`)
+
+- **`ping.be` — aligned to canonical stock script (intentional, contract-compatible):** `test_shell_fs` now seeds `/flash/ping.be` from canonical [`storage/flash_data/scripts/ping.be`](../../storage/flash_data/scripts/ping.be) via deterministic build-time embedding in `integration_test/test_shell_fs/main/CMakeLists.txt` (single source of truth). The suite-local `fixtures/ping.be` was removed. Rationale: canonical script uses the supported command entrypoint form (`class` + `__cos_entry = Ping()` / `run(args)`) with `cos_import("@cos/net")`; core usage/timeout validation and `net.ping` result handling/messages are compatible with existing `test_shell_fs` expectations (including no-network `ESP_ERR_INVALID_STATE` behavior exercised by `test_ping_reports_unavailable_network`). `test_shell_fs` includes the `network` component; no test expectation changes were required.
+- **`autoexec.be` — remains a test-only fixture (not canonical):** `integration_test/test_shell_fs/fixtures/autoexec.be` is intentionally retained. Canonical [`storage/flash_data/autoexec.be`](../../storage/flash_data/autoexec.be) (`class Autoexec`, `action("clear")`, `__cos_entry`) has a different contract/behavior than this integration test requires (`log("AUTOEXEC_OK")` marker and simplified script contract asserted by `test_shell_fs.py`). Substitution would be a breaking behavior change for the test, so it was not performed.
+- **Status/outcome:** deferred canonical-vs-fixture decisions for `test_shell_fs` are resolved (canonical where compatible/appropriate: `ping.be`; explicit fixture where contract differs: `autoexec.be`, `berry_api.be`, `berry_net.be`, `berry_input.be`). No other integration suites currently identified as requiring inline-script deduplication/alignment work. Future changes must follow the documented convention and classify scripts explicitly before substitution.
 
 ## Possible approaches
 
@@ -114,7 +118,7 @@ This creates duplication and maintenance risk:
 ## Validation checklist
 
 - [ ] `integration_test/test_shell_fs` passes with no unintended behavior changes (validated by CI integration suite / local ESP-IDF+QEMU run when available).
-- [x] Seeded flash contents remain deterministic and match the intended source (canonical or fixture): all `test_shell_fs` seeded `.be` scripts (`autoexec.be`, `berry_api.be`, `berry_net.be`, `berry_input.be`, `ping.be`) are sourced from suite-local fixtures via build-time generated header.
-- [x] No intentional contract changes in these migrations (test-only fixtures extracted with identical content; no canonical `storage/flash_data/...` substitutions).
+- [x] Seeded flash contents remain deterministic and match the intended source (canonical or fixture): `autoexec.be`, `berry_api.be`, `berry_net.be`, `berry_input.be` are sourced from suite-local fixtures; `ping.be` is sourced from canonical [`storage/flash_data/scripts/ping.be`](../../storage/flash_data/scripts/ping.be) via build-time generated header.
+- [x] Contract changes are intentional and documented where applicable: `ping.be` aligned to canonical stock script with compatible behavior/expectations for this suite; `autoexec.be` remains a test-only fixture due to incompatible canonical contract (no substitution).
 - [ ] Relevant checks run and reported per `AGENTS.md` (format-check, host tests, and integration build/run for affected suite as applicable). *Environment-dependent checks and CI evidence recorded in PR/progress notes.*
-- [x] Convention documented so future integration tests avoid reintroducing inline script duplication (see Progress section).
+- [x] Convention and per-script canonical-vs-fixture decisions documented so future integration tests avoid reintroducing inline script duplication/drift (see Progress section).
