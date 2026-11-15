@@ -1,7 +1,7 @@
 # Berry Command-Script Migrations (Follow-on Plan)
 
 **Created:** 2026-11-12  
-**Status:** Planned (not started)  
+**Status:** Planned / partially in progress (M1/M2 done, M3 in progress, M4 clarified/spec drafted 2026-11-15 pending approval, M5 needs clarification)  
 **Owner/tracking:** Tracked as **R22** in [`docs/plan/consolidated-improvement-plan.md`](./consolidated-improvement-plan.md) (canonical status/evidence). This document provides implementation planning details.  
 **Source:** [`docs/history/2026-11-01-improvements.md`](../history/2026-11-01-improvements.md) “Follow-on command refactors”, R9 resolver/`path`/pilot infrastructure (complete; native `ping` migrated 2026-11-12).
 
@@ -113,17 +113,22 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 | M1 | `nslookup` | P1 | Done (merged via #32) | `net.resolve` Berry API + `storage/{flash_data,ts}/scripts/nslookup.*` added; native `nslookup` registration removed |
 | M2a | `uptime` | P1 | Done (merged via #33) | `system.uptime` Berry API + `storage/{flash_data,ts}/scripts/uptime.*` added; native `uptime` registration removed |
 | M2b | `info` | P1 | Done (merged via #35) | `fs.storage_info()` Berry API + `storage/{flash_data,ts}/scripts/info.*` added; native `info` registration removed (`format` kept native) |
-| M2c | `mem`, `memory` | P1 | Done (merged via #34) | `system.meminfo` Berry API + `storage/{flash_data,ts}/scripts/mem.*` and `memory.*` added; native `mem`/`memory` registration removed |
+| M2c | `mem`, `memory` | P1 | Done (merged via #34) | `system.meminfo` Berry API + `storage/{flash_data,ts}/scripts/mem.*` and `memory.*` added; native `mem`/`memory` registration removed; **keep both scripts** (2026-11-15 decision) |
 | M3 | `light` | P2 | In progress (implemented on `feat/r22-m3-light-script`, validation/PR pending) | Structured Berry API `light.read()` (`components/berry_lang/src/berry_light.cpp`) + `storage/{flash_data,ts}/scripts/light.*`; native `light` console registration removed; on-device sensor validation pending |
-| M4 | `time` (read-only view) | P2 | ⬜ Not started | Needs time/sync-state Berry API; keep sync native; hardware/NTP context as needed |
-| M5 | `ls`, `dir` | P2 | ⬜ Not started | Needs complete/stable `fs.list`/listing API contract; scope/format parity carefully; may stage |
+| M4 | `time` (read-only view) | P2 | Ready (approved 2026-11-15, pre-approved for implementation/PR flow) | `system.time_info()` + strict parity script + default `/flash/scripts` resolver behavior; sync remains native; host/automated + on-device spot-check validation. See [`ready/r22-m4-time-read-only.md`](./ready/r22-m4-time-read-only.md) and [`needs-clarification/r22-command-script-migrations-open.md`](./needs-clarification/r22-command-script-migrations-open.md). |
+| M5 | `ls`, `dir` | P2 | Needs clarification (deferred after M4) | `fs.list` parity/contract and output/scope decisions pending (64-entry cap, real sizes vs native quirk, root/errors/ordering); host+targeted QEMU where feasible + on-device spot-check. |
 
-## Open questions (resolve before/during implementation)
+## Open questions (resolved / remaining, 2026-11-15 clarification)
 
-- Default discoverability: should `/flash/scripts` (or specific dirs) be added to default `path`/bootstrap so migrated commands work out-of-the-box on stock images without manual `path add`?
-- Exact Berry API names/signatures and error schemas for system/info/time/sensor/resolve (`net.resolve` naming/shape, consistency with `net.ping`).
-- Acceptable formatting differences (if any) vs strict byte-for-byte output parity; document per command.
-- Whether `memory` remains a separate script/alias/compat name alongside `mem` after migration.
-- Integration-test/QEMU coverage strategy for network/DNS and hardware-dependent commands.
-- Staging/granularity for M5 (`ls`/`dir` flags and output parity scope).
+- [x] **Default discoverability:** Add **`/flash/scripts` as a built-in default search directory** in the script resolver so stock migrated commands work out-of-the-box on stock images even with an empty `/flash/.cos_path`. User-configured `path` entries and CWD behavior remain; document and test precedence.
+- [x] **M4 Berry API/time/sync-state:** **`system.time_info()`** returns `{ ok: true, synced: boolean, epoch: number, utc: string, local: string }` or `{ ok: false, error: string }` (ESP-IDF/stable error name). Backed by `time_sync_is_synced/get_epoch/get_utc/get_local`. Sync control remains native.
+- [x] **M4 output/format parity:** **Strict parity** with current native `time` (`time`/unknown args -> full status with `Local:`/`UTC:`/`Synced:`; `time utc`; `time epoch`; format error -> `time: format error (<error>)`, exit 1).
+- [x] **`memory` alias/script:** Keep **both** `mem` and `memory` as separate scripts (current migrated state), intentional.
+- [x] **Integration-test/QEMU strategy:** Host tests + targeted QEMU where feasible/deterministic (e.g. VFS/script dispatch). No QEMU requirement for NTP/time sync; on-device validation for time/network/hardware-dependent behavior with evidence recorded.
+- [ ] **M5 `ls`/`dir` (deferred, needs-clarification):** exact parity/scope decisions still required before ready — `[path]`-only/no-flags subset, root/special cases, real file sizes vs current native readdir fast-path `0`-size quirk, summary/count/error/ordering behavior, 64-entry/`VFS_ENTRIES_MAX` handling, and sufficiency/additive needs of `fs.list` contract. Specify/ready after M4 lands (recommended).
+
+## Clarification references (2026-11-15)
+
+- Needs-clarification tracker (M5/open follow-ups): [`needs-clarification/r22-command-script-migrations-open.md`](./needs-clarification/r22-command-script-migrations-open.md)
+- Ready item (M4, approved 2026-11-15): [`ready/r22-m4-time-read-only.md`](./ready/r22-m4-time-read-only.md)
 
