@@ -1058,6 +1058,38 @@ int native_fs_size(bvm *vm)
     be_return(vm);
 }
 
+int native_fs_storage_info(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        be_raise(vm, "value_error", "fs.storage_info() takes no arguments");
+        be_return(vm);
+    }
+
+    be_newobject(vm, "map");
+    map_set_number(vm, "flash_total", static_cast<double>(flash_get_total_bytes()));
+    map_set_number(vm, "flash_used", static_cast<double>(flash_get_used_bytes()));
+
+    const bool mounted = sdcard_is_mounted();
+    map_set_bool(vm, "sd_mounted", mounted);
+    if (mounted)
+    {
+        const char *sd_type = sdcard_get_type_name();
+        map_set_string(vm, "sd_type", sd_type != nullptr ? sd_type : "");
+        map_set_number(vm, "sd_total", static_cast<double>(sdcard_get_total_bytes()));
+        map_set_number(vm, "sd_used", static_cast<double>(sdcard_get_used_bytes()));
+    }
+    else
+    {
+        map_set_string(vm, "sd_type", "");
+        map_set_number(vm, "sd_total", 0.0);
+        map_set_number(vm, "sd_used", 0.0);
+    }
+
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
 // NOLINTNEXTLINE(readability-identifier-naming) - Berry native module attribute table name
 static bntvmodobj_t const kConsoleAttrs[] = {
     be_native_module_function("read_line", native_console_read_line),
@@ -1095,6 +1127,7 @@ static bntvmodobj_t const kFsAttrs[] = {
     be_native_module_function("is_dir", native_fs_is_dir),
     be_native_module_function("is_file", native_fs_is_file),
     be_native_module_function("size", native_fs_size),
+    be_native_module_function("storage_info", native_fs_storage_info),
 };
 } // namespace
 // NOLINTNEXTLINE(readability-identifier-naming) - Berry native module symbol required by runtime/module table

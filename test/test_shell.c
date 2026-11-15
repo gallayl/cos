@@ -532,13 +532,6 @@ static void test_cmd_sd_unknown_subcommand(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
-static void test_cmd_info(void)
-{
-    char *argv[] = {"info"};
-    int ret = mock_console_run_cmd("info", 1, argv);
-    TEST_ASSERT_EQUAL(0, ret);
-}
-
 static void test_cmd_format(void)
 {
     char *argv[] = {"format"};
@@ -698,8 +691,7 @@ int main(void)
     RUN_TEST(test_cmd_sd_info_mounted);
     RUN_TEST(test_cmd_sd_unknown_subcommand);
 
-    /* info commands */
-    RUN_TEST(test_cmd_info);
+    /* filesystem commands */
     RUN_TEST(test_cmd_format);
     RUN_TEST(test_alias_expands_command_and_persists_configuration);
     RUN_TEST(test_alias_rejects_unknown_commands_and_builtin_names);

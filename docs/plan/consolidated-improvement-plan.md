@@ -74,7 +74,7 @@
 | R19 | In-browser COS simulator (Berry WASM)                                                 |       P3 | Not started                                                                   | M10              |
 | R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) |       P3 | In progress (R20-scoped parsing/design)                                       | Backlog          |
 | R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch          |       P2 | Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10)| M9               |
-| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | In progress (M1 on PR #32; M2a merged #33)                                    | M10              |
+| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | In progress (M1 #32, M2a #33, M2c #34 merged; M2b implemented on branch)      | M10              |
 
 ## Detailed plan
 
@@ -414,7 +414,7 @@
 ### R22 — Berry command-script migrations (follow-on, API-gated)
 
 - **Priority:** P1 | **Complexity:** M–L (phased) | **ROI:** Medium–High (DX/consistency, reduces native command surface) | **Risk:** Medium–High (API parity, hardware/network/sensor/time dependent, output/contract compatibility)
-- **Status:** In progress (M1 nslookup on PR #32; M2a uptime merged via #33). Detailed plan: [docs/plan/2026-11-12-berry-command-script-migrations.md](./2026-11-12-berry-command-script-migrations.md)
+- **Status:** In progress (M1 nslookup #32, M2a uptime #33, M2c mem/memory #34 merged; M2b info implemented on `feat/r22-m2b-info-script`, validation/PR pending). Detailed plan: [docs/plan/2026-11-12-berry-command-script-migrations.md](./2026-11-12-berry-command-script-migrations.md)
 - **Source:** [docs/history/2026-11-01-improvements.md](../history/2026-11-01-improvements.md) "Follow-on command refactors"; built on R9 resolver/path (complete, native ping migrated 2026-11-12).
 - **Scope:** Migrate selected native shell commands to Berry command scripts in API-gated order (M1–M5). Each migration requires a structured Berry API first, contract preservation (or documented/approved diffs), stock .be scripts discoverable via CWD/path, native registration removed only after validation, and tests/evidence updated. Commands kept native unless justified.
 - **Planned order (proposed, not a commitment):**
