@@ -7,7 +7,7 @@ static int native_system_uptime(bvm *vm)
 {
     if (be_top(vm) != 0)
     {
-        be_pushstring(vm, "");
+        be_raise(vm, "value_error", "system.uptime() takes no arguments");
         be_return(vm);
     }
 
@@ -15,7 +15,7 @@ static int native_system_uptime(bvm *vm)
     const esp_err_t err = system_format_uptime(buf, sizeof(buf));
     if (err != ESP_OK)
     {
-        be_pushstring(vm, "");
+        be_raise(vm, "runtime_error", "system.uptime() failed");
         be_return(vm);
     }
 
