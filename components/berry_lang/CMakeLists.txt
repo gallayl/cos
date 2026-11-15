@@ -1,5 +1,6 @@
 if(CMAKE_BUILD_EARLY_EXPANSION)
-    idf_component_register(REQUIRES console filesystem input network system text_console ui esp_timer esp_hw_support)
+    idf_component_register(REQUIRES console filesystem input network system text_console ui esp_timer esp_hw_support
+                          PRIV_REQUIRES light_sensor)
     return()
 endif()
 
