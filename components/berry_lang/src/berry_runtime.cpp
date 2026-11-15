@@ -2,6 +2,7 @@
 
 #include "berry.h"
 #include "berry_internal.h"
+#include "berry_json_internal.h"
 #include "berry_source_buffer.h"
 extern "C"
 {
@@ -401,12 +402,6 @@ bool read_script_path(bvm *vm, char *resolved, esp_err_t *error)
     return true;
 }
 
-bool berry_json_value(bvm *vm, int index)
-{
-    return be_isnil(vm, index) || be_isbool(vm, index) || be_isnumber(vm, index) || be_isstring(vm, index) ||
-           be_islist(vm, index) || be_islistinstance(vm, index) || be_ismap(vm, index) || be_ismapinstance(vm, index);
-}
-
 extern "C" bool berry_runtime_ensure_json(bvm *vm)
 {
     if (be_getglobal(vm, "json") && !be_isnil(vm, -1))
@@ -423,42 +418,6 @@ extern "C" bool berry_runtime_ensure_json(bvm *vm)
     be_setglobal(vm, "json");
     be_pop(vm, 1);
     return true;
-}
-
-bool call_json_method(bvm *vm, const char *method, int value_index)
-{
-    value_index = be_absindex(vm, value_index);
-    const int base = be_top(vm);
-    if (!berry_runtime_ensure_json(vm) || !be_getglobal(vm, "json") || !be_getmember(vm, -1, method) ||
-        be_isnil(vm, -1))
-    {
-        be_pop(vm, be_top(vm) - base);
-        return false;
-    }
-
-    be_remove(vm, -2);
-    be_pushvalue(vm, value_index);
-    const int status = be_pcall(vm, 1);
-    if (status != 0)
-    {
-        be_pop(vm, be_top(vm) - base);
-        return false;
-    }
-    if (be_top(vm) == base + 2)
-    {
-        be_remove(vm, base + 2);
-    }
-    if (be_top(vm) != base + 1)
-    {
-        be_pop(vm, be_top(vm) - base);
-        return false;
-    }
-    return true;
-}
-
-bool json_whitespace(char character)
-{
-    return character == ' ' || character == '\t' || character == '\r' || character == '\n';
 }
 
 int push_write_status(bvm *vm, esp_err_t err)
@@ -932,11 +891,11 @@ int native_fs_read_json(bvm *vm)
 
     const char *begin = buffer;
     const char *end = buffer + bytes_read;
-    while (begin < end && json_whitespace(*begin))
+    while (begin < end && berry_json_whitespace(*begin))
     {
         ++begin;
     }
-    while (end > begin && json_whitespace(end[-1]))
+    while (end > begin && berry_json_whitespace(end[-1]))
     {
         --end;
     }
@@ -951,7 +910,7 @@ int native_fs_read_json(bvm *vm)
     be_pushnstring(vm, begin, trimmed_len);
     std::free(buffer);
     const int source_index = be_absindex(vm, -1);
-    if (!call_json_method(vm, "load", source_index))
+    if (!berry_json_call_method(vm, "load", source_index))
     {
         be_remove(vm, source_index);
         return push_fs_error(vm, ESP_FAIL);
@@ -987,7 +946,7 @@ int native_fs_write_json(bvm *vm)
     {
         return push_write_status(vm, ESP_ERR_INVALID_ARG);
     }
-    if (!call_json_method(vm, "dump", 2) || !be_isstring(vm, -1))
+    if (!berry_json_call_method(vm, "dump", 2) || !be_isstring(vm, -1))
     {
         if (be_top(vm) > 2)
         {
