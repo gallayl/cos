@@ -48,6 +48,40 @@ declare global {
      */
     function ping(host: string, timeout_ms?: number): PingOk | PingFailed;
 
+    /** One hostname resolved to an IPv4 address. */
+    interface ResolveOk {
+      ok: true;
+      /** Host name or address that was requested. */
+      host: string;
+      /** Resolved IPv4 address. */
+      address: string;
+      /** Empty after success. */
+      error: "";
+    }
+
+    /** The hostname could not be resolved. */
+    interface ResolveFailed {
+      ok: false;
+      /** Host name or address that was requested. Empty when the argument was rejected. */
+      host: string;
+      /** Resolved IPv4 address, or empty when resolution did not finish. */
+      address: string;
+      /** ESP-IDF error name, such as `ESP_ERR_TIMEOUT`, `ESP_ERR_NOT_FOUND`, or `ESP_ERR_INVALID_ARG`. */
+      error: string;
+    }
+
+    /**
+     * Resolve an IPv4 host without sending ICMP echo.
+     * The call returns by the deadline, and that deadline includes DNS time.
+     * Uses the same serialized worker as {@link ping}.
+     *
+     * @param host Host name or IPv4 address.
+     * @param timeout_ms Caller deadline in milliseconds, including DNS.
+     * Defaults to `1000`. Values outside `100`–`3000` fail with
+     * `ESP_ERR_INVALID_ARG`.
+     */
+    function resolve(host: string, timeout_ms?: number): ResolveOk | ResolveFailed;
+
     /**
      * JSON value returned when `fetch` is asked for `response_type: "json"`.
      * Objects and arrays may nest up to the Berry parser limit of 25 levels.

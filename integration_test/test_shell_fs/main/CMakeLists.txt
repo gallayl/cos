@@ -1,5 +1,6 @@
 set(SHELL_FS_FIXTURES_DIR "${CMAKE_CURRENT_LIST_DIR}/../fixtures")
 set(SHELL_FS_CANONICAL_PING "${CMAKE_CURRENT_LIST_DIR}/../../../storage/flash_data/scripts/ping.be")
+set(SHELL_FS_CANONICAL_NSLOOKUP "${CMAKE_CURRENT_LIST_DIR}/../../../storage/flash_data/scripts/nslookup.be")
 
 function(shell_fs_embed_file file_path var_prefix)
     file(READ "${file_path}" _hex HEX)
@@ -20,6 +21,7 @@ shell_fs_embed_fixture("berry_api.be" SHELL_FS_BERRY_API)
 shell_fs_embed_fixture("berry_net.be" SHELL_FS_BERRY_NET)
 shell_fs_embed_fixture("berry_input.be" SHELL_FS_BERRY_INPUT)
 shell_fs_embed_file("${SHELL_FS_CANONICAL_PING}" SHELL_FS_PING)
+shell_fs_embed_file("${SHELL_FS_CANONICAL_NSLOOKUP}" SHELL_FS_NSLOOKUP)
 
 set(SHELL_FS_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${SHELL_FS_GENERATED_DIR}")

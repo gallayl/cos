@@ -113,7 +113,6 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
-    ${COMPONENT_DIR}/components/shell/src/shell_network_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_berry_cmd.c
     mocks/mock_shell_input.c
 )
