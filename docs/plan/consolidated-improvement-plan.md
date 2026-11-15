@@ -74,7 +74,7 @@
 | R19 | In-browser COS simulator (Berry WASM)                                                 |       P3 | Not started                                                                   | M10              |
 | R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) |       P3 | In progress (R20-scoped parsing/design)                                       | Backlog          |
 | R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch          |       P2 | Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10)| M9               |
-| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | In progress (M1 #32, M2a #33, M2c #34 merged; M2b implemented on branch)      | M10              |
+| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | In progress (M1 #32, M2a #33, M2b #35, M2c #34 merged; M3 in progress)       | M10              |
 
 ## Detailed plan
 
@@ -414,13 +414,13 @@
 ### R22 — Berry command-script migrations (follow-on, API-gated)
 
 - **Priority:** P1 | **Complexity:** M–L (phased) | **ROI:** Medium–High (DX/consistency, reduces native command surface) | **Risk:** Medium–High (API parity, hardware/network/sensor/time dependent, output/contract compatibility)
-- **Status:** In progress (M1 nslookup #32, M2a uptime #33, M2c mem/memory #34 merged; M2b info implemented on `feat/r22-m2b-info-script`, validation/PR pending). Detailed plan: [docs/plan/2026-11-12-berry-command-script-migrations.md](./2026-11-12-berry-command-script-migrations.md)
+- **Status:** In progress (M1 nslookup #32, M2a uptime #33, M2b info #35, M2c mem/memory #34 merged; M3 light implemented on `feat/r22-m3-light-script`, validation/PR pending). Detailed plan: [docs/plan/2026-11-12-berry-command-script-migrations.md](./2026-11-12-berry-command-script-migrations.md)
 - **Source:** [docs/history/2026-11-01-improvements.md](../history/2026-11-01-improvements.md) "Follow-on command refactors"; built on R9 resolver/path (complete, native ping migrated 2026-11-12).
 - **Scope:** Migrate selected native shell commands to Berry command scripts in API-gated order (M1–M5). Each migration requires a structured Berry API first, contract preservation (or documented/approved diffs), stock .be scripts discoverable via CWD/path, native registration removed only after validation, and tests/evidence updated. Commands kept native unless justified.
 - **Planned order (proposed, not a commitment):**
   1. **M1 `nslookup`** — needs `net.resolve(host, timeout_ms)` Berry API with structured results/errors; preserve timeout/output/contract (Wi‑Fi/DNS validation).
-  2. **M2 `uptime`, `info`, `mem` / `memory`** — needs typed system/heap Berry APIs; migrate `mem`/`memory` together (read-only; avoid parsing logs/console output). **M2a `uptime` implemented on branch (2026-11-15):** `system.uptime` native Berry API, `storage/{ts,flash_data}/scripts/uptime.*`, native registration removed; validation/PR pending.
-  3. **M3 `light`** — needs sensor read/error Berry API; hardware validation.
+  2. **M2 `uptime`, `info`, `mem` / `memory`** — done (M2a `uptime` #33, M2b `info` #35, M2c `mem`/`memory` #34): structured Berry APIs (`system.uptime`, `fs.storage_info`, `system.meminfo`) + scripts; native registrations removed.
+  3. **M3 `light`** — in progress on `feat/r22-m3-light-script` (2026-11-15): `light.read()` Berry API + `storage/{ts,flash_data}/scripts/light.*`; native console registration removed; hardware validation pending.
   4. **M4 `time` (read-only view)** — needs time/sync-state Berry API; **keep clock synchronization native**.
   5. **M5 `ls`, `dir`** — needs complete/stable `fs.list`/listing API contract; scope/format parity carefully; access/traversal controls remain native.
 - **Keep native for now (revalidate):** core shell/file mutation/navigation (`cd`, `pwd`, `mkdir`, `rm`, `cp`, `mv`, `rmdir`, `touch`, SD mount mgmt), system control/runtime (`restart`, `format`, command/runtime mgmt), interactive/async/hardware/lifecycle (`calibrate`, `wifi`, `bt`, `i2c`, `server`, `ws`, `screen`, `display_mode`).

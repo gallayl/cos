@@ -8,8 +8,6 @@ static const char *const TAG = "light_sensor";
 
 static adc_oneshot_unit_handle_t s_adc_handle = NULL;
 
-void light_sensor_register_commands(void);
-
 esp_err_t light_sensor_init(void)
 {
     adc_oneshot_unit_init_cfg_t init_cfg = {
@@ -32,8 +30,6 @@ esp_err_t light_sensor_init(void)
         ESP_LOGE(TAG, "Failed to configure ADC channel: %s", esp_err_to_name(err));
         return err;
     }
-
-    light_sensor_register_commands();
 
     ESP_LOGI(TAG, "Light sensor initialized");
     return ESP_OK;
