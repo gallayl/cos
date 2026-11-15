@@ -140,6 +140,13 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'fetch' },
     ],
   },
+  {
+    module: 'system',
+    source: 'components/berry_lang/src/berry_system.cpp',
+    globalNamespace: 'system',
+    specifiers: ['@cos/system', '@berry/system'],
+    bindings: [{ kind: 'function', name: 'uptime' }],
+  },
 ]
 
 /** Public Berry globals registered via `be_regfunc` for COS scripts. */

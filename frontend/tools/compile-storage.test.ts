@@ -35,6 +35,7 @@ describe('storage TypeScript scripts', () => {
       'scripts/ping',
       'scripts/prompt',
       'scripts/set_base',
+      'scripts/uptime',
       'scripts/wget',
       'scripts/wifi',
     ])

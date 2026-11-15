@@ -110,8 +110,8 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 
 | ID | Command(s) | Priority | Status | Prerequisites / notes |
 |---|---|---:|---|---|
-| M1 | `nslookup` | P1 | 🟡 In progress (implementation on `feat/r22-m1-nslookup-script`, validation/PR pending) | `net.resolve` Berry API + `storage/{flash_data,ts}/scripts/nslookup.*` added; native `nslookup` registration removed; host/frontend checks and hardware DNS validation pending |
-| M2a | `uptime` | P1 | ⬜ Not started | Needs typed system uptime Berry API |
+| M1 | `nslookup` | P1 | Done (implemented on `feat/r22-m1-nslookup-script`, validation/PR pending) | `net.resolve` Berry API + `storage/{flash_data,ts}/scripts/nslookup.*` added; native `nslookup` registration removed; host/frontend checks and hardware DNS validation pending |
+| M2a | `uptime` | P1 | Done (merged via #33) | `system.uptime` Berry API + `storage/{flash_data,ts}/scripts/uptime.*` added; native `uptime` registration removed |
 | M2b | `info` | P1 | ⬜ Not started | Needs typed system/info Berry API |
 | M2c | `mem`, `memory` | P1 | ⬜ Not started | Needs typed heap/system Berry API; migrate together |
 | M3 | `light` | P2 | ⬜ Not started | Needs sensor reading/error Berry API; hardware validation |

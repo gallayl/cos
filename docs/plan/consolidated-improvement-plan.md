@@ -53,28 +53,28 @@
 
 | ID  | Item                                                                                  | Priority | Status                                                                        | Target milestone |
 | --- | ------------------------------------------------------------------------------------- | -------: | ----------------------------------------------------------------------------- | ---------------- |
-| R1  | Finish lazy JSON / startup module hygiene                                             |       P0 | ✅ Done                                                                       | M7a              |
-| R2  | 2026-11-06 profiling + regression matrix (P7)                                         |       P0 | ✅ Done (follow-ups tracked)                                                  | M7a              |
-| R3  | TS→Berry semantic conformance pass                                                    |       P0 | ✅ Done                                                                       | M7b              |
-| R4  | `try`/`catch`/`throw` compiler lowering                                               |       P1 | ✅ Done                                                                       | M7b              |
-| R5  | Phase 1 Berry memory instrumentation & lifecycle verification                         |       P0 | ✅ Done (R5-FU1/FU2 follow-ups open)                                          | M7c              |
-| R6  | Firmware on-demand native module loading                                              |       P1 | ✅ Done                                                                       | M7c              |
-| R7  | Fetch `include_body` option (P3)                                                      |       P1 | ✅ Done                                                                       | M7d              |
-| R8  | HTTP worker stack/TLS measurement & safe tuning (P4/P5)                               |       P1 | ✅ Done (stack kept 6144; P5/`-141` heap follow-up open)                      | M7d              |
-| R9  | Berry command-script resolver + `path` + `ping` pilot                                 |       P1 | ✅ Done (native `ping` migrated to script, 2026-11-12)                        | M8               |
-| R10 | Frontend TS toolchain hardening (Worker deferred; layout/SDK registration/device API) |       P1 | ✅ Done (Worker deferred)                                                     | M8               |
-| R11 | SDK single-source-of-truth / binding audit                                            |       P1 | ✅ Done (pragmatic inventory + automated audit)                               | M8               |
-| R12 | Milestone 4 hardware validation (touch/network)                                       |       P1 | ⬜ Pending hardware                                                           | M8               |
-| R13 | Memory-conscious compiler rules + resource lifecycle contract                         |       P2 | ✅ Done (2026-11-09)                                                          | M9               |
-| R14 | Compiler profiles, debug metadata, source maps, editor diagnostics                    |       P2 | ✅ Done (hardware validation passed, user-reported 2026-11-10)                | M9               |
-| R15 | Optional `.bec` bytecode pipeline/loader                                              |       P2 | ⬜ Not started                                                                | M9+              |
-| R16 | Native UI allocation benchmarking/policy changes                                      |       P2 | ⬜ Not started                                                                | M9+              |
-| R17 | Berry solidification evaluation (firmware-bundled only)                               |       P2 | ⬜ Not started                                                                | M9+              |
-| R18 | `async`/`await` runtime design + implementation                                       |       P2 | ⬜ Not started                                                                | M10              |
-| R19 | In-browser COS simulator (Berry WASM)                                                 |       P3 | ⬜ Not started                                                                | M10              |
-| R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) |       P3 | 🟡 In progress (R20-scoped parsing/design)                                    | Backlog          |
-| R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch              |       P2 | ✅ Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10) | M9               |
-| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | 🟡 In progress (M1 implemented on branch, validation pending)                 | M10              |
+| R1  | Finish lazy JSON / startup module hygiene                                             |       P0 | Done                                                                          | M7a              |
+| R2  | 2026-11-06 profiling + regression matrix (P7)                                         |       P0 | Done (follow-ups tracked)                                                     | M7a              |
+| R3  | TS→Berry semantic conformance pass                                                    |       P0 | Done                                                                          | M7b              |
+| R4  | `try`/`catch`/`throw` compiler lowering                                         |       P1 | Done                                                                          | M7b              |
+| R5  | Phase 1 Berry memory instrumentation & lifecycle verification                         |       P0 | Done (R5-FU1/FU2 follow-ups open)                                             | M7c              |
+| R6  | Firmware on-demand native module loading                                              |       P1 | Done                                                                          | M7c              |
+| R7  | Fetch `include_body` option (P3)                                                    |       P1 | Done                                                                          | M7d              |
+| R8  | HTTP worker stack/TLS measurement & safe tuning (P4/P5)                               |       P1 | Done (stack kept 6144; P5/`-141` heap follow-up open)                       | M7d              |
+| R9  | Berry command-script resolver + `path` + `ping` pilot                             |       P1 | Done (native `ping` migrated to script, 2026-11-12)                         | M8               |
+| R10 | Frontend TS toolchain hardening (Worker deferred; layout/SDK registration/device API) |       P1 | Done (Worker deferred)                                                        | M8               |
+| R11 | SDK single-source-of-truth / binding audit                                            |       P1 | Done (pragmatic inventory + automated audit)                                  | M8               |
+| R12 | Milestone 4 hardware validation (touch/network)                                       |       P1 | Pending hardware                                                              | M8               |
+| R13 | Memory-conscious compiler rules + resource lifecycle contract                         |       P2 | Done (2026-11-09)                                                             | M9               |
+| R14 | Compiler profiles, debug metadata, source maps, editor diagnostics                    |       P2 | Done (hardware validation passed, user-reported 2026-11-10)                   | M9               |
+| R15 | Optional `.bec` bytecode pipeline/loader                                            |       P2 | Not started                                                                   | M9+              |
+| R16 | Native UI allocation benchmarking/policy changes                                      |       P2 | Not started                                                                   | M9+              |
+| R17 | Berry solidification evaluation (firmware-bundled only)                               |       P2 | Not started                                                                   | M9+              |
+| R18 | `async`/`await` runtime design + implementation                                   |       P2 | Not started                                                                   | M10              |
+| R19 | In-browser COS simulator (Berry WASM)                                                 |       P3 | Not started                                                                   | M10              |
+| R20 | 2026-10 deferred backlog (pipes/redirection, editor seam, larger apps, image support) |       P3 | In progress (R20-scoped parsing/design)                                       | Backlog          |
+| R21 | Unify `berry run`/`berry exec` entrypoint contract + explicit app launch          |       P2 | Done (follow-up: `__cos_entry`/`run(args)`, hardware validated 2026-11-10)| M9               |
+| R22 | Berry command-script migrations (follow-on, API-gated)                               |       P1 | In progress (M1 on PR #32; M2a merged #33)                                    | M10              |
 
 ## Detailed plan
 
@@ -414,19 +414,19 @@
 ### R22 — Berry command-script migrations (follow-on, API-gated)
 
 - **Priority:** P1 | **Complexity:** M–L (phased) | **ROI:** Medium–High (DX/consistency, reduces native command surface) | **Risk:** Medium–High (API parity, hardware/network/sensor/time dependent, output/contract compatibility)
-- **Status:** 🟡 **In progress (M1 implemented on `feat/r22-m1-nslookup-script`, validation/PR pending).** Detailed plan: [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md)
-- **Source:** [`docs/history/2026-11-01-improvements.md`](../history/2026-11-01-improvements.md) “Follow-on command refactors”; built on R9 resolver/`path` (complete, native `ping` migrated 2026-11-12).
-- **Scope:** Migrate selected native shell commands to Berry command scripts in API-gated order (M1–M5). Each migration requires a structured Berry API first, contract preservation (or documented/approved diffs), stock `.be` scripts discoverable via CWD/`path`, native registration removed only after validation, and tests/evidence updated. Commands kept native unless justified.
+- **Status:** In progress (M1 nslookup on PR #32; M2a uptime merged via #33). Detailed plan: [docs/plan/2026-11-12-berry-command-script-migrations.md](./2026-11-12-berry-command-script-migrations.md)
+- **Source:** [docs/history/2026-11-01-improvements.md](../history/2026-11-01-improvements.md) "Follow-on command refactors"; built on R9 resolver/path (complete, native ping migrated 2026-11-12).
+- **Scope:** Migrate selected native shell commands to Berry command scripts in API-gated order (M1–M5). Each migration requires a structured Berry API first, contract preservation (or documented/approved diffs), stock .be scripts discoverable via CWD/path, native registration removed only after validation, and tests/evidence updated. Commands kept native unless justified.
 - **Planned order (proposed, not a commitment):**
   1. **M1 `nslookup`** — needs `net.resolve(host, timeout_ms)` Berry API with structured results/errors; preserve timeout/output/contract (Wi‑Fi/DNS validation).
-  2. **M2 `uptime`, `info`, `mem` / `memory`** — needs typed system/heap Berry APIs; migrate `mem`/`memory` together (read-only; avoid parsing logs/console output).
+  2. **M2 `uptime`, `info`, `mem` / `memory`** — needs typed system/heap Berry APIs; migrate `mem`/`memory` together (read-only; avoid parsing logs/console output). **M2a `uptime` implemented on branch (2026-11-15):** `system.uptime` native Berry API, `storage/{ts,flash_data}/scripts/uptime.*`, native registration removed; validation/PR pending.
   3. **M3 `light`** — needs sensor read/error Berry API; hardware validation.
   4. **M4 `time` (read-only view)** — needs time/sync-state Berry API; **keep clock synchronization native**.
   5. **M5 `ls`, `dir`** — needs complete/stable `fs.list`/listing API contract; scope/format parity carefully; access/traversal controls remain native.
 - **Keep native for now (revalidate):** core shell/file mutation/navigation (`cd`, `pwd`, `mkdir`, `rm`, `cp`, `mv`, `rmdir`, `touch`, SD mount mgmt), system control/runtime (`restart`, `format`, command/runtime mgmt), interactive/async/hardware/lifecycle (`calibrate`, `wifi`, `bt`, `i2c`, `server`, `ws`, `screen`, `display_mode`).
 - **Acceptance criteria (program level):** No migration uses `action()` + human-readable output parsing; structured APIs documented; contract preserved or diffs approved/documented; resolver/native-precedence behavior unchanged; per-command tests and validation evidence recorded; README/help/docs updated per migration; `AGENTS.md` DoD followed.
 - **Progress:** see [`docs/plan/2026-11-12-berry-command-script-migrations.md`](./2026-11-12-berry-command-script-migrations.md) for per-item checklist/status/prerequisites.
-  - [x] **M1 (2026-11-15, branch):** added `net.resolve(host, timeout_ms)` in `components/berry_lang/src/berry_network.cpp` (structured `{ok, host, address, error}`, same timeout bounds/serialized worker as `network_resolve`/`net.ping`); added stock scripts `storage/flash_data/scripts/nslookup.be` and `storage/ts/scripts/nslookup.ts` preserving usage/timeout/success/failure contract; removed native `nslookup` registration from `components/shell/src/shell_network_cmds.c`; updated `frontend/src/cos-sdk/network.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`, README, and host tests (`test/test_shell.c` native nslookup cases removed). Validation/PR evidence pending (see progress log). On-device Wi‑Fi/DNS and bare-`nslookup` resolver behavior should be validated on hardware.
+  - [x] **M1 (2026-11-15, branch):** added `net.resolve(host, timeout_ms)` in `components/berry_lang/src/berry_network.cpp` (structured `{ok, host, address, error}`, same timeout bounds/serialized worker as `network_resolve`/`net.ping`); added stock scripts `storage/flash_data/scripts/nslookup.be` and `storage/ts/scripts/nslookup.ts` preserving usage/timeout/success/failure contract; removed native `nslookup` registration from `components/shell/src/shell_network_cmds.c`; updated `frontend/src/cos-sdk/network.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`, README, and host tests (`test/test_shell.c` native nslookup cases removed). Validation/PR evidence pending (see progress log). On-device Wi-Fi/DNS and bare-`nslookup` resolver behavior should be validated on hardware.
 
 ## Progress log
 
