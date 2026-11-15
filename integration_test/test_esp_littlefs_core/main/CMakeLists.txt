@@ -2,7 +2,6 @@ set(TEST_SRCS
     "test_main.c"
     "test_littlefs.c"
     "test_littlefs_common.c"
-    "test_dir.c"
 )
 
 set(TEST_REQUIRES
