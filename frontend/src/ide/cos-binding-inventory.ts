@@ -125,6 +125,13 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
     ],
   },
   {
+    module: 'light',
+    source: 'components/berry_lang/src/berry_light.cpp',
+    globalNamespace: 'light',
+    specifiers: ['@cos/light', '@berry/light'],
+    bindings: [{ kind: 'function', name: 'read' }],
+  },
+  {
     module: 'net',
     source: 'components/berry_lang/src/berry_network.cpp',
     globalNamespace: 'net',
