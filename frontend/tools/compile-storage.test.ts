@@ -31,6 +31,7 @@ describe('storage TypeScript scripts', () => {
       'scripts/hello',
       'scripts/host_info',
       'scripts/info',
+      'scripts/light',
       'scripts/list_files',
       'scripts/mem',
       'scripts/memory',

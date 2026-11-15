@@ -16,6 +16,7 @@ describe('COS SDK manifest', () => {
       `${sdkRoot}/console.d.ts`,
       `${sdkRoot}/filesystem.d.ts`,
       `${sdkRoot}/network.d.ts`,
+      `${sdkRoot}/light.d.ts`,
       `${sdkRoot}/system.d.ts`,
       `${sdkRoot}/json.d.ts`,
       `${sdkRoot}/berry-builtins.d.ts`,
@@ -50,6 +51,8 @@ describe('COS SDK manifest', () => {
     expect(cosPaths['@cos/network']).toEqual([`${modulesRoot}/net.d.ts`])
     expect(cosPaths['@berry/net']).toEqual([`${modulesRoot}/net.d.ts`])
     expect(cosPaths['@berry/network']).toEqual([`${modulesRoot}/net.d.ts`])
+    expect(cosPaths['@cos/light']).toEqual([`${modulesRoot}/light.d.ts`])
+    expect(cosPaths['@berry/light']).toEqual([`${modulesRoot}/light.d.ts`])
     expect(cosPaths['@cos/system']).toEqual([`${modulesRoot}/system.d.ts`])
     expect(cosPaths['@berry/system']).toEqual([`${modulesRoot}/system.d.ts`])
   })

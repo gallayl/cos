@@ -104,7 +104,7 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 - [ ] `make format-check` and `make test` pass; additional checks run per `AGENTS.md` scope (firmware build/lint, docs-check, integration tests, frontend checks if affected).
 - [ ] Memory/runtime-sensitive changes measured when relevant.
 - [ ] Hardware validation recorded when behavior depends on physical device/network/sensors/time.
-- [ ] README/help/plan progress and evidence updated.
+- [~] README/help/plan progress and evidence updated (local implementation/docs updated; PR/CI and on-device hardware evidence pending). Hardware guide: `docs/reports/2026-11-15-r22-m3-light-hardware-validation.md`.
 
 ## Progress tracking
 
@@ -112,9 +112,9 @@ Stages can be split into separate PR-sized changes: (a) Berry API + tests, (b) s
 |---|---|---:|---|---|
 | M1 | `nslookup` | P1 | Done (merged via #32) | `net.resolve` Berry API + `storage/{flash_data,ts}/scripts/nslookup.*` added; native `nslookup` registration removed |
 | M2a | `uptime` | P1 | Done (merged via #33) | `system.uptime` Berry API + `storage/{flash_data,ts}/scripts/uptime.*` added; native `uptime` registration removed |
-| M2b | `info` | P1 | In progress (implemented on `feat/r22-m2b-info-script`, validation/PR pending) | `fs.storage_info()` Berry API + `storage/{flash_data,ts}/scripts/info.*` added; native `info` registration removed (`format` kept native); host/frontend checks pending |
+| M2b | `info` | P1 | Done (merged via #35) | `fs.storage_info()` Berry API + `storage/{flash_data,ts}/scripts/info.*` added; native `info` registration removed (`format` kept native) |
 | M2c | `mem`, `memory` | P1 | Done (merged via #34) | `system.meminfo` Berry API + `storage/{flash_data,ts}/scripts/mem.*` and `memory.*` added; native `mem`/`memory` registration removed |
-| M3 | `light` | P2 | ⬜ Not started | Needs sensor reading/error Berry API; hardware validation |
+| M3 | `light` | P2 | In progress (implemented on `feat/r22-m3-light-script`, validation/PR pending) | Structured Berry API `light.read()` (`components/berry_lang/src/berry_light.cpp`) + `storage/{flash_data,ts}/scripts/light.*`; native `light` console registration removed; on-device sensor validation pending |
 | M4 | `time` (read-only view) | P2 | ⬜ Not started | Needs time/sync-state Berry API; keep sync native; hardware/NTP context as needed |
 | M5 | `ls`, `dir` | P2 | ⬜ Not started | Needs complete/stable `fs.list`/listing API contract; scope/format parity carefully; may stage |
 
