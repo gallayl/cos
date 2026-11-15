@@ -570,7 +570,7 @@ static void test_alias_expands_command_and_persists_configuration(void)
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
-    shell_register_network_commands();
+
     shell_register_berry_commands();
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("ll -a", expanded, sizeof(expanded)));
@@ -615,7 +615,7 @@ int main(void)
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
-    shell_register_network_commands();
+
     shell_register_berry_commands();
     if (shell_alias_init() != ESP_OK)
     {

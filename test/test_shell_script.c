@@ -24,7 +24,7 @@ static void reset_shell_state(void)
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
-    shell_register_network_commands();
+
     shell_register_berry_commands();
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
     TEST_ASSERT_EQUAL(ESP_OK, shell_script_init());
@@ -62,7 +62,7 @@ static void test_path_command_lists_adds_removes_and_persists(void)
     shell_register_fs_commands();
     shell_register_sd_commands();
     shell_register_info_commands();
-    shell_register_network_commands();
+
     shell_register_berry_commands();
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
     TEST_ASSERT_EQUAL(ESP_OK, shell_script_init());
