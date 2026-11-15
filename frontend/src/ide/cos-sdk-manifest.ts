@@ -5,6 +5,7 @@ import indexTypes from '../cos-sdk/index.d.ts?raw' with { type: 'text' }
 import jsonTypes from '../cos-sdk/json.d.ts?raw' with { type: 'text' }
 import languageTypes from '../cos-sdk/language.d.ts?raw' with { type: 'text' }
 import networkTypes from '../cos-sdk/network.d.ts?raw' with { type: 'text' }
+import systemTypes from '../cos-sdk/system.d.ts?raw' with { type: 'text' }
 import uiTypes from '../cos-sdk/ui.d.ts?raw' with { type: 'text' }
 
 import consoleModuleTypes from '../cos-sdk/modules/console.d.ts?raw' with { type: 'text' }
@@ -16,6 +17,7 @@ import jsonModuleTypes from '../cos-sdk/modules/json.d.ts?raw' with { type: 'tex
 import mathModuleTypes from '../cos-sdk/modules/math.d.ts?raw' with { type: 'text' }
 import netModuleTypes from '../cos-sdk/modules/net.d.ts?raw' with { type: 'text' }
 import stringModuleTypes from '../cos-sdk/modules/string.d.ts?raw' with { type: 'text' }
+import systemModuleTypes from '../cos-sdk/modules/system.d.ts?raw' with { type: 'text' }
 import uiModuleTypes from '../cos-sdk/modules/ui.d.ts?raw' with { type: 'text' }
 
 export type CosSdkLib = { content: string; filePath: string }
@@ -31,6 +33,7 @@ export const cosLibs: readonly CosSdkLib[] = [
   { content: consoleTypes, filePath: `${sdkRoot}/console.d.ts` },
   { content: filesystemTypes, filePath: `${sdkRoot}/filesystem.d.ts` },
   { content: networkTypes, filePath: `${sdkRoot}/network.d.ts` },
+  { content: systemTypes, filePath: `${sdkRoot}/system.d.ts` },
   { content: jsonTypes, filePath: `${sdkRoot}/json.d.ts` },
   { content: berryBuiltinsTypes, filePath: `${sdkRoot}/berry-builtins.d.ts` },
   { content: indexTypes, filePath: `${sdkRoot}/index.d.ts` },
@@ -67,6 +70,7 @@ export const cosModuleLibs: readonly CosSdkModuleLib[] = [
     specifiers: ['@cos/net', '@cos/network', '@berry/net', '@berry/network'],
   },
   { content: stringModuleTypes, filePath: `${modulesRoot}/string.d.ts`, specifiers: ['@cos/string', '@berry/string'] },
+  { content: systemModuleTypes, filePath: `${modulesRoot}/system.d.ts`, specifiers: ['@cos/system', '@berry/system'] },
   { content: uiModuleTypes, filePath: `${modulesRoot}/ui.d.ts`, specifiers: ['@cos/ui', '@berry/ui'] },
 ]
 

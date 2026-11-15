@@ -10,6 +10,7 @@
       "@cos/network": ["../frontend/src/cos-sdk/modules/net.d.ts"],
       "@cos/fs": ["../frontend/src/cos-sdk/modules/fs.d.ts"],
       "@cos/filesystem": ["../frontend/src/cos-sdk/modules/fs.d.ts"],
+      "@cos/system": ["../frontend/src/cos-sdk/modules/system.d.ts"],
       "@cos/console": ["../frontend/src/cos-sdk/modules/console.d.ts"],
       "@cos/json": ["../frontend/src/cos-sdk/modules/json.d.ts"],
       "@cos/string": ["../frontend/src/cos-sdk/modules/string.d.ts"],
