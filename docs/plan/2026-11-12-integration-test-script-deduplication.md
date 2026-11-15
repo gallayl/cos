@@ -34,14 +34,23 @@ This creates duplication and maintenance risk:
 - `integration_test/test_shell_fs/main/test_shell_fs.c` seeds inline scripts including `ping.be` and `autoexec.be`.
 - `storage/flash_data/scripts/ping.be` and `storage/flash_data/autoexec.be` exist as canonical/stock scripts but differ in style/content from the test’s inline versions (for example, stock scripts may use module/class/entrypoint conventions such as `cos_import`/`__cos_entry` that the simplified test scripts do not). This means “deduplicate” is not always a byte-for-byte replacement without considering runtime/contract compatibility.
 
-## Progress (2026-11-15 pilot)
+## Progress
+
+### 2026-11-15 pilot
 
 - **Classification (`integration_test/test_shell_fs`):**
   - **Test-only fixtures (intentional, not stock-equivalent):** `autoexec.be` (`AUTOEXEC_OK` marker expected by `test_shell_fs.py`), `berry_api.be`, `berry_net.be`, `berry_input.be`, and inline `ping.be` helper used by tests. These should be sourced as explicit fixtures (Approach 3), not replaced blindly with `storage/flash_data/...` scripts.
   - **Canonical/stock-equivalent:** none migrated in this pilot. `storage/flash_data/autoexec.be` and `storage/flash_data/scripts/ping.be` differ in behavior/contracts from the simplified test scripts and were intentionally not substituted.
 - **Pilot mechanism (build-time, deterministic):** added `integration_test/test_shell_fs/fixtures/autoexec.be` as the authored fixture source. `integration_test/test_shell_fs/main/CMakeLists.txt` reads the fixture at configure time and generates `${CMAKE_CURRENT_BINARY_DIR}/generated/generated_test_scripts.h` (hex byte array + length) via `integration_test/test_shell_fs/main/generated_test_scripts.h.in`; `test_shell_fs.c` includes the generated header and seeds `/flash/autoexec.be` from it instead of an inline C string literal.
 - **Convention established:** for integration tests, author Berry fixtures as `.be` files under a suite-local `fixtures/` directory (or a shared `integration_test/common/fixtures/` location when reused) and embed/generate them into the firmware test app at build time so flash seeding remains reproducible in CI/QEMU. Classify each script explicitly as canonical/stock-equivalent vs test-only before migrating; do not byte-for-byte replace test helpers with stock scripts when runtime contracts differ.
-- **Next steps (deferred):** migrate remaining low-risk test-only fixtures in `test_shell_fs` using the same mechanism; evaluate canonical sourcing for `ping.be`/`autoexec.be` only with coordinated contract/test-environment alignment; apply convention to other integration suites with inline script duplication.
+
+### 2026-11-15 follow-up (remaining `test_shell_fs` test-only fixtures)
+
+- **Migrated (test-only, byte-for-byte fixture extraction, no contract changes):** `berry_api.be`, `berry_net.be`, `berry_input.be`, and `ping.be` are now authored as suite-local fixtures in `integration_test/test_shell_fs/fixtures/` and embedded/generated via the same build-time mechanism (`CMakeLists.txt` + `generated_test_scripts.h.in`); `test_shell_fs.c` no longer contains inline Berry script string literals for seeded `.be` files (seeding remains deterministic).
+- **Classification preserved:** all migrated scripts remain **test-only fixtures** (including `ping.be`, whose behavior/contract differs from `storage/flash_data/scripts/ping.be`); **no canonical `storage/flash_data/...` substitutions** were made.
+- **Broader rollout note:** a quick inventory (`grep` for inline `s_*script[]` / embedded `.be` seeding patterns under `integration_test/`) found no other remaining inline Berry script literals outside `integration_test/test_shell_fs` at this time. Continue to apply the established convention to any future or newly discovered inline-script cases in other suites.
+
+- **Next steps (deferred):** evaluate canonical sourcing for `ping.be`/`autoexec.be` only with coordinated contract/test-environment alignment (intentional change, requires test/runtime updates); apply convention to other integration suites if/when inline script duplication is introduced or discovered.
 
 ## Possible approaches
 
@@ -102,10 +111,10 @@ This creates duplication and maintenance risk:
 4. Migrate remaining scripts, resolving canonical-vs-fixture decisions per script (especially `ping.be`/`autoexec.be`) and updating test expectations only where intentional/required.
 5. Run relevant integration/firmware checks per `AGENTS.md`, record outcomes, and document the chosen convention for future tests.
 
-## Validation checklist (when implemented)
+## Validation checklist
 
-- [ ] `integration_test/test_shell_fs` passes with no unintended behavior changes.
-- [x] Seeded flash contents remain deterministic and match the intended source (canonical or fixture) for the migrated pilot script (`autoexec.be` sourced from `integration_test/test_shell_fs/fixtures/autoexec.be` via generated header).
-- [x] No intentional contract changes in this pilot (migrated script is a test-only fixture with identical content).
-- [ ] Relevant checks run and reported per `AGENTS.md` (at minimum integration test build/run for affected suite; format/check/build as applicable to touched components). *Pilot local validation: `make format-check` and `make test` run (see PR/progress evidence); integration build/run requires ESP-IDF v6.1 + QEMU environment and CI follow-up as applicable.*
+- [ ] `integration_test/test_shell_fs` passes with no unintended behavior changes (validated by CI integration suite / local ESP-IDF+QEMU run when available).
+- [x] Seeded flash contents remain deterministic and match the intended source (canonical or fixture): all `test_shell_fs` seeded `.be` scripts (`autoexec.be`, `berry_api.be`, `berry_net.be`, `berry_input.be`, `ping.be`) are sourced from suite-local fixtures via build-time generated header.
+- [x] No intentional contract changes in these migrations (test-only fixtures extracted with identical content; no canonical `storage/flash_data/...` substitutions).
+- [ ] Relevant checks run and reported per `AGENTS.md` (format-check, host tests, and integration build/run for affected suite as applicable). *Environment-dependent checks and CI evidence recorded in PR/progress notes.*
 - [x] Convention documented so future integration tests avoid reintroducing inline script duplication (see Progress section).
