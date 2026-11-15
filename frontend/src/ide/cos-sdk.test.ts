@@ -8,6 +8,7 @@ import indexTypes from '../cos-sdk/index.d.ts?raw' with { type: 'text' }
 import jsonTypes from '../cos-sdk/json.d.ts?raw' with { type: 'text' }
 import languageTypes from '../cos-sdk/language.d.ts?raw' with { type: 'text' }
 import networkTypes from '../cos-sdk/network.d.ts?raw' with { type: 'text' }
+import systemTypes from '../cos-sdk/system.d.ts?raw' with { type: 'text' }
 import uiTypes from '../cos-sdk/ui.d.ts?raw' with { type: 'text' }
 
 const sdkRoot = 'file:///cos-sdk'
@@ -19,6 +20,7 @@ const sdkFiles = new Map<string, string>([
   [`${sdkRoot}/console.d.ts`, consoleTypes],
   [`${sdkRoot}/filesystem.d.ts`, filesystemTypes],
   [`${sdkRoot}/network.d.ts`, networkTypes],
+  [`${sdkRoot}/system.d.ts`, systemTypes],
   [`${sdkRoot}/json.d.ts`, jsonTypes],
   [`${sdkRoot}/berry-builtins.d.ts`, berryBuiltinsTypes],
   [`${sdkRoot}/index.d.ts`, indexTypes],
