@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 
@@ -54,3 +55,32 @@ class _PatchedPopen(_OrigPopen):
 
 
 subprocess.Popen = _PatchedPopen
+
+
+def _cleanup_stale_qemu():
+    """Best-effort cleanup to keep QEMU-based integration tests isolated."""
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "qemu-system-xtensa.exe", "/T"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        else:
+            subprocess.run(
+                ["pkill", "-f", "qemu-system-xtensa"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+    except OSError:
+        pass
+
+
+def pytest_runtest_setup(item):
+    _cleanup_stale_qemu()
+
+
+def pytest_runtest_teardown(item, nextitem):
+    _cleanup_stale_qemu()
