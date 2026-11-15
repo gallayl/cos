@@ -4,6 +4,8 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include "generated_test_scripts.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -73,11 +75,6 @@ static const char s_berry_input_script[] = "var started = console.read_line(\"In
                                            "def run(args)\n"
                                            "    return 0\n"
                                            "end\n";
-static const char s_autoexec_script[] = "log(\"AUTOEXEC_OK\")\n"
-                                        "def run(args)\n"
-                                        "    return 0\n"
-                                        "end\n";
-
 static const char s_ping_script[] = "def run(args)\n"
                                     "    if size(args) < 1 || size(args) > 2\n"
                                     "        print(\"Usage: ping <host> [timeout_ms]\")\n"
@@ -127,7 +124,7 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_api.be", s_berry_api_script, sizeof(s_berry_api_script) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_net.be", s_berry_net_script, sizeof(s_berry_net_script) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_input.be", s_berry_input_script, sizeof(s_berry_input_script) - 1));
-    ESP_ERROR_CHECK(vfs_write_file("/flash/autoexec.be", s_autoexec_script, sizeof(s_autoexec_script) - 1));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/autoexec.be", (const char *)shell_fs_fixture_autoexec_be, shell_fs_fixture_autoexec_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/ping.be", s_ping_script, sizeof(s_ping_script) - 1));
 
     memset(s_large_file, 'A', 600);

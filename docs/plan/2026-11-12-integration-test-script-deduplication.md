@@ -1,7 +1,7 @@
 # Integration Test Script Deduplication
 
 **Created:** 2026-11-12  
-**Status:** Proposed / not started  
+**Status:** In progress (pilot started in `integration_test/test_shell_fs`)  
 **Scope:** Integration tests that seed flash with hardcoded Berry scripts (initial focus: `integration_test/test_shell_fs`)  
 **Related:** `docs/plan/2026-11-12-berry-command-script-migrations.md`, `storage/flash_data/`, `AGENTS.md` (DoD/validation)
 
@@ -33,6 +33,15 @@ This creates duplication and maintenance risk:
 
 - `integration_test/test_shell_fs/main/test_shell_fs.c` seeds inline scripts including `ping.be` and `autoexec.be`.
 - `storage/flash_data/scripts/ping.be` and `storage/flash_data/autoexec.be` exist as canonical/stock scripts but differ in style/content from the test’s inline versions (for example, stock scripts may use module/class/entrypoint conventions such as `cos_import`/`__cos_entry` that the simplified test scripts do not). This means “deduplicate” is not always a byte-for-byte replacement without considering runtime/contract compatibility.
+
+## Progress (2026-11-15 pilot)
+
+- **Classification (`integration_test/test_shell_fs`):**
+  - **Test-only fixtures (intentional, not stock-equivalent):** `autoexec.be` (`AUTOEXEC_OK` marker expected by `test_shell_fs.py`), `berry_api.be`, `berry_net.be`, `berry_input.be`, and inline `ping.be` helper used by tests. These should be sourced as explicit fixtures (Approach 3), not replaced blindly with `storage/flash_data/...` scripts.
+  - **Canonical/stock-equivalent:** none migrated in this pilot. `storage/flash_data/autoexec.be` and `storage/flash_data/scripts/ping.be` differ in behavior/contracts from the simplified test scripts and were intentionally not substituted.
+- **Pilot mechanism (build-time, deterministic):** added `integration_test/test_shell_fs/fixtures/autoexec.be` as the authored fixture source. `integration_test/test_shell_fs/main/CMakeLists.txt` reads the fixture at configure time and generates `${CMAKE_CURRENT_BINARY_DIR}/generated/generated_test_scripts.h` (hex byte array + length) via `integration_test/test_shell_fs/main/generated_test_scripts.h.in`; `test_shell_fs.c` includes the generated header and seeds `/flash/autoexec.be` from it instead of an inline C string literal.
+- **Convention established:** for integration tests, author Berry fixtures as `.be` files under a suite-local `fixtures/` directory (or a shared `integration_test/common/fixtures/` location when reused) and embed/generate them into the firmware test app at build time so flash seeding remains reproducible in CI/QEMU. Classify each script explicitly as canonical/stock-equivalent vs test-only before migrating; do not byte-for-byte replace test helpers with stock scripts when runtime contracts differ.
+- **Next steps (deferred):** migrate remaining low-risk test-only fixtures in `test_shell_fs` using the same mechanism; evaluate canonical sourcing for `ping.be`/`autoexec.be` only with coordinated contract/test-environment alignment; apply convention to other integration suites with inline script duplication.
 
 ## Possible approaches
 
@@ -96,7 +105,7 @@ This creates duplication and maintenance risk:
 ## Validation checklist (when implemented)
 
 - [ ] `integration_test/test_shell_fs` passes with no unintended behavior changes.
-- [ ] Seeded flash contents remain deterministic and match the intended source (canonical or fixture).
-- [ ] Any intentional contract changes (if aligning to canonical scripts) are reflected in tests/docs.
-- [ ] Relevant checks run and reported per `AGENTS.md` (at minimum integration test build/run for affected suite; format/check/build as applicable to touched components).
-- [ ] Convention documented so future integration tests avoid reintroducing inline script duplication.
+- [x] Seeded flash contents remain deterministic and match the intended source (canonical or fixture) for the migrated pilot script (`autoexec.be` sourced from `integration_test/test_shell_fs/fixtures/autoexec.be` via generated header).
+- [x] No intentional contract changes in this pilot (migrated script is a test-only fixture with identical content).
+- [ ] Relevant checks run and reported per `AGENTS.md` (at minimum integration test build/run for affected suite; format/check/build as applicable to touched components). *Pilot local validation: `make format-check` and `make test` run (see PR/progress evidence); integration build/run requires ESP-IDF v6.1 + QEMU environment and CI follow-up as applicable.*
+- [x] Convention documented so future integration tests avoid reintroducing inline script duplication (see Progress section).
