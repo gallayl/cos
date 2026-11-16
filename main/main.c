@@ -10,6 +10,7 @@
 #include "light_sensor.h"
 #include "network.h"
 #include "rgb_led.h"
+#include "service_lifecycle.h"
 #include "shell.h"
 #include "system.h"
 #include "text_console.h"
@@ -83,73 +84,244 @@ static esp_err_t init_nvs(void)
     return err;
 }
 
-static void log_init_result(const char *name, esp_err_t err, bool *ok_out)
+static bool s_nvs_ok = false;
+
+static void log_service_result(service_descriptor_t *svc)
 {
-    if (err == ESP_OK)
+    if (svc == NULL)
     {
-        if (ok_out != NULL)
-        {
-            *ok_out = true;
-        }
         return;
     }
 
-    ESP_LOGE(TAG, "%s init failed: %s", name, esp_err_to_name(err));
-    if (ok_out != NULL)
+    if (!svc->enabled)
     {
-        *ok_out = false;
+        ESP_LOGI(TAG, "Service %s: disabled", svc->name);
+        return;
     }
+
+    if (svc->state == SERVICE_LIFECYCLE_STARTED)
+    {
+        return;
+    }
+
+    if (svc->state == SERVICE_LIFECYCLE_FAILED && svc->last_result == ESP_ERR_INVALID_STATE)
+    {
+        ESP_LOGW(TAG, "Skipping %s init because dependencies are unavailable", svc->name);
+        return;
+    }
+
+    if (svc->state == SERVICE_LIFECYCLE_FAILED)
+    {
+        ESP_LOGE(TAG, "%s init failed: %s", svc->name, esp_err_to_name(svc->last_result));
+    }
+}
+
+static esp_err_t svc_init_display(service_descriptor_t *svc)
+{
+    (void)svc;
+    return display_init();
+}
+static esp_err_t svc_init_calibration(service_descriptor_t *svc)
+{
+    (void)svc;
+    return calibration_init();
+}
+static esp_err_t svc_init_light_sensor(service_descriptor_t *svc)
+{
+    (void)svc;
+    return light_sensor_init();
+}
+static esp_err_t svc_init_rgb_led(service_descriptor_t *svc)
+{
+    (void)svc;
+    return rgb_led_init();
+}
+static esp_err_t svc_init_brightness(service_descriptor_t *svc)
+{
+    (void)svc;
+    return brightness_init();
+}
+
+static esp_err_t svc_init_text_console(service_descriptor_t *svc)
+{
+    (void)svc;
+    esp_err_t err = text_console_init();
+    if (err == ESP_OK && s_nvs_ok)
+    {
+        text_console_apply_saved_log_level();
+    }
+    return err;
+}
+
+static esp_err_t svc_init_i2c_bus(service_descriptor_t *svc)
+{
+    (void)svc;
+    return i2c_bus_init();
+}
+static esp_err_t svc_init_filesystem(service_descriptor_t *svc)
+{
+    (void)svc;
+    return filesystem_init();
+}
+static esp_err_t svc_init_wifi(service_descriptor_t *svc)
+{
+    (void)svc;
+    return wifi_init();
+}
+static esp_err_t svc_init_network(service_descriptor_t *svc)
+{
+    (void)svc;
+    return network_init();
+}
+static esp_err_t svc_init_bluetooth(service_descriptor_t *svc)
+{
+    (void)svc;
+    return bluetooth_init();
+}
+static esp_err_t svc_init_time_sync(service_descriptor_t *svc)
+{
+    (void)svc;
+    return time_sync_init();
+}
+static esp_err_t svc_init_http_server(service_descriptor_t *svc)
+{
+    (void)svc;
+    return http_server_init();
+}
+static esp_err_t svc_init_websocket(service_descriptor_t *svc)
+{
+    (void)svc;
+    return websocket_init();
+}
+static esp_err_t svc_init_system(service_descriptor_t *svc)
+{
+    (void)svc;
+    return system_init();
+}
+static esp_err_t svc_init_shell(service_descriptor_t *svc)
+{
+    (void)svc;
+    return shell_init();
+}
+
+static bool svc_started(const service_descriptor_t *svc)
+{
+    return svc != NULL && svc->enabled && svc->state == SERVICE_LIFECYCLE_STARTED;
 }
 
 void app_main(void)
 {
     esp_err_t err = init_nvs();
-    bool nvs_ok = (err == ESP_OK);
-    if (!nvs_ok)
+    s_nvs_ok = (err == ESP_OK);
+    if (!s_nvs_ok)
     {
         ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
     }
 
     ESP_LOGI(TAG, "COS starting up...");
 
-    bool console_ok = false;
-    bool fs_ok = false;
-    bool bt_ok = false;
-    bool http_ok = false;
-    bool ws_ok = false;
-    bool shell_ok = false;
+    static const char *const ws_deps[] = {"http_server"};
 
-    log_init_result("Display", display_init(), NULL);
-    log_init_result("Calibration", calibration_init(), NULL);
-    log_init_result("Light sensor", light_sensor_init(), NULL);
-    log_init_result("RGB LED", rgb_led_init(), NULL);
-    log_init_result("Brightness", brightness_init(), NULL);
-    log_init_result("Text console", text_console_init(), &console_ok);
-    if (console_ok && nvs_ok)
-    {
-        text_console_apply_saved_log_level();
-    }
-    log_init_result("I2C bus", i2c_bus_init(), NULL);
-    log_init_result("Filesystem", filesystem_init(), &fs_ok);
-    log_init_result("Wi-Fi", wifi_init(), NULL);
-    log_init_result("Network", network_init(), NULL);
-    log_init_result("Bluetooth", bluetooth_init(), &bt_ok);
-    log_init_result("Time sync", time_sync_init(), NULL);
+    static service_descriptor_t services[] = {
+        {.id = "display",
+         .name = "Display",
+         .init = svc_init_display,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "calibration",
+         .name = "Calibration",
+         .init = svc_init_calibration,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "light_sensor",
+         .name = "Light sensor",
+         .init = svc_init_light_sensor,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "rgb_led",
+         .name = "RGB LED",
+         .init = svc_init_rgb_led,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "brightness",
+         .name = "Brightness",
+         .init = svc_init_brightness,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "text_console",
+         .name = "Text console",
+         .init = svc_init_text_console,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "i2c_bus",
+         .name = "I2C bus",
+         .init = svc_init_i2c_bus,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "filesystem",
+         .name = "Filesystem",
+         .init = svc_init_filesystem,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "wifi", .name = "Wi-Fi", .init = svc_init_wifi, .capabilities = SERVICE_CAP_CAN_START, .enabled = true},
+        {.id = "network",
+         .name = "Network",
+         .init = svc_init_network,
+         .capabilities = SERVICE_CAP_CAN_START,
+         .enabled = true},
+        {.id = "bluetooth",
+         .name = "Bluetooth",
+         .init = svc_init_bluetooth,
+         .capabilities = SERVICE_CAP_CAN_START,
+         .enabled = true},
+        {.id = "time_sync",
+         .name = "Time sync",
+         .init = svc_init_time_sync,
+         .capabilities = SERVICE_CAP_CAN_START,
+         .enabled = true},
+        {.id = "http_server",
+         .name = "HTTP server",
+         .init = svc_init_http_server,
+         .capabilities = SERVICE_CAP_CAN_START,
+         .enabled = true},
+        {.id = "websocket",
+         .name = "WebSocket",
+         .depends_on = ws_deps,
+         .depends_on_count = 1,
+         .init = svc_init_websocket,
+         .capabilities = SERVICE_CAP_CAN_START,
+         .enabled = true},
+        {.id = "system",
+         .name = "System",
+         .init = svc_init_system,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+        {.id = "shell",
+         .name = "Shell",
+         .init = svc_init_shell,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_ALWAYS_ON,
+         .enabled = true},
+    };
 
-    err = http_server_init();
-    log_init_result("HTTP server", err, &http_ok);
-    if (http_ok)
+    const size_t service_count = sizeof(services) / sizeof(services[0]);
+    service_lifecycle_boot(services, service_count);
+
+    for (size_t i = 0; i < service_count; ++i)
     {
-        err = websocket_init();
-        log_init_result("WebSocket", err, &ws_ok);
-    }
-    else
-    {
-        ESP_LOGW(TAG, "Skipping WebSocket init because HTTP server is unavailable");
+        log_service_result(&services[i]);
     }
 
-    log_init_result("System", system_init(), NULL);
-    log_init_result("Shell", shell_init(), &shell_ok);
+    service_descriptor_t *console_svc = service_lifecycle_find(services, service_count, "text_console");
+    service_descriptor_t *fs_svc = service_lifecycle_find(services, service_count, "filesystem");
+    service_descriptor_t *bt_svc = service_lifecycle_find(services, service_count, "bluetooth");
+    service_descriptor_t *ws_svc = service_lifecycle_find(services, service_count, "websocket");
+    service_descriptor_t *shell_svc = service_lifecycle_find(services, service_count, "shell");
+
+    const bool console_ok = svc_started(console_svc);
+    const bool fs_ok = svc_started(fs_svc);
+    const bool bt_ok = svc_started(bt_svc);
+    const bool ws_ok = svc_started(ws_svc);
+    const bool shell_ok = svc_started(shell_svc);
 
     if (bt_ok && console_ok && shell_ok)
     {
@@ -160,10 +332,12 @@ void app_main(void)
     {
         ESP_LOGW(TAG, "Bluetooth keyboard routing disabled because console/shell is unavailable");
     }
+
     if (console_ok)
     {
         text_console_set_output_listener(broadcast_console_output, NULL);
     }
+
     if (ws_ok && shell_ok)
     {
         websocket_set_text_handler(submit_console_text, NULL);
