@@ -500,6 +500,12 @@ static esp_err_t do_bt_enable_sequence(void)
         .callback_arg = NULL,
     };
     err = esp_hidh_init(&hidh_cfg);
+    if (err == ESP_ERR_INVALID_STATE)
+    {
+        ESP_LOGW(TAG, "HID host already initialized, retrying after deinit");
+        esp_hidh_deinit();
+        err = esp_hidh_init(&hidh_cfg);
+    }
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "HID host init failed: %s", esp_err_to_name(err));
