@@ -333,7 +333,6 @@ add_test(NAME test_i2c_bus COMMAND test_i2c_bus)
 # --- Library: time_sync_logic ---
 add_library(time_sync_logic STATIC
     ${COMPONENT_DIR}/components/time_sync/src/time_sync.c
-    ${COMPONENT_DIR}/components/time_sync/src/time_sync_cmd.c
 )
 target_include_directories(time_sync_logic PUBLIC
     ${COMPONENT_DIR}/components/time_sync/include

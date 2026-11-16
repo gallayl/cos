@@ -15,8 +15,6 @@ static const char *const TAG = "time_sync";
 /* Year threshold: if time() returns a year <= 2020, clock is not synced. */
 #define SYNCED_YEAR_THRESHOLD 2020
 
-void time_sync_register_commands(void);
-
 /* Portable setenv wrapper (POSIX setenv is not available on all hosts). */
 static void set_tz_env(const char *tz)
 {
@@ -64,8 +62,6 @@ esp_err_t time_sync_init(void)
     esp_sntp_init();
 
     set_tz_env(TIMEZONE);
-
-    time_sync_register_commands();
 
     ESP_LOGI(TAG, "SNTP initialized (server=%s, TZ=%s)", NTP_SERVER, TIMEZONE);
     return ESP_OK;
