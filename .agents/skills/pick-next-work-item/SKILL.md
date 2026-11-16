@@ -9,8 +9,9 @@ Select one complete, well-scoped item from repository documentation and propose 
 
 ## State-based selection
 
-- **Ready queue (highest priority):** `docs/plan/ready/*.md` — items that meet the Ready contract (explicit approval recorded after specification, `Open questions: none`, scope/non-goals, acceptance criteria/DoD, validation plan, dependencies/risks, implementable now without unavailable decisions/hardware except where the deliverable is the guide/script itself).
+- **Ready queue (highest priority):** `docs/plan/ready/*.md` — items that meet the Ready contract (explicit approval recorded after specification, `Open questions: none`, scope/non-goals, acceptance criteria/DoD, validation plan, dependencies/risks) and are **implementable now** (no blockers). `plan/ready/` must contain only ready-to-implement items.
 - **Needs clarification:** `docs/plan/needs-clarification/*.md` — items with open questions/blockers or incomplete spec; **not** pickable for implementation until clarified and moved to `ready/` (use `clarify-feature` / `/clarify-feature`).
+- **Done:** `docs/plan/done/*.md` — completed plan items with recorded evidence; not pickable for implementation.
 - **Canonical tracker:** `docs/plan/consolidated-improvement-plan.md` remains the source of truth for planned/current status and evidence (link items both ways).
 
 ## Workflow

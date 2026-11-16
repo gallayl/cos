@@ -52,4 +52,4 @@ Request: $ARGUMENTS
 ```
 
 - If the item relates to tracked work, add/update links in `docs/plan/consolidated-improvement-plan.md` as appropriate (no history removal).
-- Report the created path and remaining open questions, and suggest running `/clarify-feature <item-id>` to resolve them and promote to `docs/plan/ready/` when the Ready contract is satisfied and approved.
+- Report the created path and remaining open questions, and suggest running `/clarify-feature <item-id>` to resolve them and promote to `docs/plan/ready/` when the Ready contract is satisfied and approved (and the item is implementable now). After implementation is complete with recorded evidence, move it to `docs/plan/done/`.
