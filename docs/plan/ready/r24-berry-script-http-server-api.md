@@ -11,6 +11,8 @@
 Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a **separate user server instance** (not the core device HTTP server) on a user-defined, non-core port, supporting Express-like routing/basic middleware and request/response helpers for a **simple chat** use case, with safe serialized callback execution, single-request-at-a-time handling, dynamic route management, and no built-in auth.
 
 **Distinction (resolved, 2026-11-16 review):** this is **not** the core device HTTP/WS service controlled by [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md). R24 creates an independent user `@cos/http` listener/resources on a non-core port and must not be started/stopped/coupled via core `server`/`ws` lifecycle controls except normal port/conflict rules. Core HTTP/WS service start/stop/profile gating does not stop R24 user server instances except unavoidable platform conflicts; R24 instances are managed by their own `listen`/`close` and app/VM cleanup semantics.
+
+**Upload/body bounds (resolved, 2026-11-16 review):** where R24 reuses shared multipart/body/upload parsing or helpers from `components/http_server`, it must depend on and reuse [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md) bounded limits and JSON rejection/error/cleanup contract. Any R24-specific request-body parsing path must apply equivalent or stricter memory bounds and compatible 4xx/413/431/error semantics (no bypass of memory-safety constraints). This does not change the core-vs-user-server lifecycle distinction.
 ## Open questions
 - None. (Future: review against R18 async/await when available — tracked as cross-reference, not a blocker for this v1 spec.)
 
@@ -48,12 +50,12 @@ Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a
 - [ ] **Echo JSON** scenario works: POST JSON body to an endpoint returns equivalent JSON response (status/body/headers as specified).
 - [ ] **Unit tests with good coverage** for route matching/params/query, request parsing/body & limit enforcement, response helpers/status/headers, middleware chain/`next`, register/unregister/close lifecycle, port collision/error cases, timeout/exception/double-send/no-response handling (host/mocked where feasible).
 - [ ] **Integration test** for echo JSON added if feasible in repo test environment (e.g. `integration_test/`/QEMU); if not feasible, limitation documented with rationale and compensating host/on-device evidence.
-- [ ] On-device hardware validation evidence recorded: start server on non-core port, simple chat + echo JSON, port-collision error, single-request behavior, dynamic route changes, and cleanup on stop/reset (and no regression to core HTTP server/APIs).
+- [ ] On-device hardware validation evidence recorded when hardware/environment is available (otherwise concrete blockers/unverified items recorded per `AGENTS.md`): start server on non-core port, simple chat + echo JSON, port-collision error, single-request behavior, dynamic route changes, and cleanup on stop/reset (and no regression to core HTTP server/APIs).
 - [ ] Docs updated (usage, limits, LAN/no-auth warnings, example references). No regression to existing HTTP server/core APIs; automated checks pass per `AGENTS.md` for affected scope.
 
 ## Validation plan
 - **Automated (required per scope):** `make format-check`, `make test`. Firmware: `make build` and `make lint` when feasible (ESP-IDF v6.1 env). Frontend: from `frontend/` run `yarn format:check`, `yarn lint`, `yarn test`, `yarn build` if `frontend/src/cos-sdk/` or IDE bindings changed. Docs: `make docs-check` if Doxygen/public headers affected. Integration: add/run echo JSON integration test if feasible (`make integration-test-build` / `make integration-test`) — document if environment/feasibility blocks.
-- **On-device/hardware (required):** validate on supported hardware (Wi‑Fi/LAN client): user server on non-core port; simple chat flow; echo JSON; port collision with core/in-use port; single-request/timeout behavior as applicable; dynamic register/unregister; cleanup on close and on script/app stop or VM reset; confirm core device HTTP server/APIs unaffected. Record firmware/commit, steps, and results in a report linked from this item and consolidated plan.
+- **On-device/hardware (required when hardware/environment available):** validate on supported hardware (Wi‑Fi/LAN client): user server on non-core port; simple chat flow; echo JSON; port collision with core/in-use port; single-request/timeout behavior as applicable; dynamic register/unregister; cleanup on close and on script/app stop or VM reset; confirm core device HTTP server/APIs unaffected. Record firmware/commit, steps, and results in a report linked from this item and consolidated plan. If unavailable, record concrete blockers and unverified items per `AGENTS.md` (do not claim pass).
 
 ## Expected areas/files
 - `components/http_server/` (user-server instance, routing, bridging, lifecycle/limits) and/or dedicated component as appropriate
@@ -65,6 +67,7 @@ Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a
 ## Dependencies / prerequisites
 - ESP-IDF `esp_http_server`/LWIP capabilities and existing `http_server` component coexistence.
 - Berry runtime support for serialized callback dispatch and lifecycle hooks/cleanup on app stop/VM reset (implement as part of this work, safely).
+- [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md): required for any shared multipart/body/upload parsing/helpers and their bounded limits/error/cleanup contract; R24-specific body parsing paths must still apply equivalent or stricter bounds and compatible error semantics.
 - **Cross-reference:** R18 `async`/`await` (ready/design-approved 2026-11-15, implementation not started) — when R18 is implemented, review this API for async handlers/non-blocking patterns, timeout/cancellation semantics, and concurrency model compatibility ([`r18-async-await-runtime.md`](./r18-async-await-runtime.md)).
 
 ## Risks / constraints
@@ -75,3 +78,4 @@ Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a
 
 ## Progress / evidence
 - 2026-11-15: clarified from idea and user decisions (passes 1–3), recommendations approved by user in chat; promoted to `docs/plan/ready/` as pre-approved for implementation/PR/babysit-to-green (merge remains human). R18 async/await review cross-referenced.
+- 2026-11-16 (review follow-up): clarified upload/body bounds dependency — R24 must reuse `http-upload-memory-bounds` contract/limits for shared parsing/helpers and apply equivalent or stricter compatible bounds/errors for any R24-specific body path.

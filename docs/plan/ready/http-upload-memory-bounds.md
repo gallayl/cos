@@ -30,8 +30,8 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 - [ ] Automated checks required by `AGENTS.md` for affected scope pass (including added/updated integration/QEMU multipart edge-case coverage as applicable).
 
 ## Validation plan
-- Automated: per `AGENTS.md` / affected scope (`make format-check`, `make test`; `make build` and integration tests/QEMU as affected). Add/extend integration/QEMU multipart edge-case tests for oversize/rejection and error paths where feasible.
-- Hardware/manual: spot checks on device for a supported upload, oversize rejection, and near-OOM/fragmented behavior; record before/after largest-free-heap observations (brief note in PR/docs).
+- **Automated (required):** per `AGENTS.md` / affected scope (`make format-check`, `make test`; `make build` and integration tests/QEMU as affected). Add/extend integration/QEMU multipart edge-case tests for oversize/rejection and error paths where feasible.
+- **Hardware/manual (required when hardware/environment available):** spot checks on device for a supported upload, oversize rejection, and near-OOM/fragmented behavior; record before/after largest-free-heap observations (brief note in PR/docs). If unavailable, record concrete blockers and unverified items per `AGENTS.md` (do not claim pass).
 
 ## Expected areas/files
 - `components/http_server/src/http_multipart.c`, `components/http_server/src/http_multipart.h`
@@ -39,7 +39,8 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 - HTTP server/API docs and tests as applicable
 
 ## Dependencies / prerequisites
-- **Implementation order (resolved, 2026-11-16 review): hard prerequisite for HTTP/WS lifecycle stop/abort.** This plan must be implemented and its upload size/patterns, buffer/preflight bounds, and JSON rejection/error/cleanup contract must be locked before [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md) implements upload abort/stop behavior. HTTP/WS best-effort stop/drain/abort must reuse these limits/errors/semantics and must not introduce partial/corrupt writes beyond defined safe handling.
+- **Implementation order (resolved, 2026-11-16 review): hard prerequisite for HTTP/WS lifecycle stop/abort and shared user-server upload behavior.** This plan must be implemented and its upload size/patterns, buffer/preflight bounds, and JSON rejection/error/cleanup contract must be locked before [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md) implements upload abort/stop behavior. Core HTTP/WS best-effort stop/drain/abort must reuse these limits/errors/semantics and must not introduce partial/corrupt writes beyond defined safe handling.
+- **R24 (`@cos/http` user server, resolved 2026-11-16 review):** where R24 reuses shared multipart/body/upload parsing or helpers from `components/http_server`, it must depend on and reuse this plan's bounded limits and JSON error/cleanup contract (no divergent or looser upload handling). If R24 uses a separate request-body path, that path must still document/apply equivalent or stricter bounds and compatible 4xx/413/431/error semantics (no bypass of memory-safety constraints).
 - Consider existing HTTP body/response limits and memory-pressure follow-ups in [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md).
 
 ## Risks / constraints
@@ -61,4 +62,4 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 - 2026-11-16: created from repository audit (unified service infrastructure/memory focus).
 - 2026-11-16 (clarify round): recorded decisions A/C/A/B/B for Q1–Q5 above.
 - 2026-11-16: explicitly approved in chat and marked ready in `docs/plan/ready/` (metadata aligned with folder state). No implementation/validation yet.
-- 2026-11-16 (review follow-up): documented implementation order/dependency — **upload bounds first**; HTTP/WebSocket lifecycle stop must preserve upload limits/rejection semantics.
+- 2026-11-16 (review follow-up): documented implementation order/dependency — **upload bounds first/shared contract** for core HTTP/WS stop and R24 shared upload paths; hardware validation wording clarified (required when available, otherwise blocker).
