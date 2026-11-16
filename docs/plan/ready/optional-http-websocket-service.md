@@ -58,9 +58,13 @@ HTTP server and WebSocket currently start on every boot (`main/main.c`), consumi
 - `test/` host tests where feasible
 
 ## Dependencies / prerequisites
-- **Depends on/aligned with:** [`docs/plan/ready/unified-service-lifecycle.md`](./unified-service-lifecycle.md) — must use/align to its static descriptor contract, states/capabilities, explicit dependency/fail-fast start, best-effort stop, and boot/internal integration model. Service-specific deep teardown details beyond minimal contract adaptation may be implemented here for HTTP/WebSocket.
-- **Related:** [`docs/plan/ready/boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) (boot-time gating of manageable services), [`docs/plan/needs-clarification/http-upload-memory-bounds.md`](../needs-clarification/http-upload-memory-bounds.md), [`docs/plan/needs-clarification/service-memory-budget-observability.md`](../needs-clarification/service-memory-budget-observability.md).
+- **Depends on/aligned with:** [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) — must use/align to its static descriptor contract, states/capabilities, explicit dependency/fail-fast start, best-effort stop, and boot/internal integration model. Service-specific deep teardown details beyond minimal contract adaptation may be implemented here for HTTP/WebSocket.
+- **Related:** [`./boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) (boot-time gating of manageable services), [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md) (**upload bounds first:** defines supported upload size/heap-rejection/errors that stop handling must preserve), [`./service-memory-budget-observability.md`](./service-memory-budget-observability.md).
 - **Implementation prerequisite decisions (resolved):** default always-on, boot/profile + `server`/`ws` commands, independent services with dependency, best-effort graceful stop, best-effort memory reclaim with documented limits.
+
+## Implementation order / prerequisites (2026-11-16, clarified)
+- Requires unified-lifecycle **integration points/descriptors/capabilities** for HTTP server and WebSocket representation and boot/profile control; sequence implementation so required contract/interfaces from unified-service-lifecycle exist or are delivered in the same coordinated change.
+- **Upload bounds first:** implement/align to [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md) for request/upload size and heap-preflight rejection semantics; best-effort stop/drain/abort must preserve those limits/errors and avoid partial/corrupt behavior beyond defined safe handling.
 
 ## Risks / constraints
 - `esp_httpd` stop/start, URI handler lifecycle, and active sockets/requests/uploads can be sensitive to ordering and in-flight operations; unsafe teardown may crash or leak.

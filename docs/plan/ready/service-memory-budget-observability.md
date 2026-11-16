@@ -4,12 +4,14 @@
 - **Status:** ready (approved)
 - **Created:** 2026-11-16
 - **Updated:** 2026-11-16
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/berry_lang/src/berry_runtime.cpp:99-142`, `components/berry_lang/src/berry_runtime.cpp:1629-1676`, `components/network/include/network.h:54-58`, `components/network/include/network.h:192-211`, and general lack of cross-service memory budget in boot/lifecycle. Canonical tracker: [`consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (2026-11-16 audit follow-ups, R54 context). Related: [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md), R2/R5/R8 evidence in consolidated plan and `docs/reports/`.
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/berry_lang/src/berry_runtime.cpp:99-142`, `components/berry_lang/src/berry_runtime.cpp:1629-1676`, `components/network/include/network.h:54-58`, `components/network/include/network.h:192-211`, and general lack of cross-service memory budget in boot/lifecycle. Canonical tracker: [`consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (2026-11-16 audit follow-ups, R54 context). Related: [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md), [`./berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) (complementary quick inspection plan; split & linked), R2/R5/R8 evidence in consolidated plan and `docs/reports/`.
 - **Approval:** Approved by user in clarify-feature conversation on 2026-11-16 ("Approve as-is and mark Ready (move to docs/plan/ready/)"). Pre-approved for implementation/PR flow (merge remains human).
 - **Open questions:** none
 
 ## Summary
 The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded network buffers, HTTP worker stack info APIs), but no system-wide view of per-service memory cost and budgets. This feature defines v1 observability needed to manage optional services and understand per-service RAM impact.
+
+**Relationship to `berry-runtime-service-inspection-v1` (split & linked, 2026-11-16):** this plan owns the dedicated `svc_mem` cross-service memory/budget snapshot and before/after evidence workflow. [`berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` snapshots). Implementations should reuse/share read-only service-state and memory collectors/helpers where practical to avoid duplication and keep service names/states/`n/a` semantics consistent, while preserving distinct command roles and output contracts.
 
 ## Scope (v1)
 - Provide a **cross-service, on-demand memory snapshot** for developers via a dedicated shell command, reusing/extending existing diagnostics where possible (R5 Berry/runtime, R8 network/HTTP worker stack info, existing `mem`/system info).
@@ -24,7 +26,7 @@ The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded ne
 | **Network / HTTP worker** | network/HTTP worker initialized/idle/busy as available | HTTP worker configured stack size and last/peak HWM if available (R8); bounded body/buffer limits or configured constants where useful for interpretation |
 | **Wi-Fi** | init/started/connected/disconnected/stopped/unsupported as available | lifecycle/state; no per-subsystem heap counter assumed (note ESP-IDF reclaimability limits). Include cheaply available counters/buffer sizes only if already exposed |
 | **Bluetooth** | init/enabled/disabled/scan state as available | lifecycle/state; scan/result/buffer/task info only if cheaply exposed (no deep instrumentation required in v1) |
-| **Text console** | init/deinit, render/task active as available | configured/static scrollback/buffer sizes and task stack size/HWM if cheaply exposed; note ownership/limits |
+| **Text console** | init/deinit, render/task active as available | configured/static scrollback/buffer sizes and task stack size/HWM if cheaply exposed; note ownership/limits (semantics/state definitions follow [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md), source of truth) |
 | **Shell input** | init/task active as available | configured/static input buffer/queue sizes and task stack size/HWM if cheaply exposed |
 
 - **Lifecycle before/after:** mandate `svc_mem` before/after captures for at least one runtime-controllable service start/stop in the implementation context (e.g. via unified service lifecycle or existing service APIs). Require a documented manual R2-style A/B procedure/checklist for in-scope services lacking runtime stop control.
@@ -63,6 +65,8 @@ The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded ne
 
 ## Dependencies / prerequisites
 - [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) provides shared lifecycle/state concepts useful for enabled/running/unsupported reporting and for controllable before/after demos (where implemented).
+- [`./berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) is complementary (split & linked): coordinate shared read-only collectors and consistent service naming/state/`n/a` semantics where feasible; no hard implementation-order dependency implied.
+- [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) is the source of truth for console lifecycle/behavior semantics and observable states/fields reported for text console.
 - Related items R45–R52 may extend stop/deinit/reclaimability; v1 observability must remain correct with `n/a`/unsupported where controls/metrics are unavailable.
 - Reuse/align with R2/R5/R8 evidence and workflows in `docs/plan/consolidated-improvement-plan.md` and `docs/reports/`.
 

@@ -66,9 +66,13 @@ Wi-Fi is initialized and started automatically at boot (AP or AP+STA behavior), 
 - Docs updates for shell commands, persisted behavior, and teardown limitations (relevant `docs/`/README/help text as applicable)
 
 ## Dependencies / prerequisites
-- Align with `unified-service-lifecycle` conventions where practical, but **not blocked** on that item’s shared design (adapter-ready implementation allowed).
-- Coordinate expectations with `optional-http-websocket-service` and optional network diagnostics lifecycle items (no auto side-effects; clear dependency failures).
-- `boot-profiles-feature-modes` remains separate; this item covers only persisted Wi-Fi enabled/disabled state.
+- Align with [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) conventions where practical, but **not blocked** on that item’s shared design (**adapter-ready** implementation allowed now).
+- Coordinate expectations with [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md) and optional network diagnostics lifecycle items (no auto side-effects; clear dependency failures).
+- [`./boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) remains separate; this item covers only persisted Wi-Fi enabled/disabled state.
+
+## Implementation order / prerequisites (2026-11-16, clarified)
+- May proceed **now** as Wi-Fi-specific lifecycle/persistence work.
+- Expose clean lifecycle APIs/hooks/state/capability reporting so the service can be represented as a unified-lifecycle descriptor/adapter when that framework is integrated (no divergent contract).
 
 ## Risks / constraints
 - ESP-IDF Wi-Fi/netif/default event-loop init/deinit ordering is restrictive; full teardown/reclaim may be unsafe or unsupported. Best-effort `stop` must avoid corrupting shared/global state.

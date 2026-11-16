@@ -64,6 +64,13 @@ Define and implement a minimal, common lifecycle model for firmware services (st
 - Per-service deep lifecycle behavior may remain partially specified in those items; this spec defines the shared contract they should align to (adapter-ready).
 - Implementation should not block on unresolved details of other needs-clarification items beyond the shared contract defined here.
 
+## Implementation order / prerequisites (2026-11-16, clarified)
+- This plan provides the **shared lifecycle contract/base** (static descriptors, states/capabilities, dependency/order/fail-fast/best-effort-stop semantics, boot-run helpers).
+- **`wifi-managed-start-stop`:** may proceed **adapter-ready now** (Wi-Fi-specific lifecycle/API/persistence) but should expose hooks/capabilities/state compatible with this contract.
+- **`boot-profiles-feature-modes`:** may proceed with boot-time gated init as specified, but should **align with and migrate to** this descriptor model/interfaces when available to avoid duplicate boot-wiring logic.
+- **`optional-http-websocket-service`:** requires unified-lifecycle integration points/descriptors/capabilities for managed service representation and boot/profile control; sequence implementation so required contract/interfaces from this plan exist or are delivered in the same coordinated change. Service-specific deep teardown remains owned there except minimal contract adaptation.
+- Dependent observability/console/service items should consume this plan's states/capabilities once available and remain correct with `unsupported`/`n/a` where not yet implemented.
+
 ## Risks / constraints
 - Teardown ordering and in-flight operations (tasks, sockets, callbacks, console ownership, WebSocket clients) can cause races or crashes; v1 is best-effort and primarily boot/internal serialized.
 - ESP-IDF subsystems may have partial/no safe deinit paths; some memory may not be reclaimable (must be documented per service/limitation).

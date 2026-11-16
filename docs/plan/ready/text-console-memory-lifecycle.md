@@ -3,7 +3,7 @@
 - **ID:** text-console-memory-lifecycle
 - **Status:** ready (approved)
 - **Created:** 2026-11-16
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Consolidated plan: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (item line ~50). Related: [`docs/plan/ready/unified-service-lifecycle.md`](./unified-service-lifecycle.md), Berry UI/display ownership and console visibility integration points. Code evidence: `components/text_console/src/text_console.cpp:28-34,364-427,429-468,504-548,615-642`, `components/text_console/src/text_buffer.h:9,54-71,105-148`, `components/text_console/src/text_buffer.c:88-124,498-509,607-611`.
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Consolidated plan: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (item line ~50). Related: [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md), [`./boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) (recovery/availability assumptions), [`./service-memory-budget-observability.md`](./service-memory-budget-observability.md) (`svc_mem` console fields), Berry UI/display ownership and console visibility integration points. Code evidence: `components/text_console/src/text_console.cpp:28-34,364-427,429-468,504-548,615-642`, `components/text_console/src/text_buffer.h:9,54-71,105-148`, `components/text_console/src/text_buffer.c:88-124,498-509,607-611`.
 - **Approval:** User approved in chat on 2026-11-16 ("1A,2A,3A,4A,5A,6A,7A,8: Approve"). **Explicitly pre-approved for implementation and PR flow** (merge remains human). Open questions: **none**.
 
 ## Summary
@@ -54,9 +54,14 @@ The text console keeps a large static character grid buffer resident, runs a ren
 - Documentation/evidence: this item and/or linked report under `docs/reports/` or `docs/progress/` as appropriate
 
 ## Dependencies / prerequisites
-- Align with [`docs/plan/ready/unified-service-lifecycle.md`](./unified-service-lifecycle.md) and any boot/mode profile decisions (console-scoped changes must remain compatible).
+- Align with [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) and any boot/mode profile decisions (console-scoped changes must remain compatible).
 - Coordinate with Berry UI app and console visibility/display-ownership behavior (hide/show transitions).
 - Hardware access (CYD/ESP32) required for mandatory validation evidence.
+
+## Cross-plan contract (2026-11-16, clarified)
+- **Source of truth:** this plan owns text-console lifecycle/behavior semantics (hidden/app-owned/inactive behavior, scrollback auto-release, render/touch suspension, recovery guarantees, and safe API behavior).
+- [`./boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) must preserve the recovery/local-console guarantees defined here when console is kept/enabled in a profile.
+- [`./service-memory-budget-observability.md`](./service-memory-budget-observability.md) should report console state/fields (`init/deinit`, render/task active, configured/static buffer/scrollback sizes, task stack/HWM when exposed) consistent with the semantics defined here.
 
 ## Risks / constraints
 - Stdout hooking and render task synchronization are sensitive; regressions can affect logging, listener delivery, or deadlock/races.
