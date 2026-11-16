@@ -3,7 +3,7 @@
 - **ID:** wifi-managed-start-stop
 - **Status:** ready (approved)
 - **Created:** 2026-11-16
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:134`, `components/wifi/src/wifi.c:57-140`, `components/wifi/include/wifi.h:15-25`. Related: `docs/plan/needs-clarification/unified-service-lifecycle.md`, `docs/plan/needs-clarification/optional-http-websocket-service.md`, `docs/plan/consolidated-improvement-plan.md`.
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:134`, `components/wifi/src/wifi.c:57-140`, `components/wifi/include/wifi.h:15-25`. Related: `docs/plan/ready/unified-service-lifecycle.md`, `docs/plan/ready/optional-http-websocket-service.md`, `docs/plan/consolidated-improvement-plan.md`.
 - **Approval:** Approved by user in clarify-feature session, 2026-11-16; pre-approved for implementation/PR flow (merge remains human).
 
 ## Summary

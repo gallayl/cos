@@ -15,9 +15,10 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - Preserve existing `network_ping`/`network_resolve` semantics, timeout behavior, and single-flight constraints unless explicitly changed.
 
 ## Unified lifecycle / observability mapping (resolved, 2026-11-16 review)
-- **Lifecycle states:** represent diagnostics as an observable service with lazy initialization: **`uninitialized`** (no persistent diagnostics task/queue/mutex/ping-completed semaphore allocated) before first use; **`running/ready`** after first successful/attempted lazy-create path as applicable (resources kept alive until reboot per Q1/Q2 decisions). Report init/availability clearly.
-- **Capabilities:** runtime **stop/deinit unsupported** in v1 (no idle shutdown/teardown). Start is implicit/lazy on first `network_ping`/`network_resolve`; no explicit runtime start/stop commands required.
-- **Integration:** expose state/capability in a way compatible with `unified-service-lifecycle` descriptors/capabilities once available and with `service-memory-budget-observability`/`berry-runtime-service-inspection-v1` shared vocabulary/collectors (report `n/a`/unsupported for stop controls as applicable). Keep HTTP fetch worker lifecycle separate (Q4).
+- **Descriptor/boot representation:** represent diagnostics as a boot-time unified-lifecycle service descriptor (e.g. `network_diagnostics`) with a cheap idempotent init/ensure hook at boot that allocates **no persistent** worker task/queue/mutex/ping-completed semaphore. `network_init()` remains a compatible wrapper/ensure hook.
+- **Lifecycle states:** **`uninitialized`/idle** (observable at boot, no persistent diagnostics worker resources allocated) before first use; **`running/ready`** after first successful/attempted lazy-create path on `network_ping`/`network_resolve` (resources kept alive until reboot per Q1/Q2 decisions). Report init/availability clearly.
+- **Capabilities:** runtime **stop/deinit unsupported** in v1 (no idle shutdown/teardown). Start/ensure is implicit/lazy on first use (and may be exposed as lazy-start capability in the descriptor); no explicit runtime start/stop commands required.
+- **Integration:** expose state/capability via unified-lifecycle descriptors/capabilities once available and consume the **contract-first** shared diagnostics vocabulary/collectors from `service-memory-budget-observability` (shared with `berry-runtime-service-inspection-v1`; report `n/a`/unsupported for stop controls as applicable). Keep HTTP fetch worker lifecycle separate (Q4).
 
 ## Non-goals
 - Changing ping/resolve protocol behavior, timeouts, or public result formats except as required for lifecycle correctness.
@@ -25,11 +26,11 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - General network stack refactors unrelated to diagnostics memory.
 
 ## Acceptance criteria
-- [ ] Diagnostics worker/task/queue/semaphores are not permanently allocated when the feature is unused (per clarified design).
+- [ ] Diagnostics worker/task/queue/semaphores are not permanently allocated when the feature is unused (per clarified design); boot-time unified-lifecycle init/ensure for the diagnostics descriptor allocates no persistent worker resources.
 - [ ] `ping`/`resolve` continue to meet existing functional contracts when available.
 - [ ] Concurrent/in-flight/timeout/abandon cases are handled safely with no leaks or deadlocks.
 - [ ] Resource release behavior is documented (immediate, deferred, or not possible) where applicable, including explicit **runtime stop unsupported / keep-alive until reboot** semantics.
-- [ ] Lifecycle/observability mapping is documented and compatible with unified-lifecycle states/capabilities and shared inspection vocabulary (`uninitialized` -> lazy-init `running/ready`, stop unsupported).
+- [ ] Lifecycle/observability mapping is documented and compatible with unified-lifecycle boot descriptor/state/capability reporting and shared inspection vocabulary (`uninitialized`/idle at boot -> lazy-init `running/ready` on first use, stop unsupported).
 - [ ] Automated checks required by `AGENTS.md` for affected scope pass.
 
 ## Validation plan
@@ -44,7 +45,7 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 
 ## Dependencies / prerequisites
 - Align with `unified-service-lifecycle` states/capabilities when available (lazy-init, stop unsupported; no divergent runtime-stop model).
-- `service-memory-budget-observability` / `berry-runtime-service-inspection-v1` own/consume shared collectors and vocabulary; diagnostics state/fields must be reported consistently (`n/a`/unsupported where applicable).
+- **Contract-first prerequisite:** consume the shared diagnostics contract/collectors/vocabulary delivered by `service-memory-budget-observability` (shared with `berry-runtime-service-inspection-v1`); diagnostics state/fields must be reported consistently (`n/a`/unsupported where applicable). Do not duplicate collectors/vocabulary.
 - Consider interaction with R2/R8 follow-ups (timeout/abandon cleanup, heap behavior) referenced in `docs/plan/consolidated-improvement-plan.md`. Reuse `svc_mem`/A-B evidence checklist for measurements where useful.
 
 ## Risks / constraints

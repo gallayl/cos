@@ -71,7 +71,7 @@ Implement a minimal, safe in-process pipes runtime for COS shell as R20 sub-item
 - Existing pipeline parse/diagnostic foundation and stdout redirection/fd mechanics in shell components.
 - Writable VFS temp location available at runtime for capture file (implementation must handle/diagnose I-O failures cleanly).
 - Consistency with R21 command-script execution contract for Berry `rhs` scripts.
-- **Coordination (2026-11-16 review):** overlaps with other ready work touching Berry runtime/shell/SDK surfaces (`r18-async-await-runtime`, `r22-m4-time-read-only`, `berry-runtime-service-inspection-v1`). No strict implementation order required, but coordinate console/runtime APIs and run relevant shared runtime/shell/SDK validation when changes land close together.
+- **Coordination (2026-11-16 review):** overlaps with other ready work touching Berry runtime/shell/SDK surfaces (`r18-async-await-runtime`, `r22-m4-time-read-only`, `berry-runtime-service-inspection-v1`). No strict implementation order required, but coordinate console/runtime APIs and run relevant shared runtime/shell/SDK validation when changes land close together (shell commands/runtime smoke, `console`/SDK binding sync where touched, Berry runtime/lifecycle/teardown behavior, and affected command-script behavior).
 
 ## Risks / constraints
 - ESP32 RAM/flash/temp-storage limits: 8 KiB cap bounds capture, but temp-file creation/write/read/delete and dispatch still require care.

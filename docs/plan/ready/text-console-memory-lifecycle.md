@@ -11,8 +11,8 @@ The text console keeps a large static character grid buffer resident, runs a ren
 
 ## Decisions (clarified 2026-11-16)
 1. **Memory goal (A):** optimize both peak and steady-state memory.
-2. **Hidden/app-owned behavior (A):** when console UI is hidden or display is app-owned (`text_console_set_visible(false)` / equivalent ownership transition), **keep UART/stdout forwarding and output listener callbacks active and continue updating console buffer/history** so output is preserved on return; **stop/suspend rendering and touch handling** while hidden/inactive. (Intentional behavior change vs current skip-buffer-writes-when-hidden.)
-3. **Scrollback auto-release (A):** **auto-free heap scrollback on app/display ownership transition / hide** (in addition to existing/manual release mechanisms such as `text_console_release_scrollback()`), with safe handling of alloc-failure/disabled-history state.
+2. **Hidden/app-owned behavior (A):** when console UI is hidden or display is app-owned (`text_console_set_visible(false)` / equivalent ownership transition), **keep UART/stdout forwarding and output listener callbacks active and continue updating the resident base grid/console buffer** while inactive; **stop/suspend rendering and touch handling**. Output/log capture continues, but heap scrollback is not retained across hide (see decision 3). (Intentional behavior change vs current skip-buffer-writes-when-hidden.)
+3. **Scrollback auto-release (A):** **auto-free heap scrollback on app/display ownership transition / hide** (in addition to existing/manual release mechanisms such as `text_console_release_scrollback()`), with safe handling of alloc-failure/disabled-history state. **Scrollback history beyond the base grid is discarded on hide and is not preserved on return** (it may be reallocated later per existing/new safe behavior; base grid/current buffer contents remain subject to ongoing writes while inactive).
 4. **Render/task/base grid lifecycle (A):** **suspend render task/touch handling when inactive; keep static base grid and task/resources resident** (no deinit/reinit or lazy base-grid allocation in this scope) to limit race/complexity risk.
 5. **Dimensions/limits (A):** **keep current** `TEXT_BUF_MAX_ROWS`, `TEXT_BUF_MAX_COLS`, and `TEXT_BUF_SCROLLBACK_ROWS`; optimize lifecycle/retention behavior only.
 6. **Minimum low-memory/inactive capabilities (A):** **UART/stdout forwarding, output listener callbacks, and console command/log integration must remain intact**. Display rendering/history presentation may be suspended/reduced per state, but console APIs must remain safe and behavior must be documented.
@@ -20,10 +20,10 @@ The text console keeps a large static character grid buffer resident, runs a ren
 
 ## Scope
 - **Document current memory costs** (source-based, with measurements where feasible/agreed): static grid/buffer footprint, scrollback heap (lazy, max), render task stack/prio, mutex/state, and key runtime structures.
-- **Lifecycle/visibility behavior:** while hidden/app-owned, preserve stdout hook/UART forwarding and listener delivery; keep console text buffer/history updated; suspend rendering/touch and avoid unnecessary render wakeups/races.
-- **Scrollback policy:** auto-release scrollback heap on hide/display-ownership transition; ensure `text_console_release_scrollback()` and clear/reinit paths remain correct; handle allocation-failure-disabled state safely and document behavior.
+- **Lifecycle/visibility behavior:** while hidden/app-owned, preserve stdout hook/UART forwarding and listener delivery; keep the resident base grid/console buffer updated; suspend rendering/touch and avoid unnecessary render wakeups/races. Heap scrollback is not retained across hide (see scrollback policy).
+- **Scrollback policy:** auto-release scrollback heap on hide/display-ownership transition (scrollback history beyond the base grid discarded, not preserved on return); ensure `text_console_release_scrollback()` and clear/reinit/reallocation paths remain correct; handle allocation-failure-disabled state safely and document behavior.
 - **Inactive rendering optimization:** suspend/idle render task work and touch handling while inactive/hidden (base resources remain resident). No base grid/task deinit/reinit or compile-time limit changes.
-- **Correctness preservation:** maintain stdout hook safety, UART/log output, output listener behavior, console commands/integration, resize/visibility/cursor/size/write/clear APIs, and documented scrollback semantics.
+- **Correctness preservation:** maintain stdout hook safety, UART/log output, output listener behavior, console commands/integration, resize/visibility/cursor/size/write/clear APIs, and documented buffer/scrollback semantics.
 
 ## Non-goals
 - Redesigning console UX/features unrelated to memory/lifecycle.
@@ -35,14 +35,14 @@ The text console keeps a large static character grid buffer resident, runs a ren
 
 ## Acceptance criteria
 - [ ] Current console memory costs are documented with source-based evidence and runtime measurements as available (static grid/buffer, scrollback heap, render task stack, mutex/state/overheads).
-- [ ] On hide/app/display-ownership transition, scrollback heap is auto-released per policy, and UART/stdout forwarding + listener callbacks continue while console buffer/history remains preserved for return (with rendering/touch suspended).
+- [ ] On hide/app/display-ownership transition, scrollback heap is auto-released per policy (scrollback history beyond the base grid discarded, not preserved on return), and UART/stdout forwarding + listener callbacks continue while the resident base grid/console buffer continues to be updated (with rendering/touch suspended).
 - [ ] Render task/touch handling is suspended/inactive when console is hidden/inactive without breaking correctness, races, or stdout/logging; base grid/task resources remain resident and limits unchanged.
-- [ ] Console/UART output correctness, output listener behavior, existing commands/APIs, resize/visibility, and scrollback release/restore semantics are preserved and documented per clarified scope.
+- [ ] Console/UART output correctness, output listener behavior, existing commands/APIs, resize/visibility, and buffer/scrollback release/discard/reallocation semantics are preserved and documented per clarified scope.
 - [ ] Automated checks required by `AGENTS.md` for affected scope pass (or blockers reported with actionable details); required hardware/manual evidence is captured.
 
 ## Validation plan
 - **Automated (firmware scope, run/report per `AGENTS.md`):** `make format-check`, `make test` (required). `make build` and `make lint` run as feasible for firmware changes in an ESP-IDF v6.1 environment; if `make lint` cannot run, report as best-effort blocker with concrete setup/rerun steps (do not claim pass).
-- **Hardware/manual (required for this item):** on-device evidence for (1) heap/watermark/task/stack impact before/after or across transitions as feasible, (2) hide/show and app/display-ownership transitions including scrollback auto-release and state/behavior on return, (3) UART/log output and output listener correctness while hidden/inactive, (4) rendering/touch suspended while hidden and restored correctly when visible, (5) no regressions in existing console commands/APIs and resize/clear behavior. Record exact steps/measurements in progress/evidence or linked report; reuse `service-memory-budget-observability` `svc_mem`/A-B checklist where useful.
+- **Hardware/manual (required for this item):** on-device evidence for (1) heap/watermark/task/stack impact before/after or across transitions as feasible, (2) hide/show and app/display-ownership transitions including scrollback auto-release, scrollback discarded/not preserved on return, and base buffer/output-capture behavior on return, (3) UART/log output and output listener correctness while hidden/inactive, (4) rendering/touch suspended while hidden and restored correctly when visible, (5) no regressions in existing console commands/APIs and resize/clear behavior. Record exact steps/measurements in progress/evidence or linked report; reuse `service-memory-budget-observability` `svc_mem`/A-B checklist where useful.
 - **Reporting:** report each executed command/check as pass/fail with notes; do not rely on CI.
 
 ## Expected areas/files

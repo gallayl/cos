@@ -3,7 +3,7 @@
 - **ID:** bluetooth-lazy-scan-state
 - **Status:** ready (approved)
 - **Created:** 2026-11-16
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:136`, `components/bluetooth/src/bluetooth.c:38-52`, `components/bluetooth/src/bluetooth.c:483-501`, `components/bluetooth/src/bluetooth.c:549-591`. Cross-cutting tracker: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md#2026-11-16-audit-follow-ups-needs-clarification). Related: [`docs/plan/needs-clarification/unified-service-lifecycle.md`](../needs-clarification/unified-service-lifecycle.md) (separate needs-clarification item).
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:136`, `components/bluetooth/src/bluetooth.c:38-52`, `components/bluetooth/src/bluetooth.c:483-501`, `components/bluetooth/src/bluetooth.c:549-591`. Cross-cutting tracker: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md#2026-11-16-audit-follow-ups-needs-clarification). Related: [`docs/plan/ready/unified-service-lifecycle.md`](./unified-service-lifecycle.md) (separate ready item; alignment/follow-up).
 - **Approval:** approved by user in chat on 2026-11-16 after specification clarification; **pre-approved for implementation/PR flow** (merge remains human).
 
 ## Summary
@@ -47,7 +47,7 @@ Bluetooth initialization runs at boot and currently keeps resident scan-related 
 - `docs/` updates to document reclaimable vs unavoidable memory/teardown constraints as applicable
 
 ## Dependencies / prerequisites
-- **`unified-service-lifecycle` (`docs/plan/needs-clarification/unified-service-lifecycle.md`):** alignment/follow-up only; this item proceeds as BT-local work and must remain compatible with future unified lifecycle, but does not depend on that item being clarified/implemented first.
+- **`unified-service-lifecycle` (`docs/plan/ready/unified-service-lifecycle.md`):** alignment/follow-up only; this item proceeds as BT-local work and must remain compatible with future unified lifecycle, but does not depend on that item being clarified/implemented first.
 - ESP32/ESP-IDF BT stack capabilities/constraints for deinit, repeated enable/disable, and memory reclamation.
 - Wi-Fi/network coexistence constraints on ESP32 when BT is enabled (validation consideration).
 

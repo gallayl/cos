@@ -10,7 +10,7 @@
 ## Summary
 Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a **separate user server instance** (not the core device HTTP server) on a user-defined, non-core port, supporting Express-like routing/basic middleware and request/response helpers for a **simple chat** use case, with safe serialized callback execution, single-request-at-a-time handling, dynamic route management, and no built-in auth.
 
-**Distinction (resolved, 2026-11-16 review):** this is **not** the core device HTTP/WS service controlled by [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md). R24 creates an independent user `@cos/http` listener/resources on a non-core port and must not be started/stopped/coupled via core `server`/`ws` lifecycle controls except normal port/conflict rules.
+**Distinction (resolved, 2026-11-16 review):** this is **not** the core device HTTP/WS service controlled by [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md). R24 creates an independent user `@cos/http` listener/resources on a non-core port and must not be started/stopped/coupled via core `server`/`ws` lifecycle controls except normal port/conflict rules. Core HTTP/WS service start/stop/profile gating does not stop R24 user server instances except unavoidable platform conflicts; R24 instances are managed by their own `listen`/`close` and app/VM cleanup semantics.
 ## Open questions
 - None. (Future: review against R18 async/await when available — tracked as cross-reference, not a blocker for this v1 spec.)
 

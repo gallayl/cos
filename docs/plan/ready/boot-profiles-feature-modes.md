@@ -14,7 +14,7 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 ## Scope (v1)
 - Define two profiles: `default` and `low-memory-offline`.
 - Persist selected profile in NVS; provide a shell command to get/set/clear it. Changes apply on **next boot/restart** only.
-- Gate boot-time init/start/wiring per profile (v1 may be implemented in `main.c`/boot flow before full `unified-service-lifecycle` exists; document limitations).
+- Gate boot-time init/start/wiring per profile through `unified-service-lifecycle` descriptors/interfaces (no temporary/parallel permanent boot-gating model in `main.c`).
 - Keep a local recovery/debug path in every v1 profile.
 - Document per-profile service availability and record measured memory evidence (qualitative acceptance; no guessed hard KB targets).
 
@@ -50,7 +50,11 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - **Fallback:** missing, invalid, or corrupt stored value => treat as `default` on boot (safe fallback). No automatic boot-failure rollback.
 
 ## Recovery/debug contract (v1)
-- **Required in every v1 profile:** UART/USB serial shell input/output and on-device text console remain functional; filesystem access and ability to run recovery commands/scripts (including `boot_profile` changes for next boot) remain available. Keyboard/input routing remains as available for initialized components. Console lifecycle/visibility semantics (including hidden/app-owned: UART/stdout forwarding and output listener callbacks stay active, console buffer/history preserved while render/touch suspended) must remain consistent with [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) (source of truth).
+- **Required in every v1 profile (concrete):**
+  - **Serial recovery:** UART/USB serial shell input/output remains functional and can run recovery commands/scripts (including `boot_profile` changes for next boot).
+  - **On-device console recovery:** the on-device text console is initialized and available for local recovery. When the console is visible/not app-owned, it is rendered and interactive as expected. When hidden/app-owned, it follows [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) semantics (render/touch suspended, UART/stdout forwarding and output listener callbacks active, resident base buffer continues to be updated, heap scrollback not preserved across hide); recovery in that state relies on serial shell and/or returning console visibility/app ownership as applicable.
+  - **Other:** filesystem access remains available. Keyboard/input routing remains as available for initialized components.
+- Console lifecycle/visibility semantics must remain consistent with [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) (source of truth).
 - **Not in v1:** profiles that omit shell/console/UI or rely on rebuild/reflash/external-only recovery.
 
 ## Acceptance criteria / definition of done
@@ -75,13 +79,12 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - Possibly component init guards/docs depending on implementation details
 
 ## Dependencies / prerequisites
-- Related to [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) (ready, shared lifecycle contract/base). **v1 may proceed via boot-time gated init/wiring before full unified lifecycle lands**, with limitations documented, but implementation should **align with and migrate to** unified descriptors/interfaces when available (avoid duplicate boot-wiring logic).
+- **Prerequisite:** [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) (ready, shared lifecycle contract/base). `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land first; boot-profile gating is implemented on descriptor-driven boot/control (no temporary/parallel permanent boot-gating model in `main.c`).
 - Interacts with service-specific lifecycle behavior: HTTP/WebSocket (`./optional-http-websocket-service.md`), network diagnostics, Wi-Fi (`./wifi-managed-start-stop.md`), console (`./text-console-memory-lifecycle.md`, source of truth for console lifecycle semantics), shell, Bluetooth/time sync (as applicable to disabled/kept services).
 - `service-memory-budget-observability` (`./service-memory-budget-observability.md`) is useful for evidence-based comparison but v1 acceptance relies on qualitative availability plus measured evidence (no hard targets).
 
 ## Implementation order / prerequisites (resolved, 2026-11-16 review)
-- **Lifecycle first:** `unified-service-lifecycle` descriptors/states/capabilities/boot helpers must land before new permanent profile/service-gating logic is added. Do not introduce or keep a second permanent ad-hoc boot/service model.
-- **Temporary migration only:** gated boot init in `main.c` is allowed only as an explicitly time-limited migration step, documented as temporary and planned to migrate to descriptor-driven gating. New service-gating work must use unified-lifecycle interfaces/hooks once available.
+- **Lifecycle first (hard gate):** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land before boot-profile service-gating implementation. Profile gating must use unified-lifecycle interfaces/hooks/descriptor-driven boot control; do not introduce or keep a parallel permanent ad-hoc boot/service model in `main.c`.
 - Coordinate with `optional-http-websocket-service` and `wifi-managed-start-stop` so disabled/stopped services and recovery guarantees are represented consistently via unified states/capabilities.
 - **Semantic prerequisite:** `text-console-memory-lifecycle.md` is the source of truth for console lifecycle/visibility semantics and recovery guarantees referenced by this plan; keep profile behavior/docs consistent with it. Reuse `service-memory-budget-observability` evidence/checklists for per-profile memory measurements where useful.
 

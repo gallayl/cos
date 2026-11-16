@@ -11,7 +11,7 @@
 ## Summary
 HTTP server and WebSocket currently start on every boot (`main/main.c`), consuming task/stack, socket, and state memory even when remote web/console features are unused. This item makes the **core device** HTTP server and WebSocket optional, lifecycle-controlled services that can be started/stopped safely (best-effort) with clear semantics, while preserving current default behavior unless explicitly disabled by boot/profile/lifecycle control.
 
-**Distinction (resolved, 2026-11-16 review):** this controls the core device HTTP/WS service only; it is not the same as [`./r24-berry-script-http-server-api.md`](./r24-berry-script-http-server-api.md) user `@cos/http` server instances (separate `httpd`/ports/resources/lifecycle).
+**Distinction (resolved, 2026-11-16 review):** this controls the core device HTTP/WS service only; it is not the same as [`./r24-berry-script-http-server-api.md`](./r24-berry-script-http-server-api.md) user `@cos/http` server instances (separate `httpd`/ports/resources/lifecycle). Core service lifecycle actions (start/stop via `server`/`ws`, profile/boot gating) do not start/stop R24 user server instances except unavoidable platform conflicts; R24 instances remain subject to their own `listen`/`close` and app/VM cleanup rules.
 
 ## Scope
 - **Services/granularity:** treat **HTTP server** and **WebSocket** as **independent** lifecycle-managed services. WebSocket depends on HTTP server availability (`/ws` endpoint registered on `httpd` handle) and cannot be started without a running HTTP server; HTTP may run without WebSocket when WebSocket is stopped/disabled.

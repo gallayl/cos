@@ -66,7 +66,7 @@ Migrate the read-only shell `time` command to a Berry command script backed by a
 - Berry/SDK `system` module extension consistent with existing `system.uptime()`/`system.meminfo()` patterns.
 - R9 resolver/`__cos_entry` command-script execution and stock script deployment conventions.
 - **Shared early/cross-cutting step (resolved, 2026-11-16 review):** adding `/flash/scripts` as a built-in default resolver search directory is a global resolver behavior change relied on by this and future R22/script-discovery work; land/test it early (or in the same change set as this migration) with documented precedence.
-- **Coordination (2026-11-16 review):** overlaps with other ready work touching Berry runtime/shell/SDK surfaces (`r18-async-await-runtime`, `r20-pipes-runtime-v1`, `berry-runtime-service-inspection-v1`). No strict implementation order required, but coordinate resolver/binding changes and run relevant shared validation when changes land close together.
+- **Coordination (2026-11-16 review):** overlaps with other ready work touching Berry runtime/shell/SDK surfaces (`r18-async-await-runtime`, `r20-pipes-runtime-v1`, `berry-runtime-service-inspection-v1`). No strict implementation order required, but coordinate resolver/binding changes and run relevant shared runtime/shell/SDK validation when changes land close together (shell commands/runtime smoke, `console`/SDK binding sync where touched, Berry runtime/lifecycle/teardown behavior, and affected command-script behavior).
 
 ## Risks / constraints
 - SNTP/network-dependent state: `synced`/time values vary; validation must record observed state rather than assume sync.
