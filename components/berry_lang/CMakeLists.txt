@@ -78,8 +78,8 @@ idf_component_register(
         "${COS_BERRY_SOURCE_DIR}/src"
         "${COS_BERRY_SOURCE_DIR}/default"
         "${COS_BERRY_SOURCE_DIR}/generate"
-    REQUIRES console filesystem input network system text_console time_sync ui esp_timer esp_hw_support
-    PRIV_REQUIRES light_sensor
+    REQUIRES console filesystem input network system text_console ui esp_timer esp_hw_support
+    PRIV_REQUIRES light_sensor time_sync
 )
 
 # Upstream be_filelib.c defines i_savecode unconditionally but only registers it
