@@ -525,3 +525,21 @@ target_include_directories(test_network_url PRIVATE
 )
 target_link_libraries(test_network_url PRIVATE unity network_url)
 add_test(NAME test_network_url COMMAND test_network_url)
+
+# --- Library: service_lifecycle ---
+add_library(service_lifecycle_logic STATIC
+    ${COMPONENT_DIR}/components/service_lifecycle/src/service_lifecycle.c
+)
+target_include_directories(service_lifecycle_logic PUBLIC
+    ${COMPONENT_DIR}/components/service_lifecycle/include
+    mocks
+)
+
+# --- Test: service_lifecycle ---
+add_executable(test_service_lifecycle test_service_lifecycle.c)
+target_include_directories(test_service_lifecycle PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/service_lifecycle/include
+)
+target_link_libraries(test_service_lifecycle PRIVATE unity service_lifecycle_logic)
+add_test(NAME test_service_lifecycle COMMAND test_service_lifecycle)
