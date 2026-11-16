@@ -1,0 +1,88 @@
+# Shell input service lifecycle and memory bounds
+
+- **ID:** shell-input-service-lifecycle
+- **Status:** done (implementation/evidence complete for scoped decision; PR/merge/review remain human actions)
+- **Created:** 2026-11-16
+- **Updated:** 2026-11-16
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/shell/src/shell.c:167-220`, `components/shell/src/shell_input.c:19-52`, `components/shell/src/shell_input.c:951-988`. Related: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md), [`docs/plan/ready/unified-service-lifecycle.md`](../ready/unified-service-lifecycle.md) (shell core/always-on), [`docs/plan/ready/boot-profiles-feature-modes.md`](../ready/boot-profiles-feature-modes.md) (serial shell recovery in all v1 profiles), [`docs/plan/ready/text-console-memory-lifecycle.md`](../ready/text-console-memory-lifecycle.md) (console integration context). Code evidence: `components/shell/src/shell_input.c` (`INPUT_LINE_MAX` 128, `HISTORY_SIZE` 8, `INPUT_STREAM_SIZE` 256, `RX_TASK_STACK` 2048/`uart_rx`, `INPUT_TASK_STACK` 8192/`shell_in`), `components/shell/src/shell_input.h`, `components/shell/include/shell.h`, `components/shell/src/shell.c`, `test/test_shell_input.c`.
+- **Approval:** Approved by user in clarify-feature conversation on 2026-11-16 ("Approve and move to ready"). Pre-approved for implementation/PR flow (merge remains human).
+- **Open questions/blockers:** none for the scoped, evidence-gated stack decision. **Conclusion (evidence-backed): keep `INPUT_TASK_STACK` at 8192; do not reduce to 4096.** Remaining human actions: review/approval and merge of PR #42. No additional on-device validation required for this scoped decision unless implementation changes.
+
+## Summary
+The shell/input subsystem runs always-on tasks and keeps fixed static buffers for line editing and history. Shell is a local recovery path in current ready specs, so this item treats interactive shell input as **always-on** in all supported modes/profiles and focuses on documenting/measuring footprint and applying safe, evidence-backed optimization (notably reducing `shell_in` stack from 8192 to 4096) without adding stop/suspend/gating semantics.
+
+## Scope
+- **Always-on lifecycle (explicit):** keep shell input initialized and available in all supported modes/profiles, aligned with `unified-service-lifecycle` (core/always-on) and `boot-profiles-feature-modes` (serial/on-device recovery in all v1 profiles). No stop/suspend/gating behavior is introduced.
+- **Console ownership/routing:** when Berry app/script or another component owns console interaction (line/key/char input providers, text console/UI ownership), shell input infrastructure remains alive and hand-off continues via existing provider/cancel/feed mechanisms (`shell_feed_input`, console input provider registration/cancel, `shell_is_reading_line_input` semantics) with no lifecycle change.
+- **Footprint documentation & evidence (mandatory):** document static memory/task footprint for shell input (tasks/stacks, static buffers, stream buffer, ownership state) and collect/record runtime + static evidence in agreed scenarios.
+- **Numeric changes (approved by user):**
+  - **Conditional:** reduce `shell_in` task stack (`INPUT_TASK_STACK`) from **8192** to **4096** only when evidence shows a clearly recorded positive safety margin in agreed scenarios (remaining stack high-water mark comfortably above zero with headroom for the worst agreed case). If evidence does not support 4096, keep/restore a safe value and record findings/rationale (do not ship an unsafe reduction).
+  - **Unchanged:** `RX_TASK_STACK` 2048 (`uart_rx`), `INPUT_LINE_MAX` 128, `HISTORY_SIZE` 8 (`8 * 128` history storage), `INPUT_STREAM_SIZE` 256.
+- Preserve command execution, history, line editing, prompt behavior, and script/console/Bluetooth-keyboard/WebSocket-fed input integration behavior. No specific numeric byte-threshold HWM is invented in this plan; exact measurements/margin must be recorded.
+
+## Non-goals
+- Shell UX redesign unrelated to memory/lifecycle.
+- Command/parser feature additions.
+- Broad refactors of all shell commands.
+- Disabling, suspending, or profile-gating shell input in recovery-required modes/profiles.
+- Changing `uart_rx` stack, `INPUT_LINE_MAX`, `HISTORY_SIZE`, or `INPUT_STREAM_SIZE` in this item.
+- Adding new user-facing diagnostics/reporting commands or telemetry surfaces unless required later by separate clarification (not in scope for this item).
+
+## Acceptance criteria
+- [x] **(Mandatory)** Static shell input footprint is documented (tasks/stacks, static buffers/history/line/stream sizes, key ownership/state) with source references.
+- [x] **(Mandatory)** Runtime + static evidence is collected and recorded for agreed scenarios (e.g. normal UART shell interaction, history/line-edit use, Bluetooth-keyboard and/or WebSocket-fed input where feasible, Berry console input/ownership hand-off), including `uart_rx` and `shell_in` stack high-water marks and relevant observations sufficient to judge safety margin. Static accounting recorded (source-based). Hardware runtime evidence recorded (user, 2026-11-16): with `shell_in` stack configured to **4096**, connecting a Bluetooth keyboard and running `/sdcard/scripts/mem` triggered **stack overflow in task `shell_in`** (panic/backtrace, reboot) — demonstrates 4096 is unsafe for this scenario/path; margin is not positive. Decision: keep `INPUT_TASK_STACK` at **8192**.
+- [x] **(Mandatory)** Always-on lifecycle and "stay alive, keep routing" ownership behavior are explicitly documented and preserved; no stop/suspend/gating semantics are introduced.
+- [x] **(Conditional)** `shell_in` task stack is set to 4096 and other specified limits remain unchanged **only when** recorded evidence demonstrates a clearly positive safety margin in agreed scenarios (remaining HWM comfortably above zero with headroom for worst agreed case); otherwise the stack value is kept/restored to a safe level and the decision/rationale is recorded. Evidence-gated reduction **not applied** (unsafe per hardware evidence); **`INPUT_TASK_STACK` remains 8192**. `RX_TASK_STACK` 2048, `INPUT_LINE_MAX` 128, `HISTORY_SIZE` 8, `INPUT_STREAM_SIZE` 256 unchanged.
+- [x] **(Mandatory)** Interactive shell behavior remains correct for supported modes (UART/stdin transport, `shell_feed_input` paths such as Bluetooth keyboard/WebSocket console input where applicable, line editing/history, prompt, and Berry console input provider hand-off/cancel semantics). No functional code changes in this scope; existing behavior preserved (validated by unchanged host tests). Hardware evidence confirms overflow risk only when stack reduced to 4096 (current 8192 retained).
+- [x] **(Mandatory)** Automated checks required by `AGENTS.md` for affected scope pass and are reported with evidence. `make format-check`: pass (exit 0). `make test`: pass (exit 0; CTest 26/26 passed, Python scripts unittest 3/3 OK). `make build`/`make lint`: not run in this environment (ESP-IDF v6.1 / clang-tidy not verified; no firmware source changes in this scope). `make docs-check`: not run in this environment (Doxygen tooling not verified; doc-only plan edits). PR CI (GitHub Actions) for delivered PR: all checks green (see Progress / evidence).
+
+## Validation plan
+- **Automated (required, affected scope):** `make format-check`, `make test`. For firmware changes run `make build` and `make lint` when ESP-IDF v6.1 / clang-tidy environment is available; report exact commands, pass/fail, and blockers per `AGENTS.md`.
+- **Runtime + static evidence (mandatory):** capture/document static accounting (before/after) and on-device runtime observations in agreed scenarios (e.g. normal UART shell interaction, history/line-edit use, Bluetooth-keyboard and/or WebSocket-fed input where feasible, Berry console input/ownership hand-off). Evidence must include `uart_rx` and `shell_in` stack high-water marks and relevant heap/stream behavior. Record method, scenarios, exact measurements, and assessed margin.
+- **Conditional stack decision (evidence-gated):** apply 4096 only if recorded evidence shows a clearly positive safety margin in agreed scenarios (HWM comfortably above zero with headroom for worst agreed case); otherwise keep/restore a safe value and record rationale. Do not claim the reduction is safe without evidence.
+- **Hardware/manual (required when feasible):** interactive UART/Bluetooth/remote input behavior and long-session stability checks consistent with scenarios above. If hardware/tools are unavailable, do not claim pass; report concrete blockers and what remains.
+
+## Expected areas/files
+- `components/shell/src/shell_input.c` (stack constant/footprint-related changes and evidence-driven adjustments)
+- `components/shell/src/shell_input.h`, `components/shell/include/shell.h` (only if API/docs/comments need alignment)
+- `components/shell/src/shell.c` (integration points only if required; expected minimal/none)
+- `test/test_shell_input.c` and/or shell-related mocks/tests if behavior/assumptions change
+- Docs: this item and cross-links in `docs/plan/consolidated-improvement-plan.md` when status moves
+
+## Dependencies / prerequisites
+- Align with [`docs/plan/ready/unified-service-lifecycle.md`](../ready/unified-service-lifecycle.md) and [`docs/plan/ready/boot-profiles-feature-modes.md`](../ready/boot-profiles-feature-modes.md) (shell remains core/recoverable; no lifecycle gating in this item).
+- **Semantic prerequisite:** [`docs/plan/ready/text-console-memory-lifecycle.md`](../ready/text-console-memory-lifecycle.md) is the source of truth for console lifecycle/visibility/ownership semantics; shell input hand-off/routing and recovery assumptions must remain consistent with it.
+- Coordinate/consider interactions with text console ownership, Bluetooth HID input routing, WebSocket console feed path, and Berry console input providers (`berry_runtime_set_console_input_provider`).
+- On-device access/tooling for stack high-water/heap observation is needed to fully satisfy runtime evidence (otherwise a documented blocker remains for the reduction). Reuse `service-memory-budget-observability` evidence/checklists for memory/runtime measurements where useful.
+
+## Risks / constraints
+- Reducing `shell_in` stack without sufficient margin can cause hard-to-debug crashes, corruption, or input loss under deeper command/script/console-interaction paths.
+- Input tasks handle asynchronous sources (`uart_rx`, stream buffer, `shell_feed_input`); timing-sensitive behavior must not regress.
+- Recovery/debug availability must not regress; always-on behavior is mandatory.
+- ESP32 RAM/stack constraints and environment-dependent call depth mean evidence must be scenario-based and conservative.
+
+## Open questions
+- None.
+
+## Progress / evidence
+- 2026-11-16: created from repository audit (unified service infrastructure/memory focus).
+- 2026-11-16 (clarify-feature, agent): loaded `clarify-feature` skill; reviewed `docs/README.md`, target item, consolidated plan, `components/shell/src/shell_input.c`, `components/shell/src/shell.c`, `components/shell/src/shell_input.h`, `components/shell/include/shell.h`, `test/test_shell_input.c`, and ready items `unified-service-lifecycle`/`boot-profiles-feature-modes`. Identified gaps: lifecycle intent vs recovery constraints, numeric limit policy/evidence bar, console-ownership behavior, and diagnostics scope.
+- 2026-11-16 (clarify-feature, user): **Always-on, optimize only** — shell input remains initialized/available in all supported modes/profiles (no stop/suspend/gating).
+- 2026-11-16 (clarify-feature, user): **Numeric limits** — reduce `shell_in` stack to 4096; keep `uart_rx` (2048), `INPUT_LINE_MAX` (128), `HISTORY_SIZE` (8), `INPUT_STREAM_SIZE` (256) unchanged.
+- 2026-11-16 (clarify-feature, user): **Console ownership** — stay alive, keep routing via existing provider/cancel/feed mechanisms.
+- 2026-11-16 (clarify-feature, user): **Diagnostics/evidence** — runtime + static evidence required; 4096 reduction accepted only with demonstrated safety margin in agreed scenarios.
+- 2026-11-16 (clarify-feature, agent): drafted complete spec satisfying Ready-contract fields (scope/non-goals/acceptance/validation/areas/deps/risks, open questions none).
+- 2026-11-16 (clarify-feature, user): explicitly approved spec and pre-approved implementation/PR flow; marked Ready and moved to `docs/plan/ready/shell-input-service-lifecycle.md`. No implementation/validation run.
+- 2026-11-16 (implementation, `feat/shell-input-service-lifecycle`, agent): reviewed shell input lifecycle/ownership and footprint in `components/shell/src/shell_input.c`, `components/shell/src/shell_input.h`, `components/shell/src/shell.c`, and `test/test_shell_input.c`.
+  - **Static footprint (source-based, `components/shell/src/shell_input.c`):**
+    - Tasks (created in `shell_input_init`, always-on for process lifetime once initialized): `uart_rx` stack **`RX_TASK_STACK` = 2048** bytes/words per FreeRTOS config context, priority 5 (`xTaskCreate(..., RX_TASK_STACK, ..., RX_TASK_PRIO, ...)`); `shell_in` stack **`INPUT_TASK_STACK` = 8192** (unchanged), priority 4.
+    - Static buffers/state: line buffer `s_line[INPUT_LINE_MAX]` = 128 B; history `s_history[HISTORY_SIZE][INPUT_LINE_MAX]` = 8×128 = 1024 B; saved browse line `s_saved_line[INPUT_LINE_MAX]` = 128 B; stream buffer storage/handle created at runtime via `xStreamBufferCreate(INPUT_STREAM_SIZE, 1)` with `INPUT_STREAM_SIZE` = 256 and trigger level 1 (heap-allocated by FreeRTOS; size bounded by constant). Prompt/command-line limits in shell core remain `SHELL_CWD_MAX` 64 / `SHELL_PROMPT_MAX` 80 (`components/shell/src/shell.c`).
+    - Ownership/routing state (kept alive): atomics `s_line_input_owned`, `s_line_input_owner`; active request structs `s_line_input`, `s_key_input`; parse/input state `s_parse_state`, `s_line_escape_state`, `s_ignore_lf`, `s_ignore_prompt_eol`, `s_history_*`, `s_line_pos`; transport hooks `s_read_fn`, `s_read_ctx`.
+  - **Always-on lifecycle / ownership behavior (preserved, documented):** `shell_input_init()` starts `uart_rx` and `shell_in` and keeps them running; `shell_feed_input()` forwards external bytes (e.g. Bluetooth keyboard/WebSocket-fed paths) into the shared stream; line/key/char ownership is mediated via `shell_input_read_line`/`read_key`/`read_char`, `shell_input_cancel_line`, and `shell_input_is_reading_line` with existing provider/cancel/feed semantics; Berry console input providers are wired in `shell_init()` (`berry_runtime_set_console_input_provider(...)`). No stop/suspend/gating semantics added; behavior remains compatible with unified-lifecycle core/always-on shell and console ownership semantics in `docs/plan/ready/text-console-memory-lifecycle.md` (UART/stdout forwarding and output listener behavior are console concerns; shell input routing stays available).
+  - **Conditional stack decision (`shell_in` 8192→4096): not applied (evidence-gated).** No on-device runtime HWM/heap measurements were captured in this environment (ESP32 hardware and interactive runtime observation unavailable). Without recorded scenario evidence showing a clearly positive safety margin (remaining HWM comfortably above zero with headroom for worst agreed case across normal UART interaction, history/line-edit, Bluetooth/WebSocket-fed input where feasible, and Berry console input/ownership hand-off), reducing `INPUT_TASK_STACK` is unsafe to claim. **`INPUT_TASK_STACK` remains 8192**; `RX_TASK_STACK`, `INPUT_LINE_MAX`, `HISTORY_SIZE`, and `INPUT_STREAM_SIZE` remain unchanged as required. Rationale and blocker recorded per plan.
+  - **Runtime/static evidence status (resolved):** static accounting recorded above. **Hardware runtime evidence (user, 2026-11-16, ESP32 CYD, ELF SHA256 `84f7427c9`):** with `shell_in` task stack reduced to **4096**, after connecting a Bluetooth keyboard and running `/sdcard/scripts/mem`, task `shell_in` overflowed and was detected by FreeRTOS (`vApplicationStackOverflowHook`), causing panic/abort and reboot. Captured log/backtrace:
+    - `***ERROR*** A stack overflow in task shell_in has been detected.`
+    - `Backtrace: 0x40093469:0x3fff0b60 0x40093431:0x3fff0b80 0x40235e7a:0x3fff0ba0 0x400945d7:0x3fff0c20 0x40093ad0:0x3fff0c40 0x40093a82:0x3fff0c60 0x4013a6ac:0x00000020 |<-CORRUPTED` (`panic_abort` → `esp_system_abort` → `vApplicationStackOverflowHook` → task switch context/portasm; `codelineinfo` frame corrupted)
+  - **Decision (evidence-backed):** 4096 is unsafe for the Bluetooth-keyboard + script/command interaction path exercised; do **not** reduce `INPUT_TASK_STACK`. **Keep `INPUT_TASK_STACK` at 8192** (`RX_TASK_STACK` 2048, `INPUT_LINE_MAX` 128, `HISTORY_SIZE` 8, `INPUT_STREAM_SIZE` 256 unchanged). Evidence satisfies runtime scenario recording for the conditional stack-reduction decision (worst-case negative margin observed).
+  - **Behavioral impact:** no functional firmware code changes in this scope; existing 8192 configuration retained.
+- 2026-11-16 (hardware evidence, user): reproduced on device with `INPUT_TASK_STACK=4096` — Bluetooth keyboard connected, ran `/sdcard/scripts/mem` → `shell_in` stack overflow/panic/reboot (ELF SHA256 `84f7427c9`, backtrace recorded above). **Conclusion:** keep `INPUT_TASK_STACK` at 8192; 4096 rejected as unsafe for this path. Scoped decision/evidence complete; item moved to `docs/plan/done/`. Remaining human actions: PR review/approval and merge.
