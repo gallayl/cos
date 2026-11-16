@@ -235,6 +235,7 @@ function normalizeFsPath(path: string): string {
 }
 
 export function isBerryOutputStale(typescriptPath: string, berryPath: string): boolean {
+  // shortcut: --write trusts mtime; a newer-but-bad .be is only caught by verify/check-storage, add content verification if this becomes an issue
   try {
     const berryMtime = statSync(berryPath).mtimeMs
     const tsMtime = statSync(typescriptPath).mtimeMs

@@ -160,6 +160,38 @@ describe('compile-storage incremental/dependency-aware (R23)', () => {
     }
   })
 
+  it('recreates a missing .be output on --write', () => {
+    const { root, typescriptRoot, flashRoot } = makeRoots()
+    try {
+      writeTs(typescriptRoot, 'plain', app())
+      expect(writeCompiledBerry({ typescriptRoot, flashRoot })).toBe(0)
+      const bePath = join(flashRoot, 'plain.be')
+      rmSync(bePath)
+      expect(writeCompiledBerry({ typescriptRoot, flashRoot })).toBe(0)
+      expect(readFileSync(bePath, 'utf8').length).toBeGreaterThan(0)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fails with actionable missing-import error on --write', () => {
+    const { root, typescriptRoot, flashRoot } = makeRoots()
+    try {
+      writeTs(typescriptRoot, 'a', `import './missing'\n${app()}`)
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      try {
+        expect(writeCompiledBerry({ typescriptRoot, flashRoot })).toBe(1)
+        expect(errSpy.mock.calls.flat().join('\n')).toMatch(/missing\/unresolvable relative import '\.\/missing'/)
+      } finally {
+        errSpy.mockRestore()
+        logSpy.mockRestore()
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('fails with actionable cycle error on --write and does not recurse infinitely', () => {
     const { root, typescriptRoot, flashRoot } = makeRoots()
     try {
