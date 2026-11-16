@@ -11,6 +11,8 @@
 ## Summary
 Define and implement a minimal, common lifecycle model for firmware services (static descriptors/registry) so boot sequencing and internal/profile-driven control are predictable and optional services can be started/stopped through one contract. v1 delivers the framework and integrates it into the boot path (`app_main`) with adapters/wrappers for the core boot set, aligning with `boot-profiles-feature-modes` and service-specific lifecycle items. Deep per-service resource-reclaim/teardown work remains primarily owned by the corresponding service items except minimal changes required to satisfy the unified contract.
 
+**Milestone note (2026-11-16):** implement via the ordered delivery slices/gate in this plan; keep slices explicit in PRs (slice 1/2 required before boot-profile and core HTTP/WS lifecycle gating) to reduce `main.c`/boot risk.
+
 ## Scope (v1)
 - **Design:** lightweight **static service descriptor/table** (no dynamic registration manager). Each descriptor covers at minimum: stable service id/name, dependencies (explicit), lifecycle hooks/capabilities (init/start/stop/deinit or subset), current state/enabled/result reporting, and flags/notes for unsupported stop. Machinery must stay small (ESP32 RAM/flash constraints).
 - **New shared component:** add a small shared component/header for the lifecycle model (e.g. `components/service_lifecycle/` or `components/service_manager/` with public header under `include/`) providing descriptor types, ordering/dependency helpers, and boot-run helpers suitable for static tables.
@@ -73,21 +75,15 @@ The contract defined in this plan remains stable across slices. Do not land late
 - Per-service deep lifecycle behavior may remain partially specified in those items; this spec defines the shared contract they should align to (adapter-ready).
 - Implementation should not block on unresolved details of other needs-clarification items beyond the shared contract defined here.
 
-## Implementation order / prerequisites (2026-11-16, clarified)
-- This plan provides the **shared lifecycle contract/base** (static descriptors, states/capabilities, dependency/order/fail-fast/best-effort-stop semantics, boot-run helpers).
+## Implementation order / prerequisites (resolved, 2026-11-16 review)
+This plan provides the **shared lifecycle contract/base** (static descriptors, states/capabilities, dependency/order/fail-fast/best-effort-stop semantics, boot-run helpers). Ordered gate (authoritative):
 
-### Sequencing gate (resolved, 2026-11-16 review)
-- **Gate rule (lifecycle first):** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must **land first** before `boot-profiles-feature-modes` implements profile/service-gating and before `optional-http-websocket-service` is implemented. Do not ship a parallel permanent or temporary ad-hoc boot/service-gating model in `main.c`.
-- **`boot-profiles-feature-modes`:** implement boot-time gating on descriptor-driven boot/control using unified-lifecycle interfaces/hooks once landed (no temporary migration path).
-- **`wifi-managed-start-stop`:** may proceed adapter-ready now but must expose hooks/capabilities/state compatible with this contract (no divergent lifecycle states), so it can be represented as a descriptor/adapter without rework.
-- **`optional-http-websocket-service`:** **blocked** until required descriptors/capabilities/integration points from this plan have landed. Service-specific deep teardown stays there except minimal contract adaptation.
-- **Observability/inspection (`service-memory-budget-observability`, `berry-runtime-service-inspection-v1`)** and console/shell items should consume these states/capabilities once available and remain correct with `unsupported`/`n/a` where not yet implemented.
+1. **Lifecycle contract lands first:** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must **land** before `boot-profiles-feature-modes` implements profile/service-gating and before `optional-http-websocket-service` is implemented. Do not ship a parallel permanent or temporary ad-hoc boot/service-gating model in `main.c`.
+2. **May proceed adapter-ready in parallel (now):** `wifi-managed-start-stop` may proceed as Wi-Fi-specific lifecycle/API/persistence work, but must expose hooks/capabilities/state compatible with this contract (no divergent lifecycle states) so it can be represented as a descriptor/adapter without rework.
+3. **Blocked until (1) has landed:** `boot-profiles-feature-modes` must implement boot-time gating on descriptor-driven boot/control using unified-lifecycle interfaces/hooks (no temporary migration path). `optional-http-websocket-service` is blocked until required descriptors/capabilities/integration points for HTTP server/WebSocket have landed (service-specific deep teardown remains owned there except minimal contract adaptation).
+4. **Consumers must stay compatible:** `service-memory-budget-observability`, `berry-runtime-service-inspection-v1`, `text-console-memory-lifecycle`, `shell-input-service-lifecycle`, and other dependent items must consume/report these states/capabilities once available and remain correct with `unsupported`/`n/a`/documented limitations where controls or metrics are not yet implemented.
 
-### Other notes
-- **`boot-profiles-feature-modes`:** see Sequencing gate above (lifecycle first; descriptor-driven gating only).
-- **`wifi-managed-start-stop`:** may proceed **adapter-ready now** (Wi-Fi-specific lifecycle/API/persistence) but must expose hooks/capabilities/state compatible with this contract.
-- **`optional-http-websocket-service`:** see Sequencing gate above (blocked until unified-lifecycle interfaces land). Service-specific deep teardown remains owned there except minimal contract adaptation.
-- Dependent observability/console/service items should consume this plan's states/capabilities once available and remain correct with `unsupported`/`n/a` where not yet implemented.
+Delivery slices (framework+contract+helpers → boot wiring parity → remaining adapters/integration) remain as defined above; each slice passes scope-appropriate validation before dependent work relies on it.
 
 ## Risks / constraints
 - Teardown ordering and in-flight operations (tasks, sockets, callbacks, console ownership, WebSocket clients) can cause races or crashes; v1 is best-effort and primarily boot/internal serialized.
@@ -105,4 +101,5 @@ The contract defined in this plan remains stable across slices. Do not land late
 - 2026-11-16 (clarify-feature, user, round 1): selected **Static descriptors** for v1 design/scope; **Boot/internal + compat wrappers** control/API compatibility; **Explicit deps, best-effort stop** semantics; **Approve + mark ready now** once spec complete (pending explicit final approval).
 - 2026-11-16 (clarify-feature, user, round 2): selected **Framework + boot integration** boundary (per-service deep teardown owned by specific items except minimal contract/adapter work); **Core boot set + new component** (all `app_main` services as descriptors/adapters, core vs manageable documented, init-only where stop unsupported); **Automated + boot behavior checks** validation (AGENTS checks + feasible host tests + device smoke boot; deeper reclaim evidence deferred to dependent items).
 - 2026-11-16 (clarify-feature, agent): drafted complete spec in-place (scope/non-goals/contract/acceptance/validation/files/deps/risks), set open questions to none.
-- 2026-11-16 (clarify-feature, user): explicitly approved spec and pre-approved implementation/PR flow; marked Ready and moved to `docs/plan/ready/unified-service-lifecycle.md`. No implementation or validation run in this clarification step.
+- 2026-11-16 (clarify-feature, user): explicitly approved spec and pre-approved implementation/PR flow; marked Ready and moved to `docs/plan/ready/unified-service-lifecycle.md`. No implementation or validation run in this clarification step.
+- 2026-11-16 (review follow-up 2): collapsed duplicated/contradictory implementation-order bullets into one authoritative sequencing gate (lifecycle first; wifi adapter-ready in parallel; boot-profiles/http-ws blocked until landed; consumers compatible). No implementation/validation yet.

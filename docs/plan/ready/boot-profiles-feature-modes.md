@@ -11,6 +11,8 @@
 ## Summary
 Boot currently initializes a fixed set of services/features. v1 defines two boot profiles selected by a persisted NVS setting (applied on next boot) to allow an explicit memory/feature tradeoff while preserving local recovery.
 
+**Milestone/implementation note (2026-11-16):** lifecycle-first gate applies (unified-lifecycle contract/interfaces landed before profile gating); Wi-Fi lifecycle work may proceed adapter-ready in parallel but profile gating must consume unified states/capabilities once landed. Keep console semantics/evidence aligned with `text-console-memory-lifecycle` and `service-memory-budget-observability` as stated below.
+
 ## Scope (v1)
 - Define two profiles: `default` and `low-memory-offline`.
 - Persist selected profile in NVS; provide a shell command to get/set/clear it. Changes apply on **next boot/restart** only.
@@ -86,8 +88,9 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 
 ## Implementation order / prerequisites (resolved, 2026-11-16 review)
 - **Lifecycle first (hard gate):** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land before boot-profile service-gating implementation. Profile gating must use unified-lifecycle interfaces/hooks/descriptor-driven boot control; do not introduce or keep a parallel permanent ad-hoc boot/service model in `main.c`.
-- Coordinate with `optional-http-websocket-service` and `wifi-managed-start-stop` so disabled/stopped services and recovery guarantees are represented consistently via unified states/capabilities.
-- **Semantic prerequisite:** `text-console-memory-lifecycle.md` is the source of truth for console lifecycle/visibility semantics and recovery guarantees referenced by this plan; keep profile behavior/docs consistent with it. Reuse `service-memory-budget-observability` evidence/checklists for per-profile memory measurements where useful.
+- **Semantic prerequisites (must stay consistent):** `text-console-memory-lifecycle.md` is the source of truth for console lifecycle/visibility/ownership semantics and recovery guarantees referenced by this plan; profile behavior/docs/evidence must follow its definitions (no divergent hidden/app-owned assumptions). `service-memory-budget-observability.md` provides the preferred/canonical memory-evidence template and shared diagnostics vocabulary: record per-profile `svc_mem`/A-B comparisons and state/metric reporting consistent with its contract/checklists when available (or record concrete `n/a`/blocker and reason, without inventing values).
+- **Service coordination:** coordinate with `optional-http-websocket-service` and `wifi-managed-start-stop` so disabled/stopped/forced-off-by-profile services and recovery guarantees are represented consistently via unified states/capabilities and effective-precedence rules.
+- **Evidence expectation:** per-profile validation must capture both service availability/unavailability and measured memory comparison aligned with observability checklists/vocabulary (when tooling/contract available), in addition to recovery checks.
 
 ## Risks / constraints
 - ESP32 RAM/flash/task constraints; disabling services must not break required recovery/core bring-up.
@@ -105,3 +108,4 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - 2026-11-16 (clarify-feature, user): resolved v1 scope (profiles `default` + `low-memory-offline`, boot-only, NVS + `boot_profile` get/set/clear, fallback to `default`, local recovery in all v1 profiles, recommended low-memory matrix, qualitative+measured evidence, gated-init boundary allowed before full unified lifecycle).
 - 2026-11-16 (clarify-feature, user): explicitly approved spec as drafted; marked Ready and moved to `docs/plan/ready/boot-profiles-feature-modes.md`. No implementation/validation run in this clarification step.
 - 2026-11-16 (review follow-up): addressed plan-review findings — aligned `low-memory-offline` to run `bluetooth_init()` but force BT off (preserve stored NVS auto-enable, keep `bt` contract), made network diagnostics explicitly unavailable/disabled-by-profile with no lazy creation, set concrete NVS persistence (namespace `boot`, key `profile`, values `default`/`low-memory-offline`), and clarified hardware-validation reporting.
+- 2026-11-16 (review follow-up 2): made `text-console-memory-lifecycle` and `service-memory-budget-observability` explicit semantic/evidence prerequisites for profile behavior and per-profile measurements (canonical console semantics and `svc_mem`/A-B/vocabulary alignment when available). No implementation/validation yet.
