@@ -66,7 +66,7 @@ static esp_err_t bt_ensure_runtime_resources(void)
         s_scan_results = calloc(BT_SCAN_MAX_RESULTS, sizeof(bt_scan_result_t));
         if (s_scan_results == NULL)
         {
-            return ESP_ERR_NO_MEM;
+            goto fail;
         }
     }
 
@@ -75,7 +75,7 @@ static esp_err_t bt_ensure_runtime_resources(void)
         s_scan_done = xSemaphoreCreateBinary();
         if (s_scan_done == NULL)
         {
-            return ESP_ERR_NO_MEM;
+            goto fail;
         }
     }
 
@@ -84,7 +84,7 @@ static esp_err_t bt_ensure_runtime_resources(void)
         s_scan_params_set = xSemaphoreCreateBinary();
         if (s_scan_params_set == NULL)
         {
-            return ESP_ERR_NO_MEM;
+            goto fail;
         }
     }
 
@@ -93,11 +93,15 @@ static esp_err_t bt_ensure_runtime_resources(void)
         s_close_done = xSemaphoreCreateBinary();
         if (s_close_done == NULL)
         {
-            return ESP_ERR_NO_MEM;
+            goto fail;
         }
     }
 
     return ESP_OK;
+
+fail:
+    bt_release_runtime_resources();
+    return ESP_ERR_NO_MEM;
 }
 
 static void bt_release_runtime_resources(void)
@@ -593,6 +597,7 @@ esp_err_t bluetooth_enable(void)
     if (xTaskCreate(bt_enable_task, "bt_enable", BT_ENABLE_TASK_STACK, NULL, BT_ENABLE_TASK_PRIO, NULL) != pdPASS)
     {
         s_enable_in_progress = false;
+        bt_release_runtime_resources();
         ESP_LOGE(TAG, "Failed to create enable task");
         return ESP_ERR_NO_MEM;
     }
