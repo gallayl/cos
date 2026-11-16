@@ -46,7 +46,7 @@ typedef struct
     uint16_t appearance;
 } bt_scan_result_t;
 
-static bt_scan_result_t s_scan_results[BT_SCAN_MAX_RESULTS];
+static bt_scan_result_t *s_scan_results;
 static int s_scan_count;
 static SemaphoreHandle_t s_scan_done;
 static SemaphoreHandle_t s_scan_params_set;
@@ -58,6 +58,70 @@ static volatile bool s_enable_in_progress;
 static volatile bool s_hidh_inited;
 static esp_hidh_dev_t *volatile s_hid_dev;
 static SemaphoreHandle_t s_close_done;
+
+static esp_err_t bt_ensure_runtime_resources(void)
+{
+    if (s_scan_results == NULL)
+    {
+        s_scan_results = calloc(BT_SCAN_MAX_RESULTS, sizeof(bt_scan_result_t));
+        if (s_scan_results == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_scan_done == NULL)
+    {
+        s_scan_done = xSemaphoreCreateBinary();
+        if (s_scan_done == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_scan_params_set == NULL)
+    {
+        s_scan_params_set = xSemaphoreCreateBinary();
+        if (s_scan_params_set == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    if (s_close_done == NULL)
+    {
+        s_close_done = xSemaphoreCreateBinary();
+        if (s_close_done == NULL)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    return ESP_OK;
+}
+
+static void bt_release_runtime_resources(void)
+{
+    free(s_scan_results);
+    s_scan_results = NULL;
+    s_scan_count = 0;
+
+    if (s_scan_done != NULL)
+    {
+        vSemaphoreDelete(s_scan_done);
+        s_scan_done = NULL;
+    }
+    if (s_scan_params_set != NULL)
+    {
+        vSemaphoreDelete(s_scan_params_set);
+        s_scan_params_set = NULL;
+    }
+    if (s_close_done != NULL)
+    {
+        vSemaphoreDelete(s_close_done);
+        s_close_done = NULL;
+    }
+}
 
 /* ── NVS persistence ─────────────────────────────────────────────────── */
 
@@ -125,6 +189,10 @@ static bool nvs_load_auto_device(esp_bd_addr_t bda_out, uint8_t *addr_type_out)
 
 static bool lookup_addr_type(const uint8_t *bda, uint8_t *addr_type_out)
 {
+    if (s_scan_results == NULL)
+    {
+        return false;
+    }
     for (int i = 0; i < s_scan_count; i++)
     {
         if (memcmp(s_scan_results[i].bda, bda, sizeof(esp_bd_addr_t)) == 0)
@@ -163,7 +231,7 @@ static void ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
         if (sr->search_evt == ESP_GAP_SEARCH_INQ_RES_EVT)
         {
-            if (s_scan_count >= BT_SCAN_MAX_RESULTS)
+            if (s_scan_results == NULL || s_scan_count >= BT_SCAN_MAX_RESULTS)
             {
                 break;
             }
@@ -474,7 +542,11 @@ static esp_err_t do_bt_enable_sequence(void)
 static void bt_enable_task(void *arg)
 {
     (void)arg;
-    do_bt_enable_sequence();
+    esp_err_t err = do_bt_enable_sequence();
+    if (err != ESP_OK && !s_enabled)
+    {
+        bt_release_runtime_resources();
+    }
     vTaskDelete(NULL);
 }
 
@@ -482,30 +554,16 @@ static void bt_enable_task(void *arg)
 
 esp_err_t bluetooth_init(void)
 {
-    s_scan_done = xSemaphoreCreateBinary();
-    if (s_scan_done == NULL)
-    {
-        return ESP_ERR_NO_MEM;
-    }
-
-    s_scan_params_set = xSemaphoreCreateBinary();
-    if (s_scan_params_set == NULL)
-    {
-        return ESP_ERR_NO_MEM;
-    }
-
-    s_close_done = xSemaphoreCreateBinary();
-    if (s_close_done == NULL)
-    {
-        return ESP_ERR_NO_MEM;
-    }
-
     bluetooth_register_commands();
 
     if (nvs_load_enabled())
     {
         ESP_LOGI(TAG, "NVS: Bluetooth was enabled, auto-starting...");
-        bluetooth_enable();
+        esp_err_t err = bluetooth_enable();
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+        {
+            ESP_LOGW(TAG, "Auto-start failed: %s", esp_err_to_name(err));
+        }
     }
 
     return ESP_OK;
@@ -522,6 +580,13 @@ esp_err_t bluetooth_enable(void)
     {
         ESP_LOGW(TAG, "Enable already in progress");
         return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t err = bt_ensure_runtime_resources();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to allocate Bluetooth runtime resources: %s", esp_err_to_name(err));
+        return err;
     }
 
     s_enable_in_progress = true;
@@ -549,9 +614,12 @@ esp_err_t bluetooth_disable(void)
 
     if (s_hid_dev != NULL)
     {
-        xSemaphoreTake(s_close_done, 0);
+        if (s_close_done != NULL)
+        {
+            xSemaphoreTake(s_close_done, 0);
+        }
         esp_hidh_dev_close(s_hid_dev);
-        if (xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS)) != pdTRUE)
+        if (s_close_done == NULL || xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS)) != pdTRUE)
         {
             ESP_LOGW(TAG, "Timeout waiting for HID device close");
             s_hid_dev = NULL;
@@ -572,6 +640,7 @@ esp_err_t bluetooth_disable(void)
 
     s_enabled = false;
     nvs_save_enabled(false);
+    bt_release_runtime_resources();
     ESP_LOGI(TAG, "Bluetooth disabled");
     return ESP_OK;
 }
@@ -582,9 +651,13 @@ esp_err_t bluetooth_scan(void)
     {
         return ESP_ERR_INVALID_STATE;
     }
+    if (s_scan_results == NULL || s_scan_done == NULL || s_scan_params_set == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
 
     s_scan_count = 0;
-    memset(s_scan_results, 0, sizeof(s_scan_results));
+    memset(s_scan_results, 0, BT_SCAN_MAX_RESULTS * sizeof(bt_scan_result_t));
 
     xSemaphoreTake(s_scan_done, 0);
     xSemaphoreTake(s_scan_params_set, 0);
@@ -679,9 +752,16 @@ esp_err_t bluetooth_forget(void)
     if (s_hid_dev != NULL)
     {
         ESP_LOGI(TAG, "Disconnecting before forget...");
-        xSemaphoreTake(s_close_done, 0);
-        esp_hidh_dev_close(s_hid_dev);
-        xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS));
+        if (s_close_done != NULL)
+        {
+            xSemaphoreTake(s_close_done, 0);
+            esp_hidh_dev_close(s_hid_dev);
+            xSemaphoreTake(s_close_done, pdMS_TO_TICKS(BT_CLOSE_TIMEOUT_MS));
+        }
+        else
+        {
+            esp_hidh_dev_close(s_hid_dev);
+        }
     }
 
     nvs_handle_t h;
