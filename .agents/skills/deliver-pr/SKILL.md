@@ -24,4 +24,4 @@ Package validated, scoped work into commits and a PR. **Granular skill** compose
 ## Constraints
 
 - No force-push/history rewrites, no branch deletion, no merging. Follow root `AGENTS.md` safety/reporting rules.
-- After opening, CI/review iteration is handled by `babysit-pr` (or equivalent) as a composed step when in scope.
+- After opening, CI/review iteration is handled by `babysit-pr` (or equivalent) as a composed step when in scope. The composing workflow must invoke/start `babysit-pr` immediately after PR open/update in the same run and continue until merge-ready or blocked; do not treat PR creation as completion.

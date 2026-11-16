@@ -1,11 +1,13 @@
 # R23 — Frontend incremental dependency-aware compilation (`compile-storage`)
 
 - **ID:** r23-frontend-incremental-dependency-aware-compilation
-- **Status:** ready (approved)
+- **Status:** done (implemented, PR opened, required automated checks/PR CI green per scope; merge pending human action)
 - **Created:** 2026-11-15
-- **Updated:** 2026-11-15 (clarified and approved)
+- **Updated:** 2026-11-16 (implemented, PR/CI green, moved to done)
 - **Ready:** 2026-11-15
-- **Source/links:** [`../needs-clarification/r23-frontend-incremental-dependency-aware-compilation.md`](../needs-clarification/r23-frontend-incremental-dependency-aware-compilation.md) (clarification history, moved), [`../../ideas/2026-11-09-new-ideas.md`](../../ideas/2026-11-09-new-ideas.md) (R22 idea entry, partially in progress in IDE flow), [`../../README.md`](../../README.md), root [`../../../AGENTS.md`](../../../AGENTS.md), `frontend/tools/compile-storage.ts`, `frontend/src/ide/import-specifiers.ts`, `frontend/src/ide/import-resolution.ts`, `frontend/src/editor/editor-app.tsx`, `frontend/tools/compile-storage.test.ts`
+- **Delivered:** 2026-11-16
+- **Delivered:** 2026-11-16
+- **Source/links:** [`../needs-clarification/r23-frontend-incremental-dependency-aware-compilation.md`](../needs-clarification/r23-frontend-incremental-dependency-aware-compilation.md) (clarification history, moved), [`../../ideas/2026-11-09-new-ideas.md`](../../ideas/2026-11-09-new-ideas.md), [`../../README.md`](../../README.md), root [`../../../AGENTS.md`](../../../AGENTS.md), `frontend/tools/compile-storage.ts`, `frontend/src/ide/import-specifiers.ts`, `frontend/src/ide/import-resolution.ts`, `frontend/src/editor/editor-app.tsx`, `frontend/tools/compile-storage.test.ts`, PR [#40](https://github.com/gallayl/cos/pull/40)
 - **Approval:** User explicitly approved in chat on 2026-11-15 ("Approve and move to ready"). **Pre-approved for implementation/PR flow** (merge remains human/maintainer action). No implementation performed in this clarification pass.
 
 ## Open questions
@@ -41,13 +43,13 @@ Add dependency-aware, timestamp-based incremental compilation for relative TypeS
 - Broad refactors unrelated to compile-storage incremental dependency handling.
 
 ## Acceptance criteria / definition of done
-- [ ] `compile-storage` discovers relative TS imports (`./`, `../`) and resolves them transitively to `storage/ts` source paths for dependency-graph/cycle analysis (ignoring non-relative and type-only imports as appropriate to existing behavior).
-- [ ] Relative-import cycles produce deterministic, actionable errors identifying the cycle (path/specifiers) and fail without infinite recursion.
-- [ ] `compile-storage --write` is incremental and dependency-aware with **per-file freshness**: for each `storage/ts/**/*.ts` file in scope (including transitive relative deps), compile and write `storage/flash_data/<name>.be` when the output is missing or older than that `.ts` file's mtime; skip writing when the output is up-to-date. Unchanged importers are not forcibly recompiled solely due to dependency recompilation. Files with no relative imports preserve existing compile/write behavior (subject to the same per-file freshness rule).
-- [ ] `verifyStorage()` remains a full semantic correctness check for all required TS-backed storage scripts (compiles TS and compares semantic tokens vs committed `.be` as today, or equivalent) and is not weakened to freshness-only checks. Existing `tests/` hand-written Berry-script handling remains correct.
-- [ ] Error reporting is clear for missing/unresolvable relative deps, cycles, and compile diagnostics (consistent/actionable).
-- [ ] Unit tests added/updated covering: dependency discovery, transitive deps, missing `.be`, stale `.be` (older mtime), up-to-date skip, unchanged no-import behavior, and cycle/error cases. Existing compile-storage/storage checks continue to pass.
-- [ ] No regressions to storage script compilation/verification semantics outside this scoped behavior.
+- [x] `compile-storage` discovers relative TS imports (`./`, `../`) and resolves them transitively to `storage/ts` source paths for dependency-graph/cycle analysis (ignoring non-relative imports and resolving per existing local relative behavior; type-only handling unchanged via source scanning/compiler behavior).
+- [x] Relative-import cycles produce deterministic, actionable errors identifying the cycle (path/specifiers) and fail without infinite recursion.
+- [x] `compile-storage --write` is incremental and dependency-aware with **per-file freshness**: for each `storage/ts/**/*.ts` file in scope (including transitive relative deps), compile and write `storage/flash_data/<name>.be` when the output is missing or older than that `.ts` file's mtime; skip writing when the output is up-to-date. Unchanged importers are not forcibly recompiled solely due to dependency recompilation. Files with no relative imports preserve existing compile/write behavior (subject to the same per-file freshness rule).
+- [x] `verifyStorage()` remains a full semantic correctness check for all required TS-backed storage scripts (compiles TS and compares semantic tokens vs committed `.be` as today, or equivalent) and is not weakened to freshness-only checks. Existing `tests/` hand-written Berry-script handling remains correct.
+- [x] Error reporting is clear for missing/unresolvable relative deps, cycles, and compile diagnostics (consistent/actionable).
+- [x] Unit tests added/updated covering: dependency discovery, transitive deps, missing `.be`, stale `.be` (older mtime), up-to-date skip, unchanged no-import behavior, and cycle/error cases. Existing compile-storage/storage checks continue to pass.
+- [x] No regressions to storage script compilation/verification semantics outside this scoped behavior.
 
 ## Validation plan
 - **Automated (required, run from `frontend/` unless noted):**
@@ -76,7 +78,12 @@ Add dependency-aware, timestamp-based incremental compilation for relative TypeS
 - Avoid introducing IDE regressions if shared modules are refactored.
 
 ## Progress / evidence
-- 2026-11-15: created from ideas (partially implemented; scope/remaining work needs clarification).
-- 2026-11-15 (clarify-feature pass, round 1): selected R23 as next clarification target (r20-pipes-runtime-v1 already in progress). Reviewed idea/source files and current `compile-storage`/IDE import handling. User decisions: scope compile-storage dep-aware incremental compile only (defer IDE completion); `--write` incremental with per-file freshness + transitive dep graph/cycle detection, `verifyStorage()` remains full semantic verification for all; cycles must be deterministic/actionable with no infinite recursion; add/update unit tests for discovery/transitive/missing/stale/up-to-date/no-import/cycle cases; validation = `frontend` `yarn format:check/lint/test/build` + `npm run check-storage` (automated only, no hardware).
-- 2026-11-15 (clarify-feature pass, round 2): user confirmed **per-file freshness only** (do not recompile unchanged importers solely due to dependency recompilation) and **frontend + storage checks only** validation. Drafted complete Ready-contract spec fields with open questions = none.
-- 2026-11-15 (approval): user explicitly approved spec and move to `docs/plan/ready/` as **ready/pre-approved for implementation/PR flow** (merge remains human). Item moved to ready. No implementation performed.
+- 2026-11-15: created/clarified/approved and moved to ready (pre-approved for implementation/PR flow; merge remains human). Full clarification history preserved in git/linked source.
+- 2026-11-16 (implementation, `feat/r23-compile-storage-incremental-v2`, PR [#40](https://github.com/gallayl/cos/pull/40), draft): implemented dependency-aware incremental `compile-storage --write` with per-file mtime freshness, transitive relative-import graph discovery/validation, missing-dep and cycle detection (actionable errors), and added/updated unit tests in `frontend/tools/compile-storage.test.ts` (including follow-up commit `5f11bad` on PR branch for missing `.be` output and actionable missing-import error coverage). `verifyStorage()` remains full semantic verification.
+- 2026-11-16 (local validation, `frontend/`): `yarn format:check` **PASS**, `yarn lint` **PASS**, `yarn test` **PASS** (19 files, 136 tests), `yarn build` **PASS** (existing chunk-size warnings), `npm run check-storage` **PASS** (1 file, 7 tests). No hardware/manual validation required.
+- 2026-11-16 (independent review): read-only `reviewer` subagent (session `ses_e1af9cb41ffeqLx7w16D9D9McA`) â€” **no issues found** (noted low residual risk around mtime granularity/equality semantics, consistent with plan).
+- 2026-11-16 (PR CI, PR [#40](https://github.com/gallayl/cos/pull/40), branch up to date, merge state clean): all required checks **PASS** â€” Doxygen Check, Format Check, Unit Tests, Frontend (Lint, format, test, and build), ESP-IDF Build & Lint, Integration Tests (esp_littlefs_core, esp_littlefs_extra, init_sequence, nvs_calibration, shell_fs, stability, system, vfs_ops).
+
+## Remaining human actions
+- **Review/approval and merge (squash expected) remain human/maintainer actions.** Moving this item to `done/` does not imply merge.
+- **No hardware/manual validation required** for this scope.
