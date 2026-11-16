@@ -61,4 +61,5 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 
 ## Progress / evidence
 - 2026-11-16: created from repository audit (unified service infrastructure/memory focus).
-- 2026-11-16: clarified via Q1–Q6 (see Open questions + Clarified decisions). Approval still pending explicit “approve the spec as recorded”.
+- 2026-11-16: clarified via Q1–Q6 (see Open questions + Clarified decisions).
+- 2026-11-16: explicitly approved in chat and marked ready in `docs/plan/ready/` (metadata/progress aligned). No implementation/validation yet.

@@ -1,7 +1,7 @@
 ﻿# Bound HTTP upload memory usage
 
 - **ID:** http-upload-memory-bounds
-- **Status:** needs-clarification
+- **Status:** ready (approved)
 - **Created:** 2026-11-16
 - **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/http_server/src/http_upload.c:147-197`, `components/http_server/src/http_multipart.c:7-9`, `components/http_server/src/http_multipart.c:122-136`, `components/http_server/src/http_multipart.c:306-310`.
 - **Approval:** approved (user approved 2026-11-16)
@@ -48,6 +48,9 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 - Device heap fragmentation can make peak contiguous allocation the limiting factor.
 
 ## Open questions
+- None (decisions recorded 2026-11-16).
+
+## Decisions / resolved questions
 - [x] What upload size/request patterns must be supported on device? **A (decided 2026-11-16):** single file upload, typical < 64 KB (config/scripts). Reject larger with a clear JSON error and documented limit.
 - [x] Is the primary goal lower peak heap, better behavior under fragmentation, or both? **C (decided 2026-11-16):** both lower peak heap and safer behavior under fragmentation, with explicit bounds.
 - [x] Can buffer sizes be reduced safely with current parser/state machine, or is a larger parser change needed? **A (decided 2026-11-16):** prefer reducing `READ_BUF_SIZE`/`ACCUM_BUF_SIZE` if parser remains correct; document tradeoffs (throughput/complexity). Larger parser redesign only if reduction breaks correctness.
@@ -56,4 +59,5 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 
 ## Progress / evidence
 - 2026-11-16: created from repository audit (unified service infrastructure/memory focus).
-- 2026-11-16 (clarify round): recorded decisions A/C/A/B/B for Q1–Q5 above (see Open questions). Still needs explicit approval (“go”) to move to `docs/plan/ready/`.
+- 2026-11-16 (clarify round): recorded decisions A/C/A/B/B for Q1–Q5 above.
+- 2026-11-16: explicitly approved in chat and marked ready in `docs/plan/ready/` (metadata aligned with folder state). No implementation/validation yet.
