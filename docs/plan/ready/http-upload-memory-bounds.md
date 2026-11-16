@@ -39,7 +39,7 @@ Multipart upload handling currently allocates large temporary heap buffers per r
 - HTTP server/API docs and tests as applicable
 
 ## Dependencies / prerequisites
-- **Implementation order (2026-11-16, clarified): upload bounds first.** This plan defines supported upload size/patterns, buffer/preflight bounds, and clear JSON rejection/errors. [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md) best-effort stop/drain/abort behavior must preserve these limits/errors and must not introduce partial/corrupt writes beyond defined safe handling when refusing/aborting in-flight or new uploads.
+- **Implementation order (resolved, 2026-11-16 review): hard prerequisite for HTTP/WS lifecycle stop/abort.** This plan must be implemented and its upload size/patterns, buffer/preflight bounds, and JSON rejection/error/cleanup contract must be locked before [`./optional-http-websocket-service.md`](./optional-http-websocket-service.md) implements upload abort/stop behavior. HTTP/WS best-effort stop/drain/abort must reuse these limits/errors/semantics and must not introduce partial/corrupt writes beyond defined safe handling.
 - Consider existing HTTP body/response limits and memory-pressure follow-ups in [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md).
 
 ## Risks / constraints

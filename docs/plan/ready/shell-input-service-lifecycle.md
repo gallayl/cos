@@ -50,8 +50,9 @@ The shell/input subsystem runs always-on tasks and keeps fixed static buffers fo
 
 ## Dependencies / prerequisites
 - Align with [`docs/plan/ready/unified-service-lifecycle.md`](./unified-service-lifecycle.md) and [`docs/plan/ready/boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) (shell remains core/recoverable; no lifecycle gating in this item).
+- **Semantic prerequisite:** [`docs/plan/ready/text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) is the source of truth for console lifecycle/visibility/ownership semantics; shell input hand-off/routing and recovery assumptions must remain consistent with it.
 - Coordinate/consider interactions with text console ownership, Bluetooth HID input routing, WebSocket console feed path, and Berry console input providers (`berry_runtime_set_console_input_provider`).
-- On-device access/tooling for stack high-water/heap observation is needed to fully satisfy runtime evidence (otherwise a documented blocker remains for the reduction).
+- On-device access/tooling for stack high-water/heap observation is needed to fully satisfy runtime evidence (otherwise a documented blocker remains for the reduction). Reuse `service-memory-budget-observability` evidence/checklists for memory/runtime measurements where useful.
 
 ## Risks / constraints
 - Reducing `shell_in` stack without sufficient margin can cause hard-to-debug crashes, corruption, or input loss under deeper command/script/console-interaction paths.

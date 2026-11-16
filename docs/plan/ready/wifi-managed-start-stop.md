@@ -10,8 +10,8 @@
 Wi-Fi is initialized and started automatically at boot (AP or AP+STA behavior), but teardown is incomplete and not used as a managed lifecycle. This prevents treating Wi-Fi as an optional service whose memory/resources can be reclaimed when offline operation is sufficient.
 
 ## Decisions (clarification, 2026-11-16)
-- **Boot default:** keep current auto-start behavior (initialize/start Wi-Fi at boot; AP-only or AP+STA with auto-connect when stored credentials exist). Lifecycle work must not change default UX by itself.
-- **Precedence (must fix #1, 2026-11-16):** **Boot profile is highest priority at boot** (see `docs/plan/ready/boot-profiles-feature-modes.md`). In `low-memory-offline`, Wi‑Fi is disabled at boot regardless of persisted enabled state; the persisted toggle is applied only in profiles that allow Wi‑Fi. Document effective behavior in boot/profile docs.
+- **Boot default:** keep current auto-start behavior (initialize/start Wi-Fi at boot; AP-only or AP+STA with auto-connect when stored credentials exist) **when the active boot profile allows Wi-Fi and persisted state is not disabled**. Lifecycle work must not change default UX by itself.
+- **Precedence (resolved, 2026-11-16 review):** **Boot profile is highest priority at boot** (see `docs/plan/ready/boot-profiles-feature-modes.md`). Effective behavior: **`effective = profile allows Wi-Fi ? persisted enabled/disabled state : forced disabled/off`** regardless of persisted toggle. In `low-memory-offline`, Wi‑Fi remains disabled at boot even if persisted enabled; in `default`, boot honors persisted enabled/disabled state. `wifi status`/`boot_profile` output must make forced-off-by-profile vs user-persisted-disabled state distinguishable when feasible; document effective behavior in boot/profile docs and Wi-Fi help/status text.
 - **AP availability / memory goal:** Wi-Fi (including AP and STA) **can be fully stopped/disabled** when requested (subject to profile precedence). When persisted-disabled or runtime-stopped in an allowed profile, Wi‑Fi service is off until explicitly started; local access over Wi‑Fi is unavailable but memory/power savings are possible.
 - **Teardown depth:** managed `stop` means radio down/disconnect with **best-effort cleanup** of safely reclaimable runtime resources. Full `esp_wifi_deinit`/netif/event-loop teardown is **not required**; ESP-IDF/shared-subsystem limitations must be documented.
 - **Runtime control / persistence:** add shell commands `wifi start`, `wifi stop`, `wifi status` (or equivalent) and **persist enabled/disabled state** across reboot. `start`/`stop` update persisted state so boot follows user intent within allowed profiles.
@@ -38,7 +38,7 @@ Wi-Fi is initialized and started automatically at boot (AP or AP+STA behavior), 
 
 ## Acceptance criteria
 - [ ] Wi-Fi exposes a defined managed lifecycle for this item with at least `start`, `stop`, and `status` semantics; `stop` performs radio-down/disconnect and best-effort cleanup/release of safely reclaimable resources.
-- [ ] Boot keeps current auto-start default **and** honors persisted enabled/disabled state (disabled => Wi-Fi/AP/STA remain off until explicitly started).
+- [ ] Boot keeps current auto-start default **and** applies precedence: if profile disallows Wi-Fi it remains forced off regardless of persisted state; if profile allows Wi-Fi it honors persisted enabled/disabled state (disabled => Wi-Fi/AP/STA remain off until explicitly started). Status/output distinguishes forced-off-by-profile from user-persisted-disabled where feasible.
 - [ ] Shell commands `wifi start`, `wifi stop`, `wifi status` (or equivalent) exist; `start`/`stop` persist enabled/disabled state across reboot.
 - [ ] While stopped/disabled, `wifi connect|disconnect|scan|restart` (and other Wi-Fi-requiring operations as applicable) fail/deny with clear errors/status and do not auto-start Wi-Fi.
 - [ ] Repeated start/stop (and reconnect/connect/scan flows when active) do not leak resources, leave stale handlers/state, or break event handling/connectivity.
@@ -50,12 +50,13 @@ Wi-Fi is initialized and started automatically at boot (AP or AP+STA behavior), 
 ## Validation plan
 - **Automated (required, report evidence):** `make format-check`, `make test`. For firmware/network changes, run `make build` and `make lint` when feasible in an ESP-IDF v6.1 environment; run relevant integration tests if scope affects integration-tested behavior.
 - **Hardware/manual (required):**
-  - Boot default case: with no prior "disabled" persisted state (or default state), Wi-Fi auto-starts as today (AP-only/AP+STA per stored credentials).
-  - Persisted-disabled boot: after `wifi stop`/disabled persisted, reboot keeps Wi-Fi/AP/STA off; `wifi status` and rejected commands report clear stopped/disabled state.
-  - Start/enable: `wifi start` enables and persists; AP/STA/connect/scan/status work as expected.
+  - Boot default case: in a profile that allows Wi-Fi with no prior "disabled" persisted state (or default state), Wi-Fi auto-starts as today (AP-only/AP+STA per stored credentials).
+  - Persisted-disabled boot: in a profile that allows Wi-Fi, after `wifi stop`/disabled persisted, reboot keeps Wi-Fi/AP/STA off; `wifi status` and rejected commands report clear stopped/disabled state.
+  - Profile-forced-off case: in `low-memory-offline` (or any profile disallowing Wi-Fi), Wi-Fi remains forced off regardless of persisted enabled state; status distinguishes forced-off-by-profile from user-disabled where feasible.
+  - Start/enable: `wifi start` enables and persists; AP/STA/connect/scan/status work as expected in allowed profiles.
   - Stop/disable: `wifi stop` stops radio/AP/STA, persists disabled state, and dependent Wi-Fi operations fail clearly (no auto-start). Observe memory/power-relevant effect where measurable.
   - Repeated cycles: multiple start/stop and connect/disconnect/scan/restart sequences without leaks/crashes/broken events.
-  - Record ESP-IDF/shared-resource limitations and any resources not reclaimed by best-effort stop.
+  - Record ESP-IDF/shared-resource limitations and any resources not reclaimed by best-effort stop. Reuse `service-memory-budget-observability` `svc_mem`/A-B evidence checklist where useful.
 
 ## Expected areas/files
 - `components/wifi/src/wifi.c` — lifecycle state, start/stop implementation, handler/instance ownership, best-effort cleanup/reset for repeated cycles

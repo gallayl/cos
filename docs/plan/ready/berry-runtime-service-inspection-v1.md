@@ -11,9 +11,9 @@ Provide a lightweight, shell-based inspection slice for Berry runtime and core s
 
 **Relationship to `service-memory-budget-observability` (split & linked, 2026-11-16):** this plan owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` semantics). [`service-memory-budget-observability.md`](./service-memory-budget-observability.md) owns the dedicated cross-service memory/budget snapshot command (`svc_mem`) and before/after evidence workflow. Keep command roles/output contracts distinct and cross-referenced.
 
-### Shared collector contract (must fix #3, 2026-11-16)
-- **Owner (recommended):** shared read-only collectors/helpers live under the `service-memory-budget-observability` implementation scope (or a clearly named shared module) and are consumed by both `services`/`berry app` inspection and `svc_mem`. Avoid duplicating state/memory gathering logic.
-- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics in `services`, any Berry/app inspection surfaces, and `svc_mem` output. If a new state is needed, add it in one place and document it here and in `service-memory-budget-observability.md`.
+### Shared collector contract (resolved, 2026-11-16 review)
+- **Owner (decided):** shared read-only collectors/helpers and the canonical service/state/metric vocabulary live under `service-memory-budget-observability` implementation scope (or a clearly named shared diagnostics module delivered with it). This plan (`services`, `berry app`, any related Berry/app inspection surfaces) **consumes** those collectors/vocabulary and must not duplicate gathering logic.
+- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics across `services`, `berry app`, and `svc_mem`. If a new state/field is needed, define it once in the shared owner and document it in both plans. Coordinate with `unified-service-lifecycle` states/capabilities once available.
 
 ## Feasibility (initial validation, codebase review 2026-11-16)
 
@@ -72,7 +72,8 @@ Provide a lightweight, shell-based inspection slice for Berry runtime and core s
 
 ## Dependencies / prerequisites
 - None external. Relies on existing component APIs for best-effort status; may require small additive read-only getters (e.g. Berry active app path, network init/state visibility) if not currently exposed.
-- **Related (split & linked):** [`service-memory-budget-observability.md`](./service-memory-budget-observability.md) — complementary `svc_mem` plan. Coordinate shared read-only state/memory collectors and consistent service naming/state/`n/a` semantics where feasible; no hard implementation-order dependency implied beyond avoiding duplication.
+- **Shared collectors/vocabulary owner (resolved, 2026-11-16 review):** [`service-memory-budget-observability.md`](./service-memory-budget-observability.md) owns shared read-only collectors and canonical service/state/`n/a` vocabulary consumed by this plan and `svc_mem`; no hard implementation-order dependency implied, but implementations must avoid duplication and align semantics.
+- **Coordination:** touches Berry runtime/shell/SDK-adjacent inspection surfaces also affected by R18/R20/R22; coordinate interfaces/validation to avoid conflicts (see Consolidated cross-plan notes). Use unified-lifecycle states/capabilities when available.
 
 ## Risks / constraints
 - ESP32 RAM/flash/CPU limits: inspection must remain lightweight (one-shot queries only; no polling/continuous "top" loop in v1).

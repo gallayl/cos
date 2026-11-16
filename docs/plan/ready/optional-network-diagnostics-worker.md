@@ -14,6 +14,11 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - Define cleanup/stop behavior for queue, semaphores, task, and in-flight/abandoned requests.
 - Preserve existing `network_ping`/`network_resolve` semantics, timeout behavior, and single-flight constraints unless explicitly changed.
 
+## Unified lifecycle / observability mapping (resolved, 2026-11-16 review)
+- **Lifecycle states:** represent diagnostics as an observable service with lazy initialization: **`uninitialized`** (no persistent diagnostics task/queue/mutex/ping-completed semaphore allocated) before first use; **`running/ready`** after first successful/attempted lazy-create path as applicable (resources kept alive until reboot per Q1/Q2 decisions). Report init/availability clearly.
+- **Capabilities:** runtime **stop/deinit unsupported** in v1 (no idle shutdown/teardown). Start is implicit/lazy on first `network_ping`/`network_resolve`; no explicit runtime start/stop commands required.
+- **Integration:** expose state/capability in a way compatible with `unified-service-lifecycle` descriptors/capabilities once available and with `service-memory-budget-observability`/`berry-runtime-service-inspection-v1` shared vocabulary/collectors (report `n/a`/unsupported for stop controls as applicable). Keep HTTP fetch worker lifecycle separate (Q4).
+
 ## Non-goals
 - Changing ping/resolve protocol behavior, timeouts, or public result formats except as required for lifecycle correctness.
 - Reworking HTTP fetch worker behavior beyond shared lifecycle alignment if needed.
@@ -23,7 +28,8 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - [ ] Diagnostics worker/task/queue/semaphores are not permanently allocated when the feature is unused (per clarified design).
 - [ ] `ping`/`resolve` continue to meet existing functional contracts when available.
 - [ ] Concurrent/in-flight/timeout/abandon cases are handled safely with no leaks or deadlocks.
-- [ ] Resource release behavior is documented (immediate, deferred, or not possible) where applicable.
+- [ ] Resource release behavior is documented (immediate, deferred, or not possible) where applicable, including explicit **runtime stop unsupported / keep-alive until reboot** semantics.
+- [ ] Lifecycle/observability mapping is documented and compatible with unified-lifecycle states/capabilities and shared inspection vocabulary (`uninitialized` -> lazy-init `running/ready`, stop unsupported).
 - [ ] Automated checks required by `AGENTS.md` for affected scope pass.
 
 ## Validation plan
@@ -37,8 +43,9 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - Berry/network command bindings and docs as affected
 
 ## Dependencies / prerequisites
-- Should align with `unified-service-lifecycle` if a common service model is adopted.
-- Consider interaction with R2/R8 follow-ups (timeout/abandon cleanup, heap behavior) referenced in `docs/plan/consolidated-improvement-plan.md`.
+- Align with `unified-service-lifecycle` states/capabilities when available (lazy-init, stop unsupported; no divergent runtime-stop model).
+- `service-memory-budget-observability` / `berry-runtime-service-inspection-v1` own/consume shared collectors and vocabulary; diagnostics state/fields must be reported consistently (`n/a`/unsupported where applicable).
+- Consider interaction with R2/R8 follow-ups (timeout/abandon cleanup, heap behavior) referenced in `docs/plan/consolidated-improvement-plan.md`. Reuse `svc_mem`/A-B evidence checklist for measurements where useful.
 
 ## Risks / constraints
 - Existing single-flight/abandon semantics are subtle; lazy shutdown could race with DNS/ICMP completion.

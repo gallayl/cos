@@ -40,7 +40,7 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 
 ## Selection, persistence, and command contract (proposed for approval)
 - **Mechanism:** NVS-persisted profile value read at boot and applied during startup.
-- **Precedence (must fix #1, 2026-11-16):** **Boot profile is highest priority at boot.** It selects the allowed service set and wiring for that boot. Service-level persisted toggles (e.g. Wi‑Fi enabled/disabled in `wifi-managed-start-stop.md`) are applied **only inside the profile’s allowed set**: in `low-memory-offline`, Wi‑Fi remains disabled regardless of any persisted “enabled” toggle; in `default`, persisted toggles may be honored only where a service item explicitly allows them. When in doubt, document the effective behavior per service in that service plan and here.
+- **Precedence (resolved, 2026-11-16 review):** **Boot profile is highest priority at boot.** It selects the allowed service set and wiring for that boot. Effective behavior: **`effective = profile allows service ? persisted/service setting (if defined by that service item) : forced disabled/off`** regardless of any persisted toggle. In `low-memory-offline`, Wi‑Fi/network/BT/HTTP/WS/time-sync remain disabled even if a persisted "enabled" toggle exists; in `default`, persisted toggles may be honored only where the service plan explicitly defines them. `boot_profile`/service status output must make forced-off-by-profile vs user-disabled state distinguishable when feasible; document effective behavior in this plan and in each affected service plan.
 - **Command:** `boot_profile` (shell command)
   - `boot_profile` — print stored value (or `default`/none), effective profile for next boot/current boot as applicable, and supported names.
   - `boot_profile set <profile>` — persist `default` or `low-memory-offline`; report that it takes effect on next boot/restart.
@@ -79,10 +79,11 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - Interacts with service-specific lifecycle behavior: HTTP/WebSocket (`./optional-http-websocket-service.md`), network diagnostics, Wi-Fi (`./wifi-managed-start-stop.md`), console (`./text-console-memory-lifecycle.md`, source of truth for console lifecycle semantics), shell, Bluetooth/time sync (as applicable to disabled/kept services).
 - `service-memory-budget-observability` (`./service-memory-budget-observability.md`) is useful for evidence-based comparison but v1 acceptance relies on qualitative availability plus measured evidence (no hard targets).
 
-## Implementation order / prerequisites (2026-11-16, clarified)
-- Can proceed with **gated boot init** as specified; treat unified-service-lifecycle as the enabling base for descriptor-driven profile/gating integration.
-- When unified-lifecycle interfaces land, profile selection/gating should use or cleanly map to service descriptors/capabilities/states rather than maintaining a divergent second model.
-- Coordinate with optional-http-websocket-service and wifi-managed-start-stop so disabled/stopped services and recovery guarantees are represented consistently.
+## Implementation order / prerequisites (resolved, 2026-11-16 review)
+- **Lifecycle first:** `unified-service-lifecycle` descriptors/states/capabilities/boot helpers must land before new permanent profile/service-gating logic is added. Do not introduce or keep a second permanent ad-hoc boot/service model.
+- **Temporary migration only:** gated boot init in `main.c` is allowed only as an explicitly time-limited migration step, documented as temporary and planned to migrate to descriptor-driven gating. New service-gating work must use unified-lifecycle interfaces/hooks once available.
+- Coordinate with `optional-http-websocket-service` and `wifi-managed-start-stop` so disabled/stopped services and recovery guarantees are represented consistently via unified states/capabilities.
+- **Semantic prerequisite:** `text-console-memory-lifecycle.md` is the source of truth for console lifecycle/visibility semantics and recovery guarantees referenced by this plan; keep profile behavior/docs consistent with it. Reuse `service-memory-budget-observability` evidence/checklists for per-profile memory measurements where useful.
 
 ## Risks / constraints
 - ESP32 RAM/flash/task constraints; disabling services must not break required recovery/core bring-up.

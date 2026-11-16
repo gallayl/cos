@@ -53,6 +53,7 @@ Design-first effort: define concurrency model on constrained hardware (Berry VM 
 - Pinned Berry semantics and existing runtime/lifecycle contracts (R13/R21, R5 memory practices, R1/R6 module/loading behavior).
 - Existing timer/event-loop facilities suitable for cooperative pump integration on ESP32 (investigate during implementation).
 - R24 remains sync in v1; review/align if R18 implementation exposes constraints (cross-reference).
+- **Coordination (2026-11-16 review):** overlaps with other ready work touching Berry runtime/shell/SDK surfaces (`r20-pipes-runtime-v1`, `r22-m4-time-read-only`, `berry-runtime-service-inspection-v1`). No strict implementation order required, but coordinate APIs/hooks/teardown behavior and run relevant shared runtime/shell/SDK validation when changes land close together.
 
 ## Risks / constraints
 - **Memory/stack pressure:** state machines/promises/queues consume constrained RAM/stack; enforce fixed limits and require R5-style evidence.

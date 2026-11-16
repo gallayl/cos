@@ -9,7 +9,9 @@
 - **Open questions:** none
 
 ## Summary
-HTTP server and WebSocket currently start on every boot (`main/main.c`), consuming task/stack, socket, and state memory even when remote web/console features are unused. This item makes them optional, lifecycle-controlled services that can be started/stopped safely (best-effort) with clear semantics, while preserving current default behavior unless explicitly disabled by boot/profile/lifecycle control.
+HTTP server and WebSocket currently start on every boot (`main/main.c`), consuming task/stack, socket, and state memory even when remote web/console features are unused. This item makes the **core device** HTTP server and WebSocket optional, lifecycle-controlled services that can be started/stopped safely (best-effort) with clear semantics, while preserving current default behavior unless explicitly disabled by boot/profile/lifecycle control.
+
+**Distinction (resolved, 2026-11-16 review):** this controls the core device HTTP/WS service only; it is not the same as [`./r24-berry-script-http-server-api.md`](./r24-berry-script-http-server-api.md) user `@cos/http` server instances (separate `httpd`/ports/resources/lifecycle).
 
 ## Scope
 - **Services/granularity:** treat **HTTP server** and **WebSocket** as **independent** lifecycle-managed services. WebSocket depends on HTTP server availability (`/ws` endpoint registered on `httpd` handle) and cannot be started without a running HTTP server; HTTP may run without WebSocket when WebSocket is stopped/disabled.
@@ -63,9 +65,10 @@ HTTP server and WebSocket currently start on every boot (`main/main.c`), consumi
 - **Related:** [`./boot-profiles-feature-modes.md`](./boot-profiles-feature-modes.md) (boot-time gating of manageable services), [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md) (**upload bounds first:** defines supported upload size/heap-rejection/errors that stop handling must preserve), [`./service-memory-budget-observability.md`](./service-memory-budget-observability.md).
 - **Implementation prerequisite decisions (resolved):** default always-on, boot/profile + `server`/`ws` commands, independent services with dependency, best-effort graceful stop, best-effort memory reclaim with documented limits.
 
-## Implementation order / prerequisites (2026-11-16, clarified)
-- Requires unified-lifecycle **integration points/descriptors/capabilities** for HTTP server and WebSocket representation and boot/profile control; sequence implementation so required contract/interfaces from unified-service-lifecycle exist or are delivered in the same coordinated change.
-- **Upload bounds first:** implement/align to [`./http-upload-memory-bounds.md`](./http-upload-memory-bounds.md) for request/upload size and heap-preflight rejection semantics; best-effort stop/drain/abort must preserve those limits/errors and avoid partial/corrupt behavior beyond defined safe handling.
+## Implementation order / prerequisites (resolved, 2026-11-16 review)
+- **Lifecycle first (hard gate):** blocked until required `unified-service-lifecycle` descriptors/states/capabilities/integration points for HTTP server and WebSocket representation and boot/profile control have **landed**. Do not ship via a parallel ad-hoc control model.
+- **Upload bounds first (hard prerequisite):** `http-upload-memory-bounds.md` must be implemented/contract-locked before this item implements upload abort/stop behavior. Best-effort stop/drain/abort must reuse the same upload rejection/error/cleanup semantics and avoid partial/corrupt behavior beyond defined safe handling.
+- **Not the same as R24:** this item controls the **core device HTTP server/WebSocket service** (core port/boot service). It is distinct from [`./r24-berry-script-http-server-api.md`](./r24-berry-script-http-server-api.md), which provides a separate user `@cos/http` server instance on a non-core port with its own lifecycle/resources. No coupling or shared control flow implied. Reuse `service-memory-budget-observability` evidence/checklists for before/after measurements where useful.
 
 ## Risks / constraints
 - `esp_httpd` stop/start, URI handler lifecycle, and active sockets/requests/uploads can be sensitive to ordering and in-flight operations; unsafe teardown may crash or leak.

@@ -13,9 +13,9 @@ The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded ne
 
 **Relationship to `berry-runtime-service-inspection-v1` (split & linked, 2026-11-16):** this plan owns the dedicated `svc_mem` cross-service memory/budget snapshot and before/after evidence workflow. [`berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` snapshots). Preserve distinct command roles and output contracts.
 
-### Shared collector contract (must fix #3, 2026-11-16)
-- **Owner (recommended):** shared read-only collectors/helpers live under this plan’s implementation scope (or a clearly named shared module) and are consumed by `svc_mem`, `services`, and Berry/app inspection. Avoid duplicating state/memory gathering logic.
-- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics across `services`, `berry app`, and `svc_mem`. Any new state must be defined once and documented in both plans.
+### Shared collector contract (resolved, 2026-11-16 review)
+- **Owner (decided):** shared read-only collectors/helpers and the canonical service/state/metric vocabulary live under this plan’s implementation scope (or a clearly named shared diagnostics module delivered with it). `svc_mem`, `services`, and Berry/app inspection (`berry-runtime-service-inspection-v1`) consume this shared contract and must not duplicate gathering logic.
+- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics across `services`, `berry app`, and `svc_mem`. Any new state/field must be defined once here (shared owner) and documented in dependent plans. Coordinate with `unified-service-lifecycle` states/capabilities once available.
 
 ## Scope (v1)
 - Provide a **cross-service, on-demand memory snapshot** for developers via a dedicated shell command, reusing/extending existing diagnostics where possible (R5 Berry/runtime, R8 network/HTTP worker stack info, existing `mem`/system info).
@@ -68,11 +68,11 @@ The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded ne
 - `docs/plan/consolidated-improvement-plan.md` cross-link/status/evidence update when implemented
 
 ## Dependencies / prerequisites
-- [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) provides shared lifecycle/state concepts useful for enabled/running/unsupported reporting and for controllable before/after demos (where implemented).
-- [`./berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) is complementary (split & linked): coordinate shared read-only collectors and consistent service naming/state/`n/a` semantics where feasible; no hard implementation-order dependency implied.
-- [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) is the source of truth for console lifecycle/behavior semantics and observable states/fields reported for text console.
+- [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) provides shared lifecycle/state concepts useful for enabled/running/unsupported reporting and for controllable before/after demos (where implemented); consume its states/capabilities once landed.
+- [`./berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) is complementary (split & linked) and **consumes** this plan's shared collectors/vocabulary/ownership (no duplication).
+- **Semantic prerequisite:** [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) is the source of truth for console lifecycle/behavior semantics and observable states/fields reported for text console; finalize/report console metrics against those semantics.
 - Related items R45–R52 may extend stop/deinit/reclaimability; v1 observability must remain correct with `n/a`/unsupported where controls/metrics are unavailable.
-- Reuse/align with R2/R5/R8 evidence and workflows in `docs/plan/consolidated-improvement-plan.md` and `docs/reports/`.
+- Reuse/align with R2/R5/R8 evidence and workflows in `docs/plan/consolidated-improvement-plan.md` and `docs/reports/`. This plan's `svc_mem`/A-B checklist is the preferred evidence template for lifecycle/memory work in ready items.
 
 ## Risks / constraints
 - Instrumentation can itself consume RAM/CPU or affect timing; collectors must be read-only and cheap.

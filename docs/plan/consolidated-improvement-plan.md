@@ -39,20 +39,22 @@
 | Berry simulator                 | `2026-11-05`                  | No WASM runtime, simulator Worker, platform abstraction backend, renderer, or simulator UI found.                                                                                                                                                                                                                                               |
 | Deferred shell/UX items         | `2026-10`                     | Pipes/redirection design, shell line-editor refactor seam, larger apps/editor/calendar, image preview feasibility.                                                                                                                                                                                                                              |
 
-### 2026-11-16 audit follow-ups (needs clarification)
+### 2026-11-16 audit follow-ups (lifecycle/memory)
 
-Repository audit (2026-11-16, focus: unified service infrastructure and memory consumption) identified additional lifecycle/memory work items. Each requires clarification/approval before moving to `ready/`:
+Repository audit (2026-11-16, focus: unified service infrastructure and memory consumption) identified additional lifecycle/memory work items. All listed items are now in `ready/`:
 
-- [unified-service-lifecycle](./ready/unified-service-lifecycle.md) - common service start/stop/deinit model and boot/control integration. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
-- [optional-http-websocket-service](./ready/optional-http-websocket-service.md) — make HTTP server/WebSocket optional and safely stoppable. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
-- [optional-network-diagnostics-worker](./ready/optional-network-diagnostics-worker.md) - on-demand/controllable ping/resolve worker resources (ready).
+- [unified-service-lifecycle](./ready/unified-service-lifecycle.md) — common service start/stop/deinit model and boot/control integration. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
+- [optional-http-websocket-service](./ready/optional-http-websocket-service.md) — make core HTTP server/WebSocket optional and safely stoppable. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
+- [optional-network-diagnostics-worker](./ready/optional-network-diagnostics-worker.md) — on-demand/controllable ping/resolve worker resources (lazy-init, runtime stop unsupported in v1). **Ready (approved 2026-11-16).**
 - [wifi-managed-start-stop](./ready/wifi-managed-start-stop.md) — managed Wi-Fi lifecycle and reclaimable teardown. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
-- [text-console-memory-lifecycle](./ready/text-console-memory-lifecycle.md) — reduce/release console memory and task cost when appropriate.
+- [text-console-memory-lifecycle](./ready/text-console-memory-lifecycle.md) — reduce/release console memory and task cost when appropriate (source of truth for console lifecycle semantics). **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
 - [shell-input-service-lifecycle](./ready/shell-input-service-lifecycle.md) — always-on shell input footprint review; `shell_in` stack 4096 target with runtime+static evidence/safety margin. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
 - [bluetooth-lazy-scan-state](./ready/bluetooth-lazy-scan-state.md) — lazy scan/result state and clearer BT lifecycle memory. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
-- [http-upload-memory-bounds](./needs-clarification/http-upload-memory-bounds.md) — bound multipart upload peak heap/fragmentation risk.
-- [service-memory-budget-observability](./ready/service-memory-budget-observability.md) - cross-service memory metrics/budgets and reporting. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
-- [boot-profiles-feature-modes](./ready/boot-profiles-feature-modes.md) — **ready (approved 2026-11-16):** v1 feature/memory tradeoff profiles (`default`, `low-memory-offline`) built on boot-time gating/service lifecycle.
+- [http-upload-memory-bounds](./ready/http-upload-memory-bounds.md) — bound multipart upload peak heap/fragmentation risk. **Ready (approved 2026-11-16).**
+- [service-memory-budget-observability](./ready/service-memory-budget-observability.md) — cross-service memory metrics/budgets and reporting (`svc_mem`, shared collector/vocabulary owner). **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
+- [boot-profiles-feature-modes](./ready/boot-profiles-feature-modes.md) — v1 feature/memory tradeoff profiles (`default`, `low-memory-offline`) with boot-profile precedence over service toggles. **Ready (approved 2026-11-16, pre-approved for implementation/PR flow).**
+
+**2026-11-16 plan review resolutions (ready queue consistency):** boot profile precedence made explicit (`effective = profile allows service ? persisted/service setting : forced off`); `unified-service-lifecycle` is a **land-first** gate for `optional-http-websocket-service` and for new permanent profile gating (temporary migration-only gated init only if time-limited); `http-upload-memory-bounds` is a hard prerequisite for HTTP/WS upload abort/stop behavior; `service-memory-budget-observability` owns shared read-only collectors/canonical service-state/metric vocabulary consumed by `services`/`berry app`/`svc_mem`; `text-console-memory-lifecycle` is the semantic prerequisite for console-related assumptions in profiles/shell/observability; core device HTTP/WS service control is explicitly distinct from R24 user `@cos/http` servers; network diagnostics mapped as lazy-init with runtime stop unsupported in unified/observability terms; Berry runtime/shell/SDK-overlapping ready items carry coordination notes; `svc_mem`/A-B checklist is the preferred evidence template for lifecycle/memory measurements.
 
 ## Priority and ordering
 
