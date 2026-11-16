@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { astToBerry } from '../src/ide/ast-to-berry'
 import { getAst } from '../src/ide/get-ast'
+import { collectRelativeImportSpecifiers } from '../src/ide/import-specifiers'
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
 const storageRoot = join(repoRoot, 'storage')
@@ -46,6 +47,16 @@ export interface StorageCheck {
   scripts: readonly ScriptCheck[]
 }
 
+export interface StorageRoots {
+  typescriptRoot: string
+  flashRoot: string
+}
+
+export interface DependencyEdge {
+  specifier: string
+  resolved: string
+}
+
 /**
  * Typecheck every storage script against the COS SDK, compile each one to
  * Berry, and compare that output with the device script.
@@ -63,23 +74,174 @@ export function verifyStorage(): StorageCheck {
   }
 }
 
-function writeCompiledBerry(): number {
-  const names = [...collect(typescriptRoot, '.ts').keys()].sort()
+/** Compile/write storage Berry outputs. Dependency-aware and incremental for `--write`. */
+export function writeCompiledBerry(roots: StorageRoots = { typescriptRoot, flashRoot }): number {
+  try {
+    return writeCompiledBerryInner(roots)
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    return 1
+  }
+}
+
+function writeCompiledBerryInner(roots: StorageRoots): number {
+  const graph = buildRelativeImportGraph(roots.typescriptRoot)
+  assertNoRelativeImportIssues(graph)
   let written = 0
-  for (const name of names) {
-    const typescriptPath = join(typescriptRoot, `${name}.ts`)
-    const berryPath = join(flashRoot, `${name}.be`)
+  for (const name of [...graph.names].sort()) {
+    const typescriptPath = join(roots.typescriptRoot, `${name}.ts`)
+    const berryPath = join(roots.flashRoot, `${name}.be`)
+    if (!isBerryOutputStale(typescriptPath, berryPath)) continue
     const result = astToBerry(getAst(readFileSync(typescriptPath, 'utf8')))
     if (!result.ok) {
-      console.error(`${name}: ${result.diagnostics.map((d) => `${d.line}:${d.column}: ${d.message}`).join('; ')}`)
-      return 1
+      throw new Error(`${name}: ${result.diagnostics.map((d) => `${d.line}:${d.column}: ${d.message}`).join('; ')}`)
     }
     mkdirSync(join(berryPath, '..'), { recursive: true })
     writeFileSync(berryPath, result.code.endsWith('\n') ? result.code : `${result.code}\n`)
     written += 1
   }
-  console.log(`Wrote ${written} Berry files to storage/flash_data`)
+  console.log(`Wrote ${written} Berry files to ${relative(repoRoot, roots.flashRoot) || roots.flashRoot}`)
   return 0
+}
+
+export function buildRelativeImportGraph(tsRoot: string): {
+  names: string[]
+  deps: Map<string, DependencyEdge[]>
+  missing: Map<string, DependencyEdge[]>
+} {
+  const typescript = collect(tsRoot, '.ts')
+  const names = [...typescript.keys()].sort()
+  const nameSet = new Set(names)
+  const deps = new Map<string, DependencyEdge[]>()
+  const missing = new Map<string, DependencyEdge[]>()
+  for (const name of names) {
+    const source = readFileSync(typescript.get(name) ?? join(tsRoot, `${name}.ts`), 'utf8')
+    const edges: DependencyEdge[] = []
+    const miss: DependencyEdge[] = []
+    for (const specifier of collectRelativeImportSpecifiers(source)) {
+      const resolved = resolveRelativeStorageImport(name, specifier, tsRoot)
+      if (!resolved || !nameSet.has(resolved)) {
+        miss.push({ specifier, resolved: resolved ?? specifier })
+      } else {
+        edges.push({ specifier, resolved })
+      }
+    }
+    deps.set(name, edges)
+    if (miss.length > 0) missing.set(name, miss)
+  }
+  return { names, deps, missing }
+}
+
+export function assertNoRelativeImportIssues(graph: ReturnType<typeof buildRelativeImportGraph>): void {
+  if (graph.missing.size > 0) {
+    const lines = [...graph.missing.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .flatMap(([name, edges]) =>
+        edges
+          .sort((a, b) => a.specifier.localeCompare(b.specifier))
+          .map(
+            (edge) => `${name}: missing/unresolvable relative import '${edge.specifier}' (resolved '${edge.resolved}')`,
+          ),
+      )
+    throw new Error(lines.join('\n'))
+  }
+  const cycle = findRelativeImportCycle(graph.deps, graph.names)
+  if (cycle) {
+    throw new Error(`relative import cycle: ${formatCycle(cycle, graph.deps)}`)
+  }
+}
+
+export function findRelativeImportCycle(
+  deps: Map<string, DependencyEdge[]>,
+  names: readonly string[] = [...deps.keys()].sort(),
+): string[] | null {
+  const state = new Map<string, 0 | 1 | 2>()
+  const stack: string[] = []
+  for (const name of names) state.set(name, 0)
+  const visit = (name: string): string[] | null => {
+    state.set(name, 1)
+    stack.push(name)
+    for (const edge of [...(deps.get(name) ?? [])].sort((a, b) => a.resolved.localeCompare(b.resolved))) {
+      const dep = edge.resolved
+      const depState = state.get(dep) ?? 0
+      if (depState === 1) {
+        const idx = stack.indexOf(dep)
+        return idx >= 0 ? [...stack.slice(idx), dep] : [dep, name, dep]
+      }
+      if (depState === 0) {
+        const found = visit(dep)
+        if (found) return found
+      }
+    }
+    stack.pop()
+    state.set(name, 2)
+    return null
+  }
+  for (const name of names) {
+    if ((state.get(name) ?? 0) === 0) {
+      const found = visit(name)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function formatCycle(cycle: readonly string[], deps: Map<string, DependencyEdge[]>): string {
+  const parts: string[] = []
+  for (let i = 0; i < cycle.length - 1; i += 1) {
+    const from = cycle[i] ?? ''
+    const to = cycle[i + 1] ?? ''
+    const edge = (deps.get(from) ?? []).find((d) => d.resolved === to)
+    parts.push(edge ? `${from} --'${edge.specifier}'--> ${to}` : `${from} --> ${to}`)
+  }
+  return parts.join(' -> ')
+}
+
+export function resolveRelativeStorageImport(importerName: string, specifier: string, tsRoot: string): string | null {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) return null
+  const importerDir = importerName.includes('/') ? importerName.slice(0, importerName.lastIndexOf('/')) : ''
+  const joined = normalizePosixPath(`${importerDir ? `${importerDir}/` : ''}${specifier}`)
+  if (joined === null) return null
+  let target = joined
+  if (target.endsWith('.ts')) {
+    target = target.slice(0, -3)
+  } else if (/\.[^/]+$/.test(target)) {
+    return null
+  }
+  const targetPath = join(tsRoot, ...target.split('/'))
+  const rootNorm = normalizeFsPath(tsRoot)
+  const targetNorm = normalizeFsPath(targetPath)
+  if (targetNorm !== rootNorm && !targetNorm.startsWith(`${rootNorm}${sep}`)) return null
+  return target
+}
+
+function normalizePosixPath(path: string): string | null {
+  const parts = path.replace(/\\/g, '/').split('/')
+  const stack: string[] = []
+  for (const part of parts) {
+    if (part === '' || part === '.') continue
+    if (part === '..') {
+      if (stack.length === 0) return null
+      stack.pop()
+      continue
+    }
+    stack.push(part)
+  }
+  return stack.join('/')
+}
+
+function normalizeFsPath(path: string): string {
+  return join(path)
+}
+
+export function isBerryOutputStale(typescriptPath: string, berryPath: string): boolean {
+  try {
+    const berryMtime = statSync(berryPath).mtimeMs
+    const tsMtime = statSync(typescriptPath).mtimeMs
+    return berryMtime < tsMtime
+  } catch {
+    return true
+  }
 }
 
 /** @returns Process exit code: `0` when every check passed. */
