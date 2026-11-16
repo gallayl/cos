@@ -11,12 +11,12 @@
 ## Summary
 Boot currently initializes a fixed set of services/features. v1 defines two boot profiles selected by a persisted NVS setting (applied on next boot) to allow an explicit memory/feature tradeoff while preserving local recovery.
 
-**Milestone/implementation note (2026-11-16):** lifecycle-first gate applies (unified-lifecycle contract/interfaces landed before profile gating); Wi-Fi lifecycle work may proceed adapter-ready in parallel but profile gating must consume unified states/capabilities once landed. Keep console semantics/evidence aligned with `text-console-memory-lifecycle` and `service-memory-budget-observability` as stated below.
+**Milestone/implementation note (2026-11-16, clarified):** lifecycle-first gate applies (**hard gate**). Unified-lifecycle contract/interfaces/helpers must be landed before profile-gating implementation; this item must not introduce or keep a temporary/parallel ad-hoc boot/service-gating model in `main.c`. Wi-Fi lifecycle work may proceed adapter-ready in parallel, but profile gating must consume unified states/capabilities once landed. Keep console semantics/evidence aligned with `text-console-memory-lifecycle` and `service-memory-budget-observability` as stated below.
 
 ## Scope (v1)
 - Define two profiles: `default` and `low-memory-offline`.
 - Persist selected profile in NVS; provide a shell command to get/set/clear it. Changes apply on **next boot/restart** only.
-- Gate boot-time init/start/wiring per profile through `unified-service-lifecycle` descriptors/interfaces (no temporary/parallel permanent boot-gating model in `main.c`).
+- Gate boot-time init/start/wiring per profile through **landed** `unified-service-lifecycle` descriptors/interfaces/helpers only (no temporary or parallel ad-hoc boot-gating model in `main.c`).
 - Keep a local recovery/debug path in every v1 profile.
 - Document per-profile service availability and record measured memory evidence (qualitative acceptance; no guessed hard KB targets).
 
@@ -26,7 +26,8 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - Automatic boot-failure rollback/self-healing beyond fallback on missing/invalid/corrupt stored value.
 - UI redesign beyond necessary status/output for the profile command.
 - Changing safety-critical hardware bring-up.
-- Full `unified-service-lifecycle` framework unless required to satisfy this spec (v1 allows gated init).
+- Implementing or redesigning the full `unified-service-lifecycle` framework inside this item (this item consumes the landed shared lifecycle contract/interfaces/helpers; it does not own framework design).
+- A temporary/parallel ad-hoc boot/service-gating path in `main.c` as a migration shortcut (lifecycle-first gate applies).
 
 ## Profile definitions (approved)
 
@@ -87,10 +88,16 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - `service-memory-budget-observability` (`./service-memory-budget-observability.md`) is useful for evidence-based comparison but v1 acceptance relies on qualitative availability plus measured evidence (no hard targets).
 
 ## Implementation order / prerequisites (resolved, 2026-11-16 review)
-- **Lifecycle first (hard gate):** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land before boot-profile service-gating implementation. Profile gating must use unified-lifecycle interfaces/hooks/descriptor-driven boot control; do not introduce or keep a parallel permanent ad-hoc boot/service model in `main.c`.
+- **Lifecycle first (hard gate):** `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land before boot-profile service-gating implementation. Profile gating must use unified-lifecycle interfaces/hooks/descriptor-driven boot control; do not introduce or keep a temporary or parallel ad-hoc boot/service model in `main.c`.
 - **Semantic prerequisites (must stay consistent):** `text-console-memory-lifecycle.md` is the source of truth for console lifecycle/visibility/ownership semantics and recovery guarantees referenced by this plan; profile behavior/docs/evidence must follow its definitions (no divergent hidden/app-owned assumptions). `service-memory-budget-observability.md` provides the preferred/canonical memory-evidence template and shared diagnostics vocabulary: record per-profile `svc_mem`/A-B comparisons and state/metric reporting consistent with its contract/checklists when available (or record concrete `n/a`/blocker and reason, without inventing values).
 - **Service coordination:** coordinate with `optional-http-websocket-service` and `wifi-managed-start-stop` so disabled/stopped/forced-off-by-profile services and recovery guarantees are represented consistently via unified states/capabilities and effective-precedence rules.
 - **Evidence expectation:** per-profile validation must capture both service availability/unavailability and measured memory comparison aligned with observability checklists/vocabulary (when tooling/contract available), in addition to recovery checks.
+
+## Milestones / progress tracking (explicit)
+- [ ] **M1 — Prerequisites landed:** `unified-service-lifecycle` contract/interfaces/helpers available; console/observability semantics and vocabulary references confirmed for implementation/evidence.
+- [ ] **M2 — Profile persistence/command:** `boot_profile` get/set/clear, NVS storage/fallback, and user-visible stored/effective/next-boot behavior implemented and tested where feasible.
+- [ ] **M3 — Descriptor-driven boot gating:** `default`/`low-memory-offline` matrices applied via unified-lifecycle boot/control (no ad-hoc gate), including precedence and recovery guarantees.
+- [ ] **M4 — Validation/evidence:** automated checks and (when available) hardware/manual per-profile availability + memory evidence recorded per AGENTS and observability/console prerequisites.
 
 ## Risks / constraints
 - ESP32 RAM/flash/task constraints; disabling services must not break required recovery/core bring-up.
@@ -109,3 +116,4 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - 2026-11-16 (clarify-feature, user): explicitly approved spec as drafted; marked Ready and moved to `docs/plan/ready/boot-profiles-feature-modes.md`. No implementation/validation run in this clarification step.
 - 2026-11-16 (review follow-up): addressed plan-review findings — aligned `low-memory-offline` to run `bluetooth_init()` but force BT off (preserve stored NVS auto-enable, keep `bt` contract), made network diagnostics explicitly unavailable/disabled-by-profile with no lazy creation, set concrete NVS persistence (namespace `boot`, key `profile`, values `default`/`low-memory-offline`), and clarified hardware-validation reporting.
 - 2026-11-16 (review follow-up 2): made `text-console-memory-lifecycle` and `service-memory-budget-observability` explicit semantic/evidence prerequisites for profile behavior and per-profile measurements (canonical console semantics and `svc_mem`/A-B/vocabulary alignment when available). No implementation/validation yet.
+- 2026-11-16 (review follow-up 3): resolved non-goal/scope contradiction by enforcing lifecycle-first hard gate (removed "v1 allows gated init"/ad-hoc `main.c` gating allowance) and added explicit milestones for tracking. No implementation/validation yet.
