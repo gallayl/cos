@@ -10,7 +10,8 @@ Use this skill to turn an ambiguous or questioned item into a fully specified, i
 ## State model
 
 - **Needs clarification:** `docs/plan/needs-clarification/<item-id>.md` — item has open questions/blockers/unknowns or lacks required spec fields.
-- **Ready (pre-approved queue):** `docs/plan/ready/<item-id>.md` — item meets the Ready contract and is cleared to implement.
+- **Ready (pre-approved queue):** `docs/plan/ready/<item-id>.md` — item meets the Ready contract, is approved, and is **ready to implement now** (no blockers). `plan/ready/` must contain only ready-to-implement items.
+- **Done:** `docs/plan/done/<item-id>.md` — item implementation is complete and delivered with recorded evidence (moved out of `ready/` by implementation/progress tracking); pending merge/human or hardware validation may remain documented.
 - Canonical status/evidence remains tracked in `docs/plan/consolidated-improvement-plan.md` when applicable (link both ways; do not remove historical content).
 
 ## Ready contract (all required)
@@ -35,7 +36,7 @@ If any field is missing, ambiguous, or blocked by an unavailable decision/hardwa
    - **If `question` is unavailable, unsupported, or fails/errors:** do not retry it repeatedly; ask the same questions in plain chat as a numbered list. For each question include: context (1 line if needed), options labeled `A/B/C...` with short tradeoffs, and a clearly marked default/recommendation (e.g. `Recommended: A`). State that the user may reply with option letters, "default", or a free-form answer. Accept the user's reply as the answers for that round.
    - Do not guess or invent requirements/approvals.
 4. **Record answers.** Update the item markdown after each round: capture decisions, resolved questions, remaining questions, and rationale. Keep notes factual; append progress (no history removal).
-5. **Check readiness.** When no open questions remain and all Ready-contract fields are satisfied, ask for/record explicit approval (prefer `question` tool when available, otherwise plain text) per "ready/pre-approved asked after feature specification". Only then set status to ready and move the file to `docs/plan/ready/<item-id>.md` (or create it there) and update cross-links (including consolidated plan if applicable).
+5. **Check readiness.** When no open questions remain and all Ready-contract fields are satisfied, ask for/record explicit approval (prefer `question` tool when available, otherwise plain text) per "ready/pre-approved asked after feature specification". Only then set status to ready and move the file to `docs/plan/ready/<item-id>.md` (or create it there) and update cross-links (including consolidated plan if applicable). If a ready item becomes blocked or gains open questions, move it back to `docs/plan/needs-clarification/` and update status/links.
 6. **Stop when blocked.** If answers reveal external blockers (hardware-only, missing access/decision, out-of-scope dependency), keep the item in `needs-clarification` with blockers/questions clearly listed and what would unblock it. If no user answers are available in this interaction, record the open questions/blockers in the item and stop (do not invent answers).
 
 ## User interaction

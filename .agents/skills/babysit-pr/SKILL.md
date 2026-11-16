@@ -49,8 +49,8 @@ Babysitting is complete when:
 - The PR branch is up to date with the base (merged as needed).
 - The **PR description is up to date** and accurately reflects the current state.
 - **All GitHub Actions checks on the PR are green** (or legitimately non-blocking/skipped per workflow).
-- All review threads, change requests, and relevant discussion points are resolved/addressed per above.
-- The PR is ready to merge. A pending human **review/approval** may remain; call it out explicitly.
+- All review threads, change requests, and relevant discussion points are resolved/addressed per above. Required hardware/manual validation (if any) is explicitly tracked as a blocking PR comment/review thread with clear validation steps and remains unresolved until resolved with evidence (or explicitly waived by a human with rationale); call out pending human validation/approval/merge explicitly.
+- The PR is ready to merge from CI/review perspective. Pending human **review/approval** and merge may remain; call them out explicitly. Merge is never performed by this skill.
 
 ## 6) Final report
 

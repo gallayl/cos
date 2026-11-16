@@ -16,12 +16,27 @@ declare module '@cos/system' {
     error: string;
   }
 
+  export interface TimeInfoOk {
+    ok: true;
+    synced: boolean;
+    epoch: number;
+    utc: string;
+    local: string;
+  }
+
+  export interface TimeInfoFailed {
+    ok: false;
+    error: string;
+  }
+
   export function meminfo(): MemInfoOk | MemInfoFailed;
   export function uptime(): string;
+  export function time_info(): TimeInfoOk | TimeInfoFailed;
 
   const system: {
     meminfo: typeof meminfo;
     uptime: typeof uptime;
+    time_info: typeof time_info;
   };
   export default system;
 }

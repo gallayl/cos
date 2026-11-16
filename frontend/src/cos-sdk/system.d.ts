@@ -25,6 +25,22 @@ declare global {
       error: string;
     }
 
+    interface TimeInfoOk {
+      ok: true;
+      synced: boolean;
+      epoch: number;
+      /** ISO 8601 UTC time, e.g. `2026-02-18T14:30:00Z`. */
+      utc: string;
+      /** ISO 8601 local time with UTC offset, e.g. `2026-02-18T15:30:00+01:00`. */
+      local: string;
+    }
+
+    interface TimeInfoFailed {
+      ok: false;
+      /** ESP-IDF/stable error name. */
+      error: string;
+    }
+
     /**
      * Read heap/memory statistics.
      * Use this from Berry scripts (e.g. command scripts) instead of parsing console output.
@@ -36,6 +52,11 @@ declare global {
      * Uses the same format as the `uptime` shell command.
      */
     function uptime(): string;
+
+    /**
+     * Read current time and sync status (read-only view; clock sync remains native).
+     */
+    function time_info(): TimeInfoOk | TimeInfoFailed;
   }
 }
 

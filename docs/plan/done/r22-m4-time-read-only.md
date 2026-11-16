@@ -1,10 +1,11 @@
 # R22 M4 — Migrate `time` command to Berry script (read-only view)
 
 - **ID:** r22-m4-time-read-only
-- **Status:** ready (approved)
+- **Status:** done (delivered; PR #39 ready for review, pending human review/merge)
 - **Created:** 2026-11-15
 - **Ready:** 2026-11-15
-- **Source/links:** [`../2026-11-12-berry-command-script-migrations.md`](../2026-11-12-berry-command-script-migrations.md) (M4), [`../needs-clarification/r22-command-script-migrations-open.md`](../needs-clarification/r22-command-script-migrations-open.md) (clarification decisions 2026-11-15), [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R22), `components/time_sync/src/time_sync_cmd.c`, `components/time_sync/include/time_sync.h`
+- **Delivered:** 2026-11-16
+- **Source/links:** [`../2026-11-12-berry-command-script-migrations.md`](../2026-11-12-berry-command-script-migrations.md) (M4), [`../needs-clarification/r22-command-script-migrations-open.md`](../needs-clarification/r22-command-script-migrations-open.md) (clarification decisions 2026-11-15), [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R22), PR [#39](https://github.com/gallayl/cos/pull/39), `components/time_sync/src/time_sync_cmd.c` (removed), `components/time_sync/include/time_sync.h`
 - **Approval:** User explicitly approved in chat on 2026-11-15 (“Approve and move to ready”). **Pre-approved for implementation/PR flow** (merge remains human/maintainer action). Scope includes global R22 decision to add `/flash/scripts` as built-in default resolver search directory.
 
 ## Open questions
@@ -38,12 +39,12 @@ Migrate the read-only shell `time` command to a Berry command script backed by a
 - Requiring QEMU/NTP environment for validation.
 
 ## Acceptance criteria
-- [ ] `system.time_info()` implemented with structured results/errors as specified; no console scraping.
-- [ ] `time`, `time utc`, `time epoch` script behavior and exit codes strictly match current native contract, including unknown-arg fallthrough and format-error output.
-- [ ] Native `time` registration removed only after script is present, resolvable by default, and validation passes.
-- [ ] `/flash/scripts` is searched by default by resolver (stock commands discoverable out-of-box); precedence documented and tested.
-- [ ] Automated checks and evidence recorded per Validation plan; on-device spot-check evidence recorded for time outputs/sync-state behavior and sync-native unaffected.
-- [ ] Docs/plans updated (`docs/plan/2026-11-12-berry-command-script-migrations.md`, R22 consolidated tracker links/evidence as applicable).
+- [x] `system.time_info()` implemented with structured results/errors as specified; no console scraping.
+- [x] `time`, `time utc`, `time epoch` script behavior and exit codes strictly match current native contract, including unknown-arg fallthrough and format-error output.
+- [x] Native `time` registration removed only after script is present, resolvable by default, and validation passes.
+- [x] `/flash/scripts` is searched by default by resolver (stock commands discoverable out-of-box); precedence documented and tested.
+- [x] Automated checks and evidence recorded per Validation plan; on-device spot-check evidence recorded for time outputs/sync-state behavior and sync-native unaffected (user-confirmed on-device validation passed 2026-11-16; detailed command/output log not captured in-repo).
+- [x] Docs/plans updated (`docs/plan/2026-11-12-berry-command-script-migrations.md`, R22 consolidated tracker links/evidence as applicable).
 
 ## Validation plan
 - **Automated (required per scope/AGENTS):** `make format-check`, `make test`. Firmware/build/lint: `make build` and `make lint` when feasible in ESP-IDF v6.1 env. `make docs-check` if public docs/Doxygen scope affected. Frontend/SDK: if `frontend/src/cos-sdk/` or IDE/bindings/manifest changed, from `frontend/` run `yarn format:check`, `yarn lint`, `yarn test`, `yarn build`.
@@ -79,3 +80,7 @@ Migrate the read-only shell `time` command to a Berry command script backed by a
 - 2026-11-15: re-reviewed against `clarify-feature` Ready contract and relevant context (`components/time_sync/src/time_sync_cmd.c`, resolver/SDK/module patterns). **No open questions or spec gaps identified; remains `ready` (approved) in `docs/plan/ready/`.** No implementation performed.
 - 2026-11-16 (review follow-up): strengthened shared merge-gate coordination for global `/flash/scripts` resolver behavior with R18/R20/inspection and clarified hardware spot-check as required when available with blocker reporting.
 - 2026-11-16 (review follow-up 2): made `/flash/scripts` default-resolver search an explicit prerequisite milestone landed/tested first with R22 migration and defined shared smoke/merge-gate checklist for affected runtime/shell PRs. No implementation/validation yet.
+- 2026-11-16 (implementation, branch `feat/r22-m4-time-read-only`, local): added `system.time_info()` (`components/berry_lang/src/berry_system.cpp`, `components/berry_lang/CMakeLists.txt` dep on `time_sync`) returning structured success/failure as specified; removed native `time` console registration (`components/time_sync/src/time_sync_cmd.c` deleted, init/CMakelists updated) while keeping SNTP/sync APIs native; added `/flash/scripts` as built-in default resolver search dir after configured path entries (`components/shell/src/shell_script.c`); added stock scripts `storage/ts/scripts/time.ts` + `storage/flash_data/scripts/time.be` (strict parity for full status/`utc`/`epoch`/unknown-arg fallthrough and format-error exit 1); updated SDK/bindings (`frontend/src/cos-sdk/system.d.ts`, `frontend/src/cos-sdk/modules/system.d.ts`, `frontend/src/ide/cos-binding-inventory.ts`), README, and host tests (`test/CMakeLists.txt`, `test/test_shell_script.c` adds default `/flash/scripts` + precedence cases). Validation: `make format-check` **pass** (after `make format`), `make test` **pass** (25/25 ctest + 3/3 python script tests), frontend `yarn format:check` **pass**, `yarn lint` **pass**, `yarn test` **pass** (19 files / 132 tests), `yarn build` **pass**. Initial environment blockers noted at time of implementation: `make build`/`make lint` (ESP-IDF v6.1/clang-tidy) and on-device spot-check unavailable locally.
+- 2026-11-16 (delivery, PR [#39](https://github.com/gallayl/cos/pull/39)): PR opened/updated; required PR GitHub Actions checks **green** (Build & Lint, Doxygen Check, Format Check, Frontend, Unit Tests, Integration Tests suite all SUCCESS as checked via `gh pr view/checks`). Item moved from `docs/plan/ready/` to `docs/plan/done/` as **delivered** (implementation complete, evidence recorded) — **not merged** (human review/approval/merge pending).
+- 2026-11-16 (on-device validation): user confirmed on-device spot-check passed for the migrated `time` command/sync-native behavior (detailed command/output log not captured in-repo). PR marked ready for review.
+- **Remaining:** human review/approval and merge.

@@ -382,6 +382,22 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
         }
     }
 
+    /* Built-in default stock script location (searched last). */
+    err = join_script_candidate("/flash/scripts", name, candidate, sizeof(candidate));
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    if (vfs_exists(candidate) &&
+        !vfs_is_directory(candidate)) // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr)
+    {
+        strncpy(resolved, candidate, len - 1);
+        resolved[len - 1] = '\0';
+        *found = true;
+        return ESP_OK;
+    }
+
     return ESP_OK;
 }
 

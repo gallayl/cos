@@ -1,7 +1,7 @@
 ﻿# Bound HTTP upload memory usage
 
 - **ID:** http-upload-memory-bounds
-- **Status:** ready (approved, **implementation blocked pending measure-and-lock** for dependent work)
+- **Status:** needs-clarification (approved spec, **implementation blocked pending measure-and-lock** for dependent work)
 - **Created:** 2026-11-16
 - **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/http_server/src/http_upload.c:147-197`, `components/http_server/src/http_multipart.c:7-9`, `components/http_server/src/http_multipart.c:122-136`, `components/http_server/src/http_multipart.c:306-310`.
 - **Approval:** approved (user approved 2026-11-16)
@@ -9,7 +9,7 @@
 ## Summary
 Multipart upload handling currently allocates large temporary heap buffers per request (read buffer + accumulator, ~10 KB total in `http_multipart_parse`) plus request handling overhead; peak contiguous demand is risky on constrained/fragmented ESP32 heap. This feature tightens upload memory bounds with explicit, documented limits (decided): support **single file uploads only, typical < 64 KB** (config/scripts); reject larger with a clear JSON error. Goal is **lower peak heap and safer behavior under fragmentation** via **reduced buffer sizes when parser remains correct** (tradeoffs documented) and **preflight rejection** when `largest_free_block(MALLOC_CAP_8BIT)` is below a documented threshold (clear JSON error).
 
-**Readiness/blocker note (2026-11-16 clarification):** this plan remains in `ready/` as an approved spec, but **implementation of dependent upload abort/stop behavior is blocked** until Milestone 1 ("measure-and-lock") is completed and recorded in this plan/evidence (concrete threshold, buffer-size decision, parser-correctness cases/tests, and exact locked rejection/abort contract details). Do not guess values.
+**Blocker note (2026-11-16 clarification):** spec/decisions are approved, but the item is **not ready to implement now** and therefore must not remain in `plan/ready/`. Implementation of dependent upload abort/stop behavior is blocked until Milestone 1 ("measure-and-lock") is completed and recorded in this plan/evidence (concrete threshold, buffer-size decision, parser-correctness cases/tests, and exact locked rejection/abort contract details). Do not guess values. Move back to `plan/ready/` only when the measure-and-lock blocker is resolved and the item is implementable now.
 
 ## Prerequisite milestone: measure and lock bounds/contract (resolved, 2026-11-16 review)
 **Blocking prerequisite for dependents:** before `optional-http-websocket-service` implements upload abort/stop behavior or R24 relies on shared/compatible upload handling, complete and record a **measure-and-lock** step (can be the first milestone/PR of this item): (1) capture current/baseline peak/contiguous heap behavior for supported uploads, (2) choose and document the concrete preflight threshold (value/formula + rationale), (3) choose and document proposed `READ_BUF_SIZE`/`ACCUM_BUF_SIZE` (or justify keeping current sizes) with parser-correctness cases/tests that must pass, and (4) lock the upload rejection/abort/error contract table below. No guessed numbers in this plan; values/contract are locked by that recorded step and then treated as the shared contract. Record results/evidence in **Progress / evidence** (and link any report) so dependents can cite the locked contract.

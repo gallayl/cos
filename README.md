@@ -139,7 +139,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `bt`                              | Show Bluetooth status and manage device connections       |
 | `led`, `light`, `screen`          | Inspect or control the LED, light sensor, and brightness  |
 | `i2c`                             | Scan the bus and read or write device data                |
-| `time`                            | Show local/UTC time, sync status, or epoch                |
+| `time [utc\|epoch]`                | Show local/UTC time, sync status, or epoch (Berry script command, resolved via CWD/`path`; stock: `/flash/scripts/time.be`; clock sync remains native) |
 | `server`, `ws`                    | Inspect and control the HTTP server and WebSocket clients |
 | `restart`                         | Restart the device                                        |
 | `ping <host> [timeout_ms]`        | Resolve a host and send one ICMP echo request (Berry script command, resolved via CWD/`path`; stock: `/flash/scripts/ping.be`) |
@@ -147,7 +147,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
-| `mem` / `memory`                  | Show current, minimum, and largest free heap metrics (Berry script; use `path`/CWD)      |
+| `mem` / `memory`                  | Show current, minimum, and largest free heap metrics (Berry script; use `path`/CWD or default `/flash/scripts`)      |
 | `logging [error\|warn\|info]`     | Set the persistent global ESP log threshold               |
 | `help`                            | List all registered commands                              |
 
@@ -189,13 +189,14 @@ logs. Use `mem` (Berry script, resolved via CWD/`path`) for current free heap, m
 heap, and largest allocatable block. Berry app startup also logs heap snapshots
 at INFO level; set `logging info` to see them.
 
-`nslookup`, `ping`, `uptime`, and `info` are provided as Berry command scripts (stock:
+`nslookup`, `ping`, `uptime`, `info`, and `time` are provided as Berry command scripts (stock:
 `/flash/scripts/nslookup.be`, `/flash/scripts/ping.be`, `/flash/scripts/uptime.be`,
-and `/flash/scripts/info.be`, resolved from the current directory or configured
-`path` dirs like other script commands). `nslookup` performs DNS resolution via
+`/flash/scripts/info.be`, and `/flash/scripts/time.be`, resolved from the current directory, configured
+`path` dirs, or the built-in default `/flash/scripts` directory). `nslookup` performs DNS resolution via
 Berry `net.resolve`; `ping` sends one ICMP echo request via Berry `net.ping`;
 `uptime` reports time since boot via the Berry `system` module; `info` reports
-flash and SD card usage via the Berry `fs` module. `nslookup` and `ping` accept
+flash and SD card usage via the Berry `fs` module; `time` reports local/UTC time, sync status, and epoch via
+the Berry `system.time_info()` read-only API while clock synchronization remains native. `nslookup` and `ping` accept
 an optional 100-3000 ms overall deadline (default 1000 ms); for `ping` this
 includes DNS resolution. Both require Wi-Fi station connectivity and use the
 same serialized worker as Berry `net.ping`/`net.resolve`; if DNS continues after

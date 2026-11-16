@@ -511,6 +511,31 @@ static void test_dispatch_handles_stderr_fd_redirection_runtime_path(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+static void test_bare_command_searches_default_flash_scripts(void)
+{
+    mock_filesystem_add_directory("/flash/scripts");
+    mock_filesystem_add_file("/flash/scripts/tool.be");
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("tool", &ret));
+    TEST_ASSERT_EQUAL_STRING("/flash/scripts/tool.be", mock_berry_last_path());
+}
+
+static void test_configured_path_wins_over_default_flash_scripts(void)
+{
+    mock_filesystem_add_directory("/flash/scripts");
+    mock_filesystem_add_directory("/flash/custom");
+    mock_filesystem_add_file("/flash/scripts/tool.be");
+    mock_filesystem_add_file("/flash/custom/tool.be");
+
+    char *add[] = {"path", "add", "/flash/custom"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 3, add));
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("tool", &ret));
+    TEST_ASSERT_EQUAL_STRING("/flash/custom/tool.be", mock_berry_last_path());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -547,5 +572,7 @@ int main(void)
     RUN_TEST(test_fd_redirection_parse_detects_stderr_and_combined_forms);
     RUN_TEST(test_redirection_parse_stderr_and_combined_forms);
     RUN_TEST(test_dispatch_handles_stderr_fd_redirection_runtime_path);
+    RUN_TEST(test_bare_command_searches_default_flash_scripts);
+    RUN_TEST(test_configured_path_wins_over_default_flash_scripts);
     return UNITY_END();
 }
