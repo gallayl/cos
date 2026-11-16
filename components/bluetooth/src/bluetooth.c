@@ -503,8 +503,17 @@ static esp_err_t do_bt_enable_sequence(void)
     if (err == ESP_ERR_INVALID_STATE)
     {
         ESP_LOGW(TAG, "HID host already initialized, retrying after deinit");
-        esp_hidh_deinit();
-        err = esp_hidh_init(&hidh_cfg);
+        esp_err_t deinit_err = esp_hidh_deinit();
+        if (deinit_err == ESP_OK)
+        {
+            s_hidh_inited = false;
+            err = esp_hidh_init(&hidh_cfg);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "HID host deinit retry failed: %s", esp_err_to_name(deinit_err));
+            err = ESP_ERR_INVALID_STATE;
+        }
     }
     if (err != ESP_OK)
     {
@@ -641,11 +650,20 @@ esp_err_t bluetooth_disable(void)
 
     vTaskDelay(pdMS_TO_TICKS(200));
 
+    esp_err_t hid_err = ESP_OK;
     if (s_hidh_inited)
     {
-        esp_hidh_deinit();
-        s_hidh_inited = false;
+        hid_err = esp_hidh_deinit();
+        if (hid_err != ESP_OK)
+        {
+            ESP_LOGW(TAG, "HID host deinit failed: %s", esp_err_to_name(hid_err));
+        }
+        else
+        {
+            s_hidh_inited = false;
+        }
     }
+
     esp_bluedroid_disable();
     esp_bluedroid_deinit();
     esp_bt_controller_disable();
@@ -654,7 +672,14 @@ esp_err_t bluetooth_disable(void)
     s_enabled = false;
     nvs_save_enabled(false);
     bt_release_runtime_resources();
-    ESP_LOGI(TAG, "Bluetooth disabled");
+    if (hid_err == ESP_OK)
+    {
+        ESP_LOGI(TAG, "Bluetooth disabled");
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Bluetooth disabled (HID host deinit incomplete)");
+    }
     return ESP_OK;
 }
 
