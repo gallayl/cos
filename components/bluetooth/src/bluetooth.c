@@ -59,6 +59,8 @@ static volatile bool s_hidh_inited;
 static esp_hidh_dev_t *volatile s_hid_dev;
 static SemaphoreHandle_t s_close_done;
 
+static void bt_release_runtime_resources(void);
+
 static esp_err_t bt_ensure_runtime_resources(void)
 {
     if (s_scan_results == NULL)
