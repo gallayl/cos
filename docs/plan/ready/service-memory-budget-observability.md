@@ -11,7 +11,11 @@
 ## Summary
 The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded network buffers, HTTP worker stack info APIs), but no system-wide view of per-service memory cost and budgets. This feature defines v1 observability needed to manage optional services and understand per-service RAM impact.
 
-**Relationship to `berry-runtime-service-inspection-v1` (split & linked, 2026-11-16):** this plan owns the dedicated `svc_mem` cross-service memory/budget snapshot and before/after evidence workflow. [`berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` snapshots). Implementations should reuse/share read-only service-state and memory collectors/helpers where practical to avoid duplication and keep service names/states/`n/a` semantics consistent, while preserving distinct command roles and output contracts.
+**Relationship to `berry-runtime-service-inspection-v1` (split & linked, 2026-11-16):** this plan owns the dedicated `svc_mem` cross-service memory/budget snapshot and before/after evidence workflow. [`berry-runtime-service-inspection-v1.md`](./berry-runtime-service-inspection-v1.md) owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` snapshots). Preserve distinct command roles and output contracts.
+
+### Shared collector contract (must fix #3, 2026-11-16)
+- **Owner (recommended):** shared read-only collectors/helpers live under this plan’s implementation scope (or a clearly named shared module) and are consumed by `svc_mem`, `services`, and Berry/app inspection. Avoid duplicating state/memory gathering logic.
+- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics across `services`, `berry app`, and `svc_mem`. Any new state must be defined once and documented in both plans.
 
 ## Scope (v1)
 - Provide a **cross-service, on-demand memory snapshot** for developers via a dedicated shell command, reusing/extending existing diagnostics where possible (R5 Berry/runtime, R8 network/HTTP worker stack info, existing `mem`/system info).
@@ -26,7 +30,7 @@ The firmware has useful local diagnostics (Berry heap/GC checkpoints, bounded ne
 | **Network / HTTP worker** | network/HTTP worker initialized/idle/busy as available | HTTP worker configured stack size and last/peak HWM if available (R8); bounded body/buffer limits or configured constants where useful for interpretation |
 | **Wi-Fi** | init/started/connected/disconnected/stopped/unsupported as available | lifecycle/state; no per-subsystem heap counter assumed (note ESP-IDF reclaimability limits). Include cheaply available counters/buffer sizes only if already exposed |
 | **Bluetooth** | init/enabled/disabled/scan state as available | lifecycle/state; scan/result/buffer/task info only if cheaply exposed (no deep instrumentation required in v1) |
-| **Text console** | init/deinit, render/task active as available | configured/static scrollback/buffer sizes and task stack size/HWM if cheaply exposed; note ownership/limits (semantics/state definitions follow [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md), source of truth) |
+| **Text console** | init/deinit, render/task active as available | configured/static scrollback/buffer sizes and task stack size/HWM if cheaply exposed; note ownership/limits (semantics/state definitions follow [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md), source of truth; hidden/app-owned: UART/stdout forwarding and output listeners preserved, buffer/history preserved while render/touch suspended) |
 | **Shell input** | init/task active as available | configured/static input buffer/queue sizes and task stack size/HWM if cheaply exposed |
 
 - **Lifecycle before/after:** mandate `svc_mem` before/after captures for at least one runtime-controllable service start/stop in the implementation context (e.g. via unified service lifecycle or existing service APIs). Require a documented manual R2-style A/B procedure/checklist for in-scope services lacking runtime stop control.

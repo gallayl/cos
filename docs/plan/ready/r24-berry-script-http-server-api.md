@@ -35,7 +35,7 @@ Deliver a v1 script-facing HTTP server API in module `@cos/http` for Berry/TS: a
 - Streaming/chunked request/response bodies (buffered only in v1) unless trivially implied.
 - Concurrent request handling beyond single-at-a-time; WebSocket integration in script API.
 - Regex/advanced routing beyond exact + `:param` segments; multipart/form-data parsing unless added explicitly.
-- Async/await handler model (pending R18) — v1 uses serialized sync-completion-with-timeout bridge.
+- Async/await handler model (pending R18) — v1 uses serialized sync-completion-with-timeout bridge. **Handler API is synchronous in v1; do not design handler signatures that assume promise/async returns** (review required under R18 before changing).
 
 ## Acceptance criteria
 - [ ] `@cos/http` available in Berry and TypeScript SDK (declarations + IDE/binding inventory/manifest) with documented v1 API/signatures and limits.

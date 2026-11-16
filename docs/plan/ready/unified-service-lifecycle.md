@@ -66,9 +66,18 @@ Define and implement a minimal, common lifecycle model for firmware services (st
 
 ## Implementation order / prerequisites (2026-11-16, clarified)
 - This plan provides the **shared lifecycle contract/base** (static descriptors, states/capabilities, dependency/order/fail-fast/best-effort-stop semantics, boot-run helpers).
+
+### Sequencing gate (must fix #2, 2026-11-16)
+- **Gate rule:** any ready item that requires unified-lifecycle **descriptors/capabilities/integration points** (e.g. `optional-http-websocket-service`) must have those contract/interfaces implemented in the **same coordinated change set** as that item, or land `unified-service-lifecycle` first. Do not ship a third ad-hoc boot model.
+- **`boot-profiles-feature-modes`:** v1 **may** use temporary gated boot init in `main.c` **only if** documented as temporary and planned to migrate to descriptor-driven gating; new service gating work should prefer descriptor hooks when available.
+- **`wifi-managed-start-stop`:** may proceed adapter-ready now but must expose hooks/capabilities/state compatible with this contract (no divergent lifecycle states).
+- **`optional-http-websocket-service`:** **blocked** until required descriptors/capabilities exist (or delivered together). Service-specific deep teardown stays there except minimal contract adaptation.
+- **Observability/inspection (`service-memory-budget-observability`, `berry-runtime-service-inspection-v1`)** and console/shell items should consume these states/capabilities once available and remain correct with `unsupported`/`n/a` where not yet implemented.
+
+### Other notes
+- **`boot-profiles-feature-modes`:** v1 may proceed with boot-time gated init as specified, but should **align with and migrate to** this descriptor model/interfaces when available to avoid duplicate boot-wiring logic (see Sequencing gate).
 - **`wifi-managed-start-stop`:** may proceed **adapter-ready now** (Wi-Fi-specific lifecycle/API/persistence) but should expose hooks/capabilities/state compatible with this contract.
-- **`boot-profiles-feature-modes`:** may proceed with boot-time gated init as specified, but should **align with and migrate to** this descriptor model/interfaces when available to avoid duplicate boot-wiring logic.
-- **`optional-http-websocket-service`:** requires unified-lifecycle integration points/descriptors/capabilities for managed service representation and boot/profile control; sequence implementation so required contract/interfaces from this plan exist or are delivered in the same coordinated change. Service-specific deep teardown remains owned there except minimal contract adaptation.
+- **`optional-http-websocket-service`:** requires unified-lifecycle integration points/descriptors/capabilities for managed service representation and boot/profile control; sequence per Sequencing gate above. Service-specific deep teardown remains owned there except minimal contract adaptation.
 - Dependent observability/console/service items should consume this plan's states/capabilities once available and remain correct with `unsupported`/`n/a` where not yet implemented.
 
 ## Risks / constraints

@@ -40,6 +40,7 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 
 ## Selection, persistence, and command contract (proposed for approval)
 - **Mechanism:** NVS-persisted profile value read at boot and applied during startup.
+- **Precedence (must fix #1, 2026-11-16):** **Boot profile is highest priority at boot.** It selects the allowed service set and wiring for that boot. Service-level persisted toggles (e.g. Wi‑Fi enabled/disabled in `wifi-managed-start-stop.md`) are applied **only inside the profile’s allowed set**: in `low-memory-offline`, Wi‑Fi remains disabled regardless of any persisted “enabled” toggle; in `default`, persisted toggles may be honored only where a service item explicitly allows them. When in doubt, document the effective behavior per service in that service plan and here.
 - **Command:** `boot_profile` (shell command)
   - `boot_profile` — print stored value (or `default`/none), effective profile for next boot/current boot as applicable, and supported names.
   - `boot_profile set <profile>` — persist `default` or `low-memory-offline`; report that it takes effect on next boot/restart.
@@ -49,7 +50,7 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - **Fallback:** missing, invalid, or corrupt stored value => treat as `default` on boot (safe fallback). No automatic boot-failure rollback.
 
 ## Recovery/debug contract (v1)
-- **Required in every v1 profile:** UART/USB serial shell input/output and on-device text console remain functional; filesystem access and ability to run recovery commands/scripts (including `boot_profile` changes for next boot) remain available. Keyboard/input routing remains as available for initialized components. Console lifecycle/visibility semantics must remain consistent with [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) (source of truth).
+- **Required in every v1 profile:** UART/USB serial shell input/output and on-device text console remain functional; filesystem access and ability to run recovery commands/scripts (including `boot_profile` changes for next boot) remain available. Keyboard/input routing remains as available for initialized components. Console lifecycle/visibility semantics (including hidden/app-owned: UART/stdout forwarding and output listener callbacks stay active, console buffer/history preserved while render/touch suspended) must remain consistent with [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) (source of truth).
 - **Not in v1:** profiles that omit shell/console/UI or rely on rebuild/reflash/external-only recovery.
 
 ## Acceptance criteria / definition of done

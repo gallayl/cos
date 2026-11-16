@@ -9,7 +9,11 @@
 ## Summary
 Provide a lightweight, shell-based inspection slice for Berry runtime and core services on-device. v1 lists the active Berry UI app (or `none`), reports best-effort status for selected core connectivity services, and exposes VM-wide Berry/system memory using existing snapshot sources/labels. Graceful stop of the active UI app remains `berry close` (no new stop command, no force-kill). Requested items deferred from this slice: per-app/per-service memory attribution, service start/stop, service autostart enable/disable persistence, and multi-level/force stop semantics.
 
-**Relationship to `service-memory-budget-observability` (split & linked, 2026-11-16):** this plan owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` semantics). [`service-memory-budget-observability.md`](./service-memory-budget-observability.md) owns the dedicated cross-service memory/budget snapshot command (`svc_mem`) and before/after evidence workflow. Implementations should reuse/share read-only service-state collectors and snapshot helpers where practical to avoid duplicated logic and inconsistent labels/states; keep command roles/output contracts distinct and cross-referenced.
+**Relationship to `service-memory-budget-observability` (split & linked, 2026-11-16):** this plan owns quick operational inspection (`services`, `berry app`, existing `berry profile`/`mem` semantics). [`service-memory-budget-observability.md`](./service-memory-budget-observability.md) owns the dedicated cross-service memory/budget snapshot command (`svc_mem`) and before/after evidence workflow. Keep command roles/output contracts distinct and cross-referenced.
+
+### Shared collector contract (must fix #3, 2026-11-16)
+- **Owner (recommended):** shared read-only collectors/helpers live under the `service-memory-budget-observability` implementation scope (or a clearly named shared module) and are consumed by both `services`/`berry app` inspection and `svc_mem`. Avoid duplicating state/memory gathering logic.
+- **Vocabulary:** use identical service IDs/names, state strings, and `n/a`/unknown semantics in `services`, any Berry/app inspection surfaces, and `svc_mem` output. If a new state is needed, add it in one place and document it here and in `service-memory-budget-observability.md`.
 
 ## Feasibility (initial validation, codebase review 2026-11-16)
 
