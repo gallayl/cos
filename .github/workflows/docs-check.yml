@@ -1,6 +1,8 @@
 name: Doxygen Check
 
 on:
+  workflow_call:
+
   push:
     branches: [main]
 
