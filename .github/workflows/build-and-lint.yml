@@ -13,6 +13,9 @@ jobs:
       build-and-lint: ${{ steps.filter.outputs.build-and-lint }}
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -79,7 +82,7 @@ jobs:
           make lint
 
   required:
-    name: required
+    name: Required
     runs-on: ubuntu-latest
     if: always()
     needs:
