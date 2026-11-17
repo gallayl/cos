@@ -21,7 +21,7 @@ Gather baseline context: PR number/URL, head/base branches, draft/review state, 
 - You may pull, commit, push, and merge/rebase locally only as needed for a straightforward update, but **do not use force-push or other force operations**. Do not rewrite shared history.
 - If merge conflicts arise, attempt a careful, minimal resolution consistent with the intended change. If conflicts are risky/unclear or cannot be resolved safely, stop and report the conflicting files and what decision is needed.
 - After updating, push the branch and re-run/re-check relevant local validation when code changed.
-- Keep the **PR description up to date** with the current scope, key changes, validation status/notes, and any remaining manual steps or blockers (update via `gh pr edit` or equivalent) so it accurately reflects the PR as-is.
+- Keep the **PR description up to date** with the current scope, key changes, validation status/notes, and any remaining manual steps or blockers so it accurately reflects the PR as-is. When editing via `gh`, write the full body to a temporary markdown file and use `gh pr edit --body-file <path>` (avoid inline multi-line `--body`/heredocs that can fail or create escaping issues); use plain Markdown and verify no unintended escape sequences. Report only locally executed checks with evidence; do not list CI-covered checks as local validation unless actually run and necessary—rely on/note CI status instead.
 
 ## 3) Babysit CI (all GitHub Actions on the PR)
 
