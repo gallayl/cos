@@ -337,6 +337,122 @@ esp_err_t shell_parse_fd_redirection(const char *line, shell_fd_redirect_info_t 
     return ESP_OK;
 }
 
+static bool has_unquoted_pipe(const char *line)
+{
+    char quote = '\0';
+    for (const char *p = line; p != NULL && *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+        if (c == '|')
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool shell_pipeline_has_redirection_combo(const char *line)
+{
+    if (line == NULL || !has_unquoted_pipe(line))
+    {
+        return false;
+    }
+
+    char quote = '\0';
+    for (const char *p = line; *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+
+        if (c == '>' || (c == '2' && *(p + 1) == '>') || (c == '&' && *(p + 1) == '>'))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+esp_err_t shell_pipeline_split_two(const char *line, char *lhs, size_t lhs_len, char *rhs, size_t rhs_len)
+{
+    if (line == NULL || lhs == NULL || rhs == NULL || lhs_len == 0 || rhs_len == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char quote = '\0';
+    const char *pipe_pos = NULL;
+    for (const char *p = line; *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+        if (c == '|')
+        {
+            if (pipe_pos != NULL || *(p + 1) == '|')
+            {
+                return ESP_ERR_INVALID_ARG;
+            }
+            pipe_pos = p;
+        }
+    }
+    if (pipe_pos == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t err = copy_trimmed_span(line, pipe_pos, lhs, lhs_len);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    err = copy_trimmed_span(pipe_pos + 1, line + strlen(line), rhs, rhs_len);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    if (lhs[0] == '\0' || rhs[0] == '\0')
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return ESP_OK;
+}
+
 static bool find_redirection_op(const char *line, const char **op_out, shell_redirect_type_t *type_out)
 {
     char quote = '\0';

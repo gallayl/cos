@@ -48,6 +48,7 @@ describe('storage TypeScript scripts', () => {
       'scripts/memory',
       'scripts/nslookup',
       'scripts/ping',
+      'scripts/pipe_stdin',
       'scripts/prompt',
       'scripts/set_base',
       'scripts/time',

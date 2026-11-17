@@ -409,9 +409,7 @@ static void test_dispatch_reports_unsupported_and_invalid_pipes(void)
 {
     int ret = -1;
 
-    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi | cat", &ret));
-    TEST_ASSERT_EQUAL(1, ret);
-
+    /* Pipe + redirection combinations remain unsupported in v1. */
     ret = -1;
     TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi | cat > /flash/out.txt", &ret));
     TEST_ASSERT_EQUAL(1, ret);
@@ -427,6 +425,66 @@ static void test_dispatch_reports_unsupported_and_invalid_pipes(void)
     ret = -1;
     TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("echo hi || cat", &ret));
     TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_pipeline_split_two_and_combo_helpers(void)
+{
+    char lhs[64];
+    char rhs[64];
+
+    TEST_ASSERT_EQUAL(ESP_OK, shell_pipeline_split_two("echo hi | consumer.be", lhs, sizeof(lhs), rhs, sizeof(rhs)));
+    TEST_ASSERT_EQUAL_STRING("echo hi", lhs);
+    TEST_ASSERT_EQUAL_STRING("consumer.be", rhs);
+
+    TEST_ASSERT_TRUE(shell_pipeline_has_redirection_combo("echo hi | cat > /flash/out.txt"));
+    TEST_ASSERT_TRUE(shell_pipeline_has_redirection_combo("echo hi 2> /tmp/e | cat"));
+    TEST_ASSERT_FALSE(shell_pipeline_has_redirection_combo("echo \"a > b\" | consumer.be"));
+}
+
+static void test_dispatch_pipe_v1_unsupported_consumer_diagnostics(void)
+{
+    int ret = -1;
+
+    /* 3+ stage pipelines remain unsupported. */
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("a | b | c", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+}
+
+static void test_dispatch_pipe_v1_runs_berry_rhs_and_clears_stdin(void)
+{
+    mock_filesystem_add_file("/flash/lhs.be");
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    const esp_err_t results[] = {ESP_OK, ESP_OK};
+    const int statuses[] = {0, 7};
+    mock_berry_set_run_results(results, statuses, 2);
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("/flash/lhs.be | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(7, ret);
+    TEST_ASSERT_EQUAL(2, mock_berry_run_call_count());
+    TEST_ASSERT_EQUAL_STRING("/flash/rhs.be", mock_berry_last_path());
+    TEST_ASSERT_TRUE(mock_berry_last_piped_stdin_set_seen());
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_piped_stdin_seen());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_piped_stdin());
+}
+
+static void test_dispatch_pipe_v1_returns_rhs_status_when_lhs_nonzero(void)
+{
+    mock_filesystem_add_file("/flash/lhs.be");
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    const esp_err_t results[] = {ESP_OK, ESP_OK};
+    const int statuses[] = {3, 0};
+    mock_berry_set_run_results(results, statuses, 2);
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("/flash/lhs.be | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_EQUAL(2, mock_berry_run_call_count());
+    TEST_ASSERT_TRUE(mock_berry_last_piped_stdin_set_seen());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
 }
 
 static void test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms(void)
