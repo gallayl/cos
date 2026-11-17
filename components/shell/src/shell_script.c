@@ -516,8 +516,8 @@ static esp_err_t pipe_build_temp_path(char *out, size_t len)
     static unsigned s_pipe_seq;
     unsigned seq = ++s_pipe_seq;
     unsigned t = (unsigned)time(NULL);
-    unsigned salt = (unsigned)((uintptr_t)out ^ (uintptr_t)&s_pipe_seq ^ (t * 2654435761u));
-    int n = snprintf(out, len, "%s%04x_%u_%u.tmp", PIPE_TMP_PREFIX, salt & 0xffffu, t, seq);
+    unsigned salt = (unsigned)((uintptr_t)out ^ (uintptr_t)&s_pipe_seq ^ (t * 2654435761U));
+    int n = snprintf(out, len, "%s%04x_%u_%u.tmp", PIPE_TMP_PREFIX, salt & 0xffffU, t, seq);
     if (n < 0 || (size_t)n >= len)
     {
         return ESP_ERR_INVALID_SIZE;
@@ -735,7 +735,7 @@ static esp_err_t shell_execute_pipeline_v1(const char *lhs, const char *rhs, int
     {
         free(rhs_copy);
         free(captured);
-        if (explicit_path && err == ESP_OK && !found)
+        if (explicit_path && (err == ESP_OK) && !found)
         {
             printf("%s: script not found\n", argv[0]);
         }
