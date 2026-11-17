@@ -33,28 +33,18 @@ The 2026-11-11 DX improvement plan defines 7 workstreams (DX1–DX7) with goals,
 - **Agent structure (implemented direction):** repo now has shared `AGENTS.md` (+ nested where applicable), `.agents/skills/` layered procedures, and harness commands/adapters (see unified-agent-structure idea). DX items should **avoid duplicating** workflow/procedure docs: prefer updating canonical `AGENTS.md`, `docs/README.md`, `README.md`, Make targets/scripts, and/or focused skills only when a repeatable DX procedure is warranted. Any DX work that proposes new “how to work” procedures must stay consistent with existing skills/commands and the Ready/needs-clarification queue model.
 - **CI/tooling constraints (must respect per `AGENTS.md` and workflows):** CI-aligned checks include `make format-check`, `make test`, frontend `yarn format:check/lint/test/build`, `make build`/`make lint` in ESP-IDF v6.1 environments, `make docs-check`, and integration build/run flows (`scripts/integration_test.py`, QEMU, pinned `integration_test/requirements.txt`). ESP-IDF/QEMU/clang/Node24+Yarn requirements, multi-platform (Windows/Linux/macOS) considerations, USB/native flashing constraints, and “do not claim unrun checks” reporting rules constrain DX changes. Cache/parallelism/output changes must preserve required coverage and debuggability.
 
+## Decisions (recorded)
+- **2026-11-17 (user): Prioritization:** (A) Finish **DX1** baselines/evidence first (including integration/lint/CI/cross-platform gaps you care about), then implement performance/CI items against measured deltas.
+- **2026-11-17 (user): Granularity:** split into **separate ready items** (one per independently approvable/deliverable slice).
+- **2026-11-17 (user, explicit approval): First slice ready:** [`dx1-canonical-baseline-report.md`](../ready/dx1-canonical-baseline-report.md) — **status `ready` (approved)**, moved to `docs/plan/ready/` 2026-11-17 (pre-approved for implementation/PR flow; merge remains human). Scope: full `make lint` baseline (blocker recorded if unrunnable), integration build+run baselines for all 6 projects where feasible (build + concrete run blockers acceptable), CI timing comparison from latest representative/prefer successful `main` runs of `build-and-lint` and `integration-test`; canonical = local ESP-IDF v6.1 + GitHub Actions CI comparison; delivery = update existing `docs/reports/2026-11-11-dx1-baseline-measurements.md` + docs checks; out of scope = cross-platform (Linux/macOS) measurements, peak RAM/disk/log volume, new timing/summary tooling. Open questions: none.
+
 ## Open questions (need user decisions to triage/satisfy Ready contract)
 
-1. **Prioritization / selection:** Which DX outcomes matter most **now**? Pick one path:
-   - (A) Finish **DX1** baselines/evidence first (including integration/lint/CI/cross-platform gaps you care about), then implement performance/CI items against measured deltas.
-   - (B) Prioritize **DX3/DX4/DX7** throughput/CI quick wins (ccache in CI, safe parallel defaults, selection UX) even with partial baselines.
-   - (C) Prioritize **DX2** environment/bootstrap simplification first.
-   - (D) Prioritize **DX5/DX6** ergonomics/workflow UX.
-   - (E) Defer the whole DX umbrella for now (record rationale) and only track ad-hoc fixes elsewhere.
-   - (F) Other (specify).
-
-2. **Granularity for ready queue:** Should this be triaged into **multiple separate ready items** (recommended: one per independently approvable/deliverable slice, e.g. “Add ccache to build-and-lint CI workflow”, “Document/measure integration-test baseline in ESP-IDF+QEMU env”), or do you want a smaller number of bundled items? Which specific slices should be created first?
-
-3. **Scope decisions inherited from DX plan (per selected slice):** for each item you want promoted to ready, please provide/confirm: **scope & non-goals**, **acceptance criteria/DoD**, **validation plan** (exact commands/environments/platforms; what can/cannot be run automatically), **expected areas/files**, **dependencies/prerequisites**, **risks/constraints**, and any platform exclusions/“not yet validated on X”.
-
-4. **Key open decisions from source plan:** which choices apply to prioritized items?
-   - Python manager for repo tooling (`uv` vs `pip-tools`+venv vs status quo) and relation to `IDF_PYTHON`.
-   - Policy for `sdkconfig`, `managed_components`, `frontend/dist`, build outputs/caches: source-control, generated-only, or freshness checks (and where).
-   - Safe default parallelism for integration builds/tests on CI runners vs developer machines.
-   - “Changed-files lint”: advisory local check vs required gate.
-   - Task runner for DX6 (`just`, Taskfile, Make-only wrappers, or none).
-
-5. **Approval / Ready transition:** `plan/ready/` items must be **approved after specification**. Once we draft complete specs for selected slices with **no open questions**, will you explicitly approve (a) each slice individually and (b) moving each approved slice to `docs/plan/ready/<item-id>.md` as pre-approved for implementation/PR flow (merge remains human)? If not, I will keep items in `needs-clarification` with recorded decisions/blockers.
+### Umbrella triage (remaining)
+1. **Next slice(s):** after `dx1-canonical-baseline-report` (now in `ready/`), which DX slice(s) should be created/specified next, if any? (Separate ready item per slice.)
+2. **Scope decisions per future selected slice:** provide/confirm scope & non-goals, acceptance criteria/DoD, validation plan (exact commands/environments/platforms; what can/cannot be run automatically), expected areas/files, dependencies/prerequisites, risks/constraints, and platform exclusions/“not yet validated on X”.
+3. **Key open decisions from source plan (as applicable):** Python manager for repo tooling vs `IDF_PYTHON`; policy for `sdkconfig`/`managed_components`/`frontend/dist`/build outputs/caches; safe default parallelism for integration builds/tests (CI vs dev); “changed-files lint” advisory vs required; task runner for DX6.
+4. **Per-slice approval:** explicit approval will be requested/recorded after each future slice spec is complete with no open questions before moving it to `docs/plan/ready/` (confirm if you want to change this). If no further slices are requested now, this umbrella remains in `needs-clarification` as a triage record with remaining DX work untriaged into ready items.
 
 ## Acceptance criteria (for this triage item)
 - [ ] Pending DX work triaged: each actionable item either defined as a separate ready item in `docs/plan/ready/` with full Ready-contract fields and explicit recorded approval, or explicitly deferred/kept in `docs/plan/needs-clarification/` with open questions or blocker/deferral rationale and what would unblock it.
@@ -67,3 +57,6 @@ The 2026-11-11 DX improvement plan defines 7 workstreams (DX1–DX7) with goals,
 ## Progress / evidence
 - 2026-11-15: created (plan requires triage/clarification into ready vs needs-clarification items).
 - 2026-11-15 (clarify-feature pass): reviewed target/source/report/idea/consolidated plan, current queues, skills/adapters, and CI workflows; recorded workstream-by-workstream triage assessment, relation to implemented agent structure and CI/tooling constraints, and focused open questions/decisions needed for Ready-contract compliance. No items promoted to `ready/` (no per-slice specs + no explicit approval recorded). Status remains **needs-clarification**.
+- 2026-11-17 (clarify-feature pass, round 1): user decisions recorded — prioritize **DX1 baselines/evidence first**, first slice to fully specify = **DX1: finish baseline report in canonical env/CI** (separate ready items per slice implied). Open questions narrowed/refined for this slice (scope/env/acceptance/validation/files/deps-risks/ID+approval) and remaining umbrella triage. No item promoted to `ready/` (slice spec incomplete; no explicit approval recorded). Status remains **needs-clarification**.
+- 2026-11-17 (clarify-feature pass, round 2): user confirmed first-slice decisions and draft created at `docs/plan/needs-clarification/dx1-canonical-baseline-report.md` (later moved).
+- 2026-11-17 (clarify-feature pass, round 3): slice spec finalized with **open questions: none**; user gave **explicit approval** to mark ready/move. [`dx1-canonical-baseline-report`](../ready/dx1-canonical-baseline-report.md) set to **`ready` (approved)** and moved to `docs/plan/ready/dx1-canonical-baseline-report.md` (pre-approved for implementation/PR flow; merge remains human). Umbrella remains **needs-clarification** — remaining DX workstreams/slices not yet triaged into fully specified, approved ready items (next slices/decisions still open).
