@@ -104,6 +104,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'clear' },
       { kind: 'function', name: 'set_font_size' },
       { kind: 'function', name: 'font_size' },
+      { kind: 'function', name: 'stdin' },
     ],
   },
   {

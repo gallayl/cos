@@ -116,6 +116,15 @@ extern "C"
     /** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
     bool berry_runtime_ensure_json(struct bvm *vm);
 
+    /**
+     * Set piped stdin for the next/active Berry script execution context (R20 v1).
+     * `data` may be NULL to clear. The runtime copies/clones as needed for script lifetime.
+     */
+    void berry_runtime_set_piped_stdin(const char *data);
+
+    /** Clear piped stdin after script execution. */
+    void berry_runtime_clear_piped_stdin(void);
+
 #ifdef __cplusplus
 }
 #endif

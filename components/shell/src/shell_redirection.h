@@ -99,6 +99,17 @@ extern "C"
     esp_err_t shell_parse_pipeline(const char *line, shell_pipeline_info_t *out);
 
     /**
+     * Split a 2-segment pipeline line into left and right command strings.
+     * Trims surrounding ASCII whitespace from each segment. Returns ESP_OK on
+     * success, ESP_ERR_INVALID_ARG if not a valid 2-segment split, or
+     * ESP_ERR_INVALID_SIZE if buffers are too small.
+     */
+    esp_err_t shell_pipeline_split_two(const char *line, char *lhs, size_t lhs_len, char *rhs, size_t rhs_len);
+
+    /** True if the line contains an unquoted pipe and an unquoted redirection operator. */
+    bool shell_pipeline_has_redirection_combo(const char *line);
+
+    /**
      * Detect unquoted stderr/FD/combined redirection syntax (2>, 2>>, &>, &>>).
      * Retained for compatibility; runtime-supported forms are parsed by
      * shell_parse_redirection().
@@ -111,7 +122,11 @@ extern "C"
      * Best-effort fd/stdio redirection: captures output written to redirected
      * stdio streams/fds; ESP log routing may differ by target/config.
      * On success, call shell_redirect_end() to restore streams.
+     * When quiet is true, suppress user-facing diagnostic prints on setup failure.
      */
+    esp_err_t shell_redirect_begin_quiet(const shell_redirection_t *redir, shell_redirect_state_t *state, bool quiet);
+
+    /** Convenience wrapper for shell_redirect_begin_quiet(..., false). */
     esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state);
 
     /** Restore redirected streams after shell_redirect_begin(). Safe to call if inactive. */

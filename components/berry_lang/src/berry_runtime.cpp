@@ -733,6 +733,27 @@ int native_console_font_size(bvm *vm)
     be_return(vm);
 }
 
+std::string s_piped_stdin;
+bool s_piped_stdin_set = false;
+
+int native_console_stdin(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        push_console_status(vm, ESP_ERR_INVALID_ARG);
+        be_return(vm);
+    }
+
+    if (!s_piped_stdin_set)
+    {
+        be_pushnil(vm);
+        be_return(vm);
+    }
+
+    be_pushstring(vm, s_piped_stdin.c_str());
+    be_return(vm);
+}
+
 int native_fs_list(bvm *vm)
 {
     char resolved[VFS_PATH_MAX];
@@ -1104,6 +1125,7 @@ static bntvmodobj_t const kConsoleAttrs[] = {
     be_native_module_function("clear", native_console_clear),
     be_native_module_function("set_font_size", native_console_set_font_size),
     be_native_module_function("font_size", native_console_font_size),
+    be_native_module_function("stdin", native_console_stdin),
 };
 } // namespace
 // NOLINTNEXTLINE(readability-identifier-naming) - Berry native module symbol required by runtime/module table
@@ -2369,4 +2391,24 @@ extern "C" esp_err_t berry_runtime_set_gc_step_rate(int rate)
     ESP_LOGI(TAG, "Berry GC step rate set to %d (default %d); use only for R5 experiments until benchmarked", rate,
              BERRY_GC_STEP_RATE_DEFAULT);
     return ESP_OK;
+}
+
+extern "C" void berry_runtime_set_piped_stdin(const char *data)
+{
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    if (data == nullptr)
+    {
+        s_piped_stdin.clear();
+        s_piped_stdin_set = false;
+        return;
+    }
+    s_piped_stdin = data;
+    s_piped_stdin_set = true;
+}
+
+extern "C" void berry_runtime_clear_piped_stdin(void)
+{
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    s_piped_stdin.clear();
+    s_piped_stdin_set = false;
 }

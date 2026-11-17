@@ -103,6 +103,24 @@ target_include_directories(system_logic PUBLIC
 )
 target_link_libraries(system_logic PRIVATE mock_esp)
 
+# --- Library: service_diagnostics ---
+add_library(service_diagnostics_logic STATIC
+    ${COMPONENT_DIR}/components/service_diagnostics/src/service_diagnostics.c
+)
+target_include_directories(service_diagnostics_logic PUBLIC
+    ${COMPONENT_DIR}/components/service_diagnostics/include
+    ${COMPONENT_DIR}/components/system/include
+    ${COMPONENT_DIR}/components/berry_lang/include
+    ${COMPONENT_DIR}/components/network/include
+    ${COMPONENT_DIR}/components/wifi/include
+    ${COMPONENT_DIR}/components/bluetooth/include
+    ${COMPONENT_DIR}/components/text_console/include
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/input/include
+    mocks
+)
+target_link_libraries(service_diagnostics_logic PRIVATE mock_esp)
+
 # --- Library: shell_logic ---
 add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell.c
@@ -125,7 +143,7 @@ target_include_directories(shell_logic PUBLIC
     ${COMPONENT_DIR}/components/network/include
     mocks
 )
-target_link_libraries(shell_logic PRIVATE mock_esp system_logic vfs_path)
+target_link_libraries(shell_logic PRIVATE mock_esp system_logic vfs_path service_diagnostics_logic)
 
 # --- Test: calibration_storage ---
 add_executable(test_calibration_storage test_calibration_storage.c)
@@ -564,3 +582,12 @@ target_include_directories(test_service_lifecycle PRIVATE
 )
 target_link_libraries(test_service_lifecycle PRIVATE unity service_lifecycle_logic)
 add_test(NAME test_service_lifecycle COMMAND test_service_lifecycle)
+
+# --- Test: service_diagnostics ---
+add_executable(test_service_diagnostics test_service_diagnostics.c)
+target_include_directories(test_service_diagnostics PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/service_diagnostics/include
+)
+target_link_libraries(test_service_diagnostics PRIVATE unity service_diagnostics_logic system_logic mock_esp)
+add_test(NAME test_service_diagnostics COMMAND test_service_diagnostics)
