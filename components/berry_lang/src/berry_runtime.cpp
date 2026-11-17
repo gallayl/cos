@@ -2086,6 +2086,7 @@ static std::vector<AsyncTimerEntry> s_async_timers;
 static std::vector<AsyncMicrotaskEntry> s_async_microtasks;
 static int s_async_next_callback = 0;
 static bool s_async_tearing_down = false;
+static bool s_async_settlement_in_progress = false;
 
 static std::string async_callback_name(int id)
 {
@@ -2124,9 +2125,9 @@ static void async_log_error(const char *prefix, const char *detail)
     ESP_LOGE(TAG, "%s: %s", prefix != nullptr ? prefix : "async", detail != nullptr ? detail : "unknown");
 }
 
-static bool async_call_cb(int id, int argc, bool push_nil_arg, const char *str_arg)
+static bool async_call_cb(int id, int argc, bool push_nil_arg, const char *str_arg, bool allow_during_teardown = false)
 {
-    if (s_vm == nullptr || id < 0 || s_async_tearing_down)
+    if (s_vm == nullptr || id < 0 || (s_async_tearing_down && !allow_during_teardown))
     {
         return false;
     }
@@ -2182,25 +2183,46 @@ static void async_clear_all_state(bool reject_pending)
     s_async_timers.clear();
     s_async_microtasks.clear();
 
-    // Prevent normal pump/drain from running while we settle and clear state.
+    // Prevent normal pump/drain and new async scheduling from surviving teardown.
     s_async_tearing_down = true;
+    s_async_settlement_in_progress = true;
 
     if (reject_pending)
     {
         // Deterministically settle pending timer-backed promises with cancellation.
-        // Callbacks are invoked during teardown settlement (VM still valid, runtime lock held);
-        // no user callbacks run after this function completes.
+        // Callbacks run while scheduling admission is blocked; purge any work they schedule.
         for (const auto &t : timers)
         {
             if (t.reject_id >= 0)
             {
-                // Temporarily allow this controlled settlement call.
-                s_async_tearing_down = false;
-                async_call_cb(t.reject_id, 1, false, ASYNC_ERR_CANCELLED);
-                s_async_tearing_down = true;
+                async_call_cb(t.reject_id, 1, false, ASYNC_ERR_CANCELLED, true);
             }
             async_remove_callback(t.resolve_id);
             async_remove_callback(t.reject_id);
+        }
+
+        // Drop any timers/microtasks scheduled during cancellation settlement and
+        // deterministically settle timer-backed promises to avoid post-teardown survivors.
+        while (!s_async_timers.empty() || !s_async_microtasks.empty())
+        {
+            auto nested_timers = std::move(s_async_timers);
+            auto nested_micros = std::move(s_async_microtasks);
+            s_async_timers.clear();
+            s_async_microtasks.clear();
+
+            for (const auto &nt : nested_timers)
+            {
+                if (nt.reject_id >= 0)
+                {
+                    async_call_cb(nt.reject_id, 1, false, ASYNC_ERR_CANCELLED, true);
+                }
+                async_remove_callback(nt.resolve_id);
+                async_remove_callback(nt.reject_id);
+            }
+            for (const auto &nm : nested_micros)
+            {
+                async_remove_callback(nm.callback_id);
+            }
         }
     }
     else
@@ -2210,18 +2232,16 @@ static void async_clear_all_state(bool reject_pending)
             async_remove_callback(t.resolve_id);
             async_remove_callback(t.reject_id);
         }
+        for (const auto &m : micros)
+        {
+            async_remove_callback(m.callback_id);
+        }
+        // Clear any unexpected leftovers defensively.
+        s_async_timers.clear();
+        s_async_microtasks.clear();
     }
 
-    // Queued microtasks cannot run after teardown; drop references and free callback globals.
-    // (No safe bounded way to settle arbitrary pending continuations here without re-entering drain.)
-    for (const auto &m : micros)
-    {
-        async_remove_callback(m.callback_id);
-    }
-
-    // Leave teardown guard active for remainder of app teardown/reset path in caller context;
-    // caller/next init/pump cycle will clear as appropriate via new runtime state.
-    // Reset flag now that queues/globals are cleared and no further callbacks will be invoked.
+    s_async_settlement_in_progress = false;
     s_async_tearing_down = false;
 }
 
@@ -2239,6 +2259,7 @@ static void async_pump_locked()
 
     const int64_t now = esp_timer_get_time();
     std::vector<AsyncTimerEntry> remaining;
+    std::vector<int> overflow_reject_ids;
     remaining.reserve(s_async_timers.size());
     for (auto &t : s_async_timers)
     {
@@ -2252,12 +2273,16 @@ static void async_pump_locked()
         {
             if (s_async_microtasks.size() >= ASYNC_MAX_MICROTASKS_PER_DRAIN)
             {
-                // Fail fast without invoking user callbacks synchronously inside pump/mutation.
-                // Deterministic overflow is logged; timer callbacks are released (no silent drop of
-                // the event detection/log, but settlement callback cannot be safely delivered here).
+                // Deterministic overflow: settle timer-backed promise with queue-limit error
+                // after scan/mutation completes (no synchronous callback inside timer-list mutation).
                 async_log_error("Async queue overflow", "due timer could not be enqueued (ASYNC_ERR_QUEUE_LIMIT)");
+                if (t.reject_id >= 0)
+                {
+                    overflow_reject_ids.push_back(t.reject_id);
+                }
                 async_remove_callback(t.resolve_id);
-                async_remove_callback(t.reject_id);
+                t.resolve_id = -1;
+                t.reject_id = -1;
             }
             else
             {
@@ -2272,6 +2297,13 @@ static void async_pump_locked()
         remaining.push_back(t);
     }
     s_async_timers.swap(remaining);
+
+    // Post-mutation deterministic settlement for overflowed due timers.
+    for (const int reject_id : overflow_reject_ids)
+    {
+        async_call_cb(reject_id, 1, false, ASYNC_ERR_QUEUE_LIMIT);
+        async_remove_callback(reject_id);
+    }
 
     size_t drained = 0;
     while (drained < ASYNC_MAX_MICROTASKS_PER_DRAIN && !s_async_microtasks.empty() && !s_async_tearing_down)
@@ -2308,6 +2340,11 @@ static void berry_runtime_combined_tick(void)
 // Native: cos_async_enqueue(fn) -> bool
 static int native_cos_async_enqueue(bvm *vm)
 {
+    if (s_async_tearing_down || s_async_settlement_in_progress)
+    {
+        be_pushbool(vm, 0);
+        be_return(vm);
+    }
     if (be_top(vm) < 1 || !be_isfunction(vm, 1))
     {
         be_pushbool(vm, 0);
@@ -2328,6 +2365,21 @@ static int native_cos_async_enqueue(bvm *vm)
 // Native: cos_async_sleep(ms, resolve, reject) -> map {ok, tag?}
 static int native_cos_async_sleep(bvm *vm)
 {
+    if (s_async_tearing_down || s_async_settlement_in_progress)
+    {
+        async_log_error("Async timer rejected", "sleep rejected during teardown");
+        be_newobject(vm, "map");
+        be_pushstring(vm, "ok");
+        be_pushbool(vm, 0);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pushstring(vm, "tag");
+        be_pushstring(vm, ASYNC_ERR_CANCELLED);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pop(vm, 1);
+        be_return(vm);
+    }
     if (be_top(vm) < 3 || !be_isint(vm, 1) || !be_isfunction(vm, 2) || !be_isfunction(vm, 3))
     {
         be_newobject(vm, "map");
