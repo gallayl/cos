@@ -114,4 +114,4 @@ When hardware measurements are captured, append: date/commit/profile, capture ta
 - R8: [`docs/reports/2026-11-08-r8-http-stack-tls-measurement-guide.md`](./2026-11-08-r8-http-stack-tls-measurement-guide.md), [`docs/reports/2026-11-09-r8-followups-https-heap.md`](./2026-11-09-r8-followups-https-heap.md)
 - Console semantics: [`docs/plan/done/text-console-memory-lifecycle.md`](../plan/done/text-console-memory-lifecycle.md)
 - Complementary inspection: [`docs/plan/done/berry-runtime-service-inspection-v1.md`](../plan/done/berry-runtime-service-inspection-v1.md)
-- Shared lifecycle: [`docs/plan/ready/unified-service-lifecycle.md`](../plan/ready/unified-service-lifecycle.md)
+- Shared lifecycle: [`docs/plan/done/unified-service-lifecycle.md`](../plan/done/unified-service-lifecycle.md)
