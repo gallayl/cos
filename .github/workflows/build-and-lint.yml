@@ -76,3 +76,29 @@ jobs:
           . $IDF_PATH/export.sh
           export TIDY_COMPILE_COMMANDS=build/clang/compile_commands.json
           make lint
+
+  required:
+    name: required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - build-and-lint
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BUILD_AND_LINT_RESULT: ${{ needs.build-and-lint.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$BUILD_AND_LINT_RESULT" != "success" &&
+                "$TESTS_RESULT" != "skipped" ]]; then
+            echo "Intensive tests failed: $TESTS_RESULT"
+            exit 1
+          fi
+
+          echo "All required CI checks passed"

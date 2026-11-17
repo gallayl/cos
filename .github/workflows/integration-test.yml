@@ -200,3 +200,27 @@ jobs:
           PY
         env:
           SUITE: ${{ matrix.suite }}
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - integration-test
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          INTEGRATION_TEST: ${{ needs.integration-test.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$INTEGRATION_TEST" != "success" &&
+                "$INTEGRATION_TEST" != "skipped" ]]; then
+            echo "Integration test failed: $INTEGRATION_TEST"
+            exit 1
+          fi

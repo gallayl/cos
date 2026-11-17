@@ -54,3 +54,24 @@ jobs:
 
       - name: Build
         run: yarn build
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND: ${{ needs.check.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$FRONTEND" != "success" &&
+                "$FRONTEND" != "skipped" ]]; then
+            echo "Frontend check failed: $FRONTEND"
+            exit 1
+          fi

@@ -48,3 +48,24 @@ jobs:
 
       - name: Run tests
         run: make test
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TESTS_RESULT: ${{ needs.test.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$TESTS_RESULT" != "success" &&
+                "$TESTS_RESULT" != "skipped" ]]; then
+            echo "Unit tests failed: $TESTS_RESULT"
+            exit 1
+          fi

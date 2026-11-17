@@ -38,3 +38,24 @@ jobs:
 
       - name: Check formatting
         run: make format-check
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FORMAT_CHECK: ${{ needs.format-check.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$FORMAT_CHECK" != "success" &&
+                "$FORMAT_CHECK" != "skipped" ]]; then
+            echo "Format check failed: $FORMAT_CHECK"
+            exit 1
+          fi

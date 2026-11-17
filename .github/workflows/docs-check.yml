@@ -37,3 +37,26 @@ jobs:
 
       - name: Check documentation
         run: make docs-check
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Set environment variables
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_CHECK: ${{ needs.docs-check.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+
+          if [[ "$TESTS_RESULT" != "success" &&
+                "$TESTS_RESULT" != "skipped" ]]; then
+            echo "Intensive tests failed: $TESTS_RESULT"
+            exit 1
+          fi
+
+          echo "All required CI checks passed"
