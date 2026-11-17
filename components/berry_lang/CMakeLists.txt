@@ -27,6 +27,18 @@ if(NOT BERRY_CHECKOUT_RESULT EQUAL 0)
     message(FATAL_ERROR "Failed to check out Berry ${BERRY_REVISION}: ${BERRY_CHECKOUT_ERROR}")
 endif()
 
+# COS patch: avoid strict-aliasing UB/error in pinned upstream be_byteslib.c (m_getfloat).
+set(_cos_be_byteslib "${COS_BERRY_SOURCE_DIR}/src/be_byteslib.c")
+if(EXISTS "${_cos_be_byteslib}")
+    file(READ "${_cos_be_byteslib}" _cos_be_byteslib_content)
+    string(REPLACE "            ret_f = *(float*) &ret_i;"
+                   "            union { uint32_t u; float f; } _cos_u; _cos_u.u = (uint32_t)ret_i; ret_f = _cos_u.f;"
+                   _cos_be_byteslib_patched "${_cos_be_byteslib_content}")
+    if(NOT _cos_be_byteslib_patched STREQUAL _cos_be_byteslib_content)
+        file(WRITE "${_cos_be_byteslib}" "${_cos_be_byteslib_patched}")
+    endif()
+endif()
+
 execute_process(
     COMMAND git -C "${COS_BERRY_SOURCE_DIR}" rev-parse HEAD
     RESULT_VARIABLE BERRY_REVISION_RESULT

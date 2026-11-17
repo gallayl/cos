@@ -305,7 +305,7 @@ extern "C" void display_end_write(void)
     lcd().endWrite();
 }
 
-extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg)
+extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg)
 {
     if (!row_sprite_ready)
     {
@@ -317,14 +317,14 @@ extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *
         {
             row_sprite_ready = false;
             ESP_LOGE(TAG, "Failed to create row sprite");
-            return;
+            return false;
         }
         row_sprite_ready = true;
     }
 
     if (chars == NULL || fg == NULL || count <= 0)
     {
-        return;
+        return false;
     }
 
     const int font_w = 6 * static_cast<int>(s_text_size);
@@ -336,6 +336,7 @@ extern "C" void display_draw_text_row(int y, const char *chars, const uint16_t *
         row_sprite().write(static_cast<uint8_t>(chars[i]));
     }
     row_sprite().pushSprite(0, y);
+    return true;
 }
 
 extern "C" void display_wait(void)

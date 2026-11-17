@@ -120,8 +120,10 @@ static void render_dirty(void)
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
-            display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR);
-            text_buffer_clear_row_dirty(&s_buf, r);
+            if (display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR))
+            {
+                text_buffer_clear_row_dirty(&s_buf, r);
+            }
         }
         dirty &= dirty - 1;
     }

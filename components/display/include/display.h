@@ -109,8 +109,9 @@ extern "C"
      * @param fg     Array of per-character foreground colors (RGB565, count elements).
      * @param count  Number of characters in the row.
      * @param bg     Background color (RGB565).
+     * @return true on success, false if the sprite could not be created or input is invalid.
      */
-    void display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
+    bool display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
 
     /** Wait for all pending display DMA transfers to complete. */
     void display_wait(void);

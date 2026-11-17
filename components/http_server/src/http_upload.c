@@ -28,7 +28,8 @@ static void upload_field_cb(const char *name, const char *value, void *ctx)
         char sanitized[VFS_PATH_MAX];
         if (http_sanitize_upload_path(value, sanitized, sizeof(sanitized)) == ESP_OK)
         {
-            strncpy(uctx->target_path, sanitized, sizeof(uctx->target_path) - 1);
+            snprintf(uctx->target_path, sizeof(uctx->target_path), "%.*s", (int)(sizeof(uctx->target_path) - 1),
+                     sanitized);
             uctx->has_path = true;
         }
         else
@@ -60,7 +61,7 @@ static bool upload_file_cb(const char *field_name, const char *file_name, const 
             snprintf(uctx->error, sizeof(uctx->error), "Path resolution failed");
             return false;
         }
-        strncpy(uctx->target_path, real_path, sizeof(uctx->target_path) - 1);
+        snprintf(uctx->target_path, sizeof(uctx->target_path), "%.*s", (int)(sizeof(uctx->target_path) - 1), real_path);
 
         /* Create parent directories on the resolved real path. */
         char parent[VFS_PATH_MAX];

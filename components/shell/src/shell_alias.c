@@ -164,11 +164,11 @@ static int cmd_alias(int argc, char **argv)
             return 1;
         }
         index = (int)s_alias_count;
-        strncpy(updated[index].name, argv[1], sizeof(updated[index].name) - 1);
-        updated[index].name[sizeof(updated[index].name) - 1] = '\0';
+        snprintf(updated[index].name, sizeof(updated[index].name), "%.*s", (int)(sizeof(updated[index].name) - 1),
+                 argv[1]);
     }
-    strncpy(updated[index].command, argv[2], sizeof(updated[index].command) - 1);
-    updated[index].command[sizeof(updated[index].command) - 1] = '\0';
+    snprintf(updated[index].command, sizeof(updated[index].command), "%.*s", (int)(sizeof(updated[index].command) - 1),
+             argv[2]);
 
     esp_err_t err = save_aliases(updated, index == (int)s_alias_count ? s_alias_count + 1 : s_alias_count);
     if (err != ESP_OK)
@@ -290,8 +290,10 @@ esp_err_t shell_alias_init(void)
                                          // readability-simplify-boolean-expr) - preserve existing behavior/types
                 (s_alias_count < ALIAS_MAX) && (find_alias(s_aliases, s_alias_count, line) < 0))
             {
-                strncpy(s_aliases[s_alias_count].name, line, sizeof(s_aliases[0].name) - 1);
-                strncpy(s_aliases[s_alias_count].command, command, sizeof(s_aliases[0].command) - 1);
+                snprintf(s_aliases[s_alias_count].name, sizeof(s_aliases[0].name), "%.*s",
+                         (int)(sizeof(s_aliases[0].name) - 1), line);
+                snprintf(s_aliases[s_alias_count].command, sizeof(s_aliases[0].command), "%.*s",
+                         (int)(sizeof(s_aliases[0].command) - 1), command);
                 s_alias_count++;
             }
             else

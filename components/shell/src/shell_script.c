@@ -140,8 +140,7 @@ static void load_path_config(void)
             if (normalize_path_dir(line, normalized, sizeof(normalized)) == ESP_OK && normalized[0] == '/' &&
                 find_path_entry(normalized) < 0)
             {
-                strncpy(s_path_dirs[s_path_count], normalized, VFS_PATH_MAX - 1);
-                s_path_dirs[s_path_count][VFS_PATH_MAX - 1] = '\0';
+                snprintf(s_path_dirs[s_path_count], VFS_PATH_MAX, "%.*s", VFS_PATH_MAX - 1, normalized);
                 s_path_count++;
             }
             else
@@ -226,8 +225,7 @@ static int cmd_path(int argc, char **argv)
         char saved[PATH_MAX_ENTRIES][VFS_PATH_MAX];
         size_t saved_count = s_path_count;
         memcpy(saved, s_path_dirs, sizeof(saved));
-        strncpy(s_path_dirs[s_path_count], normalized, VFS_PATH_MAX - 1);
-        s_path_dirs[s_path_count][VFS_PATH_MAX - 1] = '\0';
+        snprintf(s_path_dirs[s_path_count], VFS_PATH_MAX, "%.*s", VFS_PATH_MAX - 1, normalized);
         s_path_count++;
         err = save_path_config();
         if (err != ESP_OK)
@@ -362,8 +360,7 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
         !vfs_is_directory(candidate)) // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr)
                                       // - preserve existing behavior/types
     {
-        strncpy(resolved, candidate, len - 1);
-        resolved[len - 1] = '\0';
+        snprintf(resolved, len, "%.*s", (int)(len - 1), candidate);
         *found = true;
         return ESP_OK;
     }
@@ -381,8 +378,7 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
             {
                 continue;
             }
-            strncpy(resolved, candidate, len - 1);
-            resolved[len - 1] = '\0';
+            snprintf(resolved, len, "%.*s", (int)(len - 1), candidate);
             *found = true;
             return ESP_OK;
         }
@@ -398,8 +394,7 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
     if (vfs_exists(candidate) &&
         !vfs_is_directory(candidate)) // NOLINT(readability-implicit-bool-conversion, readability-simplify-boolean-expr)
     {
-        strncpy(resolved, candidate, len - 1);
-        resolved[len - 1] = '\0';
+        snprintf(resolved, len, "%.*s", (int)(len - 1), candidate);
         *found = true;
         return ESP_OK;
     }
@@ -549,10 +544,8 @@ static esp_err_t pipe_capture_lhs_default(const char *lhs, char **out_data, size
     shell_redirection_t redir;
     memset(&redir, 0, sizeof(redir));
     redir.type = SHELL_REDIRECT_TRUNCATE;
-    strncpy(redir.command, lhs, sizeof(redir.command) - 1);
-    redir.command[sizeof(redir.command) - 1] = '\0';
-    strncpy(redir.target, temp_virtual, sizeof(redir.target) - 1);
-    redir.target[sizeof(redir.target) - 1] = '\0';
+    snprintf(redir.command, sizeof(redir.command), "%.*s", (int)(sizeof(redir.command) - 1), lhs);
+    snprintf(redir.target, sizeof(redir.target), "%.*s", (int)(sizeof(redir.target) - 1), temp_virtual);
 
     shell_redirect_state_t state;
     err = shell_redirect_begin_quiet(&redir, &state, true);
