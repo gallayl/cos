@@ -1,7 +1,7 @@
 # R22 M4 — Migrate `time` command to Berry script (read-only view)
 
 - **ID:** r22-m4-time-read-only
-- **Status:** done (delivered; PR #39 ready for review, pending human review/merge)
+- **Status:** done (delivered, merged; PR [#39](https://github.com/gallayl/cos/pull/39) merged 2026-11-16)
 - **Created:** 2026-11-15
 - **Ready:** 2026-11-15
 - **Delivered:** 2026-11-16
@@ -84,4 +84,4 @@ Migrate the read-only shell `time` command to a Berry command script backed by a
 - 2026-11-16 (delivery, PR [#39](https://github.com/gallayl/cos/pull/39)): PR opened/updated; required PR GitHub Actions checks **green** (Build & Lint, Doxygen Check, Format Check, Frontend, Unit Tests, Integration Tests suite all SUCCESS as checked via `gh pr view/checks`). Item moved from `docs/plan/ready/` to `docs/plan/done/` as **delivered** (implementation complete, evidence recorded) — **not merged** (human review/approval/merge pending).
 - 2026-11-16 (on-device validation): user confirmed on-device spot-check passed for the migrated `time` command/sync-native behavior (detailed command/output log not captured in-repo). PR marked ready for review.
 - 2026-11-17 (user-provided serial capture, R2; see `docs/reports/2026-11-17-hardware-validation-session-captures.md`): detailed in-repo capture recorded in synced state showing `time`, `time utc`, `time epoch`, unknown-arg fallthrough (`time foo` -> full status), and `system.time_info()` (`ok/synced/epoch/utc/local`) with expected fields/behavior. Formatting-failure path not reproduced (N/A in capture); firmware commit/build identity not recorded. Supports M4 parity/API evidence in captured state.
-- **Remaining:** human review/approval and merge.
+- **Remaining:** none for merge. Commit/build identity not recorded in on-device capture (R2, 2026-11-17).
