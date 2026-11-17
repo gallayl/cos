@@ -1,7 +1,7 @@
 ﻿# Bound HTTP upload memory usage
 
 - **ID:** http-upload-memory-bounds
-- **Status:** needs-clarification (approved spec, **implementation blocked pending measure-and-lock** for dependent work)
+- **Status:** needs-clarification (approved spec, **implementation blocked pending measure-and-lock** for dependent work; clarification in progress 2026-11-17)
 - **Created:** 2026-11-16
 - **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `components/http_server/src/http_upload.c:147-197`, `components/http_server/src/http_multipart.c:7-9`, `components/http_server/src/http_multipart.c:122-136`, `components/http_server/src/http_multipart.c:306-310`.
 - **Approval:** approved (user approved 2026-11-16)
@@ -70,7 +70,8 @@ Exact status choices for ambiguous cases, JSON field names/values/messages, and 
 - Device heap fragmentation can make peak contiguous allocation the limiting factor.
 
 ## Open questions
-- None (decisions recorded 2026-11-16).
+- **Resolved (2026-11-17, user):** Q1 = **split M1 evidence work** into a separate ready item [`../ready/http-upload-measure-and-lock.md`](../ready/http-upload-measure-and-lock.md). Q2 = **Hardware + QEMU** for M1 evidence. Q3 = **M1 proposes JSON schema** (exact statuses/fields/values/messages) for approval alongside measurements.
+- **Blocker (split):** This item remains **needs-clarification / not implementable now** for bounds/behavior implementation until [`../ready/http-upload-measure-and-lock.md`](../ready/http-upload-measure-and-lock.md) completes and records locked results (threshold, buffer decision, parser-correctness cases/tests, and exact rejection/abort/error contract) in its dated report and cross-links them here. Once M1 evidence is recorded and this spec is updated to reference the locked values/contract, re-clarify/approve and move this item to `ready` only if no open questions/blockers remain.
 
 ## Decisions / resolved questions
 - [x] What upload size/request patterns must be supported on device? **A (decided 2026-11-16):** single file upload, typical < 64 KB (config/scripts). Reject larger with a clear JSON error and documented limit.
@@ -86,3 +87,5 @@ Exact status choices for ambiguous cases, JSON field names/values/messages, and 
 - 2026-11-16 (review follow-up): documented implementation order/dependency — **upload bounds first/shared contract** for core HTTP/WS stop and R24 shared upload paths; hardware validation wording clarified (required when available, otherwise blocker).
 - 2026-11-16 (review follow-up 2): added explicit measure-and-lock prerequisite milestone and locked upload rejection/abort contract table structure (status/JSON-shape/cleanup/owner cases) as shared contract for core stop and R24; concrete threshold/buffer values and exact JSON fields to be measured/locked and recorded before dependents rely on them. No implementation/validation yet.
 - 2026-11-16 (review follow-up 3): kept plan in `ready/` but marked **implementation blocked for dependent work** until Milestone 1 measure-and-lock is completed and recorded (locked values/contract evidence required). No implementation/validation yet.
+- 2026-11-17 (clarify-feature session): reviewed item in `needs-clarification/` (matches consolidated plan/docs state). Identified remaining blocker/gaps: M1 measure-and-lock evidence and concrete locked contract values/fields are not recorded, so item is not implementable now and cannot satisfy Ready contract. Added explicit open questions; awaiting user decisions (no implementation/validation performed).
+- 2026-11-17 (clarify-feature session, user answers): decided to **split M1 evidence work** into [`../ready/http-upload-measure-and-lock.md`](../ready/http-upload-measure-and-lock.md). M1 evidence environment: **Hardware + QEMU**. M1 to **propose JSON schema** (statuses/fields/values/messages) for approval with measurements. M1 was specified and explicitly approved by user, then moved to `ready` (implementable now as instrumentation/tests/procedure/report work; captures recorded when environments available). Parent bounds implementation remains blocked in `needs-clarification` until M1 results are recorded/locked and cross-linked; not moved to `ready`. No implementation/validation performed.
