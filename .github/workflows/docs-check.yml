@@ -2,16 +2,21 @@ name: Doxygen Check
 
 on:
   push:
+    branches: [main]
     paths:
       - "docs/**"
       - "**/*.md"
       - "Doxyfile*"
+      - "components/**"
+      - "main/**"
       - ".github/workflows/docs-check.yml"
   pull_request:
     paths:
       - "docs/**"
       - "**/*.md"
       - "Doxyfile*"
+      - "components/**"
+      - "main/**"
       - ".github/workflows/docs-check.yml"
 
 jobs:
