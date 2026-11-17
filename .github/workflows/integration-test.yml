@@ -3,8 +3,27 @@ name: Integration Tests
 on:
   push:
     branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "integration_test/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - "sdkconfig*"
+      - "partitions.csv"
+      - ".github/workflows/integration-test.yml"
   pull_request:
-    branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "integration_test/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - "sdkconfig*"
+      - "partitions.csv"
+      - ".github/workflows/integration-test.yml"
 
 jobs:
   integration-test:

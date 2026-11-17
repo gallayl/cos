@@ -3,8 +3,27 @@ name: Build & Lint
 on:
   push:
     branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - "sdkconfig*"
+      - "partitions.csv"
+      - ".clang-tidy"
+      - ".github/workflows/build-and-lint.yml"
   pull_request:
-    branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - "sdkconfig*"
+      - "partitions.csv"
+      - ".clang-tidy"
+      - ".github/workflows/build-and-lint.yml"
 
 jobs:
   build-and-lint:

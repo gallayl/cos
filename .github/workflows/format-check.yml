@@ -3,8 +3,23 @@ name: Format Check
 on:
   push:
     branches: [main]
+    paths:
+      - "**/*.c"
+      - "**/*.h"
+      - "**/*.cpp"
+      - "**/*.hpp"
+      - "**/*.cc"
+      - ".clang-format"
+      - ".github/workflows/format-check.yml"
   pull_request:
-    branches: [main]
+    paths:
+      - "**/*.c"
+      - "**/*.h"
+      - "**/*.cpp"
+      - "**/*.hpp"
+      - "**/*.cc"
+      - ".clang-format"
+      - ".github/workflows/format-check.yml"
 
 jobs:
   format-check:
