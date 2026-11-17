@@ -92,7 +92,13 @@ When hardware measurements are captured, append: date/commit/profile, capture ta
 - M1 shared diagnostics contract artifact: `components/service_diagnostics/include/service_diagnostics.h`, `components/service_diagnostics/src/service_diagnostics.c`, `components/service_diagnostics/CMakeLists.txt`.
 - M2 `svc_mem` command: `components/shell/src/shell_info_cmds.c` (`cmd_svc_mem`, `esp_console_cmd_register`), `components/shell/CMakeLists.txt` wiring; grouped on-demand report via `service_diag_print_svc_mem()`.
 - Host test: `test/test_service_diagnostics.c` (+ wiring) for canonical vocabulary/helpers and snapshot/collect behavior under host mocks.
-- Prior recorded automated checks (from item progress, pre-fix/post-fix context on implementation branch/history): `make format` pass, `make format-check` pass, `make test` pass (CTest incl. `test_service_diagnostics`, Python scripts unittest), `make docs-check` pass. **This M3 docs-only change:** see PR/commit validation evidence for checks executed in this run (reported per `AGENTS.md`; do not claim unrun checks).
+- Prior recorded automated checks (from item progress, pre-fix/post-fix context on implementation branch/history): `make format` pass, `make format-check` pass, `make test` pass (CTest incl. `test_service_diagnostics`, Python scripts unittest), `make docs-check` pass.
+
+**Automated checks executed locally for this M3 docs-only change (`feat/svc-mem-m3-evidence`, docs/report/plan updates only):**
+- `make format-check` — **pass** (RC=0)
+- `make test` — **pass** (RC=0; CTest **29/29 passed**, Python `scripts` unittest **3/3 OK**)
+
+**Not run in this session:** `make build`, `make lint` (ESP-IDF v6.1 / clang-tidy environment not verified), `make docs-check`, integration/QEMU, frontend checks (no frontend/firmware code changes). Do not claim these as pass.
 
 ### Hardware/manual validation (required when available; not executed in this environment)
 
