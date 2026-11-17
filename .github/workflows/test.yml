@@ -2,9 +2,23 @@ name: Unit Tests
 
 on:
   push:
-    branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "test/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - ".github/workflows/test.yml"
   pull_request:
-    branches: [main]
+    paths:
+      - "components/**"
+      - "main/**"
+      - "test/**"
+      - "CMakeLists.txt"
+      - "Makefile"
+      - "**/CMakeLists.txt"
+      - ".github/workflows/test.yml"
 
 jobs:
   test:
