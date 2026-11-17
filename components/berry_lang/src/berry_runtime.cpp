@@ -1450,6 +1450,8 @@ bool has_active_app()
     return active;
 }
 
+extern "C" void berry_runtime_async_cancel_all(bool reject_pending);
+
 esp_err_t close_active_app()
 {
     const bool had_active_app = has_active_app();
