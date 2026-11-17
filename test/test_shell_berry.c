@@ -226,6 +226,25 @@ static void test_http_stack_rejects_extra_args(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
 }
 
+static void test_app_reports_none_when_no_active_app(void)
+{
+    char *argv[] = {"berry", "app"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_app_reports_active_ui_app(void)
+{
+    mock_berry_set_active_app_path("/flash/apps/demo.be");
+    char *argv[] = {"berry", "app"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("berry", 2, argv));
+}
+
+static void test_app_rejects_extra_args(void)
+{
+    char *argv[] = {"berry", "app", "extra"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("berry", 3, argv));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -257,5 +276,8 @@ int main(void)
     RUN_TEST(test_http_stack_reports_sample);
     RUN_TEST(test_http_stack_accepts_net_stack_alias);
     RUN_TEST(test_http_stack_rejects_extra_args);
+    RUN_TEST(test_app_reports_none_when_no_active_app);
+    RUN_TEST(test_app_reports_active_ui_app);
+    RUN_TEST(test_app_rejects_extra_args);
     return UNITY_END();
 }

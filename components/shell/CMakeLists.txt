@@ -9,7 +9,8 @@ idf_component_register(
          "src/shell_sd_cmds.c"
          "src/shell_info_cmds.c"
          "src/shell_berry_cmd.c"
+         "src/shell_services_cmd.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES berry_lang filesystem network console esp_driver_uart freertos system service_diagnostics
+    REQUIRES berry_lang filesystem network console esp_driver_uart freertos system service_diagnostics http_server websocket wifi bluetooth time_sync
 )

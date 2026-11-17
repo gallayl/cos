@@ -15,8 +15,16 @@ static void test_canonical_service_ids_and_names(void)
     TEST_ASSERT_EQUAL_STRING("bluetooth", service_diag_id_str(SERVICE_DIAG_ID_BLUETOOTH));
     TEST_ASSERT_EQUAL_STRING("text_console", service_diag_id_str(SERVICE_DIAG_ID_TEXT_CONSOLE));
     TEST_ASSERT_EQUAL_STRING("shell_input", service_diag_id_str(SERVICE_DIAG_ID_SHELL_INPUT));
+    TEST_ASSERT_EQUAL_STRING("http_server", service_diag_id_str(SERVICE_DIAG_ID_HTTP_SERVER));
+    TEST_ASSERT_EQUAL_STRING("websocket", service_diag_id_str(SERVICE_DIAG_ID_WEBSOCKET));
+    TEST_ASSERT_EQUAL_STRING("network", service_diag_id_str(SERVICE_DIAG_ID_NETWORK));
+    TEST_ASSERT_EQUAL_STRING("time_sync", service_diag_id_str(SERVICE_DIAG_ID_TIME_SYNC));
     TEST_ASSERT_EQUAL_STRING("System heap", service_diag_name(SERVICE_DIAG_ID_SYSTEM_HEAP));
     TEST_ASSERT_EQUAL_STRING("Shell input", service_diag_name(SERVICE_DIAG_ID_SHELL_INPUT));
+    TEST_ASSERT_EQUAL_STRING("HTTP server", service_diag_name(SERVICE_DIAG_ID_HTTP_SERVER));
+    TEST_ASSERT_EQUAL_STRING("WebSocket", service_diag_name(SERVICE_DIAG_ID_WEBSOCKET));
+    TEST_ASSERT_EQUAL_STRING("Network", service_diag_name(SERVICE_DIAG_ID_NETWORK));
+    TEST_ASSERT_EQUAL_STRING("Time sync", service_diag_name(SERVICE_DIAG_ID_TIME_SYNC));
 }
 
 static void test_canonical_states_and_metric_statuses(void)
@@ -59,8 +67,14 @@ static void test_collect_populates_snapshot(void)
                      snap.berry.state == SERVICE_DIAG_STATE_UNINITIALIZED ||
                      snap.berry.state == SERVICE_DIAG_STATE_UNKNOWN);
 
-    /* Best-effort conservative collectors report canonical unknown/n-a where accessors are unavailable. */
-    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_UNKNOWN, snap.wifi.state);
+    /* Best-effort collectors use cheap APIs/mocks: Wi-Fi stopped, HTTP server stopped, etc. */
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_STOPPED, snap.wifi.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_STOPPED, snap.http_server.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_UNSUPPORTED, snap.websocket.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_METRIC_OK, snap.websocket.clients.status);
+    TEST_ASSERT_EQUAL_UINT32(0, snap.websocket.clients.value);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_METRIC_OK, snap.time_sync.synced.status);
+    TEST_ASSERT_FALSE(snap.time_sync.synced.value);
     TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_UNKNOWN, snap.text_console.state);
     TEST_ASSERT_EQUAL(SERVICE_DIAG_METRIC_UNKNOWN, snap.text_console.cols.status);
     TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_READY, snap.shell_input.state);

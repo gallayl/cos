@@ -29,6 +29,8 @@ static int s_run_call_count;
 static esp_err_t s_run_result_seq[MOCK_BERRY_MAX_ARGS];
 static int s_run_status_seq[MOCK_BERRY_MAX_ARGS];
 static int s_run_seq_count;
+static char s_active_app_path[MOCK_BERRY_BUFFER_SIZE];
+static bool s_has_active_app;
 
 void mock_berry_reset(void)
 {
@@ -55,6 +57,8 @@ void mock_berry_reset(void)
     s_piped_stdin_set = false;
     s_last_piped_stdin_seen[0] = '\0';
     s_last_piped_stdin_set_seen = false;
+    s_active_app_path[0] = '\0';
+    s_has_active_app = false;
 }
 
 void mock_berry_set_init_result(esp_err_t result)
@@ -116,6 +120,19 @@ void mock_berry_set_memory_info(bool initialized, size_t gc_managed_bytes)
 {
     s_memory_initialized = initialized;
     s_gc_managed_bytes = gc_managed_bytes;
+}
+
+void mock_berry_set_active_app_path(const char *path)
+{
+    if (path == NULL || path[0] == '\0')
+    {
+        s_has_active_app = false;
+        s_active_app_path[0] = '\0';
+        return;
+    }
+    s_has_active_app = true;
+    strncpy(s_active_app_path, path, sizeof(s_active_app_path) - 1);
+    s_active_app_path[sizeof(s_active_app_path) - 1] = '\0';
 }
 
 const char *mock_berry_last_source(void)
@@ -317,4 +334,28 @@ void berry_runtime_clear_piped_stdin(void)
 {
     s_piped_stdin[0] = '\0';
     s_piped_stdin_set = false;
+}
+
+esp_err_t berry_runtime_get_active_app_path(char *path_out, size_t path_out_size)
+{
+    if (path_out == NULL || path_out_size == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    path_out[0] = '\0';
+    if (!s_memory_initialized)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (!s_has_active_app)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    const size_t len = strlen(s_active_app_path);
+    if (len + 1 > path_out_size)
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    memcpy(path_out, s_active_app_path, len + 1);
+    return ESP_OK;
 }

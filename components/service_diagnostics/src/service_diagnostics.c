@@ -4,9 +4,13 @@
 #if CONFIG_BT_ENABLED
 #include "bluetooth.h"
 #endif
+#include "http_server.h"
 #include "network.h"
 #include "system.h"
 #include "text_console.h"
+#include "time_sync.h"
+#include "websocket.h"
+#include "wifi.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -79,6 +83,14 @@ const char *service_diag_id_str(service_diag_id_t id)
         return "text_console";
     case SERVICE_DIAG_ID_SHELL_INPUT:
         return "shell_input";
+    case SERVICE_DIAG_ID_HTTP_SERVER:
+        return "http_server";
+    case SERVICE_DIAG_ID_WEBSOCKET:
+        return "websocket";
+    case SERVICE_DIAG_ID_NETWORK:
+        return "network";
+    case SERVICE_DIAG_ID_TIME_SYNC:
+        return "time_sync";
     default:
         return "unknown";
     }
@@ -102,6 +114,14 @@ const char *service_diag_name(service_diag_id_t id)
         return "Text console";
     case SERVICE_DIAG_ID_SHELL_INPUT:
         return "Shell input";
+    case SERVICE_DIAG_ID_HTTP_SERVER:
+        return "HTTP server";
+    case SERVICE_DIAG_ID_WEBSOCKET:
+        return "WebSocket";
+    case SERVICE_DIAG_ID_NETWORK:
+        return "Network";
+    case SERVICE_DIAG_ID_TIME_SYNC:
+        return "Time sync";
     default:
         return "Unknown";
     }
@@ -246,9 +266,65 @@ static void collect_network_http(service_diag_network_snapshot_t *network)
 
 static void collect_wifi(service_diag_wifi_snapshot_t *wifi)
 {
-    /* Lifecycle/connection state is not exposed via cheap, always-available public
-       accessors in all build/test contexts; report unknown conservatively. */
-    wifi->state = SERVICE_DIAG_STATE_UNKNOWN;
+    const bool connected = wifi_is_connected();
+    const bool started = wifi_is_service_started();
+    const bool forced_off = wifi_is_forced_off_by_profile();
+
+    if (connected)
+    {
+        wifi->state = SERVICE_DIAG_STATE_CONNECTED;
+    }
+    else if (started)
+    {
+        wifi->state = SERVICE_DIAG_STATE_RUNNING;
+    }
+    else if (forced_off)
+    {
+        wifi->state = SERVICE_DIAG_STATE_DISABLED_BY_PROFILE;
+    }
+    else
+    {
+        wifi->state = SERVICE_DIAG_STATE_STOPPED;
+    }
+}
+
+static void collect_http_server(service_diag_http_server_snapshot_t *http_server)
+{
+    http_server->state = (http_server_get_handle() != NULL) ? SERVICE_DIAG_STATE_RUNNING : SERVICE_DIAG_STATE_STOPPED;
+}
+
+static void collect_websocket(service_diag_websocket_snapshot_t *websocket)
+{
+    const bool http_running = http_server_get_handle() != NULL;
+    websocket->clients = metric_u32_ok((uint32_t)websocket_client_count());
+    websocket->http_server_available = metric_bool_ok(http_running);
+    websocket->state = http_running ? SERVICE_DIAG_STATE_RUNNING : SERVICE_DIAG_STATE_UNSUPPORTED;
+}
+
+static void collect_network(service_diag_network_coarse_snapshot_t *network)
+{
+    network_http_worker_stack_info_t info;
+    memset(&info, 0, sizeof(info));
+    const esp_err_t err = network_http_get_worker_stack_info(&info);
+    if (err != ESP_OK)
+    {
+        network->state = SERVICE_DIAG_STATE_UNKNOWN;
+        network->diagnostics_worker_sampled = metric_bool_unknown("unavailable");
+        network->diagnostics_worker_hwm_bytes = metric_u32_unknown("unavailable");
+        return;
+    }
+
+    network->diagnostics_worker_sampled = metric_bool_ok(info.available);
+    network->diagnostics_worker_hwm_bytes =
+        info.available ? metric_u32_ok(info.hwm_bytes) : metric_u32_na("no sample yet");
+    network->state = info.available ? SERVICE_DIAG_STATE_READY : SERVICE_DIAG_STATE_IDLE;
+}
+
+static void collect_time_sync(service_diag_time_sync_snapshot_t *time_sync)
+{
+    const bool synced = time_sync_is_synced();
+    time_sync->synced = metric_bool_ok(synced);
+    time_sync->state = synced ? SERVICE_DIAG_STATE_READY : SERVICE_DIAG_STATE_RUNNING;
 }
 
 static void collect_bluetooth(service_diag_bluetooth_snapshot_t *bt)
@@ -310,6 +386,10 @@ esp_err_t service_diag_collect(service_diag_snapshot_t *out)
     collect_bluetooth(&out->bluetooth);
     collect_text_console(&out->text_console);
     collect_shell_input(&out->shell_input);
+    collect_http_server(&out->http_server);
+    collect_websocket(&out->websocket);
+    collect_network(&out->network);
+    collect_time_sync(&out->time_sync);
     return ESP_OK;
 }
 

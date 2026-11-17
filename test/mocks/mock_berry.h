@@ -14,6 +14,7 @@ void mock_berry_set_close_result(esp_err_t result);
 void mock_berry_set_gc_collect_result(esp_err_t result);
 void mock_berry_set_gc_bytes(size_t before, size_t after);
 void mock_berry_set_memory_info(bool initialized, size_t gc_managed_bytes);
+void mock_berry_set_active_app_path(const char *path);
 void mock_berry_set_piped_stdin(const char *data);
 const char *mock_berry_piped_stdin(void);
 bool mock_berry_piped_stdin_set(void);
