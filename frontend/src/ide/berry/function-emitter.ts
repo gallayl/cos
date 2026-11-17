@@ -5,18 +5,27 @@ import { emitExpressionWithSpans } from './expression-generator'
 import type { ExpressionSpan } from './expression-generator'
 import { parameterList, parameterListWithSpans } from './parameters'
 
-export function hasUnsupportedFunctionModifiers(ctx: GenerationContext, node: ts.FunctionLikeDeclarationBase): boolean {
+export function hasUnsupportedFunctionModifiers(
+  ctx: GenerationContext,
+  node: ts.FunctionLikeDeclarationBase,
+  options: { allowAsync?: boolean } = {},
+): boolean {
   if (node.asteriskToken) {
     ctx.report(node, 'Generators are not supported.')
     return true
   }
   if (!ts.canHaveModifiers(node)) return false
   const asyncModifier = (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
-  if (asyncModifier) {
+  if (asyncModifier && !options.allowAsync) {
     ctx.report(node, 'Async functions are not supported.')
     return true
   }
   return false
+}
+
+export function isAsyncFunctionLike(node: ts.FunctionLikeDeclarationBase): boolean {
+  if (!ts.canHaveModifiers(node)) return false
+  return (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
 }
 
 /**
