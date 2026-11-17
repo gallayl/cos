@@ -62,6 +62,7 @@ extern "C"
         int viewport_offset;                     /**< Rows above the live bottom. */
         bool scrollback_disabled;                /**< History allocation failed until the next clear. */
         bool scrollback_allocation_failed;       /**< Unreported history allocation failure. */
+        bool scrollback_suspended;               /**< History retention/allocation suspended (e.g. console hidden). */
         bool pending_wrap;                       /**< Deferred wrap: cursor at EOL, wrap on next printable char. */
         uint16_t current_fg;                     /**< Current foreground color for new chars. */
         uint64_t dirty_rows;                     /**< Bitmask of rows containing dirty cells. */
@@ -106,6 +107,9 @@ extern "C"
 
     /** Release retained history while preserving the visible grid. */
     void text_buffer_clear_scrollback(text_buffer_t *buf);
+
+    /** Suspend or resume scrollback retention/allocation while keeping the base grid intact. */
+    void text_buffer_set_scrollback_suspended(text_buffer_t *buf, bool suspended);
 
     /** Consume the history-allocation failure notification, if one is pending. */
     bool text_buffer_take_scrollback_allocation_failure(text_buffer_t *buf);
