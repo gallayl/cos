@@ -3,25 +3,32 @@ name: Doxygen Check
 on:
   push:
     branches: [main]
-    paths:
-      - "docs/**"
-      - "**/*.md"
-      - "Doxyfile*"
-      - "components/**"
-      - "main/**"
-      - ".github/workflows/docs-check.yml"
+
   pull_request:
-    paths:
-      - "docs/**"
-      - "**/*.md"
-      - "Doxyfile*"
-      - "components/**"
-      - "main/**"
-      - ".github/workflows/docs-check.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs-check: ${{ steps.filter.outputs.docs-check }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            docs-check:
+              - 'docs/**'
+              - '**/*.md'
+              - 'Doxyfile*'
+              - 'components/**'
+              - 'main/**'
+              - '.github/workflows/docs-check.yml'
+
   docs-check:
     name: Doxygen Check
+    needs: changes
+    if: needs.changes.outputs.docs-check == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +38,34 @@ jobs:
 
       - name: Check documentation
         run: make docs-check
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - docs-check
+    steps:
+      - name: Verify documentation check results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_CHECK: ${{ needs.docs-check.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [[ "$DOCS_CHECK" != "success" &&
+                "$DOCS_CHECK" != "skipped" ]]; then
+            echo "Documentation check failed: $DOCS_CHECK"
+            exit 1
+          fi
+
+          if [[ "$DOCS_CHECK" == "skipped" ]]; then
+            echo "Documentation check skipped: $DOCS_CHECK"
+            exit 0
+          fi
+
+          echo "All required CI checks passed"
