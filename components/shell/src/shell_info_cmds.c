@@ -1,4 +1,5 @@
 #include "filesystem.h"
+#include "service_diagnostics.h"
 #include "shell.h"
 
 #include "esp_console.h"
@@ -24,6 +25,15 @@ static int cmd_format(int argc, char **argv)
     return 0;
 }
 
+static int cmd_svc_mem(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    esp_err_t err = service_diag_print_svc_mem();
+    return err == ESP_OK ? 0 : 1;
+}
+
 void shell_register_info_commands(void)
 {
     const esp_console_cmd_t format_cmd = {
@@ -34,5 +44,13 @@ void shell_register_info_commands(void)
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&format_cmd));
 
-    ESP_LOGI(TAG, "Filesystem commands registered (info provided by Berry script)");
+    const esp_console_cmd_t svc_mem_cmd = {
+        .command = "svc_mem",
+        .help = "Show on-demand service memory/diagnostics snapshot",
+        .hint = NULL,
+        .func = &cmd_svc_mem,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&svc_mem_cmd));
+
+    ESP_LOGI(TAG, "Filesystem/diagnostics commands registered (info provided by Berry script)");
 }
