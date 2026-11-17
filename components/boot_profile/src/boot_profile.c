@@ -18,6 +18,7 @@ static boot_profile_t s_effective_profile = BOOT_PROFILE_DEFAULT;
 static bool s_has_valid_stored = false;
 static char s_stored_raw[BOOT_PROFILE_MAX_LEN] = "";
 static bool s_early_initialized = false;
+static bool s_commands_registered = false;
 
 const char *boot_profile_name(boot_profile_t profile)
 {
@@ -148,8 +149,14 @@ esp_err_t boot_profile_init(void)
         (void)boot_profile_early_init();
     }
 
-    /* Requires esp_console to be initialized (e.g. by shell). Safe to call after shell_init. */
-    boot_profile_register_commands();
+    if (!s_commands_registered)
+    {
+        /* Requires esp_console to be initialized (e.g. by shell). Best-effort for recovery when console is available.
+         */
+        boot_profile_register_commands();
+        s_commands_registered = true;
+    }
+
     ESP_LOGI(TAG, "Boot profile command ready (effective=%s, next=%s)", boot_profile_name(s_effective_profile),
              boot_profile_name(boot_profile_get_next()));
     return ESP_OK;

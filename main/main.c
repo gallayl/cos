@@ -22,6 +22,8 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include <string.h>
+
 static const char *const TAG = "main";
 
 static bool console_prompt_owns_keyboard(void *context)
@@ -358,10 +360,8 @@ void app_main(void)
     const bool ws_ok = svc_started(ws_svc);
     const bool shell_ok = svc_started(shell_svc);
 
-    if (shell_ok)
-    {
-        (void)boot_profile_init();
-    }
+    /* Best-effort: register recovery command when console is available, even if shell service failed. */
+    (void)boot_profile_init();
 
     if (bt_ok && console_ok && shell_ok)
     {
