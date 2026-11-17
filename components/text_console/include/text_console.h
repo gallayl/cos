@@ -51,7 +51,14 @@ extern "C"
      */
     esp_err_t text_console_init(void);
 
-    /** Enable or disable rendering the console buffer on the display. */
+    /**
+     * @brief Show or hide console rendering/touch handling.
+     *
+     * When hidden (e.g. display/app ownership transition), stdout/UART forwarding,
+     * output listeners, and base console buffer updates remain active while
+     * rendering and touch handling are suspended and scrollback history is released
+     * (not preserved across hide).
+     */
     esp_err_t text_console_set_visible(bool visible);
 
     /**
@@ -77,7 +84,7 @@ extern "C"
     void text_console_clear(void);
 
     /** Release retained history without clearing the visible console grid. */
-    esp_err_t text_console_release_scrollback(void);
+    esp_err_t text_console_release_scrollback(void); // scrollback may be reallocated later unless hidden/suspended
 
     /** Set and persist the global ESP log threshold. */
     esp_err_t text_console_set_log_level(text_console_log_level_t level);

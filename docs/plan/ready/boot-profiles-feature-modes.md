@@ -56,9 +56,9 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 ## Recovery/debug contract (v1)
 - **Required in every v1 profile (concrete):**
   - **Serial recovery:** UART/USB serial shell input/output remains functional and can run recovery commands/scripts (including `boot_profile` changes for next boot).
-  - **On-device console recovery:** the on-device text console is initialized and available for local recovery. When the console is visible/not app-owned, it is rendered and interactive as expected. When hidden/app-owned, it follows [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) semantics (render/touch suspended, UART/stdout forwarding and output listener callbacks active, resident base buffer continues to be updated, heap scrollback not preserved across hide); recovery in that state relies on serial shell and/or returning console visibility/app ownership as applicable.
+  - **On-device console recovery:** the on-device text console is initialized and available for local recovery. When the console is visible/not app-owned, it is rendered and interactive as expected. When hidden/app-owned, it follows [`../done/text-console-memory-lifecycle.md`](../done/text-console-memory-lifecycle.md) semantics (render/touch suspended, UART/stdout forwarding and output listener callbacks active, resident base buffer continues to be updated, heap scrollback not preserved across hide); recovery in that state relies on serial shell and/or returning console visibility/app ownership as applicable.
   - **Other:** filesystem access remains available. Keyboard/input routing remains as available for initialized components.
-- Console lifecycle/visibility semantics must remain consistent with [`./text-console-memory-lifecycle.md`](./text-console-memory-lifecycle.md) (source of truth).
+- Console lifecycle/visibility semantics must remain consistent with [`../done/text-console-memory-lifecycle.md`](../done/text-console-memory-lifecycle.md) (source of truth).
 - **Not in v1:** profiles that omit shell/console/UI or rely on rebuild/reflash/external-only recovery.
 
 ## Acceptance criteria / definition of done
@@ -84,7 +84,7 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 
 ## Dependencies / prerequisites
 - **Prerequisite:** [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) (ready, shared lifecycle contract/base). `unified-service-lifecycle` descriptors/types/states/capabilities/boot helpers must land first; boot-profile gating is implemented on descriptor-driven boot/control (no temporary/parallel permanent boot-gating model in `main.c`).
-- Interacts with service-specific lifecycle behavior: HTTP/WebSocket (`./optional-http-websocket-service.md`), network diagnostics, Wi-Fi (`./wifi-managed-start-stop.md`), console (`./text-console-memory-lifecycle.md`, source of truth for console lifecycle semantics), shell, Bluetooth/time sync (as applicable to disabled/kept services).
+- Interacts with service-specific lifecycle behavior: HTTP/WebSocket (`./optional-http-websocket-service.md`), network diagnostics, Wi-Fi (`./wifi-managed-start-stop.md`), console (`../done/text-console-memory-lifecycle.md`, source of truth for console lifecycle semantics), shell, Bluetooth/time sync (as applicable to disabled/kept services).
 - `service-memory-budget-observability` (`./service-memory-budget-observability.md`) is useful for evidence-based comparison but v1 acceptance relies on qualitative availability plus measured evidence (no hard targets).
 
 ## Implementation order / prerequisites (resolved, 2026-11-16 review)
@@ -117,3 +117,4 @@ Boot currently initializes a fixed set of services/features. v1 defines two boot
 - 2026-11-16 (review follow-up): addressed plan-review findings — aligned `low-memory-offline` to run `bluetooth_init()` but force BT off (preserve stored NVS auto-enable, keep `bt` contract), made network diagnostics explicitly unavailable/disabled-by-profile with no lazy creation, set concrete NVS persistence (namespace `boot`, key `profile`, values `default`/`low-memory-offline`), and clarified hardware-validation reporting.
 - 2026-11-16 (review follow-up 2): made `text-console-memory-lifecycle` and `service-memory-budget-observability` explicit semantic/evidence prerequisites for profile behavior and per-profile measurements (canonical console semantics and `svc_mem`/A-B/vocabulary alignment when available). No implementation/validation yet.
 - 2026-11-16 (review follow-up 3): resolved non-goal/scope contradiction by enforcing lifecycle-first hard gate (removed "v1 allows gated init"/ad-hoc `main.c` gating allowance) and added explicit milestones for tracking. No implementation/validation yet.
+
