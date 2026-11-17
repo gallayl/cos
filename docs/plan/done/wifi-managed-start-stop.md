@@ -4,7 +4,7 @@
 - **Status:** done (delivered)
 - **Created:** 2026-11-16
 - **Updated:** 2026-11-17 (hardware validation recorded, user-reported)
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:134`, `components/wifi/src/wifi.c:57-140`, `components/wifi/include/wifi.h:15-25`. PR: [#45 feat(wifi): add managed start/stop lifecycle with persisted state](https://github.com/gallayl/cos/pull/45) (merged 2026-11-17, CI green). Related: [`../ready/unified-service-lifecycle.md`](../ready/unified-service-lifecycle.md), [`../ready/optional-http-websocket-service.md`](../ready/optional-http-websocket-service.md), [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md).
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:134`, `components/wifi/src/wifi.c:57-140`, `components/wifi/include/wifi.h:15-25`. PR: [#45 feat(wifi): add managed start/stop lifecycle with persisted state](https://github.com/gallayl/cos/pull/45) (merged 2026-11-17, CI green). Related: [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md), [`../ready/optional-http-websocket-service.md`](../ready/optional-http-websocket-service.md), [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md).
 - **Approval:** Approved by user in clarify-feature session, 2026-11-16; pre-approved for implementation/PR flow (merge remains human).
 
 ## Summary
@@ -70,7 +70,7 @@ Wi-Fi is initialized and started automatically at boot (AP or AP+STA behavior), 
 - Docs updates for shell commands, persisted behavior, and teardown limitations (relevant `docs/`/README/help text as applicable)
 
 ## Dependencies / prerequisites
-- Align with [`../ready/unified-service-lifecycle.md`](../ready/unified-service-lifecycle.md) conventions where practical, but **not blocked** on that item’s shared design (**adapter-ready** implementation allowed now).
+- Align with [`./unified-service-lifecycle.md`](./unified-service-lifecycle.md) conventions where practical, but **not blocked** on that item's shared design (**adapter-ready** implementation allowed now).
 - Coordinate expectations with [`../ready/optional-http-websocket-service.md`](../ready/optional-http-websocket-service.md) and optional network diagnostics lifecycle items (no auto side-effects; clear dependency failures).
 - [`../ready/boot-profiles-feature-modes.md`](../ready/boot-profiles-feature-modes.md) remains separate; this item covers only persisted Wi-Fi enabled/disabled state.
 
