@@ -2201,6 +2201,12 @@ static void async_clear_all_state(bool reject_pending)
             async_remove_callback(t.reject_id);
         }
 
+        // Queued microtasks cannot run after teardown; drop references and free callback globals.
+        for (const auto &m : micros)
+        {
+            async_remove_callback(m.callback_id);
+        }
+
         // Drop any timers/microtasks scheduled during cancellation settlement and
         // deterministically settle timer-backed promises to avoid post-teardown survivors.
         while (!s_async_timers.empty() || !s_async_microtasks.empty())
