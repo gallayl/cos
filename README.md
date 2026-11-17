@@ -135,7 +135,7 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `info`                            | Show filesystem usage statistics (Berry script; use `path`/CWD) |
 | `format`                          | Format flash (LittleFS) filesystem                        |
 | `display_mode`                    | Inspect or clear the display                              |
-| `wifi`                            | Show Wi-Fi status, scan, and connect or disconnect        |
+| `wifi`                            | Show Wi-Fi status; start/stop (persisted), scan, connect, disconnect, restart |
 | `bt`                              | Show Bluetooth status and manage device connections       |
 | `led`, `light`, `screen`          | Inspect or control the LED, light sensor, and brightness  |
 | `i2c`                             | Scan the bus and read or write device data                |

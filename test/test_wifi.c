@@ -1,11 +1,20 @@
 #include "unity.h"
 #include "wifi.h"
+#include "esp_err.h"
 #include "esp_netif.h"
+#include "nvs.h"
 #include "mock_esp_wifi.h"
 #include "mock_esp_event.h"
 #include "mock_esp_netif.h"
 #include "mock_freertos.h"
 #include "mock_console.h"
+#include "mock_nvs.h"
+
+#include <string.h>
+
+#ifndef ESP_ERR_NOT_ALLOWED
+#define ESP_ERR_NOT_ALLOWED ESP_ERR_INVALID_STATE
+#endif
 
 void setUp(void)
 {
@@ -14,6 +23,8 @@ void setUp(void)
     mock_esp_netif_reset();
     mock_freertos_reset();
     mock_console_reset();
+    mock_nvs_reset();
+    wifi_test_reset();
 }
 
 void tearDown(void)
@@ -269,10 +280,11 @@ void test_connect_null_password_for_open_network(void)
 
 /* --- wifi_init double-init guard --- */
 
-void test_init_double_init_returns_error(void)
+void test_init_double_init_is_idempotent(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_init());
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_TRUE(wifi_is_started());
 }
 
 /* --- wifi_shutdown --- */
@@ -287,6 +299,126 @@ void test_deinit_allows_reinit(void)
 void test_deinit_without_init_returns_error(void)
 {
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_shutdown());
+}
+
+/* --- Managed lifecycle / persistence / precedence --- */
+
+static void nvs_set_u8_blob(const char *key, uint8_t value)
+{
+    nvs_handle_t h = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_open("test", NVS_READWRITE, &h));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_set_blob(h, key, &value, sizeof(value)));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_commit(h));
+    nvs_close(h);
+}
+
+static void nvs_set_str_blob(const char *key, const char *value)
+{
+    nvs_handle_t h = 0;
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_open("test", NVS_READWRITE, &h));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_set_blob(h, key, value, strlen(value) + 1));
+    TEST_ASSERT_EQUAL(ESP_OK, nvs_commit(h));
+    nvs_close(h);
+}
+
+static uint8_t nvs_get_u8_blob_or(const char *key, uint8_t default_value)
+{
+    nvs_handle_t h = 0;
+    uint8_t value = default_value;
+    size_t len = sizeof(value);
+    if (nvs_open("test", NVS_READONLY, &h) == ESP_OK)
+    {
+        (void)nvs_get_blob(h, key, &value, &len);
+        nvs_close(h);
+    }
+    return value;
+}
+
+void test_boot_persisted_disabled_does_not_bring_up_radio(void)
+{
+    nvs_set_u8_blob("enabled", 0);
+
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_user_enabled());
+    TEST_ASSERT_FALSE(wifi_is_forced_off_by_profile());
+    TEST_ASSERT_EQUAL(0, mock_wifi_get_connect_count());
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_connect("Net", "Pass"));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_scan(NULL, NULL, 0));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_disconnect());
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_restart());
+}
+
+void test_boot_forced_off_by_profile_blocks_bring_up_and_persists_intent(void)
+{
+    nvs_set_str_blob("profile", "low-memory-offline");
+    nvs_set_u8_blob("enabled", 1);
+
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_forced_off_by_profile());
+    TEST_ASSERT_TRUE(wifi_is_user_enabled());
+
+    TEST_ASSERT_EQUAL(ESP_ERR_NOT_ALLOWED, wifi_start());
+    TEST_ASSERT_EQUAL(ESP_ERR_NOT_ALLOWED, wifi_stop());
+    TEST_ASSERT_EQUAL(1, nvs_get_u8_blob_or("enabled", 0)); /* stop must not overwrite intent */
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_connect("Net", "Pass"));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_scan(NULL, NULL, 0));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_disconnect());
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_restart());
+}
+
+void test_start_stop_persist_enabled_state_and_control_service(void)
+{
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_user_enabled());
+
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_stop());
+    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_user_enabled());
+    TEST_ASSERT_EQUAL(0, nvs_get_u8_blob_or("enabled", 1));
+
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_start());
+    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_user_enabled());
+    TEST_ASSERT_EQUAL(1, nvs_get_u8_blob_or("enabled", 0));
+}
+
+void test_restart_requires_active_service(void)
+{
+    nvs_set_u8_blob("enabled", 0);
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_restart());
+
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_start());
+    int before = mock_wifi_get_connect_count();
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_restart());
+    TEST_ASSERT_EQUAL(before + 1, mock_wifi_get_connect_count());
+    TEST_ASSERT_TRUE(wifi_is_user_enabled());
+}
+
+void test_cmd_status_and_lifecycle_commands(void)
+{
+    nvs_set_u8_blob("enabled", 0);
+    TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
+
+    char *status_argv[] = {"wifi", "status"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("wifi", 2, status_argv));
+
+    char *restart_argv[] = {"wifi", "restart"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("wifi", 2, restart_argv));
+
+    char *start_argv[] = {"wifi", "start"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("wifi", 2, start_argv));
+    TEST_ASSERT_TRUE(wifi_is_started());
+
+    char *stop_argv[] = {"wifi", "stop"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("wifi", 2, stop_argv));
+    TEST_ASSERT_FALSE(wifi_is_started());
 }
 
 /* --- Shell command registration --- */
@@ -427,9 +559,16 @@ int main(void)
     RUN_TEST(test_disconnect_calls_esp_wifi_disconnect);
 
     /* Double-init / deinit */
-    RUN_TEST(test_init_double_init_returns_error);
+    RUN_TEST(test_init_double_init_is_idempotent);
     RUN_TEST(test_deinit_allows_reinit);
     RUN_TEST(test_deinit_without_init_returns_error);
+
+    /* Managed lifecycle / persistence / precedence */
+    RUN_TEST(test_boot_persisted_disabled_does_not_bring_up_radio);
+    RUN_TEST(test_boot_forced_off_by_profile_blocks_bring_up_and_persists_intent);
+    RUN_TEST(test_start_stop_persist_enabled_state_and_control_service);
+    RUN_TEST(test_restart_requires_active_service);
+    RUN_TEST(test_cmd_status_and_lifecycle_commands);
 
     /* Event handling */
     RUN_TEST(test_event_handler_sets_bits_on_connect);
