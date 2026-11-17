@@ -39,32 +39,12 @@ static service_diag_u32_metric_t metric_u32_unknown(const char *reason)
     return metric;
 }
 
-static service_diag_u32_metric_t metric_u32_unsupported(const char *reason)
-{
-    service_diag_u32_metric_t metric = {
-        .status = SERVICE_DIAG_METRIC_UNSUPPORTED,
-        .value = 0,
-        .reason = reason,
-    };
-    return metric;
-}
-
 static service_diag_bool_metric_t metric_bool_ok(bool value)
 {
     service_diag_bool_metric_t metric = {
         .status = SERVICE_DIAG_METRIC_OK,
         .value = value,
         .reason = NULL,
-    };
-    return metric;
-}
-
-static service_diag_bool_metric_t metric_bool_na(const char *reason)
-{
-    service_diag_bool_metric_t metric = {
-        .status = SERVICE_DIAG_METRIC_NA,
-        .value = false,
-        .reason = reason,
     };
     return metric;
 }
@@ -77,11 +57,6 @@ static service_diag_bool_metric_t metric_bool_unknown(const char *reason)
         .reason = reason,
     };
     return metric;
-}
-
-static const char *na_or_ok_str(service_diag_metric_status_t status)
-{
-    return service_diag_metric_status_str(status);
 }
 
 const char *service_diag_id_str(service_diag_id_t id)
@@ -330,23 +305,6 @@ esp_err_t service_diag_collect(service_diag_snapshot_t *out)
     collect_text_console(&out->text_console);
     collect_shell_input(&out->shell_input);
     return ESP_OK;
-}
-
-static void print_u32_metric(const char *label, const service_diag_u32_metric_t *metric, const char *unit)
-{
-    if (metric->status == SERVICE_DIAG_METRIC_OK)
-    {
-        printf("  %s: %lu%s\n", label, (unsigned long)metric->value, unit != NULL ? unit : "");
-    }
-    else
-    {
-        printf("  %s: %s%s%s\n", label, service_diag_metric_status_str(metric->status),
-               metric->reason != NULL ? " (" : "", metric->reason != NULL ? metric->reason : "");
-        if (metric->reason != NULL)
-        {
-            printf(")\n");
-        }
-    }
 }
 
 static void print_u32_metric_inline(const char *label, const service_diag_u32_metric_t *metric, const char *unit)
