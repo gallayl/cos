@@ -113,6 +113,17 @@ extern "C"
      */
     esp_err_t berry_runtime_ui_launch(struct bvm *vm, int index);
 
+    /**
+     * @brief Get the active Berry UI app path, if any.
+     *
+     * @param path_out Buffer to receive the virtual path (NUL-terminated).
+     * @param path_out_size Size of path_out in bytes.
+     * @return ESP_OK and path_out set when an active UI app exists; ESP_ERR_NOT_FOUND when none;
+     *         ESP_ERR_INVALID_ARG if path_out is NULL or path_out_size is 0;
+     *         ESP_ERR_INVALID_SIZE if the path does not fit; ESP_ERR_INVALID_STATE if runtime is not initialized.
+     */
+    esp_err_t berry_runtime_get_active_app_path(char *path_out, size_t path_out_size);
+
     /** Ensure the Berry `json` module is loaded. Safe to call repeatedly. */
     bool berry_runtime_ensure_json(struct bvm *vm);
 

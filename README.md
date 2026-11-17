@@ -147,7 +147,10 @@ Once flashed, the firmware starts an interactive console on UART (`cos>` prompt)
 | `berry run <path> [args...]`      | Execute a Berry entrypoint script from `/flash`/`/sdcard`     |
 | `berry eval <source>`             | Evaluate Berry source in the shared VM                    |
 | `berry close`                     | Close the active Berry app and run its teardown method    |
+| `berry app`                       | Show the active Berry UI app (`path=... type=ui state=running`) or `none` |
 | `mem` / `memory`                  | Show current, minimum, and largest free heap metrics (Berry script; use `path`/CWD or default `/flash/scripts`)      |
+| `svc_mem`                         | Show on-demand cross-service memory/diagnostics snapshot   |
+| `services`                        | Show one-shot status for core services (HTTP server, WebSocket, Wi-Fi, Bluetooth, Network, Time sync) |
 | `logging [error\|warn\|info]`     | Set the persistent global ESP log threshold               |
 | `help`                            | List all registered commands                              |
 

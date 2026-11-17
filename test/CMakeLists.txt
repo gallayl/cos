@@ -35,6 +35,7 @@ add_library(mock_esp STATIC
     mocks/mock_text_console.c
     mocks/mock_network.c
     mocks/mock_berry.c
+    mocks/mock_service_inspection_components.c
 )
 target_include_directories(mock_esp PUBLIC
     mocks
@@ -117,6 +118,9 @@ target_include_directories(service_diagnostics_logic PUBLIC
     ${COMPONENT_DIR}/components/text_console/include
     ${COMPONENT_DIR}/components/shell/include
     ${COMPONENT_DIR}/components/input/include
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/websocket/include
+    ${COMPONENT_DIR}/components/time_sync/include
     mocks
 )
 target_link_libraries(service_diagnostics_logic PRIVATE mock_esp)
@@ -132,6 +136,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_info_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_berry_cmd.c
+    ${COMPONENT_DIR}/components/shell/src/shell_services_cmd.c
     mocks/mock_shell_input.c
 )
 target_include_directories(shell_logic PUBLIC
@@ -591,3 +596,13 @@ target_include_directories(test_service_diagnostics PRIVATE
 )
 target_link_libraries(test_service_diagnostics PRIVATE unity service_diagnostics_logic system_logic mock_esp)
 add_test(NAME test_service_diagnostics COMMAND test_service_diagnostics)
+
+# --- Test: shell services command ---
+add_executable(test_shell_services test_shell_services.c)
+target_include_directories(test_shell_services PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/shell/include
+    ${COMPONENT_DIR}/components/service_diagnostics/include
+)
+target_link_libraries(test_shell_services PRIVATE unity shell_logic service_diagnostics_logic mock_esp)
+add_test(NAME test_shell_services COMMAND test_shell_services)

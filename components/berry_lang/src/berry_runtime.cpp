@@ -2412,3 +2412,30 @@ extern "C" void berry_runtime_clear_piped_stdin(void)
     s_piped_stdin.clear();
     s_piped_stdin_set = false;
 }
+
+extern "C" esp_err_t berry_runtime_get_active_app_path(char *path_out, size_t path_out_size)
+{
+    if (path_out == nullptr || path_out_size == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    path_out[0] = '\0';
+
+    const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
+    if (s_vm == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (!has_active_app() || !s_app_script_set)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    const size_t len = std::strlen(s_app_script);
+    if (len + 1 > path_out_size)
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    std::memcpy(path_out, s_app_script, len + 1);
+    return ESP_OK;
+}

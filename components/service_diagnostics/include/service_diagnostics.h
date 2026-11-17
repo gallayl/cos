@@ -30,6 +30,10 @@ extern "C"
         SERVICE_DIAG_ID_BLUETOOTH,
         SERVICE_DIAG_ID_TEXT_CONSOLE,
         SERVICE_DIAG_ID_SHELL_INPUT,
+        SERVICE_DIAG_ID_HTTP_SERVER,
+        SERVICE_DIAG_ID_WEBSOCKET,
+        SERVICE_DIAG_ID_NETWORK,
+        SERVICE_DIAG_ID_TIME_SYNC,
         SERVICE_DIAG_ID_COUNT,
     } service_diag_id_t;
 
@@ -135,6 +139,35 @@ extern "C"
         service_diag_state_t state;
     } service_diag_shell_input_snapshot_t;
 
+    /** HTTP server diagnostics snapshot. */
+    typedef struct
+    {
+        service_diag_state_t state;
+    } service_diag_http_server_snapshot_t;
+
+    /** WebSocket diagnostics snapshot. */
+    typedef struct
+    {
+        service_diag_state_t state;
+        service_diag_u32_metric_t clients;
+        service_diag_bool_metric_t http_server_available;
+    } service_diag_websocket_snapshot_t;
+
+    /** Network (coarse diagnostics/connectivity service) snapshot. */
+    typedef struct
+    {
+        service_diag_state_t state;
+        service_diag_bool_metric_t diagnostics_worker_sampled;
+        service_diag_u32_metric_t diagnostics_worker_hwm_bytes;
+    } service_diag_network_coarse_snapshot_t;
+
+    /** Time sync diagnostics snapshot. */
+    typedef struct
+    {
+        service_diag_state_t state;
+        service_diag_bool_metric_t synced;
+    } service_diag_time_sync_snapshot_t;
+
     /** Cross-service snapshot (on-demand, read-only). */
     typedef struct
     {
@@ -145,6 +178,10 @@ extern "C"
         service_diag_bluetooth_snapshot_t bluetooth;
         service_diag_text_console_snapshot_t text_console;
         service_diag_shell_input_snapshot_t shell_input;
+        service_diag_http_server_snapshot_t http_server;
+        service_diag_websocket_snapshot_t websocket;
+        service_diag_network_coarse_snapshot_t network;
+        service_diag_time_sync_snapshot_t time_sync;
     } service_diag_snapshot_t;
 
     /** @brief Return canonical service ID string. */

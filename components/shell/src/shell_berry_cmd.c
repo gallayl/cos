@@ -134,7 +134,7 @@ static int cmd_berry(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry "
+        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry app | berry "
                "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
@@ -148,6 +148,34 @@ static int cmd_berry(int argc, char **argv)
         }
         print_profile();
         return 0;
+    }
+
+    if (strcmp(argv[1], "app") == 0)
+    {
+        if (argc != 2)
+        {
+            printf("Usage: berry app\n");
+            return 1;
+        }
+        char path[VFS_PATH_MAX];
+        const esp_err_t app_err = berry_runtime_get_active_app_path(path, sizeof(path));
+        if (app_err == ESP_OK)
+        {
+            printf("path=%s type=ui state=running\n", path);
+            return 0;
+        }
+        if (app_err == ESP_ERR_NOT_FOUND)
+        {
+            printf("none\n");
+            return 0;
+        }
+        if (app_err == ESP_ERR_INVALID_STATE)
+        {
+            printf("berry app: runtime unavailable (%s)\n", esp_err_to_name(app_err));
+            return 1;
+        }
+        printf("berry app: failed (%s)\n", esp_err_to_name(app_err));
+        return 1;
     }
 
     if (strcmp(argv[1], "http-stack") == 0 || strcmp(argv[1], "net-stack") == 0)
@@ -300,7 +328,7 @@ static int cmd_berry(int argc, char **argv)
     else
     {
         printf("berry: unknown operation '%s'\n", argv[1]);
-        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry "
+        printf("Usage: berry run <path> [args...] | berry eval <source> | berry close | berry app | berry "
                "profile | berry http-stack | berry gc | berry gc-step <rate>\n");
         return 1;
     }
@@ -318,7 +346,7 @@ void shell_register_berry_commands(void)
 {
     const esp_console_cmd_t command = {
         .command = "berry",
-        .help = "Run/eval Berry entrypoint scripts; profile/http-stack/gc tools",
+        .help = "Run/eval Berry scripts; app/profile/http-stack/gc tools",
         .hint = NULL,
         .func = &cmd_berry,
     };

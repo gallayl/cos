@@ -187,6 +187,7 @@ esp_err_t shell_init(void)
     shell_register_sd_commands();
     shell_register_info_commands();
     shell_register_berry_commands();
+    shell_register_services_commands();
 
     err = shell_alias_init();
     if (err != ESP_OK)

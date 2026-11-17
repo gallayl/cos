@@ -53,6 +53,13 @@ extern "C"
      */
     esp_err_t shell_resolve_relative(const char *input, char *abs_path, size_t len);
 
+    /* Internal command registration (implemented in shell_*_cmds.c). */
+    void shell_register_fs_commands(void);
+    void shell_register_sd_commands(void);
+    void shell_register_info_commands(void);
+    void shell_register_berry_commands(void);
+    void shell_register_services_commands(void);
+
 #ifdef __cplusplus
 }
 #endif
