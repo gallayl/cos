@@ -3,16 +3,16 @@ name: Frontend
 on:
   push:
     paths:
-      - 'frontend/**'
-      - 'storage/ts/**'
-      - 'storage/flash_data/**'
-      - '.github/workflows/frontend.yml'
+      - "frontend/**"
+      - "storage/ts/**"
+      - "storage/flash_data/**"
+      - ".github/workflows/frontend.yml"
   pull_request:
     paths:
-      - 'frontend/**'
-      - 'storage/ts/**'
-      - 'storage/flash_data/**'
-      - '.github/workflows/frontend.yml'
+      - "frontend/**"
+      - "storage/ts/**"
+      - "storage/flash_data/**"
+      - ".github/workflows/frontend.yml"
 
 jobs:
   check:
