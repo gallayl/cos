@@ -60,13 +60,13 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Set environment variables
+      - name: Verify frontend results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           FRONTEND: ${{ needs.check.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -75,3 +75,10 @@ jobs:
             echo "Frontend check failed: $FRONTEND"
             exit 1
           fi
+
+          if [[ "$FRONTEND" == "skipped" ]]; then
+            echo "No frontend changes detected. Skipping frontend check."
+            exit 0
+          fi
+
+          echo "Frontend check passed."

@@ -209,13 +209,13 @@ jobs:
       - changes
       - integration-test
     steps:
-      - name: Set environment variables
+      - name: Verify integration test results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           INTEGRATION_TEST: ${{ needs.integration-test.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -224,3 +224,10 @@ jobs:
             echo "Integration test failed: $INTEGRATION_TEST"
             exit 1
           fi
+
+          if [[ "$INTEGRATION_TEST" == "skipped" ]]; then
+            echo "No integration test changes detected. Skipping integration tests."
+            exit 0
+          fi
+
+          echo "Integration tests passed."

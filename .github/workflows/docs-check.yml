@@ -43,13 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Set environment variables
+      - name: Verify documentation check results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_CHECK: ${{ needs.docs-check.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -57,6 +57,11 @@ jobs:
                 "$DOCS_CHECK" != "skipped" ]]; then
             echo "Documentation check failed: $DOCS_CHECK"
             exit 1
+          fi
+
+          if [[ "$DOCS_CHECK" == "skipped" ]]; then
+            echo "Documentation check skipped: $DOCS_CHECK"
+            exit 0
           fi
 
           echo "All required CI checks passed"

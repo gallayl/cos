@@ -44,13 +44,13 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Set environment variables
+      - name: Verify format check results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           FORMAT_CHECK: ${{ needs.format-check.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -59,3 +59,10 @@ jobs:
             echo "Format check failed: $FORMAT_CHECK"
             exit 1
           fi
+
+          if [[ "$FORMAT_CHECK" == "skipped" ]]; then
+            echo "No formatting changes detected. Skipping format check."
+            exit 0
+          fi
+
+          echo "Format check passed."

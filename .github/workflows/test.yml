@@ -54,13 +54,13 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Set environment variables
+      - name: Verify test results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           TESTS_RESULT: ${{ needs.test.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -69,3 +69,10 @@ jobs:
             echo "Unit tests failed: $TESTS_RESULT"
             exit 1
           fi
+
+          if [[ "$TESTS_RESULT" == "skipped" ]]; then
+            echo "No changes detected for unit tests. Skipping."
+            exit 0
+          fi
+
+          echo "All required CI checks passed"

@@ -85,13 +85,13 @@ jobs:
       - changes
       - build-and-lint
     steps:
-      - name: Set environment variables
+      - name: Verify build and lint results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           BUILD_AND_LINT_RESULT: ${{ needs.build-and-lint.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
-            echo "Change detection failed"
+            echo "Change detection failed: $CHANGES_RESULT"
             exit 1
           fi
 
@@ -99,6 +99,11 @@ jobs:
                 "$BUILD_AND_LINT_RESULT" != "skipped" ]]; then
             echo "Build and lint failed: $BUILD_AND_LINT_RESULT"
             exit 1
+          fi
+
+          if [[ "$BUILD_AND_LINT_RESULT" == "skipped" ]]; then
+            echo "No changes detected for build and lint. Skipping."
+            exit 0
           fi
 
           echo "All required CI checks passed"
