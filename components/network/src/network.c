@@ -45,6 +45,7 @@ static const char *const TAG = "network_diag";
 typedef enum
 {
     NETWORK_DIAG_STATE_IDLE = 0,
+    NETWORK_DIAG_STATE_CREATING,
     NETWORK_DIAG_STATE_READY,
     NETWORK_DIAG_STATE_FAILED,
 } network_diag_state_t;
@@ -326,79 +327,99 @@ static void diag_destroy_worker_resources(QueueHandle_t queue, SemaphoreHandle_t
 
 static esp_err_t network_diag_ensure_worker(void)
 {
-    taskENTER_CRITICAL(&s_diag_lock);
-    if (s_diag_state == NETWORK_DIAG_STATE_READY && diag_worker_ready())
+    for (;;)
     {
-        taskEXIT_CRITICAL(&s_diag_lock);
-        return ESP_OK;
-    }
-    s_diag_state = NETWORK_DIAG_STATE_IDLE;
-    s_diag_last_error = ESP_OK;
-    taskEXIT_CRITICAL(&s_diag_lock);
+        bool should_create = false;
 
-    SemaphoreHandle_t ping_mutex = xSemaphoreCreateMutex();
-    SemaphoreHandle_t completed_sem = xSemaphoreCreateBinary();
-    QueueHandle_t ping_queue = xQueueCreate(1, sizeof(ping_request_t));
-    TaskHandle_t ping_task = NULL;
-    esp_err_t err = ESP_OK;
+        taskENTER_CRITICAL(&s_diag_lock);
+        if (s_diag_state == NETWORK_DIAG_STATE_READY && diag_worker_ready())
+        {
+            taskEXIT_CRITICAL(&s_diag_lock);
+            return ESP_OK;
+        }
+        if (s_diag_state == NETWORK_DIAG_STATE_CREATING)
+        {
+            taskEXIT_CRITICAL(&s_diag_lock);
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
 
-    if (ping_mutex == NULL || completed_sem == NULL || ping_queue == NULL)
-    {
-        err = ESP_ERR_NO_MEM;
-    }
-    else if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &ping_task) != pdPASS)
-    {
-        err = ESP_ERR_NO_MEM;
-    }
-
-    taskENTER_CRITICAL(&s_diag_lock);
-    if (err == ESP_OK && !diag_worker_ready())
-    {
-        s_ping_mutex = ping_mutex;
-        s_ping_completed_sem = completed_sem;
-        s_ping_queue = ping_queue;
-        s_ping_task = ping_task;
-        diag_reset_runtime_state();
-        s_diag_state = NETWORK_DIAG_STATE_READY;
+        /* IDLE or FAILED (retry allowed) -> claim creation */
+        s_diag_state = NETWORK_DIAG_STATE_CREATING;
         s_diag_last_error = ESP_OK;
+        should_create = true;
         taskEXIT_CRITICAL(&s_diag_lock);
-        return ESP_OK;
-    }
 
-    const bool already_ready = diag_worker_ready();
-    if (already_ready)
-    {
-        s_diag_state = NETWORK_DIAG_STATE_READY;
-        s_diag_last_error = ESP_OK;
-    }
-    else
-    {
-        s_ping_task = NULL;
-        s_ping_queue = NULL;
-        s_ping_mutex = NULL;
-        s_ping_completed_sem = NULL;
-        s_diag_state = NETWORK_DIAG_STATE_FAILED;
-        s_diag_last_error = (err == ESP_OK) ? ESP_FAIL : err;
-    }
-    taskEXIT_CRITICAL(&s_diag_lock);
+        if (!should_create)
+        {
+            continue;
+        }
 
-    if (!already_ready)
-    {
+        SemaphoreHandle_t ping_mutex = xSemaphoreCreateMutex();
+        SemaphoreHandle_t completed_sem = xSemaphoreCreateBinary();
+        QueueHandle_t ping_queue = xQueueCreate(1, sizeof(ping_request_t));
+        TaskHandle_t ping_task = NULL;
+        esp_err_t err = ESP_OK;
+
+        if (ping_mutex == NULL || completed_sem == NULL || ping_queue == NULL)
+        {
+            err = ESP_ERR_NO_MEM;
+        }
+        else if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &ping_task) != pdPASS)
+        {
+            err = ESP_ERR_NO_MEM;
+        }
+
+        taskENTER_CRITICAL(&s_diag_lock);
+        if (err == ESP_OK && !diag_worker_ready())
+        {
+            s_ping_mutex = ping_mutex;
+            s_ping_completed_sem = completed_sem;
+            s_ping_queue = ping_queue;
+            s_ping_task = ping_task;
+            diag_reset_runtime_state();
+            s_diag_state = NETWORK_DIAG_STATE_READY;
+            s_diag_last_error = ESP_OK;
+            taskEXIT_CRITICAL(&s_diag_lock);
+            return ESP_OK;
+        }
+
+        const bool already_ready = diag_worker_ready();
+        if (already_ready)
+        {
+            s_diag_state = NETWORK_DIAG_STATE_READY;
+            s_diag_last_error = ESP_OK;
+        }
+        else
+        {
+            s_ping_task = NULL;
+            s_ping_queue = NULL;
+            s_ping_mutex = NULL;
+            s_ping_completed_sem = NULL;
+            s_diag_state = NETWORK_DIAG_STATE_FAILED;
+            s_diag_last_error = (err == ESP_OK) ? ESP_FAIL : err;
+        }
+        taskEXIT_CRITICAL(&s_diag_lock);
+
+        if (!already_ready)
+        {
+            if (ping_task != NULL)
+            {
+                vTaskDelete(ping_task);
+            }
+            diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
+            ESP_LOGW(TAG, "Network diagnostics lazy init failed: %s", esp_err_to_name(s_diag_last_error));
+            return s_diag_last_error;
+        }
+
+        /* Another creator won unexpectedly; discard ours. */
         if (ping_task != NULL)
         {
             vTaskDelete(ping_task);
         }
         diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
-        ESP_LOGW(TAG, "Network diagnostics lazy init failed: %s", esp_err_to_name(s_diag_last_error));
-        return s_diag_last_error;
+        return ESP_OK;
     }
-
-    if (ping_task != NULL)
-    {
-        vTaskDelete(ping_task);
-    }
-    diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
-    return ESP_OK;
 }
 
 esp_err_t network_init(void)
