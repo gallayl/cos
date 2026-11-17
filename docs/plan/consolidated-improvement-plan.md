@@ -5,7 +5,7 @@
 **Scope:** Consolidates historical specs in [`docs/history/`](../history/) — from `2026-10-improvements.md` through `2026-11-08-ts-berry-semantic-conformance.md` — plus validation evidence in [`docs/reports/`](../reports/). New proposals live in [`docs/ideas/`](../ideas/).  
 **Purpose:** Single progress-tracked plan for remaining work, with priority, order, findings, specs/acceptance references, and follow-ups.
 
-> Docs navigation and state model: see [`docs/README.md`](../README.md).
+> Docs navigation and state model: see [`docs/README.md`](../README.md). (No queue-ready implementation item created for this idea yet.)
 
 ## How to use this document
 
@@ -38,6 +38,7 @@
 | TS toolchain productization     | `2026-11-03`, `2026-11-04`    | Package layout differs from proposal; Worker isolation for compilation must be verified/enforced; SDK single-source-of-truth/audit missing; dev/prod profiles, source maps, editor memory diagnostics missing.                                                                                                                                  |
 | Berry simulator                 | `2026-11-05`                  | No WASM runtime, simulator Worker, platform abstraction backend, renderer, or simulator UI found.                                                                                                                                                                                                                                               |
 | Deferred shell/UX items         | `2026-10`                     | Pipes/redirection design, shell line-editor refactor seam, larger apps/editor/calendar, image preview feasibility.                                                                                                                                                                                                                              |
+| Display buffer memory / retro modes | user idea (2026-11-17)        | No spec/implementation yet. Feasibility and open questions captured in [`plan/needs-clarification/low-memory-display-modes.md`](./needs-clarification/low-memory-display-modes.md).                                                                                                                                                              |
 
 ### 2026-11-16 audit follow-ups (lifecycle/memory)
 
