@@ -2,26 +2,24 @@ name: CI
 
 on:
   pull_request:
+    branches: [main]
   merge_group:
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
   lint:
-    name: Lint
     uses: ./.github/workflows/build-and-lint.yml
+
   format-check:
-    name: Format Check
     uses: ./.github/workflows/format-check.yml
   frontend:
-    name: Frontend
     uses: ./.github/workflows/frontend.yml
   integration-tests:
-    name: Integration Tests
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/integration-test.yml
   test:
-    name: Unit Tests
     uses: ./.github/workflows/test.yml
 
   ci_required:
