@@ -3,31 +3,33 @@ name: Integration Tests
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "integration_test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".github/workflows/integration-test.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "integration_test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".github/workflows/integration-test.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      integration-test: ${{ steps.integration-test.outputs.integration-test }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            integration-test:
+              - 'components/**'
+              - 'main/**'
+              - 'integration_test/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - 'sdkconfig*'
+              - 'partitions.csv'
+              - '.github/workflows/integration-test.yml'
+
   integration-test:
     name: Integration Tests (${{ matrix.suite }})
+    if: needs.changes.outputs.integration-test == 'true'
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
