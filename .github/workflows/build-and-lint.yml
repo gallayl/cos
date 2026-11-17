@@ -10,7 +10,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      build-and-lint: ${{ steps.build-and-lint.outputs.build-and-lint }}
+      build-and-lint: ${{ steps.filter.outputs.build-and-lint }}
 
     steps:
       - uses: dorny/paths-filter@v4

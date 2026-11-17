@@ -11,7 +11,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      docs-check: ${{ steps.docs-check.outputs.docs-check }}
+      docs-check: ${{ steps.filter.outputs.docs-check }}
     steps:
       - uses: dorny/paths-filter@v4
         id: filter
@@ -27,6 +27,7 @@ jobs:
 
   docs-check:
     name: Doxygen Check
+    needs: changes
     if: needs.changes.outputs.docs-check == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -42,6 +43,9 @@ jobs:
     name: Required
     runs-on: ubuntu-latest
     if: always()
+    needs:
+      - changes
+      - docs-check
     steps:
       - name: Verify documentation check results
         env:

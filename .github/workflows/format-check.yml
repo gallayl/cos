@@ -11,7 +11,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      format-check: ${{ steps.format-check.outputs.format-check }}
+      format-check: ${{ steps.filter.outputs.format-check }}
     steps:
       - uses: dorny/paths-filter@v4
         id: filter
@@ -28,6 +28,7 @@ jobs:
 
   format-check:
     name: Format Check
+    needs: changes
     if: needs.changes.outputs.format-check == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +44,9 @@ jobs:
     name: Required
     runs-on: ubuntu-latest
     if: always()
+    needs:
+      - changes
+      - format-check
     steps:
       - name: Verify format check results
         env:
