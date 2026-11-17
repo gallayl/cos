@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 static const char *const TAG = "shell_script";
@@ -503,11 +504,20 @@ static esp_err_t shell_dispatch_command_line(const char *line, int *ret)
 #define PIPE_CAPTURE_MAX 8192
 #define PIPE_TMP_PREFIX "/flash/.pipe_"
 
+static shell_pipe_capture_fn_t s_pipe_capture_test_hook = NULL;
+
+void shell_script_set_pipe_capture_for_test(shell_pipe_capture_fn_t fn)
+{
+    s_pipe_capture_test_hook = fn;
+}
+
 static esp_err_t pipe_build_temp_path(char *out, size_t len)
 {
     static unsigned s_pipe_seq;
     unsigned seq = ++s_pipe_seq;
-    int n = snprintf(out, len, "%s%u_%u.tmp", PIPE_TMP_PREFIX, (unsigned)(uintptr_t)&s_pipe_seq & 0xffffu, seq);
+    unsigned t = (unsigned)time(NULL);
+    unsigned salt = (unsigned)((uintptr_t)out ^ (uintptr_t)&s_pipe_seq ^ (t * 2654435761u));
+    int n = snprintf(out, len, "%s%04x_%u_%u.tmp", PIPE_TMP_PREFIX, salt & 0xffffu, t, seq);
     if (n < 0 || (size_t)n >= len)
     {
         return ESP_ERR_INVALID_SIZE;
@@ -515,13 +525,18 @@ static esp_err_t pipe_build_temp_path(char *out, size_t len)
     return ESP_OK;
 }
 
-static esp_err_t pipe_capture_lhs(const char *lhs, char **out_data, size_t *out_len, int *lhs_ret)
+static esp_err_t pipe_capture_lhs_default(const char *lhs, char **out_data, size_t *out_len, int *lhs_ret,
+                                          esp_err_t *lhs_err)
 {
     *out_data = NULL;
     *out_len = 0;
     if (lhs_ret != NULL)
     {
         *lhs_ret = 0;
+    }
+    if (lhs_err != NULL)
+    {
+        *lhs_err = ESP_OK;
     }
 
     char temp_virtual[VFS_PATH_MAX];
@@ -535,27 +550,29 @@ static esp_err_t pipe_capture_lhs(const char *lhs, char **out_data, size_t *out_
     memset(&redir, 0, sizeof(redir));
     redir.type = SHELL_REDIRECT_TRUNCATE;
     strncpy(redir.command, lhs, sizeof(redir.command) - 1);
+    redir.command[sizeof(redir.command) - 1] = '\0';
     strncpy(redir.target, temp_virtual, sizeof(redir.target) - 1);
+    redir.target[sizeof(redir.target) - 1] = '\0';
 
     shell_redirect_state_t state;
-    err = shell_redirect_begin(&redir, &state);
+    err = shell_redirect_begin_quiet(&redir, &state, true);
     if (err != ESP_OK)
     {
+        vfs_remove(temp_virtual);
         return err;
     }
 
     int ret = 0;
-    err = shell_dispatch_command_line(lhs, &ret);
+    esp_err_t dispatch_err = shell_dispatch_command_line(lhs, &ret);
     fflush(stdout);
     shell_redirect_end(&state);
     if (lhs_ret != NULL)
     {
         *lhs_ret = ret;
     }
-    if (err != ESP_OK)
+    if (lhs_err != NULL)
     {
-        vfs_remove(temp_virtual);
-        return err;
+        *lhs_err = dispatch_err;
     }
 
     char real_path[VFS_PATH_MAX];
@@ -639,24 +656,56 @@ static esp_err_t pipe_capture_lhs(const char *lhs, char **out_data, size_t *out_
     return ESP_OK;
 }
 
+static esp_err_t pipe_capture_lhs(const char *lhs, char **out_data, size_t *out_len, int *lhs_ret, esp_err_t *lhs_err)
+{
+    if (s_pipe_capture_test_hook != NULL)
+    {
+        return s_pipe_capture_test_hook(lhs, out_data, out_len, lhs_ret, lhs_err);
+    }
+    return pipe_capture_lhs_default(lhs, out_data, out_len, lhs_ret, lhs_err);
+}
+
 static esp_err_t shell_execute_pipeline_v1(const char *lhs, const char *rhs, int *ret)
 {
     char *captured = NULL;
     size_t captured_len = 0;
     int lhs_ret = 0;
-    esp_err_t err = pipe_capture_lhs(lhs, &captured, &captured_len, &lhs_ret);
+    esp_err_t lhs_err = ESP_OK;
+    esp_err_t err = pipe_capture_lhs(lhs, &captured, &captured_len, &lhs_ret, &lhs_err);
     if (err != ESP_OK)
     {
         if (err == ESP_ERR_INVALID_SIZE)
         {
             printf("pipes: input too large (max %d bytes)\n", PIPE_CAPTURE_MAX);
-            *ret = 1;
-            return ESP_OK;
         }
-        printf("pipes: capture failed (%s)\n", esp_err_to_name(err));
+        else
+        {
+            printf("pipes: capture failed (%s)\n", esp_err_to_name(err));
+        }
         *ret = 1;
         return ESP_OK;
     }
+
+    if (lhs_err != ESP_OK)
+    {
+        free(captured);
+        if (lhs_err == ESP_ERR_NOT_FOUND)
+        {
+            printf("Unknown command: %s\n", lhs);
+        }
+        else
+        {
+            printf("pipes: lhs failed (%s)\n", esp_err_to_name(lhs_err));
+        }
+        *ret = lhs_ret != 0 ? lhs_ret : 1;
+        if (lhs_err == ESP_ERR_NOT_FOUND)
+        {
+            *ret = 127;
+        }
+        return ESP_OK;
+    }
+
+    (void)captured_len;
 
     char *rhs_copy = strdup(rhs);
     if (rhs_copy == NULL)
@@ -690,10 +739,6 @@ static esp_err_t shell_execute_pipeline_v1(const char *lhs, const char *rhs, int
         {
             printf("%s: script not found\n", argv[0]);
         }
-        else if (err != ESP_OK)
-        {
-            printf("pipes: unsupported consumer (Berry scripts only)\n");
-        }
         else
         {
             printf("pipes: unsupported consumer (Berry scripts only)\n");
@@ -725,7 +770,6 @@ static esp_err_t shell_execute_pipeline_v1(const char *lhs, const char *rhs, int
         return ESP_OK;
     }
     *ret = exit_status;
-    (void)lhs_ret;
     return ESP_OK;
 }
 

@@ -12,7 +12,89 @@
 #include "shell_script.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+static char s_captured_stdin[9000];
+static size_t s_captured_stdin_len;
+static int s_pipe_capture_calls;
+static esp_err_t s_pipe_capture_result;
+static esp_err_t s_pipe_capture_lhs_err;
+static int s_pipe_capture_lhs_ret;
+static char s_pipe_capture_last_lhs[128];
+
+static esp_err_t test_pipe_capture_hook(const char *lhs, char **out_data, size_t *out_len, int *lhs_ret,
+                                        esp_err_t *lhs_err)
+{
+    s_pipe_capture_calls++;
+    if (lhs != NULL)
+    {
+        strncpy(s_pipe_capture_last_lhs, lhs, sizeof(s_pipe_capture_last_lhs) - 1);
+        s_pipe_capture_last_lhs[sizeof(s_pipe_capture_last_lhs) - 1] = '\0';
+    }
+    else
+    {
+        s_pipe_capture_last_lhs[0] = '\0';
+    }
+
+    if (lhs_ret != NULL)
+    {
+        *lhs_ret = s_pipe_capture_lhs_ret;
+    }
+    if (lhs_err != NULL)
+    {
+        *lhs_err = s_pipe_capture_lhs_err;
+    }
+    if (s_pipe_capture_result != ESP_OK)
+    {
+        *out_data = NULL;
+        *out_len = 0;
+        return s_pipe_capture_result;
+    }
+
+    char *buf = (char *)malloc(s_captured_stdin_len + 1);
+    if (buf == NULL)
+    {
+        return ESP_ERR_NO_MEM;
+    }
+    if (s_captured_stdin_len > 0)
+    {
+        memcpy(buf, s_captured_stdin, s_captured_stdin_len);
+    }
+    buf[s_captured_stdin_len] = '\0';
+    *out_data = buf;
+    *out_len = s_captured_stdin_len;
+    return ESP_OK;
+}
+
+static void reset_pipe_capture_hook(void)
+{
+    shell_script_set_pipe_capture_for_test(NULL);
+    memset(s_captured_stdin, 0, sizeof(s_captured_stdin));
+    s_captured_stdin_len = 0;
+    s_pipe_capture_calls = 0;
+    s_pipe_capture_result = ESP_OK;
+    s_pipe_capture_lhs_err = ESP_OK;
+    s_pipe_capture_lhs_ret = 0;
+    s_pipe_capture_last_lhs[0] = '\0';
+}
+
+static void set_pipe_capture_output(const char *data, size_t len)
+{
+    if (data == NULL || len == 0)
+    {
+        s_captured_stdin[0] = '\0';
+        s_captured_stdin_len = 0;
+        return;
+    }
+    if (len > sizeof(s_captured_stdin))
+    {
+        len = sizeof(s_captured_stdin);
+    }
+    memcpy(s_captured_stdin, data, len);
+    s_captured_stdin_len = len;
+    s_captured_stdin[len < sizeof(s_captured_stdin) ? len : sizeof(s_captured_stdin) - 1] = '\0';
+}
 
 static void reset_shell_state(void)
 {
@@ -20,6 +102,7 @@ static void reset_shell_state(void)
     mock_filesystem_reset();
     mock_network_reset();
     mock_berry_reset();
+    reset_pipe_capture_hook();
     shell_set_cwd("/flash");
     shell_register_fs_commands();
     shell_register_sd_commands();
@@ -35,7 +118,10 @@ void setUp(void)
     reset_shell_state();
 }
 
-void tearDown(void) {}
+void tearDown(void)
+{
+    reset_pipe_capture_hook();
+}
 
 static void test_path_command_lists_adds_removes_and_persists(void)
 {
@@ -443,47 +529,125 @@ static void test_pipeline_split_two_and_combo_helpers(void)
 
 static void test_dispatch_pipe_v1_unsupported_consumer_diagnostics(void)
 {
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    set_pipe_capture_output("hello\n", 6);
+    s_pipe_capture_lhs_err = ESP_OK;
+    s_pipe_capture_lhs_ret = 0;
+
     int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("producer | cat", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
 
     /* 3+ stage pipelines remain unsupported. */
+    ret = -1;
     TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("a | b | c", &ret));
     TEST_ASSERT_EQUAL(1, ret);
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
 }
 
 static void test_dispatch_pipe_v1_runs_berry_rhs_and_clears_stdin(void)
 {
-    mock_filesystem_add_file("/flash/lhs.be");
     mock_filesystem_add_file("/flash/rhs.be");
 
-    const esp_err_t results[] = {ESP_OK, ESP_OK};
-    const int statuses[] = {0, 7};
-    mock_berry_set_run_results(results, statuses, 2);
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    set_pipe_capture_output("payload-123", 11);
+    s_pipe_capture_lhs_err = ESP_OK;
+    s_pipe_capture_lhs_ret = 0;
+    mock_berry_set_run_result(ESP_OK);
+    mock_berry_set_run_status(7);
 
     int ret = -1;
-    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("/flash/lhs.be | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("producer | /flash/rhs.be", &ret));
     TEST_ASSERT_EQUAL(7, ret);
-    TEST_ASSERT_EQUAL(2, mock_berry_run_call_count());
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL_STRING("producer", s_pipe_capture_last_lhs);
+    TEST_ASSERT_EQUAL(1, mock_berry_run_call_count());
     TEST_ASSERT_EQUAL_STRING("/flash/rhs.be", mock_berry_last_path());
     TEST_ASSERT_TRUE(mock_berry_last_piped_stdin_set_seen());
-    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_piped_stdin_seen());
+    TEST_ASSERT_EQUAL_STRING("payload-123", mock_berry_last_piped_stdin_seen());
     TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
     TEST_ASSERT_EQUAL_STRING("", mock_berry_piped_stdin());
 }
 
 static void test_dispatch_pipe_v1_returns_rhs_status_when_lhs_nonzero(void)
 {
-    mock_filesystem_add_file("/flash/lhs.be");
     mock_filesystem_add_file("/flash/rhs.be");
 
-    const esp_err_t results[] = {ESP_OK, ESP_OK};
-    const int statuses[] = {3, 0};
-    mock_berry_set_run_results(results, statuses, 2);
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    set_pipe_capture_output("ok", 2);
+    s_pipe_capture_lhs_err = ESP_OK;
+    s_pipe_capture_lhs_ret = 3;
+    mock_berry_set_run_result(ESP_OK);
+    mock_berry_set_run_status(0);
 
     int ret = -1;
-    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("/flash/lhs.be | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("producer | /flash/rhs.be", &ret));
     TEST_ASSERT_EQUAL(0, ret);
-    TEST_ASSERT_EQUAL(2, mock_berry_run_call_count());
+    TEST_ASSERT_EQUAL(1, mock_berry_run_call_count());
     TEST_ASSERT_TRUE(mock_berry_last_piped_stdin_set_seen());
+    TEST_ASSERT_EQUAL_STRING("ok", mock_berry_last_piped_stdin_seen());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
+}
+
+static void test_dispatch_pipe_v1_overflow_capture_fails_without_rhs(void)
+{
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    s_pipe_capture_result = ESP_ERR_INVALID_SIZE;
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("producer | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
+}
+
+static void test_dispatch_pipe_v1_capture_io_failure_without_rhs(void)
+{
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    s_pipe_capture_result = ESP_FAIL;
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("producer | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(1, ret);
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
+}
+
+static void test_dispatch_pipe_v1_lhs_dispatch_error_not_reported_as_capture_failure(void)
+{
+    mock_filesystem_add_file("/flash/rhs.be");
+
+    shell_script_set_pipe_capture_for_test(test_pipe_capture_hook);
+    set_pipe_capture_output("", 0);
+    s_pipe_capture_lhs_err = ESP_ERR_NOT_FOUND;
+    s_pipe_capture_lhs_ret = 0;
+
+    int ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("missingcmd | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(127, ret);
+    TEST_ASSERT_EQUAL(1, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+    TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
+
+    /* Generic lhs dispatch error preserves failure and does not run rhs. */
+    s_pipe_capture_lhs_err = ESP_FAIL;
+    s_pipe_capture_lhs_ret = 2;
+    ret = -1;
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("badlhs | /flash/rhs.be", &ret));
+    TEST_ASSERT_EQUAL(2, ret);
+    TEST_ASSERT_EQUAL(2, s_pipe_capture_calls);
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
     TEST_ASSERT_FALSE(mock_berry_piped_stdin_set());
 }
 
@@ -626,6 +790,13 @@ int main(void)
     RUN_TEST(test_pipeline_parse_detects_unsupported_pipelines);
     RUN_TEST(test_pipeline_parse_rejects_invalid_syntax);
     RUN_TEST(test_dispatch_reports_unsupported_and_invalid_pipes);
+    RUN_TEST(test_pipeline_split_two_and_combo_helpers);
+    RUN_TEST(test_dispatch_pipe_v1_unsupported_consumer_diagnostics);
+    RUN_TEST(test_dispatch_pipe_v1_runs_berry_rhs_and_clears_stdin);
+    RUN_TEST(test_dispatch_pipe_v1_returns_rhs_status_when_lhs_nonzero);
+    RUN_TEST(test_dispatch_pipe_v1_overflow_capture_fails_without_rhs);
+    RUN_TEST(test_dispatch_pipe_v1_capture_io_failure_without_rhs);
+    RUN_TEST(test_dispatch_pipe_v1_lhs_dispatch_error_not_reported_as_capture_failure);
     RUN_TEST(test_fd_redirection_parse_none_for_plain_stdout_and_quoted_forms);
     RUN_TEST(test_fd_redirection_parse_detects_stderr_and_combined_forms);
     RUN_TEST(test_redirection_parse_stderr_and_combined_forms);

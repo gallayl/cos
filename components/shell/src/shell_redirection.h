@@ -122,7 +122,11 @@ extern "C"
      * Best-effort fd/stdio redirection: captures output written to redirected
      * stdio streams/fds; ESP log routing may differ by target/config.
      * On success, call shell_redirect_end() to restore streams.
+     * When quiet is true, suppress user-facing diagnostic prints on setup failure.
      */
+    esp_err_t shell_redirect_begin_quiet(const shell_redirection_t *redir, shell_redirect_state_t *state, bool quiet);
+
+    /** Convenience wrapper for shell_redirect_begin_quiet(..., false). */
     esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state);
 
     /** Restore redirected streams after shell_redirect_begin(). Safe to call if inactive. */
