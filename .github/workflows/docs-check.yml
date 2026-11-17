@@ -53,9 +53,9 @@ jobs:
             exit 1
           fi
 
-          if [[ "$TESTS_RESULT" != "success" &&
-                "$TESTS_RESULT" != "skipped" ]]; then
-            echo "Intensive tests failed: $TESTS_RESULT"
+          if [[ "$DOCS_CHECK" != "success" &&
+                "$DOCS_CHECK" != "skipped" ]]; then
+            echo "Documentation check failed: $DOCS_CHECK"
             exit 1
           fi
 

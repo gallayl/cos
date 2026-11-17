@@ -96,8 +96,8 @@ jobs:
           fi
 
           if [[ "$BUILD_AND_LINT_RESULT" != "success" &&
-                "$TESTS_RESULT" != "skipped" ]]; then
-            echo "Intensive tests failed: $TESTS_RESULT"
+                "$BUILD_AND_LINT_RESULT" != "skipped" ]]; then
+            echo "Build and lint failed: $BUILD_AND_LINT_RESULT"
             exit 1
           fi
 
