@@ -4,6 +4,7 @@
 #include "esp_wifi_types.h"
 
 esp_err_t esp_wifi_init(const wifi_init_config_t *config);
+esp_err_t esp_wifi_deinit(void);
 esp_err_t esp_wifi_start(void);
 esp_err_t esp_wifi_stop(void);
 esp_err_t esp_wifi_connect(void);
