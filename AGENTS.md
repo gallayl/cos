@@ -100,4 +100,5 @@ If formatting fails, run `make format`, then re-run `make format-check`.
 ## Agentic workflow
 
 - Shared, reusable procedures live in `.agents/skills/` (layered: primary entry procedures compose granular skills). Harness-specific commands/agents/subagents, when used, should be thin adapters that reference these shared instructions/skills.
+- **Global gates:** follow `.agents/skills/global-gates/SKILL.md` (and this file) for shared approval/ready, green-baseline, safe-Git, dependency, and evidence-based validation/reporting rules; item/skill-specific details remain in their owning skills/docs.
 - Keep changes consistent with the structure, naming, style, and patterns of the surrounding code. Treat unfamiliar files or changes as potential user work and investigate before deleting or overwriting them.

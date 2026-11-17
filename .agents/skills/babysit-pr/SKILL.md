@@ -63,6 +63,6 @@ Report **actions taken** and anything **not obvious from the default PR screen**
 
 ## Safety
 
-- Keep Git simple and non-destructive: no force-push/force operations, no history rewrites, no discarding unrelated user changes.
+- Follow `global-gates`: keep Git simple and non-destructive (no force-push/force operations, no history rewrites, no discarding unrelated user changes, no merge).
 - Follow repository/project instructions (e.g. `AGENTS.md`) and run relevant local validation for changes you make. Report exact commands and outcomes when you run them.
 - Prefer `gh` for GitHub interactions; if unavailable, explain the blocker and provide exact fallback steps.
