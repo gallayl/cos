@@ -18,7 +18,7 @@ jobs:
   frontend:
     uses: ./.github/workflows/frontend.yml
   integration-tests:
-    uses: ./.github/workflows/integration-tests.yml
+    uses: ./.github/workflows/integration-test.yml
   test:
     uses: ./.github/workflows/test.yml
 
