@@ -17,6 +17,8 @@ set(EXTRA_COMPONENT_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../../components/bluetooth
     ${CMAKE_CURRENT_LIST_DIR}/../../components/boot_profile
     ${CMAKE_CURRENT_LIST_DIR}/../../components/time_sync
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/http_server
+    ${CMAKE_CURRENT_LIST_DIR}/../../components/websocket
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
