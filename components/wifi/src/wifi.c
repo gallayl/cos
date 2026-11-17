@@ -93,7 +93,7 @@ static esp_err_t wifi_write_persisted_user_enabled_state(bool enabled)
     {
         return err;
     }
-    uint8_t value = enabled ? 1 : 0;
+    uint8_t value = enabled ? 1 : 0; // NOLINT(readability-implicit-bool-conversion)
     err = nvs_set_blob(h, WIFI_NVS_KEY_ENABLED, &value, sizeof(value));
     if (err == ESP_OK)
     {
@@ -166,6 +166,7 @@ static const char *wifi_state_reason_str(void)
 
 static esp_err_t wifi_ensure_not_stopped(const char *op)
 {
+    (void)op;
     if (!wifi_is_service_started())
     {
         ESP_LOGW(TAG, "%s rejected: Wi-Fi service is not started (%s)", op, wifi_state_reason_str());

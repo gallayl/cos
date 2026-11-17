@@ -149,7 +149,7 @@ static esp_err_t svc_init_text_console(service_descriptor_t *svc)
 {
     (void)svc;
     esp_err_t err = text_console_init();
-    if (err == ESP_OK && s_nvs_ok)
+    if ((err == ESP_OK) && s_nvs_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         text_console_apply_saved_log_level();
     }
@@ -209,7 +209,15 @@ static esp_err_t svc_init_shell(service_descriptor_t *svc)
 
 static bool svc_started(const service_descriptor_t *svc)
 {
-    return svc != NULL && svc->enabled && svc->state == SERVICE_LIFECYCLE_STARTED;
+    if (svc == NULL)
+    {
+        return false;
+    }
+    if (!svc->enabled)
+    {
+        return false;
+    }
+    return (svc->state == SERVICE_LIFECYCLE_STARTED);
 }
 
 void app_main(void)
@@ -232,7 +240,7 @@ void app_main(void)
     const bool allow_ws = boot_profile_allows_websocket();
     const bool allow_time_sync = boot_profile_allows_time_sync();
 
-    static const char *const ws_deps[] = {"http_server"};
+    static const char *const WS_DEPS[] = {"http_server"};
 
     static service_descriptor_t services[] = {
         {.id = "display",
@@ -298,7 +306,7 @@ void app_main(void)
          .enabled = true},
         {.id = "websocket",
          .name = "WebSocket",
-         .depends_on = ws_deps,
+         .depends_on = WS_DEPS,
          .depends_on_count = 1,
          .init = svc_init_websocket,
          .capabilities = SERVICE_CAP_CAN_START,
@@ -363,31 +371,31 @@ void app_main(void)
     /* Best-effort: register recovery command when console is available, even if shell service failed. */
     (void)boot_profile_init();
 
-    if (bt_ok && console_ok && shell_ok)
+    if (bt_ok && console_ok && shell_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         bluetooth_hid_set_keyboard_callback(NULL);
         bluetooth_hid_set_key_event_callback(route_keyboard_event);
     }
-    else if (bt_ok)
+    else if (bt_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         ESP_LOGW(TAG, "Bluetooth keyboard routing disabled because console/shell is unavailable");
     }
 
-    if (console_ok)
+    if (console_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         text_console_set_output_listener(broadcast_console_output, NULL);
     }
 
-    if (ws_ok && shell_ok)
+    if (ws_ok && shell_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         websocket_set_text_handler(submit_console_text, NULL);
     }
-    else if (ws_ok)
+    else if (ws_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         ESP_LOGW(TAG, "WebSocket text input disabled because shell is unavailable");
     }
 
-    if (!boot_profile_allows_bluetooth_stack() && bt_ok)
+    if (!boot_profile_allows_bluetooth_stack() && bt_ok) // NOLINT(readability-implicit-bool-conversion)
     {
         ESP_LOGI(TAG, "Bluetooth initialized in forced-off profile mode (stack/radio unavailable this boot)");
     }

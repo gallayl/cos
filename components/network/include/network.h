@@ -25,7 +25,13 @@ extern "C"
         uint32_t rtt_ms;  /**< Round-trip time in milliseconds. */
     } network_ping_result_t;
 
-    /** Initialize the bounded network diagnostics service. */
+    /**
+     * Initialize/ensure the bounded network diagnostics service (cheap, idempotent).
+     * Compatibility hook for boot/callers: allocates no persistent diagnostics
+     * worker resources (task/queue/mutex/ping-completed semaphore). Worker
+     * resources are created lazily on first network_ping()/network_resolve() when
+     * allowed and kept alive until reboot; failed lazy creation is retriable.
+     */
     esp_err_t network_init(void);
 
     /**
