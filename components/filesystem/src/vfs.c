@@ -189,7 +189,7 @@ esp_err_t vfs_list_dir(const char *path, vfs_dir_entry_t *entries, size_t max_en
             continue;
         }
 
-        snprintf(entries[*count].name, VFS_NAME_MAX, "%s", entry->d_name);
+        snprintf(entries[*count].name, VFS_NAME_MAX, "%.*s", (int)(VFS_NAME_MAX - 1), entry->d_name);
 
 #ifdef DT_DIR
         entries[*count].is_dir = (entry->d_type == DT_DIR);
