@@ -1,7 +1,9 @@
 #include "network.h"
 
+#include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -38,10 +40,22 @@ typedef struct
     bool resolve_only;
 } ping_request_t;
 
+static const char *const TAG = "network_diag";
+
+typedef enum
+{
+    NETWORK_DIAG_STATE_IDLE = 0,
+    NETWORK_DIAG_STATE_READY,
+    NETWORK_DIAG_STATE_FAILED,
+} network_diag_state_t;
+
 static QueueHandle_t s_ping_queue;
 static SemaphoreHandle_t s_ping_mutex;
 static SemaphoreHandle_t s_ping_completed_sem;
 static TaskHandle_t s_ping_task;
+static portMUX_TYPE s_diag_lock = portMUX_INITIALIZER_UNLOCKED;
+static network_diag_state_t s_diag_state = NETWORK_DIAG_STATE_IDLE;
+static esp_err_t s_diag_last_error = ESP_OK;
 static bool s_ping_active;
 static bool s_ping_abandoned;
 static bool s_ping_completed;
@@ -278,46 +292,119 @@ static void ping_worker(void *argument)
     }
 }
 
-esp_err_t network_init(void)
+static bool diag_worker_ready(void)
 {
-    if (s_ping_queue != NULL && s_ping_mutex != NULL && s_ping_completed_sem != NULL && s_ping_task != NULL)
+    return s_ping_queue != NULL && s_ping_mutex != NULL && s_ping_completed_sem != NULL && s_ping_task != NULL;
+}
+
+static void diag_reset_runtime_state(void)
+{
+    s_ping_active = false;
+    s_ping_abandoned = false;
+    s_ping_completed = false;
+    s_active_request_id = 0;
+    s_completed_request_id = 0;
+    s_completed_error = ESP_OK;
+    memset(&s_completed_result, 0, sizeof(s_completed_result));
+}
+
+static void diag_destroy_worker_resources(QueueHandle_t queue, SemaphoreHandle_t mutex, SemaphoreHandle_t completed_sem)
+{
+    if (queue != NULL)
     {
+        vQueueDelete(queue);
+    }
+    if (completed_sem != NULL)
+    {
+        vSemaphoreDelete(completed_sem);
+    }
+    if (mutex != NULL)
+    {
+        vSemaphoreDelete(mutex);
+    }
+}
+
+static esp_err_t network_diag_ensure_worker(void)
+{
+    taskENTER_CRITICAL(&s_diag_lock);
+    if (s_diag_state == NETWORK_DIAG_STATE_READY && diag_worker_ready())
+    {
+        taskEXIT_CRITICAL(&s_diag_lock);
         return ESP_OK;
     }
+    s_diag_state = NETWORK_DIAG_STATE_IDLE;
+    s_diag_last_error = ESP_OK;
+    taskEXIT_CRITICAL(&s_diag_lock);
 
     SemaphoreHandle_t ping_mutex = xSemaphoreCreateMutex();
     SemaphoreHandle_t completed_sem = xSemaphoreCreateBinary();
     QueueHandle_t ping_queue = xQueueCreate(1, sizeof(ping_request_t));
+    TaskHandle_t ping_task = NULL;
+    esp_err_t err = ESP_OK;
+
     if (ping_mutex == NULL || completed_sem == NULL || ping_queue == NULL)
     {
-        if (ping_mutex != NULL)
-        {
-            vSemaphoreDelete(ping_mutex);
-        }
-        if (completed_sem != NULL)
-        {
-            vSemaphoreDelete(completed_sem);
-        }
-        if (ping_queue != NULL)
-        {
-            vQueueDelete(ping_queue);
-        }
-        return ESP_ERR_NO_MEM;
+        err = ESP_ERR_NO_MEM;
+    }
+    else if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &ping_task) != pdPASS)
+    {
+        err = ESP_ERR_NO_MEM;
     }
 
-    s_ping_mutex = ping_mutex;
-    s_ping_completed_sem = completed_sem;
-    s_ping_queue = ping_queue;
-    if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &s_ping_task) != pdPASS)
+    taskENTER_CRITICAL(&s_diag_lock);
+    if (err == ESP_OK && !diag_worker_ready())
     {
+        s_ping_mutex = ping_mutex;
+        s_ping_completed_sem = completed_sem;
+        s_ping_queue = ping_queue;
+        s_ping_task = ping_task;
+        diag_reset_runtime_state();
+        s_diag_state = NETWORK_DIAG_STATE_READY;
+        s_diag_last_error = ESP_OK;
+        taskEXIT_CRITICAL(&s_diag_lock);
+        return ESP_OK;
+    }
+
+    const bool already_ready = diag_worker_ready();
+    if (already_ready)
+    {
+        s_diag_state = NETWORK_DIAG_STATE_READY;
+        s_diag_last_error = ESP_OK;
+    }
+    else
+    {
+        s_ping_task = NULL;
+        s_ping_queue = NULL;
         s_ping_mutex = NULL;
         s_ping_completed_sem = NULL;
-        s_ping_queue = NULL;
-        vSemaphoreDelete(ping_mutex);
-        vSemaphoreDelete(completed_sem);
-        vQueueDelete(ping_queue);
-        return ESP_ERR_NO_MEM;
+        s_diag_state = NETWORK_DIAG_STATE_FAILED;
+        s_diag_last_error = (err == ESP_OK) ? ESP_FAIL : err;
     }
+    taskEXIT_CRITICAL(&s_diag_lock);
+
+    if (!already_ready)
+    {
+        if (ping_task != NULL)
+        {
+            vTaskDelete(ping_task);
+        }
+        diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
+        ESP_LOGW(TAG, "Network diagnostics lazy init failed: %s", esp_err_to_name(s_diag_last_error));
+        return s_diag_last_error;
+    }
+
+    if (ping_task != NULL)
+    {
+        vTaskDelete(ping_task);
+    }
+    diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
+    return ESP_OK;
+}
+
+esp_err_t network_init(void)
+{
+    /* Cheap/idempotent ensure for compatibility. No persistent diagnostics worker
+     * resources (task/queue/mutex/ping-completed semaphore) are allocated at boot. */
     return ESP_OK;
 }
 
@@ -337,6 +424,12 @@ static esp_err_t network_request(const char *host, uint32_t timeout_ms, network_
     if (!wifi_is_connected())
     {
         return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t ensure_err = network_diag_ensure_worker();
+    if (ensure_err != ESP_OK)
+    {
+        return ensure_err;
     }
     if (s_ping_queue == NULL || s_ping_mutex == NULL || s_ping_completed_sem == NULL)
     {
