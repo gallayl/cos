@@ -2264,6 +2264,10 @@ static void async_pump_locked()
     {
         return;
     }
+    if (s_async_timers.empty() && s_async_microtasks.empty())
+    {
+        return;
+    }
 
     const int64_t now = esp_timer_get_time();
     std::vector<AsyncTimerEntry> remaining;
