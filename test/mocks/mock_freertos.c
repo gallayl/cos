@@ -28,6 +28,11 @@ EventGroupHandle_t xEventGroupCreate(void)
     return (EventGroupHandle_t)&s_dummy_group;
 }
 
+void vEventGroupDelete(EventGroupHandle_t xEventGroup)
+{
+    (void)xEventGroup;
+}
+
 EventBits_t xEventGroupSetBits(EventGroupHandle_t xEventGroup, EventBits_t uxBitsToSet)
 {
     (void)xEventGroup;
