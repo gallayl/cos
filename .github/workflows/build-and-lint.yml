@@ -3,30 +3,34 @@ name: Build & Lint
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".clang-tidy"
-      - ".github/workflows/build-and-lint.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".clang-tidy"
-      - ".github/workflows/build-and-lint.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build-and-lint: ${{ steps.build-and-lint.outputs.build-and-lint }}
+
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            build-and-lint:
+              - 'components/**'
+              - 'main/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - 'sdkconfig*'
+              - 'partitions.csv'
+              - '.clang-tidy'
+              - '.github/workflows/build-and-lint.yml'
+
   build-and-lint:
+    needs: changes
+    if: needs.changes.outputs.build-and-lint == 'true'
     name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest
     container:
