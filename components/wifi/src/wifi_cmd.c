@@ -41,9 +41,10 @@ static void print_service_status(void)
     const bool forced = wifi_is_forced_off_by_profile();
     const bool user_enabled = wifi_is_user_enabled();
 
-    printf("Service: %s\n", started ? "started" : "stopped");
-    printf("User enabled (persisted): %s\n", user_enabled ? "yes" : "no");
-    if (forced)
+    printf("Service: %s\n", started ? "started" : "stopped"); // NOLINT(readability-implicit-bool-conversion)
+    printf("User enabled (persisted): %s\n",
+           user_enabled ? "yes" : "no"); // NOLINT(readability-implicit-bool-conversion)
+    if (forced)                          // NOLINT(readability-implicit-bool-conversion)
     {
         printf("Boot profile: forced off (low-memory-offline)\n");
     }
@@ -51,7 +52,10 @@ static void print_service_status(void)
     {
         printf("Boot profile: allowed\n");
     }
-    printf("Effective: %s\n", forced ? "forced off by boot profile" : (user_enabled ? "enabled" : "user disabled"));
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    printf("Effective: %s\n",
+           forced ? "forced off by boot profile"                   // NOLINT(readability-implicit-bool-conversion)
+                  : (user_enabled ? "enabled" : "user disabled")); // NOLINT(readability-implicit-bool-conversion)
 
     if (!started)
     {

@@ -365,60 +365,50 @@ static esp_err_t network_diag_ensure_worker(void)
         {
             err = ESP_ERR_NO_MEM;
         }
-        else if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &ping_task) != pdPASS)
+        else
         {
-            err = ESP_ERR_NO_MEM;
-        }
-
-        taskENTER_CRITICAL(&s_diag_lock);
-        if (err == ESP_OK && !diag_worker_ready())
-        {
+            /* Publish handles before task start: worker reads globals immediately.
+             * State remains CREATING so callers wait and do not observe READY. */
+            taskENTER_CRITICAL(&s_diag_lock);
             s_ping_mutex = ping_mutex;
             s_ping_completed_sem = completed_sem;
             s_ping_queue = ping_queue;
-            s_ping_task = ping_task;
+            s_ping_task = NULL;
             diag_reset_runtime_state();
+            taskEXIT_CRITICAL(&s_diag_lock);
+
+            if (xTaskCreate(ping_worker, "net_ping", PING_TASK_STACK, NULL, PING_TASK_PRIORITY, &ping_task) != pdPASS)
+            {
+                err = ESP_ERR_NO_MEM;
+            }
+        }
+
+        if (err == ESP_OK)
+        {
+            taskENTER_CRITICAL(&s_diag_lock);
+            s_ping_task = ping_task;
             s_diag_state = NETWORK_DIAG_STATE_READY;
             s_diag_last_error = ESP_OK;
             taskEXIT_CRITICAL(&s_diag_lock);
             return ESP_OK;
         }
 
-        const bool already_ready = diag_worker_ready();
-        if (already_ready)
-        {
-            s_diag_state = NETWORK_DIAG_STATE_READY;
-            s_diag_last_error = ESP_OK;
-        }
-        else
-        {
-            s_ping_task = NULL;
-            s_ping_queue = NULL;
-            s_ping_mutex = NULL;
-            s_ping_completed_sem = NULL;
-            s_diag_state = NETWORK_DIAG_STATE_FAILED;
-            s_diag_last_error = (err == ESP_OK) ? ESP_FAIL : err;
-        }
+        taskENTER_CRITICAL(&s_diag_lock);
+        s_ping_task = NULL;
+        s_ping_queue = NULL;
+        s_ping_mutex = NULL;
+        s_ping_completed_sem = NULL;
+        s_diag_state = NETWORK_DIAG_STATE_FAILED;
+        s_diag_last_error = err;
         taskEXIT_CRITICAL(&s_diag_lock);
 
-        if (!already_ready)
-        {
-            if (ping_task != NULL)
-            {
-                vTaskDelete(ping_task);
-            }
-            diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
-            ESP_LOGW(TAG, "Network diagnostics lazy init failed: %s", esp_err_to_name(s_diag_last_error));
-            return s_diag_last_error;
-        }
-
-        /* Another creator won unexpectedly; discard ours. */
         if (ping_task != NULL)
         {
             vTaskDelete(ping_task);
         }
         diag_destroy_worker_resources(ping_queue, ping_mutex, completed_sem);
-        return ESP_OK;
+        ESP_LOGW(TAG, "Network diagnostics lazy init failed: %s", esp_err_to_name(s_diag_last_error));
+        return err;
     }
 }
 
