@@ -82,7 +82,7 @@ jobs:
           make lint
 
   required:
-    name: required
+    name: Required
     runs-on: ubuntu-latest
     if: always()
     needs:
