@@ -507,15 +507,27 @@ target_include_directories(test_keyboard_router PRIVATE
 target_link_libraries(test_keyboard_router PRIVATE unity keyboard_router_logic)
 add_test(NAME test_keyboard_router COMMAND test_keyboard_router)
 
+# --- Library: boot_profile_logic ---
+add_library(boot_profile_logic STATIC
+    ${COMPONENT_DIR}/components/boot_profile/src/boot_profile.c
+    ${COMPONENT_DIR}/components/boot_profile/src/boot_profile_cmd.c
+)
+target_include_directories(boot_profile_logic PUBLIC
+    ${COMPONENT_DIR}/components/boot_profile/include
+    mocks
+)
+target_link_libraries(boot_profile_logic PRIVATE mock_esp)
+
 # --- Library: bluetooth_cmd_logic ---
 add_library(bluetooth_cmd_logic STATIC
     ${COMPONENT_DIR}/components/bluetooth/src/bluetooth_cmd.c
 )
 target_include_directories(bluetooth_cmd_logic PUBLIC
     ${COMPONENT_DIR}/components/bluetooth/include
+    ${COMPONENT_DIR}/components/boot_profile/include
     mocks
 )
-target_link_libraries(bluetooth_cmd_logic PRIVATE mock_esp)
+target_link_libraries(bluetooth_cmd_logic PRIVATE boot_profile_logic mock_esp)
 
 # --- Test: bluetooth_cmd ---
 add_executable(test_bluetooth_cmd test_bluetooth_cmd.c)
@@ -523,7 +535,7 @@ target_include_directories(test_bluetooth_cmd PRIVATE
     mocks
     ${COMPONENT_DIR}/components/bluetooth/include
 )
-target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic mock_esp)
+target_link_libraries(test_bluetooth_cmd PRIVATE unity bluetooth_cmd_logic boot_profile_logic mock_esp)
 add_test(NAME test_bluetooth_cmd COMMAND test_bluetooth_cmd)
 
 # --- Library: network_url ---
@@ -552,6 +564,15 @@ target_include_directories(service_lifecycle_logic PUBLIC
     ${COMPONENT_DIR}/components/service_lifecycle/include
     mocks
 )
+
+# --- Test: boot_profile ---
+add_executable(test_boot_profile test_boot_profile.c)
+target_include_directories(test_boot_profile PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/boot_profile/include
+)
+target_link_libraries(test_boot_profile PRIVATE unity boot_profile_logic mock_esp)
+add_test(NAME test_boot_profile COMMAND test_boot_profile)
 
 # --- Test: service_lifecycle ---
 add_executable(test_service_lifecycle test_service_lifecycle.c)

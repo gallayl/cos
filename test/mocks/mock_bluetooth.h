@@ -10,6 +10,7 @@ void mock_bluetooth_reset(void);
 
 /* --- Configure state returned by query functions --- */
 
+void mock_bluetooth_set_stored_auto_enable(bool enabled);
 void mock_bluetooth_set_enabled(bool enabled);
 void mock_bluetooth_set_enabling(bool enabling);
 void mock_bluetooth_set_hid_ready(bool ready);
