@@ -9,19 +9,15 @@ permissions:
 
 jobs:
   lint:
-    name: Lint
     uses: ./build-and-lint.yml
+
   format-check:
-    name: Format Check
     uses: ./format-check.yml
   frontend:
-    name: Frontend
     uses: ./frontend.yml
   integration-tests:
-    name: Integration Tests
     uses: ./integration-tests.yml
   test:
-    name: Unit Tests
     uses: ./test.yml
 
   ci_required:
