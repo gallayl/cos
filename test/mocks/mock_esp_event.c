@@ -65,3 +65,19 @@ esp_err_t esp_event_handler_instance_register(esp_event_base_t event_base, int32
     }
     return ESP_OK;
 }
+
+esp_err_t esp_event_handler_instance_unregister(esp_event_base_t event_base, int32_t event_id,
+                                                esp_event_handler_instance_t instance)
+{
+    (void)event_base;
+    (void)event_id;
+    for (int i = 0; i < s_handler_count; i++)
+    {
+        if ((esp_event_handler_instance_t)&s_handlers[i] == instance)
+        {
+            s_handlers[i].used = 0;
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_NOT_FOUND;
+}

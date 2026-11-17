@@ -284,7 +284,7 @@ void test_init_double_init_is_idempotent(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_service_started());
 }
 
 /* --- wifi_shutdown --- */
@@ -339,7 +339,7 @@ void test_boot_persisted_disabled_does_not_bring_up_radio(void)
     nvs_set_u8_blob("enabled", 0);
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_service_started());
     TEST_ASSERT_FALSE(wifi_is_user_enabled());
     TEST_ASSERT_FALSE(wifi_is_forced_off_by_profile());
     TEST_ASSERT_EQUAL(0, mock_wifi_get_connect_count());
@@ -356,7 +356,7 @@ void test_boot_forced_off_by_profile_blocks_bring_up_and_persists_intent(void)
     nvs_set_u8_blob("enabled", 1);
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_service_started());
     TEST_ASSERT_TRUE(wifi_is_forced_off_by_profile());
     TEST_ASSERT_TRUE(wifi_is_user_enabled());
 
@@ -373,16 +373,16 @@ void test_boot_forced_off_by_profile_blocks_bring_up_and_persists_intent(void)
 void test_start_stop_persist_enabled_state_and_control_service(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_service_started());
     TEST_ASSERT_TRUE(wifi_is_user_enabled());
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_stop());
-    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_service_started());
     TEST_ASSERT_FALSE(wifi_is_user_enabled());
     TEST_ASSERT_EQUAL(0, nvs_get_u8_blob_or("enabled", 1));
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_start());
-    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_service_started());
     TEST_ASSERT_TRUE(wifi_is_user_enabled());
     TEST_ASSERT_EQUAL(1, nvs_get_u8_blob_or("enabled", 0));
 }
@@ -391,13 +391,15 @@ void test_restart_requires_active_service(void)
 {
     nvs_set_u8_blob("enabled", 0);
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_service_started());
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, wifi_restart());
 
     TEST_ASSERT_EQUAL(ESP_OK, wifi_start());
-    int before = mock_wifi_get_connect_count();
+    TEST_ASSERT_TRUE(wifi_is_service_started());
+    /* AP-only active service (no stored STA credentials): restart should succeed without STA connect. */
     TEST_ASSERT_EQUAL(ESP_OK, wifi_restart());
-    TEST_ASSERT_EQUAL(before + 1, mock_wifi_get_connect_count());
+    TEST_ASSERT_TRUE(wifi_is_service_started());
+    TEST_ASSERT_EQUAL(0, mock_wifi_get_connect_count());
     TEST_ASSERT_TRUE(wifi_is_user_enabled());
 }
 
@@ -414,11 +416,11 @@ void test_cmd_status_and_lifecycle_commands(void)
 
     char *start_argv[] = {"wifi", "start"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("wifi", 2, start_argv));
-    TEST_ASSERT_TRUE(wifi_is_started());
+    TEST_ASSERT_TRUE(wifi_is_service_started());
 
     char *stop_argv[] = {"wifi", "stop"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("wifi", 2, stop_argv));
-    TEST_ASSERT_FALSE(wifi_is_started());
+    TEST_ASSERT_FALSE(wifi_is_service_started());
 }
 
 /* --- Shell command registration --- */
@@ -494,12 +496,14 @@ void test_cmd_wifi_scan(void)
 void test_cmd_wifi_restart(void)
 {
     TEST_ASSERT_EQUAL(ESP_OK, wifi_init());
-    int before = mock_wifi_get_connect_count();
+    TEST_ASSERT_TRUE(wifi_is_service_started());
 
     char *argv[] = {"wifi", "restart"};
     int ret = mock_console_run_cmd("wifi", 2, argv);
     TEST_ASSERT_EQUAL(0, ret);
-    TEST_ASSERT_EQUAL(before + 1, mock_wifi_get_connect_count());
+    /* AP-only active service (no stored STA credentials): restart restarts service without STA connect. */
+    TEST_ASSERT_TRUE(wifi_is_service_started());
+    TEST_ASSERT_EQUAL(0, mock_wifi_get_connect_count());
 }
 
 void test_cmd_wifi_unknown_subcommand(void)

@@ -37,7 +37,7 @@ static const char *mode_str(wifi_mode_t mode)
 
 static void print_service_status(void)
 {
-    const bool started = wifi_is_started();
+    const bool started = wifi_is_service_started();
     const bool forced = wifi_is_forced_off_by_profile();
     const bool user_enabled = wifi_is_user_enabled();
 
@@ -231,7 +231,7 @@ static int cmd_wifi(int argc, char **argv)
             print_op_error("restart", err);
             return 1;
         }
-        printf("Reconnecting...\n");
+        printf("Wi-Fi service restarted\n");
         return 0;
     }
 

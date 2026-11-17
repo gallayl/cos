@@ -60,7 +60,7 @@ extern "C"
     wifi_service_state_t wifi_get_service_state(void);
 
     /** True when service is started/active. */
-    bool wifi_is_started(void);
+    bool wifi_is_service_started(void);
 
     /** True when Wi-Fi is forced off by active boot profile for this boot. */
     bool wifi_is_forced_off_by_profile(void);

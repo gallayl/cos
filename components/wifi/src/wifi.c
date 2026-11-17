@@ -63,23 +63,29 @@ static void wifi_set_default_ap_config(wifi_config_t *ap_cfg)
     ap_cfg->ap.authmode = strlen(WIFI_AP_DEFAULT_PASSWORD) > 0 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
 }
 
-static void wifi_load_user_enabled_state(void)
+static bool wifi_read_persisted_user_enabled_state(void)
 {
-    s_user_enabled = true; /* preserve boot auto-start default when unset */
+    bool enabled = true; /* preserve boot auto-start default when unset */
     nvs_handle_t h = 0;
     if (nvs_open(WIFI_NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK)
     {
-        uint8_t enabled = 1;
-        size_t len = sizeof(enabled);
-        if (nvs_get_blob(h, WIFI_NVS_KEY_ENABLED, &enabled, &len) == ESP_OK && len == sizeof(enabled))
+        uint8_t value = 1;
+        size_t len = sizeof(value);
+        if (nvs_get_blob(h, WIFI_NVS_KEY_ENABLED, &value, &len) == ESP_OK && len == sizeof(value))
         {
-            s_user_enabled = (enabled != 0);
+            enabled = (value != 0);
         }
         nvs_close(h);
     }
+    return enabled;
 }
 
-static esp_err_t wifi_persist_user_enabled_state(bool enabled)
+static void wifi_load_user_enabled_state(void)
+{
+    s_user_enabled = wifi_read_persisted_user_enabled_state();
+}
+
+static esp_err_t wifi_write_persisted_user_enabled_state(bool enabled)
 {
     nvs_handle_t h = 0;
     esp_err_t err = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &h);
@@ -94,6 +100,12 @@ static esp_err_t wifi_persist_user_enabled_state(bool enabled)
         err = nvs_commit(h);
     }
     nvs_close(h);
+    return err;
+}
+
+static esp_err_t wifi_persist_user_enabled_state(bool enabled)
+{
+    esp_err_t err = wifi_write_persisted_user_enabled_state(enabled);
     if (err == ESP_OK)
     {
         s_user_enabled = enabled;
@@ -154,7 +166,7 @@ static const char *wifi_state_reason_str(void)
 
 static esp_err_t wifi_ensure_not_stopped(const char *op)
 {
-    if (!wifi_is_started())
+    if (!wifi_is_service_started())
     {
         ESP_LOGW(TAG, "%s rejected: Wi-Fi service is not started (%s)", op, wifi_state_reason_str());
         return ESP_ERR_INVALID_STATE;
@@ -271,12 +283,52 @@ static esp_err_t wifi_stop_radio_locked(void)
     return ESP_OK;
 }
 
+static void wifi_cleanup_driver_init_failure(bool wifi_inited)
+{
+    if (s_wifi_event_inst != NULL)
+    {
+        (void)esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, s_wifi_event_inst);
+        s_wifi_event_inst = NULL;
+    }
+    if (s_ip_event_inst != NULL)
+    {
+        (void)esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, s_ip_event_inst);
+        s_ip_event_inst = NULL;
+    }
+
+    if (wifi_inited)
+    {
+        /* Best-effort cleanup on partial init failure; ignore errors to leave a known state. */
+        (void)esp_wifi_stop();
+        (void)esp_wifi_deinit();
+    }
+
+    /*
+     * esp_netif_create_default_wifi_{sta,ap} / esp_netif_init / default event loop are
+     * system-level/shared resources without a safe, complete rollback path here on ESP-IDF.
+     * Clear local ownership/state so retries do not use half-initialized driver state.
+     */
+    s_sta_netif = NULL;
+    s_ap_netif = NULL;
+
+    if (s_event_group != NULL)
+    {
+        vEventGroupDelete(s_event_group);
+        s_event_group = NULL;
+    }
+
+    s_driver_initialized = false;
+    s_service_state = WIFI_SERVICE_STOPPED;
+}
+
 static esp_err_t wifi_ensure_driver_initialized(void)
 {
     if (s_driver_initialized)
     {
         return ESP_OK;
     }
+
+    bool wifi_inited = false;
 
     if (s_event_group == NULL)
     {
@@ -288,12 +340,19 @@ static esp_err_t wifi_ensure_driver_initialized(void)
         }
     }
 
-    ESP_RETURN_ON_ERROR(esp_netif_init(), TAG, "netif init failed");
+    esp_err_t err = esp_netif_init();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "netif init failed: %s", esp_err_to_name(err));
+        wifi_cleanup_driver_init_failure(wifi_inited);
+        return err;
+    }
 
-    esp_err_t err = esp_event_loop_create_default();
+    err = esp_event_loop_create_default();
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
     {
         ESP_LOGE(TAG, "event loop create failed: %s", esp_err_to_name(err));
+        wifi_cleanup_driver_init_failure(wifi_inited);
         return err;
     }
 
@@ -307,19 +366,36 @@ static esp_err_t wifi_ensure_driver_initialized(void)
     }
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_RETURN_ON_ERROR(esp_wifi_init(&cfg), TAG, "esp_wifi_init failed");
+    err = esp_wifi_init(&cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(err));
+        wifi_cleanup_driver_init_failure(wifi_inited);
+        return err;
+    }
+    wifi_inited = true;
 
     if (s_wifi_event_inst == NULL)
     {
-        ESP_RETURN_ON_ERROR(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL,
-                                                                &s_wifi_event_inst),
-                            TAG, "wifi event register failed");
+        err = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL,
+                                                  &s_wifi_event_inst);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "wifi event register failed: %s", esp_err_to_name(err));
+            wifi_cleanup_driver_init_failure(wifi_inited);
+            return err;
+        }
     }
     if (s_ip_event_inst == NULL)
     {
-        ESP_RETURN_ON_ERROR(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler,
-                                                                NULL, &s_ip_event_inst),
-                            TAG, "ip event register failed");
+        err = esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL,
+                                                  &s_ip_event_inst);
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "ip event register failed: %s", esp_err_to_name(err));
+            wifi_cleanup_driver_init_failure(wifi_inited);
+            return err;
+        }
     }
 
     s_driver_initialized = true;
@@ -362,7 +438,7 @@ esp_err_t wifi_init(void)
     }
 
     /* Preserve default boot UX by auto-starting when allowed/enabled. */
-    if (wifi_is_started())
+    if (wifi_is_service_started())
     {
         return ESP_OK;
     }
@@ -400,6 +476,13 @@ esp_err_t wifi_start(void)
         return ESP_ERR_NOT_ALLOWED;
     }
 
+    if (wifi_is_service_started())
+    {
+        /* Keep persisted intent aligned with an already-active service. */
+        return wifi_persist_user_enabled_state(true);
+    }
+
+    const bool prev_enabled = wifi_read_persisted_user_enabled_state();
     esp_err_t perr = wifi_persist_user_enabled_state(true);
     if (perr != ESP_OK)
     {
@@ -407,14 +490,11 @@ esp_err_t wifi_start(void)
         return perr;
     }
 
-    if (wifi_is_started())
-    {
-        return ESP_OK;
-    }
-
     esp_err_t err = wifi_ensure_driver_initialized();
     if (err != ESP_OK)
     {
+        (void)wifi_write_persisted_user_enabled_state(prev_enabled);
+        s_user_enabled = prev_enabled;
         return err;
     }
 
@@ -424,7 +504,13 @@ esp_err_t wifi_start(void)
         s_commands_registered = true;
     }
 
-    return wifi_start_radio_locked();
+    err = wifi_start_radio_locked();
+    if (err != ESP_OK)
+    {
+        (void)wifi_write_persisted_user_enabled_state(prev_enabled);
+        s_user_enabled = prev_enabled;
+    }
+    return err;
 }
 
 esp_err_t wifi_stop(void)
@@ -435,6 +521,13 @@ esp_err_t wifi_stop(void)
         return ESP_ERR_NOT_ALLOWED;
     }
 
+    if (!wifi_is_service_started())
+    {
+        /* Keep persisted intent aligned with an already-stopped service. */
+        return wifi_persist_user_enabled_state(false);
+    }
+
+    const bool prev_enabled = wifi_read_persisted_user_enabled_state();
     esp_err_t perr = wifi_persist_user_enabled_state(false);
     if (perr != ESP_OK)
     {
@@ -442,12 +535,13 @@ esp_err_t wifi_stop(void)
         return perr;
     }
 
-    if (!wifi_is_started())
+    esp_err_t err = wifi_stop_radio_locked();
+    if (err != ESP_OK)
     {
-        return ESP_OK;
+        (void)wifi_write_persisted_user_enabled_state(prev_enabled);
+        s_user_enabled = prev_enabled;
     }
-
-    return wifi_stop_radio_locked();
+    return err;
 }
 
 esp_err_t wifi_restart(void)
@@ -458,23 +552,23 @@ esp_err_t wifi_restart(void)
         return err;
     }
 
-    /* Active-only restart/reconnect cycle; preserve persisted enabled intent. */
-    (void)esp_wifi_disconnect();
-    if (s_event_group != NULL)
-    {
-        xEventGroupClearBits(s_event_group, WIFI_CONNECTED_BIT | WIFI_GOT_IP_BIT);
-    }
-
-    err = esp_wifi_connect();
-    if (err == ESP_ERR_WIFI_NOT_STARTED)
-    {
-        return wifi_start_radio_locked();
-    }
+    /* Active-only restart: cycle service while preserving persisted enabled intent. */
+    err = wifi_stop_radio_locked();
     if (err != ESP_OK)
     {
-        ESP_LOGW(TAG, "wifi restart connect failed: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "wifi restart stop phase failed: %s", esp_err_to_name(err));
+        return err;
     }
-    return err;
+
+    err = wifi_start_radio_locked();
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "wifi restart start phase failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    ESP_LOGI(TAG, "Wi-Fi service restarted");
+    return ESP_OK;
 }
 
 wifi_service_state_t wifi_get_service_state(void)
@@ -482,7 +576,7 @@ wifi_service_state_t wifi_get_service_state(void)
     return s_service_state;
 }
 
-bool wifi_is_started(void)
+bool wifi_is_service_started(void)
 {
     return s_service_state == WIFI_SERVICE_STARTED;
 }
@@ -615,7 +709,7 @@ esp_err_t wifi_scan(wifi_ap_record_t *results, uint16_t *count, uint16_t max_res
 
 bool wifi_is_connected(void)
 {
-    if (s_event_group == NULL || !wifi_is_started())
+    if (s_event_group == NULL || !wifi_is_service_started())
     {
         return false;
     }
