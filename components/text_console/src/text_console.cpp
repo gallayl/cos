@@ -225,7 +225,27 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     (void)written;
     fflush(s_original_stdout);
     notify_output_listener(buf, size);
-    text_console_write(buf, size);
+
+    bool history_allocation_failed = false;
+    bool should_notify_render = false;
+    if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    {
+        text_buffer_write(&s_buf, buf, size);
+        history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
+        should_notify_render = s_screen_visible;
+        xSemaphoreGive(s_mutex);
+        if (should_notify_render && s_render_task != NULL)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
+    }
+    if (history_allocation_failed)
+    {
+        static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
+            "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+        fwrite(SCROLLBACK_ALLOC_FAILED_MSG, 1, sizeof(SCROLLBACK_ALLOC_FAILED_MSG) - 1, s_original_stdout);
+        fflush(s_original_stdout);
+    }
 
     return (ssize_t)written;
 }
@@ -491,36 +511,24 @@ extern "C" void text_console_write(const char *data, size_t len)
         return;
     }
 
-    if (s_mutex == NULL)
+    if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
-        return;
-    }
-
-    bool locked = false;
-    for (int attempt = 0; attempt < 4 && !locked; ++attempt)
-    {
-        locked = (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE);
-    }
-    if (!locked)
-    {
-        return;
-    }
-
-    text_buffer_write(&s_buf, data, len);
-    const bool history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
-    const bool screen_visible = s_screen_visible;
-    xSemaphoreGive(s_mutex);
-    if (screen_visible && s_render_task != NULL)
-    {
-        xTaskNotifyGive(s_render_task);
-    }
-    if (history_allocation_failed && s_original_stdout != NULL)
-    {
-        /* Avoid ESP_LOG here: it re-enters stdout hook and can recurse if buffer writes keep failing. */
-        static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
-            "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
-        fwrite(SCROLLBACK_ALLOC_FAILED_MSG, 1, sizeof(SCROLLBACK_ALLOC_FAILED_MSG) - 1, s_original_stdout);
-        fflush(s_original_stdout);
+        text_buffer_write(&s_buf, data, len);
+        const bool history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
+        const bool screen_visible = s_screen_visible;
+        xSemaphoreGive(s_mutex);
+        if (screen_visible && s_render_task != NULL)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
+        if (history_allocation_failed && s_original_stdout != NULL)
+        {
+            /* Avoid ESP_LOG here: it re-enters stdout hook and can recurse if buffer writes keep failing. */
+            static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
+                "W (text_console) Scrollback allocation failed; continuing without history until cleared\n";
+            fwrite(SCROLLBACK_ALLOC_FAILED_MSG, 1, sizeof(SCROLLBACK_ALLOC_FAILED_MSG) - 1, s_original_stdout);
+            fflush(s_original_stdout);
+        }
     }
 }
 
