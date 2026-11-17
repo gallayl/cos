@@ -3,29 +3,14 @@ name: Unit Tests
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - ".github/workflows/test.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - ".github/workflows/test.yml"
+    branches: [main]
 
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      test: ${{ steps.test.outputs.test }}
+      test: ${{ steps.filter.outputs.test }}
     steps:
       - uses: dorny/paths-filter@v4
         id: filter
@@ -42,6 +27,8 @@ jobs:
 
   test:
     name: Unit Tests
+    needs: changes
+    if: needs.changes.outputs.test == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +40,9 @@ jobs:
     name: Required
     runs-on: ubuntu-latest
     if: always()
+    needs:
+      - changes
+      - test
     steps:
       - name: Verify test results
         env:
