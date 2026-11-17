@@ -97,6 +97,11 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
     return ESP_OK;
 }
 
+esp_err_t esp_wifi_deinit(void)
+{
+    return ESP_OK;
+}
+
 esp_err_t esp_wifi_start(void)
 {
     s_started = true;
