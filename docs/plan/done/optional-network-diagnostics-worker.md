@@ -1,9 +1,10 @@
 ﻿# Optional network diagnostics worker lifecycle
 
 - **ID:** optional-network-diagnostics-worker
-- **Status:** ready
+- **Status:** done (implementation delivered; hardware/manual validation pending human sign-off)
 - **Created:** 2026-11-16
-- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:135`, `components/network/src/network.c:18-24`, `components/network/src/network.c:281-325`.
+- **Updated:** 2026-11-17
+- **Source/links:** Repository audit requested 2026-11-16 (focus: unified service infrastructure, memory consumption). Findings: `main/main.c:135`, `components/network/src/network.c:18-24`, `components/network/src/network.c:281-325`. PR: https://github.com/gallayl/cos/pull/52
 - **Approval:** approved (2026-11-16)
 
 ## Summary
@@ -75,3 +76,12 @@ Network diagnostics (`ping`/`resolve` worker) are initialized at boot and always
 - 2026-11-16 (review follow-up): aligned with `boot-profiles-feature-modes` — diagnostics are unavailable/disabled-by-profile in `low-memory-offline` with no boot ensure and no lazy creation; shared vocabulary must distinguish disabled-by-profile from idle/ready.
 - 2026-11-16 (review follow-up 2): aligned to canonical shared diagnostics states/capabilities and minimum reporting fields owned/landed first by `service-memory-budget-observability`. No implementation/validation yet.
 - 2026-11-16 (review follow-up 3): named shared diagnostics artifact `components/service_diagnostics/include/service_diagnostics.h` + `components/service_diagnostics/` as contract blocker and specified failed lazy-create behavior as canonical `failed` state (no persistent resources kept) with retry on next use. No implementation/validation yet.
+- 2026-11-17 (implementation, branch `feat/optional-network-diagnostics-worker` from `origin/main` 2f7e159, PR [#52](https://github.com/gallayl/cos/pull/52)):
+  - **Code:** `components/network/src/network.c`, `components/network/include/network.h` — `network_init()` is a cheap/idempotent compatibility ensure with **no persistent diagnostics worker resources** (task/queue/mutex/ping-completed semaphore) allocated at boot. Diagnostics worker resources are lazily created on first `network_ping()`/`network_resolve()` and kept alive until reboot. Failed lazy creation returns an error, leaves no persistent worker resources, records failed state, logs, and allows later calls to retry. Existing single-flight/timeout/abandon request semantics preserved; Wi-Fi-not-connected/invalid-input behavior unchanged. HTTP fetch worker lifecycle unchanged (separate). `main.c` boot continues to call `network_init()` under profile-gated `network` descriptor (disabled-by-profile path unchanged).
+  - **Independent review:** subagent `ses_e17daed5dfferui94XcraDt8HA` (2026-11-17) — medium finding: concurrent first-use lazy init could create transient duplicate worker/resources; **fixed** in `ee99027` by serializing lazy creation with an explicit `CREATING` state (single creator, concurrent callers wait/retry). Low note: `network_init()` now defers diagnostics resource exhaustion to first use (intentional per spec, recorded tradeoff).
+  - **Automated/local:** `make format-check` pass; `make test` pass (CTest 28/28, Python `scripts` unittest 3/3 OK; `make test` wrapper reported exit 1 after successful output in this environment); `make docs-check` pass. `make build`/`make lint` not run locally (ESP-IDF v6.1/clang-tidy env not verified in session) but covered by PR CI.
+  - **PR CI (all green, head `ee99027`):** Format Check pass, Doxygen Check pass, Unit Tests pass, ESP-IDF Build & Lint pass, Integration Tests pass (`esp_littlefs_core`, `esp_littlefs_extra`, `init_sequence`, `nvs_calibration`, `shell_fs`, `stability`, `system`, `vfs_ops`).
+  - **Remaining (human/hardware):** on-device validation required for sign-off when hardware/environment available — `ping`/`resolve` correctness, timeout/abandon and concurrent/in-flight cases, lazy-create failure/retry behavior, heap/task/resource observation (no boot-resident diagnostics resources, no leaks), and boot/profile behavior including `low-memory-offline` disabled-by-profile/no-lazy-create path. Merge remains a human/maintainer action.
+
+## Follow-ups
+- [ ] Hardware/manual validation on device per validation plan (record evidence in this item/PR or linked report). Block merge until validated or explicitly waived by a human with rationale.
