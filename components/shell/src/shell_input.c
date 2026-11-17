@@ -117,8 +117,7 @@ static void replace_line(const char *new_line)
 
 static void history_push(const char *cmd)
 {
-    strncpy(s_history[s_history_write], cmd, INPUT_LINE_MAX - 1);
-    s_history[s_history_write][INPUT_LINE_MAX - 1] = '\0';
+    snprintf(s_history[s_history_write], INPUT_LINE_MAX, "%.*s", INPUT_LINE_MAX - 1, cmd);
     s_history_write = (s_history_write + 1) % HISTORY_SIZE;
     if (s_history_count < HISTORY_SIZE)
     {
