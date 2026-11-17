@@ -1,5 +1,6 @@
 #include "bluetooth.h"
 #include "bluetooth_hid.h"
+#include "boot_profile.h"
 
 #include "esp_bt.h"
 #include "esp_bt_defs.h"
@@ -577,6 +578,13 @@ esp_err_t bluetooth_init(void)
 {
     bluetooth_register_commands();
 
+    if (!boot_profile_allows_bluetooth_stack())
+    {
+        ESP_LOGI(TAG, "Bluetooth stack disabled by boot profile (%s); stored auto-enable preserved",
+                 boot_profile_name(boot_profile_get_effective()));
+        return ESP_OK;
+    }
+
     if (nvs_load_enabled())
     {
         ESP_LOGI(TAG, "NVS: Bluetooth was enabled, auto-starting...");
@@ -592,6 +600,13 @@ esp_err_t bluetooth_init(void)
 
 esp_err_t bluetooth_enable(void)
 {
+    if (!boot_profile_allows_bluetooth_stack())
+    {
+        ESP_LOGW(TAG, "Bluetooth enable rejected: disabled by boot profile (%s)",
+                 boot_profile_name(boot_profile_get_effective()));
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
     if (s_enabled)
     {
         ESP_LOGW(TAG, "Already enabled");
@@ -849,6 +864,11 @@ bool bluetooth_is_enabling(void)
 bool bluetooth_is_hid_ready(void)
 {
     return s_hidh_inited;
+}
+
+bool bluetooth_is_stored_auto_enable(void)
+{
+    return nvs_load_enabled();
 }
 
 bool bluetooth_is_connected(void)

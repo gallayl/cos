@@ -77,6 +77,9 @@ extern "C"
      */
     esp_err_t bluetooth_forget(void);
 
+    /** @brief Return true if Bluetooth auto-enable is stored in NVS for future allowed boots. */
+    bool bluetooth_is_stored_auto_enable(void);
+
     /** True if the BLE stack is enabled and running. */
     bool bluetooth_is_enabled(void);
 
