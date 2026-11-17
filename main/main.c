@@ -1,5 +1,6 @@
 #include "berry_runtime.h"
 #include "bluetooth.h"
+#include "boot_profile.h"
 #include "brightness.h"
 #include "calibration.h"
 #include "display.h"
@@ -20,6 +21,8 @@
 
 #include "esp_log.h"
 #include "nvs_flash.h"
+
+#include <string.h>
 
 static const char *const TAG = "main";
 
@@ -218,7 +221,16 @@ void app_main(void)
         ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
     }
 
-    ESP_LOGI(TAG, "COS starting up...");
+    (void)boot_profile_early_init();
+
+    ESP_LOGI(TAG, "COS starting up (boot profile: effective=%s, next=%s)",
+             boot_profile_name(boot_profile_get_effective()), boot_profile_name(boot_profile_get_next()));
+
+    const bool allow_wifi = boot_profile_allows_wifi();
+    const bool allow_network_diag = boot_profile_allows_network_diagnostics();
+    const bool allow_http = boot_profile_allows_http_server();
+    const bool allow_ws = boot_profile_allows_websocket();
+    const bool allow_time_sync = boot_profile_allows_time_sync();
 
     static const char *const ws_deps[] = {"http_server"};
 
@@ -265,7 +277,7 @@ void app_main(void)
          .enabled = true},
         {.id = "wifi", .name = "Wi-Fi", .init = svc_init_wifi, .capabilities = SERVICE_CAP_CAN_START, .enabled = true},
         {.id = "network",
-         .name = "Network",
+         .name = "Network diagnostics",
          .init = svc_init_network,
          .capabilities = SERVICE_CAP_CAN_START,
          .enabled = true},
@@ -303,6 +315,31 @@ void app_main(void)
          .enabled = true},
     };
 
+    for (size_t i = 0; i < sizeof(services) / sizeof(services[0]); ++i)
+    {
+        service_descriptor_t *svc = &services[i];
+        if (strcmp(svc->id, "wifi") == 0)
+        {
+            svc->enabled = allow_wifi;
+        }
+        else if (strcmp(svc->id, "network") == 0)
+        {
+            svc->enabled = allow_network_diag;
+        }
+        else if (strcmp(svc->id, "http_server") == 0)
+        {
+            svc->enabled = allow_http;
+        }
+        else if (strcmp(svc->id, "websocket") == 0)
+        {
+            svc->enabled = allow_ws;
+        }
+        else if (strcmp(svc->id, "time_sync") == 0)
+        {
+            svc->enabled = allow_time_sync;
+        }
+    }
+
     const size_t service_count = sizeof(services) / sizeof(services[0]);
     service_lifecycle_boot(services, service_count);
 
@@ -322,6 +359,9 @@ void app_main(void)
     const bool bt_ok = svc_started(bt_svc);
     const bool ws_ok = svc_started(ws_svc);
     const bool shell_ok = svc_started(shell_svc);
+
+    /* Best-effort: register recovery command when console is available, even if shell service failed. */
+    (void)boot_profile_init();
 
     if (bt_ok && console_ok && shell_ok)
     {
@@ -347,12 +387,18 @@ void app_main(void)
         ESP_LOGW(TAG, "WebSocket text input disabled because shell is unavailable");
     }
 
+    if (!boot_profile_allows_bluetooth_stack() && bt_ok)
+    {
+        ESP_LOGI(TAG, "Bluetooth initialized in forced-off profile mode (stack/radio unavailable this boot)");
+    }
+
     if (fs_ok)
     {
-        ESP_LOGI(TAG, "COS ready (filesystem available)");
+        ESP_LOGI(TAG, "COS ready (filesystem available, profile=%s)", boot_profile_name(boot_profile_get_effective()));
     }
     else
     {
-        ESP_LOGW(TAG, "COS ready with limited functionality (filesystem unavailable)");
+        ESP_LOGW(TAG, "COS ready with limited functionality (filesystem unavailable, profile=%s)",
+                 boot_profile_name(boot_profile_get_effective()));
     }
 }

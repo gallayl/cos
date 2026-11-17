@@ -1,5 +1,6 @@
 #include "bluetooth.h"
 
+#include "boot_profile.h"
 #include "esp_bt_defs.h"
 #include "esp_console.h"
 #include "esp_log.h"
@@ -29,7 +30,12 @@ static bool parse_bda(const char *str, esp_bd_addr_t bda)
 
 static void print_status(void)
 {
-    if (bluetooth_is_enabling())
+    if (!boot_profile_allows_bluetooth_stack())
+    {
+        printf("Bluetooth: forced off by boot profile (%s, current boot, stored auto-enable: %s)\n",
+               boot_profile_name(boot_profile_get_effective()), bluetooth_is_stored_auto_enable() ? "on" : "off");
+    }
+    else if (bluetooth_is_enabling())
     {
         printf("Bluetooth: enabling...\n");
     }
@@ -70,6 +76,12 @@ static int cmd_bt(int argc, char **argv)
 
     if (strcmp(subcmd, "on") == 0)
     {
+        if (!boot_profile_allows_bluetooth_stack())
+        {
+            printf("bt: disabled by boot profile (%s) for this boot (stored auto-enable: %s, preserved)\n",
+                   boot_profile_name(boot_profile_get_effective()), bluetooth_is_stored_auto_enable() ? "on" : "off");
+            return 1;
+        }
         esp_err_t err = bluetooth_enable();
         if (err != ESP_OK)
         {
@@ -94,6 +106,11 @@ static int cmd_bt(int argc, char **argv)
 
     if (strcmp(subcmd, "scan") == 0)
     {
+        if (!boot_profile_allows_bluetooth_stack())
+        {
+            printf("bt: disabled by boot profile (%s)\n", boot_profile_name(boot_profile_get_effective()));
+            return 1;
+        }
         if (!bluetooth_is_enabled())
         {
             printf("bt: not enabled (run 'bt on' first)\n");
@@ -113,6 +130,11 @@ static int cmd_bt(int argc, char **argv)
         if (argc < 3)
         {
             printf("Usage: bt connect <aa:bb:cc:dd:ee:ff>\n");
+            return 1;
+        }
+        if (!boot_profile_allows_bluetooth_stack())
+        {
+            printf("bt: disabled by boot profile (%s)\n", boot_profile_name(boot_profile_get_effective()));
             return 1;
         }
         if (!bluetooth_is_enabled())

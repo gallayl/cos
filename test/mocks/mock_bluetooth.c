@@ -5,6 +5,7 @@
 
 static bool s_enabled;
 static bool s_enabling;
+static bool s_stored_auto_enable;
 static bool s_hid_ready;
 static bool s_connected;
 static const char *s_device_name;
@@ -30,6 +31,7 @@ void mock_bluetooth_reset(void)
 {
     s_enabled = false;
     s_enabling = false;
+    s_stored_auto_enable = false;
     s_hid_ready = false;
     s_connected = false;
     s_device_name = NULL;
@@ -50,6 +52,11 @@ void mock_bluetooth_reset(void)
     s_disconnect_count = 0;
     s_forget_count = 0;
     memset(s_last_connect_bda, 0, sizeof(s_last_connect_bda));
+}
+
+void mock_bluetooth_set_stored_auto_enable(bool enabled)
+{
+    s_stored_auto_enable = enabled;
 }
 
 void mock_bluetooth_set_enabled(bool enabled)
@@ -210,6 +217,11 @@ bool bluetooth_is_hid_ready(void)
 {
     return s_hid_ready;
 }
+bool bluetooth_is_stored_auto_enable(void)
+{
+    return s_stored_auto_enable;
+}
+
 bool bluetooth_is_connected(void)
 {
     return s_connected;
