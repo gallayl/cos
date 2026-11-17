@@ -22,4 +22,4 @@ A green baseline is required before building unrelated feature work. **Granular 
 
 ## Constraints
 
-- No force-push/history rewrites, no destructive commands. Report exact evidence and actionable blockers per root `AGENTS.md`.
+- Follow `global-gates` (safe Git, no destructive commands, evidence-based reporting). Report exact evidence and actionable blockers per root `AGENTS.md`.
