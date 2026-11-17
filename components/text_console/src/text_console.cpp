@@ -510,8 +510,6 @@ extern "C" void text_console_write(const char *data, size_t len)
     const bool history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
     const bool screen_visible = s_screen_visible;
     xSemaphoreGive(s_mutex);
-    fwrite(data, 1, len, s_original_stdout); // debug: confirm screen-buffer path reached
-    fflush(s_original_stdout);
     if (screen_visible && s_render_task != NULL)
     {
         xTaskNotifyGive(s_render_task);
