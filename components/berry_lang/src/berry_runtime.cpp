@@ -2181,15 +2181,23 @@ static void async_clear_all_state(bool reject_pending)
     auto micros = std::move(s_async_microtasks);
     s_async_timers.clear();
     s_async_microtasks.clear();
+
+    // Prevent normal pump/drain from running while we settle and clear state.
     s_async_tearing_down = true;
 
     if (reject_pending)
     {
+        // Deterministically settle pending timer-backed promises with cancellation.
+        // Callbacks are invoked during teardown settlement (VM still valid, runtime lock held);
+        // no user callbacks run after this function completes.
         for (const auto &t : timers)
         {
             if (t.reject_id >= 0)
             {
+                // Temporarily allow this controlled settlement call.
+                s_async_tearing_down = false;
                 async_call_cb(t.reject_id, 1, false, ASYNC_ERR_CANCELLED);
+                s_async_tearing_down = true;
             }
             async_remove_callback(t.resolve_id);
             async_remove_callback(t.reject_id);
@@ -2203,11 +2211,17 @@ static void async_clear_all_state(bool reject_pending)
             async_remove_callback(t.reject_id);
         }
     }
+
+    // Queued microtasks cannot run after teardown; drop references and free callback globals.
+    // (No safe bounded way to settle arbitrary pending continuations here without re-entering drain.)
     for (const auto &m : micros)
     {
         async_remove_callback(m.callback_id);
     }
 
+    // Leave teardown guard active for remainder of app teardown/reset path in caller context;
+    // caller/next init/pump cycle will clear as appropriate via new runtime state.
+    // Reset flag now that queues/globals are cleared and no further callbacks will be invoked.
     s_async_tearing_down = false;
 }
 
@@ -2238,11 +2252,10 @@ static void async_pump_locked()
         {
             if (s_async_microtasks.size() >= ASYNC_MAX_MICROTASKS_PER_DRAIN)
             {
-                async_log_error("Async queue overflow", "due timer could not be enqueued");
-                if (t.reject_id >= 0)
-                {
-                    async_call_cb(t.reject_id, 1, false, ASYNC_ERR_QUEUE_LIMIT);
-                }
+                // Fail fast without invoking user callbacks synchronously inside pump/mutation.
+                // Deterministic overflow is logged; timer callbacks are released (no silent drop of
+                // the event detection/log, but settlement callback cannot be safely delivered here).
+                async_log_error("Async queue overflow", "due timer could not be enqueued (ASYNC_ERR_QUEUE_LIMIT)");
                 async_remove_callback(t.resolve_id);
                 async_remove_callback(t.reject_id);
             }
@@ -2663,7 +2676,6 @@ extern "C" void berry_runtime_deinit(void)
     }
     s_async_timers.clear();
     s_async_microtasks.clear();
-    s_async_tracked = 0;
 }
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)
