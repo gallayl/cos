@@ -79,7 +79,7 @@ static void clear_row(text_buffer_t *buf, int row)
 
 static void retain_scrolled_row(text_buffer_t *buf)
 {
-    if (buf->scrollback_disabled)
+    if (buf->scrollback_disabled || buf->scrollback_suspended)
     {
         return;
     }
@@ -504,7 +504,34 @@ void text_buffer_clear_scrollback(text_buffer_t *buf)
     buf->viewport_offset = 0;
     buf->scrollback_disabled = false;
     buf->scrollback_allocation_failed = false;
-    mark_all_rows_dirty(buf);
+    if (!buf->scrollback_suspended)
+    {
+        mark_all_rows_dirty(buf);
+    }
+}
+
+void text_buffer_set_scrollback_suspended(text_buffer_t *buf, bool suspended)
+{
+    if (buf == NULL)
+    {
+        return;
+    }
+
+    if (suspended == buf->scrollback_suspended)
+    {
+        return;
+    }
+
+    buf->scrollback_suspended = suspended;
+    if (suspended)
+    {
+        free(buf->scrollback);
+        buf->scrollback = NULL;
+        buf->scrollback_start = 0;
+        buf->scrollback_count = 0;
+        buf->viewport_offset = 0;
+        buf->scrollback_allocation_failed = false;
+    }
 }
 
 bool text_buffer_take_scrollback_allocation_failure(text_buffer_t *buf)

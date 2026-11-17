@@ -163,7 +163,8 @@ static void render_task(void *arg)
     (void)arg;
     for (;;)
     {
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RENDER_PERIOD_MS));
+        const TickType_t wait_ticks = s_screen_visible ? pdMS_TO_TICKS(RENDER_PERIOD_MS) : portMAX_DELAY;
+        ulTaskNotifyTake(pdTRUE, wait_ticks);
 
         if (!s_initialized)
         {
@@ -227,12 +228,9 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
     bool should_notify_render = false;
     if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
     {
-        if (s_screen_visible)
-        {
-            text_buffer_write(&s_buf, buf, size);
-            history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
-            should_notify_render = true;
-        }
+        text_buffer_write(&s_buf, buf, size);
+        history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
+        should_notify_render = s_screen_visible;
         xSemaphoreGive(s_mutex);
         if (should_notify_render && s_render_task != NULL)
         {
@@ -438,14 +436,17 @@ extern "C" esp_err_t text_console_set_visible(bool visible)
         ESP_LOGE(TAG, "Could not change console visibility");
         return ESP_ERR_TIMEOUT;
     }
+
     s_screen_visible = visible;
     if (!visible)
     {
         s_touch_active = false;
         s_touch_remainder = 0;
+        text_buffer_set_scrollback_suspended(&s_buf, true);
     }
-    if (visible)
+    else
     {
+        text_buffer_set_scrollback_suspended(&s_buf, false);
         for (int row = 0; row < s_buf.rows; ++row)
         {
             for (int col = 0; col < s_buf.cols; ++col)
@@ -457,7 +458,7 @@ extern "C" esp_err_t text_console_set_visible(bool visible)
     }
     xSemaphoreGive(s_mutex);
 
-    if (visible && s_render_task != NULL)
+    if (s_render_task != NULL)
     {
         xTaskNotifyGive(s_render_task);
     }
@@ -510,12 +511,9 @@ extern "C" void text_console_write(const char *data, size_t len)
 
     if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
+        text_buffer_write(&s_buf, data, len);
+        const bool history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
         const bool screen_visible = s_screen_visible;
-        if (screen_visible)
-        {
-            text_buffer_write(&s_buf, data, len);
-        }
-        const bool history_allocation_failed = screen_visible && text_buffer_take_scrollback_allocation_failure(&s_buf);
         xSemaphoreGive(s_mutex);
         if (screen_visible && s_render_task != NULL)
         {
@@ -606,9 +604,16 @@ extern "C" void text_console_clear(void)
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         text_buffer_clear(&s_buf);
-        display_fill_screen(BG_COLOR);
+        if (s_screen_visible)
+        {
+            display_fill_screen(BG_COLOR);
+        }
+        const bool screen_visible = s_screen_visible;
         xSemaphoreGive(s_mutex);
-        xTaskNotifyGive(s_render_task);
+        if (screen_visible && s_render_task != NULL)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
     }
 }
 
@@ -632,9 +637,16 @@ extern "C" void text_console_resize(void)
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         text_buffer_resize(&s_buf, cols, rows);
-        display_fill_screen(BG_COLOR);
+        if (s_screen_visible)
+        {
+            display_fill_screen(BG_COLOR);
+        }
+        const bool screen_visible = s_screen_visible;
         xSemaphoreGive(s_mutex);
-        xTaskNotifyGive(s_render_task);
+        if (screen_visible && s_render_task != NULL)
+        {
+            xTaskNotifyGive(s_render_task);
+        }
     }
 
     ESP_LOGI(TAG, "Console resized to %dx%d chars", cols, rows);
