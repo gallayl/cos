@@ -3,30 +3,34 @@ name: Build & Lint
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".clang-tidy"
-      - ".github/workflows/build-and-lint.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".clang-tidy"
-      - ".github/workflows/build-and-lint.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build-and-lint: ${{ steps.filter.outputs.build-and-lint }}
+
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            build-and-lint:
+              - 'components/**'
+              - 'main/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - 'sdkconfig*'
+              - 'partitions.csv'
+              - '.clang-tidy'
+              - '.github/workflows/build-and-lint.yml'
+
   build-and-lint:
+    needs: changes
+    if: needs.changes.outputs.build-and-lint == 'true'
     name: ESP-IDF Build & Lint
     runs-on: ubuntu-latest
     container:
@@ -72,3 +76,34 @@ jobs:
           . $IDF_PATH/export.sh
           export TIDY_COMPILE_COMMANDS=build/clang/compile_commands.json
           make lint
+
+  required:
+    name: required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - build-and-lint
+    steps:
+      - name: Verify build and lint results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BUILD_AND_LINT_RESULT: ${{ needs.build-and-lint.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [[ "$BUILD_AND_LINT_RESULT" != "success" &&
+                "$BUILD_AND_LINT_RESULT" != "skipped" ]]; then
+            echo "Build and lint failed: $BUILD_AND_LINT_RESULT"
+            exit 1
+          fi
+
+          if [[ "$BUILD_AND_LINT_RESULT" == "skipped" ]]; then
+            echo "No changes detected for build and lint. Skipping."
+            exit 0
+          fi
+
+          echo "All required CI checks passed"

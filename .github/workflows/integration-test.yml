@@ -3,31 +3,34 @@ name: Integration Tests
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "integration_test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".github/workflows/integration-test.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "integration_test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - "sdkconfig*"
-      - "partitions.csv"
-      - ".github/workflows/integration-test.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      integration-test: ${{ steps.filter.outputs.integration-test }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            integration-test:
+              - 'components/**'
+              - 'main/**'
+              - 'integration_test/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - 'sdkconfig*'
+              - 'partitions.csv'
+              - '.github/workflows/integration-test.yml'
+
   integration-test:
     name: Integration Tests (${{ matrix.suite }})
+    needs: changes
+    if: needs.changes.outputs.integration-test == 'true'
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
@@ -198,3 +201,34 @@ jobs:
           PY
         env:
           SUITE: ${{ matrix.suite }}
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - integration-test
+    steps:
+      - name: Verify integration test results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          INTEGRATION_TEST: ${{ needs.integration-test.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [[ "$INTEGRATION_TEST" != "success" &&
+                "$INTEGRATION_TEST" != "skipped" ]]; then
+            echo "Integration test failed: $INTEGRATION_TEST"
+            exit 1
+          fi
+
+          if [[ "$INTEGRATION_TEST" == "skipped" ]]; then
+            echo "No integration test changes detected. Skipping integration tests."
+            exit 0
+          fi
+
+          echo "Integration tests passed."

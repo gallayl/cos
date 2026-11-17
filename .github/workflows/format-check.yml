@@ -3,27 +3,33 @@ name: Format Check
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.c"
-      - "**/*.h"
-      - "**/*.cpp"
-      - "**/*.hpp"
-      - "**/*.cc"
-      - ".clang-format"
-      - ".github/workflows/format-check.yml"
+
   pull_request:
-    paths:
-      - "**/*.c"
-      - "**/*.h"
-      - "**/*.cpp"
-      - "**/*.hpp"
-      - "**/*.cc"
-      - ".clang-format"
-      - ".github/workflows/format-check.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      format-check: ${{ steps.filter.outputs.format-check }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            format-check:
+              - '**/*.c'
+              - '**/*.h'
+              - '**/*.cpp'
+              - '**/*.hpp'
+              - '**/*.cc'
+              - '.clang-format'
+              - '.github/workflows/format-check.yml'
+
   format-check:
     name: Format Check
+    needs: changes
+    if: needs.changes.outputs.format-check == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,3 +39,34 @@ jobs:
 
       - name: Check formatting
         run: make format-check
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - format-check
+    steps:
+      - name: Verify format check results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FORMAT_CHECK: ${{ needs.format-check.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [[ "$FORMAT_CHECK" != "success" &&
+                "$FORMAT_CHECK" != "skipped" ]]; then
+            echo "Format check failed: $FORMAT_CHECK"
+            exit 1
+          fi
+
+          if [[ "$FORMAT_CHECK" == "skipped" ]]; then
+            echo "No formatting changes detected. Skipping format check."
+            exit 0
+          fi
+
+          echo "Format check passed."

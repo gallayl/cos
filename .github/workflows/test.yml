@@ -3,30 +3,66 @@ name: Unit Tests
 on:
   push:
     branches: [main]
-    paths:
-      - "components/**"
-      - "main/**"
-      - "test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - ".github/workflows/test.yml"
   pull_request:
-    paths:
-      - "components/**"
-      - "main/**"
-      - "test/**"
-      - "CMakeLists.txt"
-      - "Makefile"
-      - "**/CMakeLists.txt"
-      - ".github/workflows/test.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      test: ${{ steps.filter.outputs.test }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            test:
+              - 'components/**'
+              - 'main/**'
+              - 'test/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - '.github/workflows/test.yml'
+
   test:
     name: Unit Tests
+    needs: changes
+    if: needs.changes.outputs.test == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Run tests
         run: make test
+
+  required:
+    name: Required
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - test
+    steps:
+      - name: Verify test results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TESTS_RESULT: ${{ needs.test.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [[ "$TESTS_RESULT" != "success" &&
+                "$TESTS_RESULT" != "skipped" ]]; then
+            echo "Unit tests failed: $TESTS_RESULT"
+            exit 1
+          fi
+
+          if [[ "$TESTS_RESULT" == "skipped" ]]; then
+            echo "No changes detected for unit tests. Skipping."
+            exit 0
+          fi
+
+          echo "All required CI checks passed"
