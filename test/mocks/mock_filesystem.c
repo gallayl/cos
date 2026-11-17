@@ -3,6 +3,7 @@
 #include "filesystem.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MOCK_MAX_DIRS 32
@@ -406,6 +407,16 @@ esp_err_t vfs_remove(const char *path)
             return ESP_OK;
         }
     }
+
+    /* Best-effort cleanup for host-mapped temp files not tracked in mock entries. */
+    char real_path[VFS_PATH_MAX];
+    if (vfs_resolve_path(path, real_path, sizeof(real_path)) == ESP_OK)
+    {
+        if (remove(real_path) == 0)
+        {
+            return ESP_OK;
+        }
+    }
     return ESP_ERR_NOT_FOUND;
 }
 
@@ -429,6 +440,53 @@ bool vfs_is_directory(const char *path)
         return false;
     }
     return path_in_list((const char(*)[VFS_PATH_MAX])s_directories, s_dir_count, path);
+}
+
+__attribute__((weak)) bool vfs_is_virtual_path(const char *path)
+{
+    if (path == NULL || path[0] != '/')
+    {
+        return false;
+    }
+    return strcmp(path, "/") == 0 || strcmp(path, "/flash") == 0 || strncmp(path, "/flash/", 7) == 0 ||
+           strcmp(path, "/sdcard") == 0 || strncmp(path, "/sdcard/", 8) == 0;
+}
+
+__attribute__((weak)) esp_err_t vfs_resolve_path(const char *virtual_path, char *real_path, size_t len)
+{
+    if (virtual_path == NULL || real_path == NULL || len == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!vfs_is_virtual_path(virtual_path))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* Map virtual path to a host-writable filename for unit tests. */
+    const char *src = virtual_path;
+    if (src[0] == '/')
+    {
+        src++;
+    }
+    size_t out = 0;
+    for (size_t i = 0; src[i] != '\0' && out + 1 < len; i++)
+    {
+        char c = src[i];
+        if (c == '/')
+        {
+            c = '_';
+        }
+        real_path[out++] = c;
+    }
+    if (out == 0)
+    {
+        strncpy(real_path, "root", len - 1);
+        real_path[len - 1] = '\0';
+        return ESP_OK;
+    }
+    real_path[out] = '\0';
+    return ESP_OK;
 }
 
 

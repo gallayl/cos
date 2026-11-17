@@ -158,6 +158,16 @@ declare global {
      * @returns `1`, `2`, or `3`, or an ESP-IDF error name.
      */
     function font_size(): FontSize | string;
+
+    /**
+     * Read piped input for the current script execution (shell pipes v1).
+     *
+     * Returns the captured stdout from the left side of a `lhs | rhs` pipeline
+     * only while this Berry script runs as the piped `rhs` consumer. Returns
+     * `null` when not running as a piped consumer or when no piped input is set.
+     * The value is bounded by the shell pipe capture limit (8 KiB in v1).
+     */
+    function stdin(): string | null;
   }
 }
 

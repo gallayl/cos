@@ -40,6 +40,16 @@ extern "C"
      */
     esp_err_t shell_dispatch_expanded_line(const char *line, int *ret);
 
+    /**
+     * Test seam: override lhs stdout capture for 2-stage pipelines.
+     * On ESP_OK, capture plumbing succeeded and out_data/out_len/lhs_ret/lhs_err
+     * are valid (*out_data is malloc'ed or NULL when out_len==0 and must be freed
+     * by caller via free()). Non-OK means capture I/O/setup failure.
+     */
+    typedef esp_err_t (*shell_pipe_capture_fn_t)(const char *lhs, char **out_data, size_t *out_len, int *lhs_ret,
+                                                 esp_err_t *lhs_err);
+    void shell_script_set_pipe_capture_for_test(shell_pipe_capture_fn_t fn);
+
 #ifdef __cplusplus
 }
 #endif

@@ -337,6 +337,122 @@ esp_err_t shell_parse_fd_redirection(const char *line, shell_fd_redirect_info_t 
     return ESP_OK;
 }
 
+static bool has_unquoted_pipe(const char *line)
+{
+    char quote = '\0';
+    for (const char *p = line; p != NULL && *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+        if (c == '|')
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool shell_pipeline_has_redirection_combo(const char *line)
+{
+    if (line == NULL || !has_unquoted_pipe(line))
+    {
+        return false;
+    }
+
+    char quote = '\0';
+    for (const char *p = line; *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+
+        if (c == '>' || (c == '2' && *(p + 1) == '>') || (c == '&' && *(p + 1) == '>'))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+esp_err_t shell_pipeline_split_two(const char *line, char *lhs, size_t lhs_len, char *rhs, size_t rhs_len)
+{
+    if (line == NULL || lhs == NULL || rhs == NULL || lhs_len == 0 || rhs_len == 0)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char quote = '\0';
+    const char *pipe_pos = NULL;
+    for (const char *p = line; *p != '\0'; p++)
+    {
+        char c = *p;
+        if (quote != '\0')
+        {
+            if (c == quote)
+            {
+                quote = '\0';
+            }
+            continue;
+        }
+        if (c == '"' || c == '\'')
+        {
+            quote = c;
+            continue;
+        }
+        if (c == '|')
+        {
+            if (pipe_pos != NULL || *(p + 1) == '|')
+            {
+                return ESP_ERR_INVALID_ARG;
+            }
+            pipe_pos = p;
+        }
+    }
+    if (pipe_pos == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t err = copy_trimmed_span(line, pipe_pos, lhs, lhs_len);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    err = copy_trimmed_span(pipe_pos + 1, line + strlen(line), rhs, rhs_len);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+    if (lhs[0] == '\0' || rhs[0] == '\0')
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return ESP_OK;
+}
+
 static bool find_redirection_op(const char *line, const char **op_out, shell_redirect_type_t *type_out)
 {
     char quote = '\0';
@@ -521,7 +637,7 @@ static bool redirect_is_append(shell_redirect_type_t type)
            (type == SHELL_REDIRECT_BOTH_APPEND); // NOLINT(readability-implicit-bool-conversion)
 }
 
-esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state)
+esp_err_t shell_redirect_begin_quiet(const shell_redirection_t *redir, shell_redirect_state_t *state, bool quiet)
 {
     if (redir == NULL || state == NULL)
     {
@@ -548,13 +664,19 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     esp_err_t err = shell_resolve_relative(redir->target, resolved_virtual, sizeof(resolved_virtual));
     if (err != ESP_OK)
     {
-        printf("redirection: resolve path failed for '%s': %s\n", redir->target, esp_err_to_name(err));
+        if (!quiet)
+        {
+            printf("redirection: resolve path failed for '%s': %s\n", redir->target, esp_err_to_name(err));
+        }
         return err;
     }
 
     if (!vfs_is_virtual_path(resolved_virtual))
     {
-        printf("redirection: '%s' is not a virtual path\n", resolved_virtual);
+        if (!quiet)
+        {
+            printf("redirection: '%s' is not a virtual path\n", resolved_virtual);
+        }
         return ESP_ERR_INVALID_ARG;
     }
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
@@ -563,7 +685,10 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
         vfs_is_directory(
             resolved_virtual)) // NOLINT(readability-implicit-bool-conversion) - bool/comparison mix in C condition
     {
-        printf("redirection: '%s' is a directory\n", resolved_virtual);
+        if (!quiet)
+        {
+            printf("redirection: '%s' is a directory\n", resolved_virtual);
+        }
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -571,7 +696,10 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     err = vfs_resolve_path(resolved_virtual, real_path, sizeof(real_path));
     if (err != ESP_OK)
     {
-        printf("redirection: cannot resolve real path for '%s': %s\n", resolved_virtual, esp_err_to_name(err));
+        if (!quiet)
+        {
+            printf("redirection: cannot resolve real path for '%s': %s\n", resolved_virtual, esp_err_to_name(err));
+        }
         return err;
     }
 
@@ -594,7 +722,10 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
     FILE *target_file = fopen(real_path, mode);
     if (target_file == NULL)
     {
-        printf("redirection: fopen('%s', \"%s\") failed\n", real_path, mode);
+        if (!quiet)
+        {
+            printf("redirection: fopen('%s', \"%s\") failed\n", real_path, mode);
+        }
         return ESP_FAIL;
     }
 
@@ -635,7 +766,10 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
             state->swapped_stdout = true;
 #else
             fclose(target_file);
-            printf("redirection: failed to redirect stdout\n");
+            if (!quiet)
+            {
+                printf("redirection: failed to redirect stdout\n");
+            }
             return ESP_FAIL;
 #endif
         }
@@ -681,7 +815,10 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
                 }
             }
             fclose(target_file);
-            printf("redirection: failed to redirect stderr\n");
+            if (!quiet)
+            {
+                printf("redirection: failed to redirect stderr\n");
+            }
             return ESP_FAIL;
 #endif
         }
@@ -690,6 +827,11 @@ esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_
 
     state->active = true;
     return ESP_OK;
+}
+
+esp_err_t shell_redirect_begin(const shell_redirection_t *redir, shell_redirect_state_t *state)
+{
+    return shell_redirect_begin_quiet(redir, state, false);
 }
 
 void shell_redirect_end(shell_redirect_state_t *state)
