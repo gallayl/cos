@@ -2,21 +2,30 @@ name: Frontend
 
 on:
   push:
-    paths:
-      - "frontend/**"
-      - "storage/ts/**"
-      - "storage/flash_data/**"
-      - ".github/workflows/frontend.yml"
+    branches: [main]
+
   pull_request:
-    paths:
-      - "frontend/**"
-      - "storage/ts/**"
-      - "storage/flash_data/**"
-      - ".github/workflows/frontend.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.frontend.outputs.frontend }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'storage/ts/**'
+              - 'storage/flash_data/**'
+              - '.github/workflows/frontend.yml'
+
   check:
     name: Lint, format, test, and build
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

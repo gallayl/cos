@@ -22,6 +22,24 @@ on:
       - ".github/workflows/test.yml"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      test: ${{ steps.test.outputs.test }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            test:
+              - 'components/**'
+              - 'main/**'
+              - 'test/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '**/CMakeLists.txt'
+              - '.github/workflows/test.yml'
+
   test:
     name: Unit Tests
     runs-on: ubuntu-latest

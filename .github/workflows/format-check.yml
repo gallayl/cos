@@ -3,27 +3,32 @@ name: Format Check
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.c"
-      - "**/*.h"
-      - "**/*.cpp"
-      - "**/*.hpp"
-      - "**/*.cc"
-      - ".clang-format"
-      - ".github/workflows/format-check.yml"
+
   pull_request:
-    paths:
-      - "**/*.c"
-      - "**/*.h"
-      - "**/*.cpp"
-      - "**/*.hpp"
-      - "**/*.cc"
-      - ".clang-format"
-      - ".github/workflows/format-check.yml"
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      format-check: ${{ steps.format-check.outputs.format-check }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            format-check:
+              - '**/*.c'
+              - '**/*.h'
+              - '**/*.cpp'
+              - '**/*.hpp'
+              - '**/*.cc'
+              - '.clang-format'
+              - '.github/workflows/format-check.yml'
+
   format-check:
     name: Format Check
+    if: needs.changes.outputs.format-check == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
