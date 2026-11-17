@@ -268,6 +268,10 @@ int native_console_read_line(bvm *vm)
         be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_ARG));
         be_return(vm);
     }
+    if (s_console_line_pending)
+    {
+        (void)cancel_pending_console_input();
+    }
     if (s_console_line_pending || s_console_read_line == nullptr)
     {
         be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_STATE));
@@ -438,7 +442,15 @@ int push_write_status(bvm *vm, esp_err_t err)
 
 esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn_t start)
 {
-    if (start == nullptr || s_console_line_pending)
+    if (start == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_console_line_pending)
+    {
+        (void)cancel_pending_console_input();
+    }
+    if (s_console_line_pending)
     {
         return ESP_ERR_INVALID_STATE;
     }
