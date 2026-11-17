@@ -1,7 +1,9 @@
 #include "service_diagnostics.h"
 
 #include "berry_runtime.h"
+#if CONFIG_BT_ENABLED
 #include "bluetooth.h"
+#endif
 #include "network.h"
 #include "system.h"
 #include "text_console.h"
@@ -251,6 +253,7 @@ static void collect_wifi(service_diag_wifi_snapshot_t *wifi)
 
 static void collect_bluetooth(service_diag_bluetooth_snapshot_t *bt)
 {
+#if CONFIG_BT_ENABLED
     if (bluetooth_is_connected())
     {
         bt->state = SERVICE_DIAG_STATE_CONNECTED;
@@ -269,6 +272,9 @@ static void collect_bluetooth(service_diag_bluetooth_snapshot_t *bt)
     /* Enabled/disabled-by-profile distinction is not exposed by a dedicated API;
        report unknown when not active to avoid asserting a false stopped state. */
     bt->state = SERVICE_DIAG_STATE_UNKNOWN;
+#else
+    bt->state = SERVICE_DIAG_STATE_UNSUPPORTED_IN_PROFILE;
+#endif
 }
 
 static void collect_text_console(service_diag_text_console_snapshot_t *console)

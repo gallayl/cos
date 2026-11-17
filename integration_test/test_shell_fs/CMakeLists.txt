@@ -14,7 +14,6 @@ set(EXTRA_COMPONENT_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../../components/input
     ${CMAKE_CURRENT_LIST_DIR}/../../components/network
     ${CMAKE_CURRENT_LIST_DIR}/../../components/wifi
-    ${CMAKE_CURRENT_LIST_DIR}/../../components/bluetooth
     ${CMAKE_CURRENT_LIST_DIR}/../../components/time_sync
 )
 
