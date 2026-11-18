@@ -10,7 +10,7 @@ jobs:
       build-and-lint: ${{ steps.filter.outputs.build-and-lint }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dorny/paths-filter@v4
@@ -40,7 +40,7 @@ jobs:
       IDF_CCACHE_ENABLE: "1"
       CCACHE_DIR: ${{ github.workspace }}/.ccache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install ESP-IDF clang tools and ccache
         shell: bash
@@ -50,7 +50,7 @@ jobs:
           python3 "$IDF_PATH/tools/idf_tools.py" install esp-clang
 
       - name: Restore ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ccache
           key: ccache-build-lint-${{ runner.os }}-idf-v6.1-${{ hashFiles('CMakeLists.txt', 'Makefile', 'sdkconfig.defaults', 'main/**', 'components/**', 'partitions.csv', '.github/workflows/build-and-lint.yml') }}
