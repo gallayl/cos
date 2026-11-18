@@ -1,0 +1,10 @@
+# Optional network diagnostics worker checks (subset; timeout/abandon/concurrent/lazy-failure cases need controlled environment)
+services
+berry profile
+mem
+ping 8.8.8.8
+nslookup example.com
+# Repeat to observe lazy-init/behavior (commands may differ by firmware; adjust as available)
+ping 127.0.0.1
+svc_mem
+berry eval "print('MANUAL: test timeout/abandon, concurrent/in-flight, lazy-create failure/retry if reproducible, heap/task/resource observations, and low-memory-offline disabled-by-profile/no-lazy-create path (reboot required; avoid services/svc_mem on affected builds)')"

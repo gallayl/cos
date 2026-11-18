@@ -1,0 +1,7 @@
+# Text console lifecycle - console-capturable subset (most checks are manual/visual)
+# No /flash writes.
+mem
+berry profile
+services
+berry app
+berry eval "print('MANUAL: validate hide/show and app/display-ownership transitions, scrollback auto-release (not preserved on return), UART/log/listener correctness while hidden, rendering/touch suspended/restored, and heap/watermark/task behavior across transitions')"

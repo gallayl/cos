@@ -1,0 +1,10 @@
+# Unified service lifecycle smoke (post-boot/default behavior snapshot). Capture boot logs separately if reset used.
+# Use --reset only if explicitly requested and safe.
+boot_profile
+services
+wifi status
+berry app
+mem
+berry profile
+svc_mem
+berry eval "print('MANUAL: compare startup logs/service availability to pre-lifecycle/default behavior and record evidence')"

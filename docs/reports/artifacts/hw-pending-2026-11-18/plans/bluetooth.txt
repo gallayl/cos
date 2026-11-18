@@ -1,0 +1,8 @@
+# Bluetooth lazy scan state residual-gap checks (BT environment/peripheral dependent)
+bt
+services
+mem
+svc_mem
+# State-changing (requires confirmation/peripheral as applicable): bt on, bt scan, bt connect <addr>, bt disconnect, bt forget <addr>, bt off
+# Capture mem/svc_mem snapshots while disabled/enabled/between cycles when safe.
+berry eval "print('MANUAL: NVS auto-enable boot case, bt forget flow, scan/connect/disconnect with peripheral, heap observations across cycles, and Wi-Fi/network coexistence sanity')"

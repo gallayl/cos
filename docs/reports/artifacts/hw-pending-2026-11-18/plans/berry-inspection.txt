@@ -1,0 +1,8 @@
+# Berry runtime & service inspection v1
+services
+berry app
+berry profile
+mem
+# If a UI app is available on mounted storage (read-only), manually test active app state:
+# berry run /sdcard/apps/breakout.be (or available app path), then: berry app, services, berry profile, berry close, berry app
+berry eval "print('MANUAL: validate varied service states and active UI app/close behavior; avoid low-memory-offline services command on affected builds due to websocket diagnostics crash')"

@@ -1,0 +1,8 @@
+# Boot profiles checks (state-changing/reboot required for full validation).
+# WARNING: on firmware affected by 2026-11-17 websocket diagnostics crash, do NOT run `services` or `svc_mem` in low-memory-offline.
+boot_profile
+# Optional (explicitly confirm before running): boot_profile set low-memory-offline
+# Then reboot device and capture: boot_profile, wifi status (if available), bt, mem, berry profile
+# Avoid: services, svc_mem in low-memory-offline until crash fixed
+# Restore: boot_profile clear, reboot, verify default behavior
+berry eval "print('MANUAL: per-profile reboot/service availability matrix, recovery path, and A-B memory evidence; record blocker if services/svc_mem crash in low-memory-offline')"
