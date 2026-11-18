@@ -68,13 +68,95 @@ Wall-clock times below are from `System.Diagnostics.Stopwatch` around the invoke
 | Script / command | Status | Reason / blocker | Suggested follow-up |
 |---|---|---|---|
 | `.\scripts\validate-berry-scripts.ps1` (without `-SkipIfCompilerMissing`) | Not measured | Berry host compiler not found in environment (`BERRY_EXE`/build locations/PATH). | Build pinned host Berry compiler from `build/berry-source` per `components/berry_lang/CMakeLists.txt`, set `BERRY_EXE` or pass `-BerryCompiler`, then time full `.be` validation (default `storage/flash_data`). |
-| `python scripts/integration_test.py build [all\|<project>]` | Not measured | Full integration builds are ESP-IDF/QEMU-env dependent and potentially long/resource-heavy (6 projects); not executed in this baseline pass to avoid uncontrolled duration. ESP-IDF appears installed but full activated env/idf.py invocation not validated here. | Run in ESP-IDF v6.1 environment (e.g. devcontainer or activated shell). Capture clean+incremental timings, with `-j`/`INTEGRATION_TEST_JOBS` comparisons (DX4). |
-| `python scripts/integration_test.py run [all\|<project>]` | Not measured | Requires built QEMU firmware images, `pytest-embedded` deps, and QEMU (`qemu-system-xtensa` not on PATH in this shell). | Measure per-project and full-suite after successful build; record env/cache state. |
+| `python scripts/integration_test.py build [all\|<project>]` | Not measured (local, 2026-11-11) | Full integration builds are ESP-IDF/QEMU-env dependent and potentially long/resource-heavy (6 projects in spec context); not executed in this baseline pass to avoid uncontrolled duration. ESP-IDF appears installed but full activated env/idf.py invocation not validated here. | Run in ESP-IDF v6.1 environment (e.g. devcontainer or activated shell). Capture clean+incremental timings, with `-j`/`INTEGRATION_TEST_JOBS` comparisons (DX4). |
+| `python scripts/integration_test.py run [all\|<project>]` | Not measured (local, 2026-11-11) | Requires built QEMU firmware images, `pytest-embedded` deps, and QEMU (`qemu-system-xtensa` not on PATH in this shell). | Measure per-project and full-suite after successful build; record env/cache state. |
 | `.\scripts\r14-hardware-validation.ps1` | Not executed (by design) | Hardware/firmware validation helper; creates artifact directories/checklists and may run `idf.py` in `-FirmwareEval` mode. Not a generic software-only baseline script. | Use only during R14 hardware validation with target device/serial; time artifact-prep step separately if desired. |
-| `make lint` | Not measured | Can be slow and requires prepared clang compile DB / ESP-IDF clang DB flow (`scripts/prepare_lint_db.py` -> `build/clang`); not run in this pass. | Measure after confirming `build/clang/compile_commands.json` freshness in ESP-IDF/clang-capable env; capture full vs scoped lint once DX3 adds modes. |
-| `make build` (firmware) | **Partially measured (local)** | Clean build baseline and ccache comparison captured in follow-up (FB1–FB4). | Capture incremental-after-change, lint-coupled, and CI/devcontainer timings; validate on Linux/macOS. |
-| `make integration-test` | Not measured | Integration orchestration depends on activated ESP-IDF toolchain and QEMU; high cost. | Baseline in canonical env with clean/incremental runs. |
+| `make lint` | Attempted locally 2026-11-18 (failed in this env; see update section) | Earlier 2026-11-11 pass did not run it. 2026-11-18 pass executed full `make lint` with compile DB present but encountered clang-tidy/compile-environment errors (missing headers in analyzed translation units) and exited non-zero. | Re-run in a fully aligned ESP-IDF v6.1 + clang toolchain environment (e.g. devcontainer/CI image) with fresh compile DB; capture clean timing and pass/fail diagnostics. |
+| `make build` (firmware) | **Partially measured (local, 2026-11-11)** | Clean build baseline and ccache comparison captured in follow-up (FB1–FB4). | Capture incremental-after-change, lint-coupled, and CI/devcontainer timings; validate on Linux/macOS. |
+| `make integration-test` | Not measured (local, 2026-11-11/2026-11-18) | Integration orchestration depends on activated ESP-IDF toolchain and QEMU; high cost and QEMU unavailable locally in 2026-11-18 pass. | Baseline in canonical env with clean/incremental runs. |
 | Frontend `yarn install` / cold-cache scenarios | Not measured | `node_modules` already present. | Capture clean install (`--frozen-lockfile`) and cache-state variants separately. |
+
+## 2026-11-18 DX1 completion pass (lint, integration build/run, CI comparison)
+
+**Date:** 2026-11-18  
+**Branch/status at capture:** `docs/dx1-canonical-baseline-report` (created from `origin/main` `fca491961b42f4ec8bc98c049544d04b13e2c1a0`, docs-only working changes for this DX1 slice)  
+**Canonical environment model (per spec):** local ESP-IDF v6.1-capable environment when available + GitHub Actions CI comparison. **Out of scope/unvalidated in this pass:** cross-platform (Linux/macOS) measurements, peak RAM/disk/log-volume metrics.
+
+### 2026-11-18 local environment snapshot
+
+| Tool / check | Result / notes |
+|---|---|
+| Platform | Windows (`win32`), workspace `E:\dev\cos` |
+| `make` | GNU Make 3.81 (`make --version`) |
+| `node` | v24.10.0 |
+| `python` | not re-probed in this pass (see 2026-11-11 snapshot) |
+| `clang-tidy` | `C:\Espressif\tools\esp-clang\esp-21.1.3_20260408\esp-clang\bin\clang-tidy.exe` (`where.exe clang-tidy`) |
+| `idf.py` on PATH | Not found (`where.exe idf.py` / direct invocation unavailable) |
+| `qemu-system-xtensa` on PATH | Not found |
+| ESP-IDF env vars | `IDF_PATH=C:/esp/v6.1/esp-idf/`, `IDF_TOOLS_PATH=C:/Espressif/tools`, `IDF_PYTHON_ENV_PATH=C:/Espressif/tools/python/v6.1/venv` |
+| Compile DB (lint) | Present: `build/clang/compile_commands.json` and `build/compile_commands.json` (freshness not independently proven beyond presence) |
+| `integration_test/` projects discovered (`test_*` dirs) | **8 projects present (repo state 2026-11-18):** `test_esp_littlefs_core`, `test_esp_littlefs_extra`, `test_init_sequence`, `test_nvs_calibration`, `test_shell_fs`, `test_stability`, `test_system`, `test_vfs_ops` (**note:** DX1 slice text stated "all 6"; evidence below covers all 8 discovered projects and CI-executed suites). |
+
+### Local lint baseline (attempted, canonical local env check)
+
+- **Command:** `make lint`
+- **Environment/context:** Windows host, ESP-IDF env vars set, clang-tidy available, `build/clang/compile_commands.json` present (compile DB preparation/freshness steps not re-run in this pass; no `scripts/prepare_lint_db.py` invocation recorded).
+- **Wall-clock time:** 74309 ms (~74.31 s), measured via `System.Diagnostics.Stopwatch` around `make lint`.
+- **Exit code:** 2 (`make: *** [lint] Error 1`)
+- **Outcome:** **failed** in this local environment. clang-tidy processed 112 files and reported a very large warning volume plus errors (summary observed near completion: `315396 warnings and 11 errors generated` overall; multiple `clang-diagnostic-error` cases such as missing headers in specific translation units, e.g. `light_sensor.h`, `system.h`, `boot_profile.h`, `service_diagnostics.h`, `service_lifecycle.h`, `bluetooth.h`, and additional analyzer warnings). This indicates the local lint/compile-database/toolchain alignment was not sufficient for a clean/passing full lint run in this environment.
+- **Not claimed:** no passing lint result and no clean warning/error baseline claim for this environment.
+
+### Local integration build/run baselines (attempted/assessed; runs blocked)
+
+- **Canonical commands (repo):** `make integration-test-build`, `make integration-test-run`, `make integration-test` (Makefile wrappers over `scripts/integration_test.py build|run`; `INTEGRATION_TEST_JOBS`/`-j` supported for build parallelism). Direct CLI also available via `python scripts/integration_test.py build [all|<project>]` and `python scripts/integration_test.py run [all|<project>]`.
+- **Projects in scope (spec stated all 6; actual repo count 8):** `test_esp_littlefs_core`, `test_esp_littlefs_extra`, `test_init_sequence`, `test_nvs_calibration`, `test_shell_fs`, `test_stability`, `test_system`, `test_vfs_ops`.
+- **Local build baselines:** **not executed** in 2026-11-18 pass. Attempted prerequisite assessment: `idf.py` not directly invocable on PATH (IDF env vars present) and full local ESP-IDF/QEMU integration execution path not validated in-session. No per-project build timing/outcome recorded locally.
+- **Local run baselines:** **not feasible in this environment**. Concrete blocker: `qemu-system-xtensa` not found on PATH; run flow requires built QEMU firmware images, pytest-embedded/QEMU setup, and pinned deps in `integration_test/requirements.txt` in an activated ESP-IDF/QEMU-capable environment. No run timing/outcome recorded locally.
+- **Parallelism notes:** not exercised locally (`INTEGRATION_TEST_JOBS` not set/recorded for local execution).
+- **Artifacts/logs:** none produced locally for integration build/run in this pass.
+
+### CI runner timing comparison (GitHub Actions, `main`)
+
+**Runner/image assumptions (from workflow definitions and observed runs):** `ci.yaml` orchestrates reusable workflows on `push`/`pull_request` to `main`; reusable jobs observed on `ubuntu-latest` for change-detection/required gates and in `espressif/idf:v6.1` containers for ESP-IDF build/lint and integration QEMU jobs (see workflow files: `.github/workflows/ci.yaml`, `.github/workflows/build-and-lint.yml`, `.github/workflows/integration-test.yml`). CI uses path filters (`dorny/paths-filter`) so heavy jobs may be legitimately skipped when not applicable.
+
+#### A) Latest representative successful consolidated CI run (relevant `main` context)
+
+- **Run:** CI [44376892335](https://github.com/gallayl/cos/actions/runs/44376892335) — **success** (completed 2026-11-18T19:06:36Z), event `push`, branch `main`, head `fca491961b42f4ec8bc98c049544d04b13e2c1a0` ("docs: inventory pending hardware validations and console command plans (#84)")
+- **Outcome/timings:** created 19:06:12Z, updated 19:06:36Z (wall ~24s). All required gates succeeded; build/lint, frontend, unit tests, and integration test matrix jobs were **skipped** as not applicable by path filters (docs-only change). Useful as latest successful `main` CI evidence for gate behavior, but not comparable for build/lint/integration execution timings.
+
+#### B) Latest representative successful `main` CI run with actual lint/build and integration execution (all 8 suites)
+
+- **Run:** CI [44332595802](https://github.com/gallayl/cos/actions/runs/44332595802) — **success** (completed 2026-11-18T16:36:24Z), event `push`, branch `main`, head `039c66328441aaea319489c83f3cafb0437aaa67` ("feat(http): add M1 upload memory measurement instrumentation and report (#78)")
+- **Overall timing:** created 15:10:48Z, updated 16:36:24Z (wall ~1h25m36s). `CI Checks Required` succeeded.
+
+**Lint/build (reusable `build-and-lint` path via CI):**
+- `lint / ESP-IDF Build & Lint` (job [134953185543](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953185543)): 15:11:00Z–15:18:58Z (~7m58s), **success**.
+  - Key steps: Initialize containers 57s (15:11:02–15:11:59), Install ESP-IDF clang tools and ccache 58s, Restore ccache 19s, **Build firmware 2m49s** (15:13:18–15:16:07), **Generate Clang compile database 20s** (15:16:07–15:16:27), **Run clang-tidy 1m49s** (15:16:27–15:18:16), Post Restore ccache 36s.
+- `lint / Required`: 15:19:01Z–15:19:04Z, success.
+
+**Integration tests (reusable `integration-test` path via CI, 8 suites executed, all success):**
+- `test_esp_littlefs_extra` (job [134953185473](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953185473)): 15:11:00–15:18:41 (~7m41s). Build 18s (15:13:59–15:14:17), Run 4m08s (15:14:18–15:18:26).
+- `test_init_sequence` (job [134953185799](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953185799)): 15:11:00–15:13:32 (~2m32s). Build 43s, Run 5s.
+- `test_nvs_calibration` (job [134953186011](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953186011)): 15:11:01–15:15:29 (~4m28s). Build 27s, Run 5s.
+- `test_stability` (job [134953186301](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953186301)): 15:11:00–15:14:49 (~3m49s). Build 31s, Run 1m21s.
+- `test_vfs_ops` (job [134953186865](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953186865)): 15:11:01–15:14:26 (~3m25s). Build 23s, Run 32s.
+- `test_system` (job [134953187119](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953187119)): 15:11:01–15:14:10 (~3m09s). Build 35s, Run 20s.
+- `test_esp_littlefs_core` (job [134953288964](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953288964)): 15:11:01–15:17:56 (~6m55s). Build 23s, Run 4m52s.
+- `test_shell_fs` (job [134953183576](https://github.com/gallayl/cos/actions/runs/44332595802/job/134953183576)): 16:26:57–16:36:11 (~9m14s; **late start relative to other suites in the same workflow run** — timing reported as observed). Build 31s (16:28:28–16:28:59), Run 6m34s (16:29:02–16:35:36).
+- `integration-tests / Required`: 16:36:14–16:36:17, success.
+
+**Other CI jobs (for context):** `test / Unit Tests` 15:10:58–15:11:16 (18s, success), `format-check / Format Check` 15:11:01–15:11:13 (12s, success), frontend changes gate required/no frontend heavy run in this path-filtered context as recorded.
+
+#### C) Latest successful standalone runs of requested workflow files on `main` (path-filter-skipped heavy jobs)
+
+- **Build & Lint workflow:** [44084418948](https://github.com/gallayl/cos/actions/runs/44084418948) — **success** (2026-11-17T12:34:31Z–12:34:50Z), head `ed0032d078691b1da3ab43ca76e2f8286e859c65` ("ci: Try fix fi action (#65)"). Jobs: `changes` success (7s), `ESP-IDF Build & Lint` **skipped** (path filter), `Required` success. **No build/lint execution timing available** from this run.
+- **Integration Tests workflow:** [44084418967](https://github.com/gallayl/cos/actions/runs/44084418967) — **success** (2026-11-17T12:34:31Z–12:34:54Z), head `ed0032d078691b1da3ab43ca76e2f8286e859c65`. Jobs: `changes` success, `Integration Tests (${{ matrix.suite }})` **skipped**, `Required` success. **No integration build/run execution timing available** from this run.
+
+### Comparison notes (local vs CI)
+
+- **Lint:** local full `make lint` attempt failed (exit 2, ~74.3s) in this Windows environment despite present compile DB/clang-tidy; CI run 44332595802 completed lint/build job successfully in `espressif/idf:v6.1` container with firmware build + clang DB generation + clang-tidy in ~7m58s job time (including container/setup/ccache restore/save). Results are **not directly comparable** due to environment/toolchain differences and local failure mode.
+- **Integration build/run:** local baselines not executed (QEMU/tooling blockers). CI run 44332595802 executed all 8 integration projects successfully with per-suite build/run step timings reported above (cache restores/build dirs/pip cache present in steps). CI parallelism/scheduling and cache state differ from a cold local run and from `INTEGRATION_TEST_JOBS`-controlled local build parallelism.
+- **General:** timings are environment-, cache-, and path-filter-dependent; CI evidence is taken from logs/metadata as available (no re-trigger performed).
 
 ## Progress / tracking
 
@@ -84,15 +166,18 @@ Wall-clock times below are from `System.Diagnostics.Stopwatch` around the invoke
 - [x] Ran and timed host tests (`make test`) and frontend CI-equivalent scripts (`yarn format:check`, `yarn lint`, `yarn test`, `yarn build`).
 - [x] Recorded results in this report: `docs/reports/2026-11-11-dx1-baseline-measurements.md`.
 - [x] Captured local firmware `make build` baseline and ccache comparison (FB1–FB4): clean no-cache 139.52 s, warm cached clean rebuild 72.09 s (−48.3%, ~1.94×), 73.67% ccache hits.
-- [ ] Full Berry compile validation baseline (needs host Berry compiler).
-- [ ] Integration test build/run baselines (needs activated ESP-IDF v6.1 + QEMU + deps; measure `-j`/parallelism).
-- [ ] `make lint` baseline (needs appropriate toolchain/compile DB).
-- [ ] Cross-platform baselines (Linux/macOS/devcontainer) — not validated in this Windows-only pass.
-- [ ] Peak RAM/disk/log-volume metrics and CI runner comparison (future DX1 refinement).
+- [x] Full Berry compile validation baseline (needs host Berry compiler). *(unchanged from 2026-11-11: not executed; host Berry compiler unavailable — remains a blocker.)*
+- [x] Integration test build/run baselines recorded for **all discovered integration projects (8, repo state 2026-11-18; spec requested 6)** via CI evidence; local runs **not executed** due to environment blockers (QEMU/idf.py PATH/activated env validation). Build results/timings available from CI; local build baselines not run (documented).
+- [x] `make lint` baseline attempted locally (full `make lint`, 74.31s, exit 2, failed with clang-tidy errors/warnings in this environment; compile DB present) and CI lint/build execution timings recorded.
+- [x] CI runner timing comparison recorded from latest representative/successful `main` runs (consolidated CI with execution + latest successful standalone workflow runs requested by spec, including path-filter-skipped heavy-job cases documented).
+- [ ] Cross-platform baselines (Linux/macOS/devcontainer) — **out of scope/unvalidated** in this Windows-only pass.
+- [ ] Peak RAM/disk/log-volume metrics — **out of scope/unvalidated** in this pass.
 
 ## Notes
 
 - The initial DX1 pass did not modify firmware/frontend source logic; it executed existing checks/scripts to gather timing baselines. The follow-up added local firmware build + compiler-cache measurements and documentation updates only (no firmware/frontend behavior changes).
-- A stale `build/` CMake cache from a different host path (`/workspaces/cos`) blocked local builds until `build/` was removed and recreated.
-- PowerShell/native-command stderr wrapping and ESP-IDF environment warnings were observed in some captured outputs but did not affect exit codes for the passing commands above.
+- 2026-11-18 DX1 completion pass updated this report (docs/evidence only) and executed/recorded local checks: `make format-check` (pass, exit 0), `make docs-check` (pass, exit 0), `make test` (pass, exit 0, 30/30 CTest + 3 Python unittest tests, ~1.74s), and full `make lint` (failed, exit 2, ~74.31s) in the local Windows environment.
+- A stale `build/` CMake cache from a different host path (`/workspaces/cos`) blocked local builds until `build/` was removed and recreated (2026-11-11).
+- PowerShell/native-command stderr wrapping and ESP-IDF environment warnings were observed in some captured outputs but did not affect exit codes for the passing commands above (where applicable).
 - Hardware-dependent validation was not performed. CI caching enablement is a separate follow-up.
+- Spec note: DX1 slice requested integration baselines for "all 6" projects; current repository contains 8 integration test projects and this report records evidence for all 8 (and notes standalone workflow runs where heavy jobs were path-filter-skipped).
