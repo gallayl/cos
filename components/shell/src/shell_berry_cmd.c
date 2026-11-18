@@ -7,6 +7,12 @@
 #include "esp_console.h"
 #include "esp_log.h"
 
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,13 +20,8 @@
 
 static const char *const TAG = "shell_berry";
 
-esp_err_t shell_berry_run_autoexec(void)
+static esp_err_t run_autoexec_impl(void)
 {
-    if (!vfs_exists("/flash/autoexec.be"))
-    {
-        return ESP_OK;
-    }
-
     esp_err_t err = berry_runtime_init();
     if (err != ESP_OK)
     {
@@ -40,6 +41,54 @@ esp_err_t shell_berry_run_autoexec(void)
         ESP_LOGW(TAG, "/flash/autoexec.be returned status %d", exit_status);
     }
     return ESP_OK;
+}
+
+#ifdef ESP_PLATFORM
+typedef struct
+{
+    SemaphoreHandle_t done;
+    esp_err_t err;
+} autoexec_ctx_t;
+
+static void autoexec_task(void *arg)
+{
+    autoexec_ctx_t *ctx = (autoexec_ctx_t *)arg;
+    ctx->err = run_autoexec_impl();
+    xSemaphoreGive(ctx->done);
+    vTaskDelete(NULL);
+}
+#endif
+
+esp_err_t shell_berry_run_autoexec(void)
+{
+    if (!vfs_exists("/flash/autoexec.be"))
+    {
+        return ESP_OK;
+    }
+
+#ifdef ESP_PLATFORM
+    /* Run in a separate task: Berry init/run can overflow the 3.5 KB main task stack. */
+    SemaphoreHandle_t done = xSemaphoreCreateBinary();
+    if (done == NULL)
+    {
+        return ESP_ERR_NO_MEM;
+    }
+
+    autoexec_ctx_t ctx = {.done = done, .err = ESP_FAIL};
+    BaseType_t ok = xTaskCreate(autoexec_task, "berry_autoexec", 8192, &ctx, 5, NULL);
+    if (ok != pdPASS)
+    {
+        vSemaphoreDelete(done);
+        return ESP_ERR_NO_MEM;
+    }
+
+    (void)xSemaphoreTake(done, portMAX_DELAY);
+    esp_err_t err = ctx.err;
+    vSemaphoreDelete(done);
+    return err;
+#else
+    return run_autoexec_impl();
+#endif
 }
 
 static void print_http_stack(void)
