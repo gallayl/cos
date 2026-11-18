@@ -769,6 +769,8 @@ int native_console_stdin(bvm *vm)
     be_return(vm);
 }
 
+extern "C" const char *shell_get_cwd(void);
+
 int native_fs_list(bvm *vm)
 {
     char resolved[VFS_PATH_MAX];
@@ -809,6 +811,19 @@ int native_fs_list(bvm *vm)
     be_pop(vm, 2);
     map_set_number(vm, "count", static_cast<double>(count));
     be_pop(vm, 1);
+    be_return(vm);
+}
+
+int native_fs_cwd(bvm *vm)
+{
+    if (be_top(vm) != 0)
+    {
+        be_raise(vm, "value_error", "fs.cwd() takes no arguments");
+        be_return(vm);
+    }
+
+    const char *cwd = shell_get_cwd();
+    be_pushstring(vm, cwd != nullptr ? cwd : "/");
     be_return(vm);
 }
 
@@ -1155,6 +1170,7 @@ namespace
 
 // NOLINTNEXTLINE(readability-identifier-naming) - Berry native module attribute table name
 static bntvmodobj_t const kFsAttrs[] = {
+    be_native_module_function("cwd", native_fs_cwd),
     be_native_module_function("list", native_fs_list),
     be_native_module_function("read_text", native_fs_read_text),
     be_native_module_function("write_text", native_fs_write_text),
