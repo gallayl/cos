@@ -42,3 +42,4 @@ Validate Milestone 4 items on supported CYD hardware: touch scrollback gestures 
 
 ## Progress / evidence
 - 2026-11-15: created from pending R12; moved to needs-clarification (hardware/external validation required).
+- 2026-11-17 (user-provided serial captures, partial data; see `docs/reports/2026-11-17-hardware-validation-session-captures.md` Sections A/D, R4): on connected network, `ping 8.8.8.8` (36 ms, 42 ms), `ping 127.0.0.1` (1 ms), and `nslookup example.com` (`172.66.147.243`) succeeded in captured runs. Touch scrollback gesture validation, current acceptance interpretation (script-resolved/current command behavior), and full recorded pass/fail evidence remain pending. Firmware commit/build identity not consistently recorded.
