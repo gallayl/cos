@@ -1,5 +1,5 @@
-#include "unity.h"
 #include "http_server.h"
+#include "unity.h"
 
 #include <string.h>
 
@@ -103,6 +103,48 @@ void test_backslash_normalized(void)
     TEST_ASSERT_EQUAL_STRING("/flash/data/file.txt", out);
 }
 
+void test_sanitize_root_paths(void)
+{
+    char out[128];
+    TEST_ASSERT_EQUAL(ESP_OK, http_sanitize_upload_path("/flash", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("/flash", out);
+    TEST_ASSERT_EQUAL(ESP_OK, http_sanitize_upload_path("/sdcard", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("/sdcard", out);
+    TEST_ASSERT_EQUAL(ESP_OK, http_sanitize_upload_path("/flash/", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("/flash", out);
+}
+
+void test_sanitize_rejects_prefix_only_partial(void)
+{
+    char out[128];
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_sanitize_upload_path("/fla", out, sizeof(out)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_sanitize_upload_path("/sd", out, sizeof(out)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_sanitize_upload_path("/other/file", out, sizeof(out)));
+}
+
+void test_sanitize_invalid_args(void)
+{
+    char out[8];
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_sanitize_upload_path("/flash/a", NULL, sizeof(out)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_sanitize_upload_path("/flash/a", out, 0));
+}
+
+void test_url_decode_mixed_case_hex_and_encoded_slash(void)
+{
+    char out[128];
+    TEST_ASSERT_EQUAL(ESP_OK, http_url_decode("%2fFlAsH%2Fa%2Eb", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("/FlAsH/a.b", out);
+}
+
+void test_url_decode_exact_fit_and_null_dst(void)
+{
+    char out[4];
+    TEST_ASSERT_EQUAL(ESP_OK, http_url_decode("abc", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("abc", out);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_url_decode("abc", NULL, sizeof(out)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, http_url_decode("abc", out, 0));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -115,9 +157,14 @@ int main(void)
     RUN_TEST(test_rejects_no_prefix);
     RUN_TEST(test_strips_trailing_slash);
     RUN_TEST(test_backslash_normalized);
+    RUN_TEST(test_sanitize_root_paths);
+    RUN_TEST(test_sanitize_rejects_prefix_only_partial);
+    RUN_TEST(test_sanitize_invalid_args);
     RUN_TEST(test_url_decode_keeps_plain_path);
     RUN_TEST(test_url_decode_percent_encoded_path);
     RUN_TEST(test_url_decode_plus_is_space);
+    RUN_TEST(test_url_decode_mixed_case_hex_and_encoded_slash);
+    RUN_TEST(test_url_decode_exact_fit_and_null_dst);
     RUN_TEST(test_url_decode_rejects_bad_escape);
     RUN_TEST(test_url_decode_rejects_short_buffer);
     return UNITY_END();
