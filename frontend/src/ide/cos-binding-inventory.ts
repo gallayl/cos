@@ -113,6 +113,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
     globalNamespace: 'fs',
     specifiers: ['@cos/fs', '@cos/filesystem', '@berry/fs', '@berry/filesystem'],
     bindings: [
+      { kind: 'function', name: 'cwd' },
       { kind: 'function', name: 'list' },
       { kind: 'function', name: 'read_text' },
       { kind: 'function', name: 'write_text' },

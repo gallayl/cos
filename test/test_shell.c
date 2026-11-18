@@ -187,19 +187,7 @@ static void test_cmd_pwd(void)
     TEST_ASSERT_EQUAL(0, ret);
 }
 
-static void test_cmd_ls_cwd(void)
-{
-    char *argv[] = {"ls"};
-    int ret = mock_console_run_cmd("ls", 1, argv);
-    TEST_ASSERT_EQUAL(0, ret);
-}
-
-static void test_cmd_ls_explicit_path(void)
-{
-    char *argv[] = {"ls", "/flash"};
-    int ret = mock_console_run_cmd("ls", 2, argv);
-    TEST_ASSERT_EQUAL(0, ret);
-}
+/* ls/dir migrated to Berry command scripts (R22 M5); native cmd_ls removed. */
 
 static void test_cmd_mkdir(void)
 {
@@ -292,12 +280,7 @@ static void test_cmd_rmdir_no_arg(void)
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 1, argv));
 }
 
-static void test_cmd_ls_empty_directory(void)
-{
-    mock_filesystem_add_directory("/flash/emptydir");
-    char *argv[] = {"ls", "/flash/emptydir"};
-    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("ls", 2, argv));
-}
+/* ls empty-directory case covered by Berry script behavior (R22 M5). */
 
 static void test_cmd_cp_file(void)
 {
@@ -544,7 +527,7 @@ static void test_cmd_format(void)
 
 static void test_alias_expands_command_and_persists_configuration(void)
 {
-    char *argv[] = {"alias", "ll", "ls"};
+    char *argv[] = {"alias", "ll", "pwd"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("alias", 3, argv));
 
     char *breakout_argv[] = {"alias", "breakout", "berry run apps/breakout.be"};
@@ -552,7 +535,7 @@ static void test_alias_expands_command_and_persists_configuration(void)
 
     char expanded[128];
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("  ll -a", expanded, sizeof(expanded)));
-    TEST_ASSERT_EQUAL_STRING("  ls -a", expanded);
+    TEST_ASSERT_EQUAL_STRING("  pwd -a", expanded);
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
     TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
 
@@ -560,7 +543,7 @@ static void test_alias_expands_command_and_persists_configuration(void)
     size_t length = 0;
     TEST_ASSERT_EQUAL(ESP_OK, vfs_read_file("/flash/.cos_aliases", contents, sizeof(contents) - 1, &length));
     contents[length] = '\0';
-    TEST_ASSERT_EQUAL_STRING("ll=ls\nbreakout=berry run apps/breakout.be\n", contents);
+    TEST_ASSERT_EQUAL_STRING("ll=pwd\nbreakout=berry run apps/breakout.be\n", contents);
 
     mock_console_reset();
     shell_register_fs_commands();
@@ -570,7 +553,7 @@ static void test_alias_expands_command_and_persists_configuration(void)
     shell_register_berry_commands();
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_init());
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("ll -a", expanded, sizeof(expanded)));
-    TEST_ASSERT_EQUAL_STRING("ls -a", expanded);
+    TEST_ASSERT_EQUAL_STRING("pwd -a", expanded);
     TEST_ASSERT_EQUAL(ESP_OK, shell_alias_expand("breakout --fullscreen", expanded, sizeof(expanded)));
     TEST_ASSERT_EQUAL_STRING("berry run apps/breakout.be --fullscreen", expanded);
 }
@@ -580,7 +563,7 @@ static void test_alias_rejects_unknown_commands_and_builtin_names(void)
     char *unknown_argv[] = {"alias", "missing", "not_a_command"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, unknown_argv));
 
-    char *builtin_argv[] = {"alias", "ls", "pwd"};
+    char *builtin_argv[] = {"alias", "cd", "pwd"};
     TEST_ASSERT_EQUAL(1, mock_console_run_cmd("alias", 3, builtin_argv));
 
     char *chain_argv[] = {"alias", "list", "ll"};
@@ -596,6 +579,10 @@ static void test_alias_rejects_unknown_commands_and_builtin_names(void)
 
 static void test_unalias_removes_mapping(void)
 {
+    /* Ensure alias exists in case prior tests or ordering change. */
+    char *create_argv[] = {"alias", "ll", "pwd"};
+    mock_console_run_cmd("alias", 3, create_argv);
+
     char *argv[] = {"unalias", "ll"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("unalias", 2, argv));
 
@@ -604,18 +591,7 @@ static void test_unalias_removes_mapping(void)
     TEST_ASSERT_EQUAL_STRING("ll", expanded);
 }
 
-static void test_cmd_ls_nonexistent_path(void)
-{
-    char *argv[] = {"ls", "/flash/no_such_dir"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ls", 2, argv));
-}
-
-static void test_cmd_ls_file_path(void)
-{
-    mock_filesystem_add_file("/flash/file.txt");
-    char *argv[] = {"ls", "/flash/file.txt"};
-    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ls", 2, argv));
-}
+/* ls error cases covered by Berry script behavior (R22 M5). */
 
 static void test_cmd_mkdir_existing_path_fails(void)
 {
@@ -718,8 +694,6 @@ int main(void)
     RUN_TEST(test_cmd_cd_relative);
     RUN_TEST(test_cmd_cd_dotdot);
     RUN_TEST(test_cmd_pwd);
-    RUN_TEST(test_cmd_ls_cwd);
-    RUN_TEST(test_cmd_ls_explicit_path);
     RUN_TEST(test_cmd_mkdir);
     RUN_TEST(test_cmd_mkdir_no_arg);
     RUN_TEST(test_cmd_rm);
@@ -748,9 +722,6 @@ int main(void)
     RUN_TEST(test_cmd_rmdir_protects_current_directory);
     RUN_TEST(test_cmd_rmdir_not_a_directory);
     RUN_TEST(test_cmd_rmdir_nonexistent_path);
-    RUN_TEST(test_cmd_ls_empty_directory);
-    RUN_TEST(test_cmd_ls_nonexistent_path);
-    RUN_TEST(test_cmd_ls_file_path);
     RUN_TEST(test_cmd_mkdir_existing_path_fails);
     RUN_TEST(test_cmd_mkdir_existing_file_fails);
     RUN_TEST(test_cmd_cat_reads_file);

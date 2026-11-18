@@ -179,6 +179,11 @@ declare global {
      * Read flash and SD card storage usage (same data as the `info` command).
      */
     function storage_info(): StorageInfo;
+
+    /**
+     * Get the current shell working directory (virtual path, e.g. `/flash`).
+     */
+    function cwd(): string;
   }
 }
 

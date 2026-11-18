@@ -225,9 +225,9 @@ static void test_cwd_script_wins_over_path(void)
 
 static void test_native_command_wins_over_script(void)
 {
-    mock_filesystem_add_file("/flash/ls.be");
+    mock_filesystem_add_file("/flash/path.be");
     int ret = -1;
-    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("ls /flash", &ret));
+    TEST_ASSERT_EQUAL(ESP_OK, shell_dispatch_expanded_line("path list", &ret));
     TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
 }
 
