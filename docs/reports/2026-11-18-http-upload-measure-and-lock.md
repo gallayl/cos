@@ -103,14 +103,14 @@ For each executed run append:
 
 **Host unit tests (runnable, existing + extended in M1):**
 
-- `test/test_http_multipart.c` (Unity, host): existing static-helper coverage for boundary extraction, part-header parsing, and field-value accumulation/truncation; **M1 extended** with full-stream `http_multipart_parse` cases using mock `httpd_req_recv` body feeding (simple file upload, file + form field, chunked delivery, and representative parse/error paths as feasible in mock scope).
+- `test/test_http_multipart.c` (Unity, host): existing static-helper coverage for boundary extraction, part-header parsing, and field-value accumulation/truncation; **M1 extended** with full-stream `http_multipart_parse` cases using mock `httpd_req_recv` body feeding (simple file + form field upload, file-only upload, invalid/missing boundary -> `ESP_ERR_INVALID_ARG`, truncated/incomplete headers -> `ESP_ERR_INVALID_STATE`). Added cases are small-body/single-recv exercises in the current mock scope; multi-recv streaming and boundary/header splits across receive/accumulator boundaries are **not exercised** by these added tests and remain identified cases below.
 - `test/test_http_upload.c` (Unity, host): upload path/url sanitization helpers (`http_sanitize_upload_path`, `http_url_decode`) — relevant to safe target handling; unchanged functional expectations.
 
 **Additional cases identified for buffer-size/lock validation (add/run when environment/harness supports):**
 
-- Boundary token split across read/accumulator boundaries (including near `bm_len` tail-retention edge).
-- Part headers split across reads (`\r\n\r\n` delimiter spanning chunks).
-- File payload larger than `ACCUM_BUF_SIZE` streamed across many chunks (no in-RAM file buffering beyond parser buffers).
+- Multi-recv streaming/boundary token split across read/accumulator boundaries (including near `bm_len` tail-retention edge) with bodies/parts forcing more than one `httpd_req_recv` iteration (not exercised by added host cases).
+- Part headers split across reads (`\r\n\r\n` delimiter spanning chunks, not exercised by added host cases).
+- File payload larger than `READ_BUF_SIZE`/`ACCUM_BUF_SIZE` streamed across many chunks (no in-RAM file buffering beyond parser buffers).
 - Multiple parts with interleaved field and file parts; empty/zero-length part bodies where valid.
 - Malformed/truncated bodies: missing closing boundary, premature end (`remaining==0`), invalid/oversized accumulator growth path, and timeout/recv error handling.
 - Large `Content-Type`/boundary and long field values (truncation/cap behavior) — ensure no over-read/overflow.

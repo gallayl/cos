@@ -181,10 +181,16 @@ static esp_err_t handler_upload(httpd_req_t *req)
 
     if (uctx.error[0] != '\0')
     {
+        esp_err_t log_result = ESP_FAIL;
+        if (strcmp(uctx.error, "Invalid path") == 0 || strcmp(uctx.error, "Missing path field") == 0)
+        {
+            log_result = ESP_ERR_INVALID_ARG;
+        }
+
         httpd_resp_set_status(req, "400 Bad Request");
         char resp[192];
         snprintf(resp, sizeof(resp), "{\"error\":\"%s\"}", uctx.error);
-        upload_log_measure("handler_error_response", content_len, ESP_ERR_INVALID_ARG);
+        upload_log_measure("handler_error_response", content_len, log_result);
         return httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     }
 
