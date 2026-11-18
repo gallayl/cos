@@ -18,11 +18,18 @@ static int s_dummy_server = 1;
 static char s_last_status[64];
 static char s_last_type[64];
 
+static const uint8_t *s_recv_body = NULL;
+static size_t s_recv_body_len = 0;
+static size_t s_recv_body_off = 0;
+
 void mock_httpd_reset(void)
 {
     memset(s_headers, 0, sizeof(s_headers));
     s_last_status[0] = '\0';
     s_last_type[0] = '\0';
+    s_recv_body = NULL;
+    s_recv_body_len = 0;
+    s_recv_body_off = 0;
 }
 
 void mock_httpd_set_header(const char *field, const char *value)
@@ -37,6 +44,13 @@ void mock_httpd_set_header(const char *field, const char *value)
             return;
         }
     }
+}
+
+void mock_httpd_set_recv_body(const uint8_t *data, size_t len)
+{
+    s_recv_body = data;
+    s_recv_body_len = len;
+    s_recv_body_off = 0;
 }
 
 esp_err_t httpd_start(httpd_handle_t *handle, const httpd_config_t *config)
@@ -59,8 +73,7 @@ esp_err_t httpd_register_uri_handler(httpd_handle_t handle, const httpd_uri_t *u
     return ESP_OK;
 }
 
-esp_err_t httpd_register_err_handler(httpd_handle_t handle, httpd_err_code_t error,
-                                     httpd_err_handler_func_t handler)
+esp_err_t httpd_register_err_handler(httpd_handle_t handle, httpd_err_code_t error, httpd_err_handler_func_t handler)
 {
     (void)handle;
     (void)error;
@@ -156,9 +169,16 @@ esp_err_t httpd_req_get_hdr_value_str(httpd_req_t *r, const char *field, char *v
 int httpd_req_recv(httpd_req_t *r, char *buf, size_t buf_len)
 {
     (void)r;
-    (void)buf;
-    (void)buf_len;
-    return 0;
+    if (!buf || buf_len == 0 || s_recv_body == NULL || s_recv_body_off >= s_recv_body_len)
+    {
+        return 0;
+    }
+
+    size_t remaining = s_recv_body_len - s_recv_body_off;
+    size_t to_copy = remaining < buf_len ? remaining : buf_len;
+    memcpy(buf, s_recv_body + s_recv_body_off, to_copy);
+    s_recv_body_off += to_copy;
+    return (int)to_copy;
 }
 
 int httpd_req_to_sockfd(httpd_req_t *r)
@@ -188,9 +208,4 @@ esp_err_t httpd_ws_send_frame_async(httpd_handle_t hd, int fd, httpd_ws_frame_t 
     (void)fd;
     (void)frame;
     return ESP_OK;
-}
-
-uint32_t esp_get_free_heap_size(void)
-{
-    return 200000;
 }

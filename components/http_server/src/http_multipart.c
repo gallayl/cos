@@ -1,11 +1,28 @@
 #include "http_multipart.h"
 
+#include "esp_heap_caps.h"
+#include "esp_log.h"
+#include "esp_system.h"
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define READ_BUF_SIZE 2048
 #define ACCUM_BUF_SIZE (READ_BUF_SIZE * 4)
+
+static const char *const TAG = "http_multipart";
+
+static void log_upload_measure(const char *event, size_t content_len, size_t remaining, size_t accum_len)
+{
+    const uint32_t free_heap = esp_get_free_heap_size();
+    const size_t largest_8bit = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    ESP_LOGI(
+        TAG,
+        "upload-measure: %s free=%u largest_8bit=%u content_len=%u remaining=%u accum_len=%u read_buf=%u accum_buf=%u",
+        event, (unsigned)free_heap, (unsigned)largest_8bit, (unsigned)content_len, (unsigned)remaining,
+        (unsigned)accum_len, (unsigned)READ_BUF_SIZE, (unsigned)ACCUM_BUF_SIZE);
+}
 
 static char *extract_boundary(httpd_req_t *req, char *buf, size_t buf_len)
 {
@@ -108,6 +125,8 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
     char *boundary = extract_boundary(req, ct_buf, sizeof(ct_buf));
     if (!boundary)
     {
+        log_upload_measure("invalid_content_type_or_boundary", req ? req->content_len : 0, req ? req->content_len : 0,
+                           0);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -119,9 +138,12 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
     snprintf(first_boundary, sizeof(first_boundary), "--%s\r\n", boundary);
     size_t fb_len = strlen(first_boundary);
 
+    log_upload_measure("parse_start_before_alloc", req->content_len, req->content_len, 0);
+
     char *buf = malloc(READ_BUF_SIZE + 1);
     if (!buf)
     {
+        log_upload_measure("alloc_read_buf_failed", req->content_len, req->content_len, 0);
         return ESP_ERR_NO_MEM;
     }
 
@@ -129,9 +151,11 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
     if (!accum)
     {
         free(buf);
+        log_upload_measure("alloc_accum_buf_failed", req->content_len, req->content_len, 0);
         return ESP_ERR_NO_MEM;
     }
     size_t accum_len = 0;
+    log_upload_measure("parse_alloc_ok", req->content_len, req->content_len, accum_len);
 
     enum
     {
@@ -204,6 +228,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
                                      ctx))
                         {
                             result = ESP_ERR_INVALID_STATE;
+                            log_upload_measure("file_callback_rejected", req->content_len, remaining, accum_len);
                             goto cleanup;
                         }
                     }
@@ -227,6 +252,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
                         if (!on_file(field_name, file_name, (const uint8_t *)accum, safe, is_first_chunk, false, ctx))
                         {
                             result = ESP_ERR_INVALID_STATE;
+                            log_upload_measure("file_callback_rejected_stream", req->content_len, remaining, accum_len);
                             goto cleanup;
                         }
                         is_first_chunk = false;
@@ -271,6 +297,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
                 continue;
             }
             result = ESP_FAIL;
+            log_upload_measure("recv_failed", req->content_len, remaining, accum_len);
             goto cleanup;
         }
         remaining -= (size_t)recvd;
@@ -278,6 +305,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
         if (accum_len + (size_t)recvd >= ACCUM_BUF_SIZE)
         {
             result = ESP_ERR_NO_MEM;
+            log_upload_measure("accum_overflow", req->content_len, remaining, accum_len + (size_t)recvd);
             goto cleanup;
         }
         memcpy(accum + accum_len, buf, (size_t)recvd);
@@ -288,6 +316,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
     if (result == ESP_OK && state != BODY && !(state == AFTER_BOUNDARY && accum_len == 0))
     {
         result = ESP_ERR_INVALID_STATE;
+        log_upload_measure("parse_incomplete_state", req->content_len, remaining, accum_len);
     }
 
     if ((state == BODY) && (accum_len > 0))
@@ -304,6 +333,7 @@ esp_err_t http_multipart_parse(httpd_req_t *req, multipart_field_cb_t on_field, 
     }
 
 cleanup:
+    log_upload_measure(result == ESP_OK ? "parse_complete" : "parse_failed", req->content_len, remaining, accum_len);
     free(buf);
     free(accum);
     return result;

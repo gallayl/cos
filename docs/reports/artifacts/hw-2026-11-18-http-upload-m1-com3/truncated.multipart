@@ -1,0 +1,9 @@
+--BOUNDARY
+Content-Disposition: form-data; name="path"
+
+/sdcard/m1tmp/trunc.txt
+--BOUNDARY
+Content-Disposition: form-data; name="file"; filename="t.txt"
+Content-Type: text/plain
+
+partial

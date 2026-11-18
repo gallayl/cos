@@ -2,7 +2,9 @@
 #include "http_multipart.h"
 #include "http_server.h"
 
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_system.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -11,6 +13,14 @@
 #include <sys/stat.h>
 
 static const char *const TAG = "http_upload";
+
+static void upload_log_measure(const char *event, size_t content_len, esp_err_t result)
+{
+    const uint32_t free_heap = esp_get_free_heap_size();
+    const size_t largest_8bit = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    ESP_LOGI(TAG, "upload-measure: %s free=%u largest_8bit=%u content_len=%u result=%s", event, (unsigned)free_heap,
+             (unsigned)largest_8bit, (unsigned)content_len, esp_err_to_name(result));
+}
 
 typedef struct
 {
@@ -152,6 +162,9 @@ static esp_err_t handler_upload(httpd_req_t *req)
         return ESP_OK;
     }
 
+    const size_t content_len = req ? req->content_len : 0;
+    upload_log_measure("handler_start", content_len, ESP_OK);
+
     upload_ctx_t uctx = {0};
 
     esp_err_t ret = http_multipart_parse(req, upload_field_cb, upload_file_cb, &uctx);
@@ -162,13 +175,22 @@ static esp_err_t handler_upload(httpd_req_t *req)
         uctx.file = NULL;
     }
 
+    upload_log_measure("parse_return", content_len, ret);
+
     httpd_resp_set_type(req, "application/json");
 
     if (uctx.error[0] != '\0')
     {
+        esp_err_t log_result = ESP_FAIL;
+        if (strcmp(uctx.error, "Invalid path") == 0 || strcmp(uctx.error, "Missing path field") == 0)
+        {
+            log_result = ESP_ERR_INVALID_ARG;
+        }
+
         httpd_resp_set_status(req, "400 Bad Request");
         char resp[192];
         snprintf(resp, sizeof(resp), "{\"error\":\"%s\"}", uctx.error);
+        upload_log_measure("handler_error_response", content_len, log_result);
         return httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     }
 
@@ -179,21 +201,26 @@ static esp_err_t handler_upload(httpd_req_t *req)
         httpd_resp_set_status(req, "500 Internal Server Error");
         if (ret == ESP_ERR_NO_MEM)
         {
+            upload_log_measure("handler_parse_nomem", content_len, ret);
             return httpd_resp_send(req, "{\"error\":\"Upload failed: out of memory\"}", HTTPD_RESP_USE_STRLEN);
         }
         if (ret == ESP_ERR_INVALID_ARG)
         {
+            upload_log_measure("handler_parse_invalid_arg", content_len, ret);
             return httpd_resp_send(req, "{\"error\":\"Upload failed: invalid request\"}", HTTPD_RESP_USE_STRLEN);
         }
         if (ret == ESP_ERR_INVALID_STATE)
         {
+            upload_log_measure("handler_parse_invalid_state", content_len, ret);
             return httpd_resp_send(req, "{\"error\":\"Upload failed: incomplete request\"}", HTTPD_RESP_USE_STRLEN);
         }
         char resp[96];
         snprintf(resp, sizeof(resp), "{\"error\":\"Upload failed: %s\"}", name);
+        upload_log_measure("handler_parse_error", content_len, ret);
         return httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     }
 
+    upload_log_measure("handler_success", content_len, ret);
     return httpd_resp_send(req, "{\"status\":\"ok\"}", HTTPD_RESP_USE_STRLEN);
 }
 
