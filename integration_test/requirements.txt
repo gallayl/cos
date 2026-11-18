@@ -1,5 +1,5 @@
-pytest-embedded==1.10.3
-pytest-embedded-idf==1.10.3
-pytest-embedded-qemu==1.10.3
+pytest-embedded==2.9.3
+pytest-embedded-idf==2.9.3
+pytest-embedded-qemu==2.9.3
 pytest-rerunfailures==15.0
 pytest-timeout==2.3.1
