@@ -260,7 +260,10 @@ static void test_cmd_hexdump_no_arg(void)
 
 static void test_cmd_hexdump_reads_file(void)
 {
-    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/bin.dat", "\x00\x01""ABC", 6));
+    TEST_ASSERT_EQUAL(ESP_OK, vfs_write_file("/flash/bin.dat",
+                                             "\x00\x01"
+                                             "ABC",
+                                             6));
     char *argv[] = {"hexdump", "bin.dat"};
     TEST_ASSERT_EQUAL(0, mock_console_run_cmd("hexdump", 2, argv));
 }
@@ -601,6 +604,76 @@ static void test_unalias_removes_mapping(void)
     TEST_ASSERT_EQUAL_STRING("ll", expanded);
 }
 
+static void test_cmd_ls_nonexistent_path(void)
+{
+    char *argv[] = {"ls", "/flash/no_such_dir"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ls", 2, argv));
+}
+
+static void test_cmd_ls_file_path(void)
+{
+    mock_filesystem_add_file("/flash/file.txt");
+    char *argv[] = {"ls", "/flash/file.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("ls", 2, argv));
+}
+
+static void test_cmd_mkdir_existing_path_fails(void)
+{
+    mock_filesystem_add_directory("/flash/existing");
+    char *argv[] = {"mkdir", "existing"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mkdir", 2, argv));
+}
+
+static void test_cmd_mkdir_existing_file_fails(void)
+{
+    mock_filesystem_add_file("/flash/existing.txt");
+    char *argv[] = {"mkdir", "existing.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mkdir", 2, argv));
+}
+
+static void test_cmd_rmdir_not_a_directory(void)
+{
+    mock_filesystem_add_file("/flash/file.txt");
+    char *argv[] = {"rmdir", "file.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, argv));
+    TEST_ASSERT_TRUE(vfs_exists("/flash/file.txt"));
+}
+
+static void test_cmd_rmdir_nonexistent_path(void)
+{
+    char *argv[] = {"rmdir", "missing"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("rmdir", 2, argv));
+}
+
+static void test_cmd_cp_no_source_file(void)
+{
+    char *argv[] = {"cp", "nope.txt", "dst.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cp", 3, argv));
+    TEST_ASSERT_FALSE(vfs_exists("/flash/dst.txt"));
+}
+
+static void test_cmd_mv_missing_source(void)
+{
+    char *argv[] = {"mv", "nope.txt", "dst.txt"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("mv", 3, argv));
+}
+
+static void test_cmd_hexdump_rejects_directory(void)
+{
+    mock_filesystem_add_directory("/flash/adir");
+    char *argv[] = {"hexdump", "adir"};
+    /* vfs_read_file on directory path in mock returns not found/error -> cannot read */
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("hexdump", 2, argv));
+}
+
+static void test_cmd_cat_invalid_path(void)
+{
+    char *argv[] = {"cat", "\x01"
+                           "bad"};
+    /* resolve may normalize; if read fails expect error. Use missing path behavior. */
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("cat", 2, argv));
+}
+
 int main(void)
 {
     mock_console_reset();
@@ -657,23 +730,33 @@ int main(void)
     RUN_TEST(test_cmd_hexdump_no_arg);
     RUN_TEST(test_cmd_hexdump_reads_file);
     RUN_TEST(test_cmd_hexdump_missing_file);
+    RUN_TEST(test_cmd_hexdump_rejects_directory);
     RUN_TEST(test_cmd_cp_no_args);
     RUN_TEST(test_cmd_cp_file);
     RUN_TEST(test_cmd_cp_refuses_overwrite);
     RUN_TEST(test_cmd_cp_rejects_directory);
     RUN_TEST(test_cmd_cp_rejects_missing_source);
+    RUN_TEST(test_cmd_cp_no_source_file);
     RUN_TEST(test_cmd_mv_no_args);
     RUN_TEST(test_cmd_mv_file);
     RUN_TEST(test_cmd_mv_refuses_overwrite);
     RUN_TEST(test_cmd_mv_cross_filesystem);
+    RUN_TEST(test_cmd_mv_missing_source);
     RUN_TEST(test_cmd_rmdir_no_arg);
     RUN_TEST(test_cmd_rmdir_only_removes_empty_directories);
     RUN_TEST(test_cmd_rmdir_protects_filesystem_roots);
     RUN_TEST(test_cmd_rmdir_protects_current_directory);
+    RUN_TEST(test_cmd_rmdir_not_a_directory);
+    RUN_TEST(test_cmd_rmdir_nonexistent_path);
     RUN_TEST(test_cmd_ls_empty_directory);
+    RUN_TEST(test_cmd_ls_nonexistent_path);
+    RUN_TEST(test_cmd_ls_file_path);
+    RUN_TEST(test_cmd_mkdir_existing_path_fails);
+    RUN_TEST(test_cmd_mkdir_existing_file_fails);
     RUN_TEST(test_cmd_cat_reads_file);
     RUN_TEST(test_cmd_cat_missing_file);
     RUN_TEST(test_cmd_cat_rejects_directory);
+    RUN_TEST(test_cmd_cat_invalid_path);
     RUN_TEST(test_cmd_rm_missing_file);
     RUN_TEST(test_cmd_touch_existing_preserves_content);
     RUN_TEST(test_cmd_cp_preserves_content);
