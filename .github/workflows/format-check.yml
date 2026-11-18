@@ -9,7 +9,7 @@ jobs:
     outputs:
       format-check: ${{ steps.filter.outputs.format-check }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dorny/paths-filter@v4
@@ -32,7 +32,7 @@ jobs:
     if: needs.changes.outputs.format-check == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
