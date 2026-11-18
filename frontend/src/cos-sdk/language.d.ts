@@ -76,6 +76,41 @@ declare global {
   interface NewableFunction extends Function {}
 
   /**
+   * Minimal Promise/awaitable core for Berry runtime (R18 v1). Implemented by the
+   * device runtime scheduler; behavior is JS-like subset only (no finally/combinators).
+   */
+  interface PromiseLike<T> {
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+    ): PromiseLike<TResult1 | TResult2>;
+  }
+
+  interface Promise<T> extends PromiseLike<T> {
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+    ): Promise<TResult1 | TResult2>;
+    catch<TResult = never>(
+      onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null,
+    ): Promise<T | TResult>;
+  }
+
+  interface PromiseConstructor {
+    new <T>(
+      executor: (
+        resolve: (value: T | PromiseLike<T>) => void,
+        reject: (reason?: any) => void,
+      ) => void,
+    ): Promise<T>;
+    resolve(): Promise<void>;
+    resolve<T>(value: T | PromiseLike<T>): Promise<T>;
+    reject<T = never>(reason?: any): Promise<T>;
+  }
+
+  const Promise: PromiseConstructor;
+
+  /**
    * Berry VM `print`. Writes to the Berry output stream shown by the shell.
    * This is not JavaScript `console.log`.
    */

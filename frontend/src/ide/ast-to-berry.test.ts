@@ -851,6 +851,20 @@ var __cos_entry = Hello()
     expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.code)).toContain('cos/entrypoint-contract')
   })
+
+  it('lowers a simple async function with sequential await (R18 v1 subset)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        await system.sleep(10)
+        log("done")
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('def demo()')
+    expect(result.code).toContain('Promise.resolve(nil).then')
+    expect(result.code).toContain('system.sleep(10)')
+  })
 })
 
 describe('astToBerry R14 profiles and debug metadata', () => {

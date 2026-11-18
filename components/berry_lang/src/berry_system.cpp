@@ -1,4 +1,5 @@
 #include "berry.h"
+#include "berry_runtime.h"
 #include "esp_err.h"
 #include "system.h"
 #include "time_sync.h"
@@ -118,6 +119,39 @@ static int native_system_time_info(bvm *vm)
     be_pop(vm, 1);
     be_return(vm);
 }
+
+static int native_system_sleep(bvm *vm)
+{
+    if (be_top(vm) != 1 || !be_isint(vm, 1))
+    {
+        // Invalid argument type/range -> synchronous deterministic error, no pending timer.
+        be_raise(vm, "value_error", "system.sleep(ms) requires an integer milliseconds argument");
+        be_return(vm);
+    }
+    const bint ms = be_toint(vm, 1);
+    // Berry ints are long; accept negative as <=0 (resolves next pump). Very large values allowed if int.
+    be_getglobal(vm, "_cos_system_sleep");
+    if (!be_isfunction(vm, -1))
+    {
+        be_pop(vm, 1);
+        be_raise(vm, "runtime_error", "async runtime not initialized");
+        be_return(vm);
+    }
+    be_pushint(vm, ms);
+    if (be_pcall(vm, 1) != 0)
+    {
+        // Propagate Berry exception from helper (should not happen for normal overflow path which rejects)
+        const char *error = be_tostring(vm, -1);
+        if (error == nullptr)
+        {
+            error = "system.sleep failed";
+        }
+        be_raise(vm, "runtime_error", error);
+        be_return(vm);
+    }
+    // Result (Promise) is on stack below return slot per Berry conventions; keep it as return value.
+    be_return(vm);
+}
 } // namespace
 
 // NOLINTNEXTLINE(readability-identifier-naming)
@@ -125,6 +159,7 @@ static bntvmodobj_t const system_attrs[] = {
     be_native_module_function("meminfo", native_system_meminfo),
     be_native_module_function("uptime", native_system_uptime),
     be_native_module_function("time_info", native_system_time_info),
+    be_native_module_function("sleep", native_system_sleep),
 };
 
 // NOLINTNEXTLINE(readability-identifier-naming)

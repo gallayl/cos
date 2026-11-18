@@ -180,7 +180,9 @@ function lowerExpression(ctx: GenerationContext, node: ts.Expression): EmittedEx
     return atom('nil')
   }
   if (ts.isAwaitExpression(node)) {
-    ctx.report(node, 'Await is not supported.')
+    // Await is lowered in async function body transformer contexts. Direct emission means
+    // unsupported position (no silent miscompile).
+    ctx.report(node, 'await is only supported inside async functions in supported positions.')
     return atom('nil')
   }
   if (ts.isConditionalExpression(node)) {

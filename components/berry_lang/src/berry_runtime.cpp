@@ -19,7 +19,9 @@ extern "C"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +29,7 @@ extern "C"
 #include <limits>
 #include <string>
 #include <utility>
+#include <vector>
 
 void berry_ui_begin_app(bvm *vm);
 void berry_ui_end_app(void);
@@ -265,6 +268,10 @@ int native_console_read_line(bvm *vm)
         be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_ARG));
         be_return(vm);
     }
+    if (s_console_line_pending)
+    {
+        (void)cancel_pending_console_input();
+    }
     if (s_console_line_pending || s_console_read_line == nullptr)
     {
         be_pushstring(vm, esp_err_to_name(ESP_ERR_INVALID_STATE));
@@ -435,7 +442,15 @@ int push_write_status(bvm *vm, esp_err_t err)
 
 esp_err_t begin_console_callback(bvm *vm, int function_index, berry_console_read_key_fn_t start)
 {
-    if (start == nullptr || s_console_line_pending)
+    if (start == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_console_line_pending)
+    {
+        (void)cancel_pending_console_input();
+    }
+    if (s_console_line_pending)
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -1447,6 +1462,8 @@ bool has_active_app()
     return active;
 }
 
+extern "C" void berry_runtime_async_cancel_all(bool reject_pending);
+
 esp_err_t close_active_app()
 {
     const bool had_active_app = has_active_app();
@@ -1459,6 +1476,10 @@ esp_err_t close_active_app()
             err = teardown_err;
         }
     }
+
+    // R18: stop pumping for context, cancel timers, reject unsettled tracked promises (best-effort)
+    // and guarantee no user callbacks after teardown completes.
+    berry_runtime_async_cancel_all(true);
 
     log_lifecycle_checkpoint(had_active_app ? "6 Before app teardown cleanup"
                                             : "6 Before app-state cleanup (no active app)");
@@ -1492,6 +1513,7 @@ esp_err_t close_active_app()
 
 void discard_app()
 {
+    berry_runtime_async_cancel_all(true);
     berry_ui_end_app();
     ui::stop();
 }
@@ -2050,6 +2072,385 @@ int native_cos_import(bvm *vm)
 
 namespace
 {
+// R18 v1 async scheduler (cooperative, single-VM). Pump runs on UI tick under runtime lock.
+constexpr size_t ASYNC_MAX_TIMERS = 16;
+constexpr size_t ASYNC_MAX_MICROTASKS_PER_DRAIN = 32;
+constexpr size_t ASYNC_MAX_TRACKED = 16;
+constexpr const char *ASYNC_ERR_CANCELLED = "ASYNC_CANCELLED";
+constexpr const char *ASYNC_ERR_TIMER_LIMIT = "ASYNC_TIMER_LIMIT";
+constexpr const char *ASYNC_ERR_QUEUE_LIMIT = "ASYNC_QUEUE_LIMIT";
+constexpr const char *ASYNC_ERR_INVALID_ARG = "ASYNC_INVALID_ARG";
+
+struct AsyncTimerEntry
+{
+    int64_t due_us = 0;
+    int resolve_id = -1;
+    int reject_id = -1;
+    bool cancelled = false;
+};
+
+struct AsyncMicrotaskEntry
+{
+    int callback_id = -1;
+    int arg_kind = 0; // 0=none,1=nil,2=string tag,3=pass stored string in global? (unused simple)
+    std::string arg_str;
+};
+
+static std::vector<AsyncTimerEntry> s_async_timers;
+static std::vector<AsyncMicrotaskEntry> s_async_microtasks;
+static int s_async_next_callback = 0;
+static bool s_async_tearing_down = false;
+static bool s_async_settlement_in_progress = false;
+
+static std::string async_callback_name(int id)
+{
+    return "_cos_async_cb_" + std::to_string(id);
+}
+
+static int async_store_callback(bvm *vm, int stack_index)
+{
+    const int id = s_async_next_callback++;
+    const std::string name = async_callback_name(id);
+    be_pushvalue(vm, stack_index);
+    be_setglobal(vm, name.c_str());
+    be_pop(vm, 1);
+    return id;
+}
+
+static void async_remove_callback(int id)
+{
+    if (s_vm == nullptr || id < 0)
+    {
+        return;
+    }
+    const std::string name = async_callback_name(id);
+    be_pushnil(s_vm);
+    be_setglobal(s_vm, name.c_str());
+    be_pop(s_vm, 1);
+}
+
+static size_t async_tracked_count()
+{
+    return s_async_timers.size() + s_async_microtasks.size();
+}
+
+static void async_log_error(const char *prefix, const char *detail)
+{
+    ESP_LOGE(TAG, "%s: %s", prefix != nullptr ? prefix : "async", detail != nullptr ? detail : "unknown");
+}
+
+static bool async_call_cb(int id, int argc, bool push_nil_arg, const char *str_arg, bool allow_during_teardown = false)
+{
+    if (s_vm == nullptr || id < 0 || (s_async_tearing_down && !allow_during_teardown))
+    {
+        return false;
+    }
+    const std::string name = async_callback_name(id);
+    be_getglobal(s_vm, name.c_str());
+    if (!be_isfunction(s_vm, -1))
+    {
+        be_pop(s_vm, 1);
+        return false;
+    }
+    if (argc == 1)
+    {
+        if (str_arg != nullptr)
+        {
+            be_pushstring(s_vm, str_arg);
+        }
+        else if (push_nil_arg)
+        {
+            be_pushnil(s_vm);
+        }
+        else
+        {
+            be_pop(s_vm, 1);
+            return false;
+        }
+    }
+    else
+    {
+        argc = 0;
+    }
+    if (be_pcall(s_vm, argc) != 0)
+    {
+        const char *error = be_tostring(s_vm, -1);
+        async_log_error("Async callback failed", error);
+        be_pop(s_vm, argc + 1);
+        return false;
+    }
+    be_pop(s_vm, argc + 1);
+    return true;
+}
+
+static void async_clear_all_state(bool reject_pending)
+{
+    if (s_vm == nullptr)
+    {
+        s_async_timers.clear();
+        s_async_microtasks.clear();
+        return;
+    }
+
+    auto timers = std::move(s_async_timers);
+    auto micros = std::move(s_async_microtasks);
+    s_async_timers.clear();
+    s_async_microtasks.clear();
+
+    // Prevent normal pump/drain and new async scheduling from surviving teardown.
+    s_async_tearing_down = true;
+    s_async_settlement_in_progress = true;
+
+    if (reject_pending)
+    {
+        // Deterministically settle pending timer-backed promises with cancellation.
+        // Callbacks run while scheduling admission is blocked; purge any work they schedule.
+        for (const auto &t : timers)
+        {
+            if (t.reject_id >= 0)
+            {
+                async_call_cb(t.reject_id, 1, false, ASYNC_ERR_CANCELLED, true);
+            }
+            async_remove_callback(t.resolve_id);
+            async_remove_callback(t.reject_id);
+        }
+
+        // Queued microtasks cannot run after teardown; drop references and free callback globals.
+        for (const auto &m : micros)
+        {
+            async_remove_callback(m.callback_id);
+        }
+
+        // Drop any timers/microtasks scheduled during cancellation settlement and
+        // deterministically settle timer-backed promises to avoid post-teardown survivors.
+        while (!s_async_timers.empty() || !s_async_microtasks.empty())
+        {
+            auto nested_timers = std::move(s_async_timers);
+            auto nested_micros = std::move(s_async_microtasks);
+            s_async_timers.clear();
+            s_async_microtasks.clear();
+
+            for (const auto &nt : nested_timers)
+            {
+                if (nt.reject_id >= 0)
+                {
+                    async_call_cb(nt.reject_id, 1, false, ASYNC_ERR_CANCELLED, true);
+                }
+                async_remove_callback(nt.resolve_id);
+                async_remove_callback(nt.reject_id);
+            }
+            for (const auto &nm : nested_micros)
+            {
+                async_remove_callback(nm.callback_id);
+            }
+        }
+    }
+    else
+    {
+        for (const auto &t : timers)
+        {
+            async_remove_callback(t.resolve_id);
+            async_remove_callback(t.reject_id);
+        }
+        for (const auto &m : micros)
+        {
+            async_remove_callback(m.callback_id);
+        }
+        // Clear any unexpected leftovers defensively.
+        s_async_timers.clear();
+        s_async_microtasks.clear();
+    }
+
+    s_async_settlement_in_progress = false;
+    s_async_tearing_down = false;
+}
+
+extern "C" void berry_runtime_async_cancel_all(bool reject_pending)
+{
+    async_clear_all_state(reject_pending);
+}
+
+static void async_pump_locked()
+{
+    if (s_vm == nullptr || s_async_tearing_down)
+    {
+        return;
+    }
+    if (s_async_timers.empty() && s_async_microtasks.empty())
+    {
+        return;
+    }
+
+    const int64_t now = esp_timer_get_time();
+    std::vector<AsyncTimerEntry> remaining;
+    std::vector<int> overflow_reject_ids;
+    remaining.reserve(s_async_timers.size());
+    for (auto &t : s_async_timers)
+    {
+        if (t.cancelled)
+        {
+            async_remove_callback(t.resolve_id);
+            async_remove_callback(t.reject_id);
+            continue;
+        }
+        if (now >= t.due_us)
+        {
+            if (s_async_microtasks.size() >= ASYNC_MAX_MICROTASKS_PER_DRAIN)
+            {
+                // Deterministic overflow: settle timer-backed promise with queue-limit error
+                // after scan/mutation completes (no synchronous callback inside timer-list mutation).
+                async_log_error("Async queue overflow", "due timer could not be enqueued (ASYNC_ERR_QUEUE_LIMIT)");
+                if (t.reject_id >= 0)
+                {
+                    overflow_reject_ids.push_back(t.reject_id);
+                }
+                async_remove_callback(t.resolve_id);
+                t.resolve_id = -1;
+                t.reject_id = -1;
+            }
+            else
+            {
+                // enqueue resolve callback (no arg)
+                s_async_microtasks.push_back({t.resolve_id, 0, {}});
+                t.resolve_id = -1; // ownership moved to microtask
+                async_remove_callback(t.reject_id);
+                t.reject_id = -1;
+            }
+            continue;
+        }
+        remaining.push_back(t);
+    }
+    s_async_timers.swap(remaining);
+
+    // Post-mutation deterministic settlement for overflowed due timers.
+    for (const int reject_id : overflow_reject_ids)
+    {
+        async_call_cb(reject_id, 1, false, ASYNC_ERR_QUEUE_LIMIT);
+        async_remove_callback(reject_id);
+    }
+
+    size_t drained = 0;
+    while (drained < ASYNC_MAX_MICROTASKS_PER_DRAIN && !s_async_microtasks.empty() && !s_async_tearing_down)
+    {
+        AsyncMicrotaskEntry task = s_async_microtasks.front();
+        s_async_microtasks.erase(s_async_microtasks.begin());
+        ++drained;
+        if (task.arg_kind == 2)
+        {
+            async_call_cb(task.callback_id, 1, false, task.arg_str.c_str());
+        }
+        else if (task.arg_kind == 1)
+        {
+            async_call_cb(task.callback_id, 1, true, nullptr);
+        }
+        else
+        {
+            async_call_cb(task.callback_id, 0, false, nullptr);
+        }
+        async_remove_callback(task.callback_id);
+    }
+}
+
+static void berry_runtime_combined_tick(void)
+{
+    berry_ui_tick();
+    // Pump async scheduler cooperatively on UI tick; UI tick runs under execution guard (runtime lock).
+    if (s_vm != nullptr)
+    {
+        async_pump_locked();
+    }
+}
+
+// Native: cos_async_enqueue(fn) -> bool
+static int native_cos_async_enqueue(bvm *vm)
+{
+    if (s_async_tearing_down || s_async_settlement_in_progress)
+    {
+        be_pushbool(vm, 0);
+        be_return(vm);
+    }
+    if (be_top(vm) < 1 || !be_isfunction(vm, 1))
+    {
+        be_pushbool(vm, 0);
+        be_return(vm);
+    }
+    if (s_async_microtasks.size() >= ASYNC_MAX_MICROTASKS_PER_DRAIN || async_tracked_count() >= ASYNC_MAX_TRACKED)
+    {
+        async_log_error("Async queue overflow", "microtask enqueue rejected");
+        be_pushbool(vm, 0);
+        be_return(vm);
+    }
+    const int id = async_store_callback(vm, 1);
+    s_async_microtasks.push_back({id, 0, {}});
+    be_pushbool(vm, 1);
+    be_return(vm);
+}
+
+// Native: cos_async_sleep(ms, resolve, reject) -> map {ok, tag?}
+static int native_cos_async_sleep(bvm *vm)
+{
+    if (s_async_tearing_down || s_async_settlement_in_progress)
+    {
+        async_log_error("Async timer rejected", "sleep rejected during teardown");
+        be_newobject(vm, "map");
+        be_pushstring(vm, "ok");
+        be_pushbool(vm, 0);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pushstring(vm, "tag");
+        be_pushstring(vm, ASYNC_ERR_CANCELLED);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pop(vm, 1);
+        be_return(vm);
+    }
+    if (be_top(vm) < 3 || !be_isint(vm, 1) || !be_isfunction(vm, 2) || !be_isfunction(vm, 3))
+    {
+        be_newobject(vm, "map");
+        be_pushstring(vm, "ok");
+        be_pushbool(vm, 0);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pushstring(vm, "tag");
+        be_pushstring(vm, ASYNC_ERR_INVALID_ARG);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pop(vm, 1);
+        be_return(vm);
+    }
+    const bint ms = be_toint(vm, 1);
+    if (s_async_timers.size() >= ASYNC_MAX_TIMERS || async_tracked_count() >= ASYNC_MAX_TRACKED)
+    {
+        async_log_error("Async timer overflow", "sleep rejected at timer cap");
+        be_newobject(vm, "map");
+        be_pushstring(vm, "ok");
+        be_pushbool(vm, 0);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pushstring(vm, "tag");
+        be_pushstring(vm, ASYNC_ERR_TIMER_LIMIT);
+        be_data_insert(vm, -3);
+        be_pop(vm, 2);
+        be_pop(vm, 1);
+        be_return(vm);
+    }
+    int64_t delay_us = 0;
+    if (ms > 0)
+    {
+        delay_us = static_cast<int64_t>(ms) * 1000;
+    }
+    const int resolve_id = async_store_callback(vm, 2);
+    const int reject_id = async_store_callback(vm, 3);
+    s_async_timers.push_back({esp_timer_get_time() + delay_us, resolve_id, reject_id, false});
+    be_newobject(vm, "map");
+    be_pushstring(vm, "ok");
+    be_pushbool(vm, 1);
+    be_data_insert(vm, -3);
+    be_pop(vm, 2);
+    be_pop(vm, 1);
+    be_return(vm);
+}
+
 static int native_cos_lazy_member(bvm *vm)
 {
     // Internal helper for R6 lazy proxy globals. Called as
@@ -2134,6 +2535,159 @@ static void install_lazy_module_global(bvm *vm, const char *name)
 }
 } // namespace
 
+static const char ASYNC_BOOTSTRAP[] = R"BERRY(
+# R18 v1 minimal Promise + async runtime helpers (cooperative, single-VM)
+var _cos_async_unhandled = def(reason)
+  log("Unhandled promise rejection: " + str(reason))
+end
+
+class Promise
+  var _state   # 0=pending,1=fulfilled,2=rejected
+  var _value
+  var _handlers # list of [onFulfilled,onRejected,resolve2,reject2]
+  var _handled
+
+  def init(executor)
+    self._state = 0
+    self._value = nil
+    self._handlers = []
+    self._handled = false
+    if executor != nil
+      try
+        executor(def(v) self._resolve(v) end, def(r) self._reject(r) end)
+      except .. as e
+        self._reject(e)
+      end
+    end
+  end
+
+  def _enqueue_handler(h)
+    if !cos_async_enqueue(def() self._run_handler(h) end)
+      log("Async queue overflow: handler enqueue failed")
+    end
+  end
+
+  def _run_handler(h)
+    var onf = h[0]
+    var onr = h[1]
+    var res2 = h[2]
+    var rej2 = h[3]
+    try
+      if self._state == 1
+        if onf == nil
+          res2(self._value)
+        else
+          res2(onf(self._value))
+        end
+      else
+        if onr == nil
+          rej2(self._value)
+        else
+          res2(onr(self._value))
+        end
+      end
+    except .. as e
+      rej2(e)
+    end
+  end
+
+  def _settle(state, value)
+    if self._state != 0
+      return
+    end
+    self._state = state
+    self._value = value
+    var hs = self._handlers
+    self._handlers = []
+    for h: hs
+      self._handled = true
+      self._enqueue_handler(h)
+    end
+    if state == 2 && size(hs) == 0
+      # unhandled rejection (logged now; may be handled later in fuller impl)
+      cos_async_enqueue(def()
+        if !self._handled
+          _cos_async_unhandled(self._value)
+        end
+      end)
+    end
+  end
+
+  def _resolve(v)
+    # thenable adoption minimal: if it's a Promise instance, adopt state
+    if isinstance(v, Promise)
+      if v._state == 0
+        v.then(def(x) self._resolve(x) end, def(r) self._reject(r) end)
+      elif v._state == 1
+        self._settle(1, v._value)
+      else
+        self._settle(2, v._value)
+      end
+      return
+    end
+    self._settle(1, v)
+  end
+
+  def _reject(r)
+    self._settle(2, r)
+  end
+
+  def then(onFulfilled, onRejected)
+    var outer = self
+    return Promise(def(resolve2, reject2)
+      var h = [onFulfilled, onRejected, resolve2, reject2]
+      if outer._state == 0
+        outer._handlers.push(h)
+      else
+        outer._handled = true
+        if !cos_async_enqueue(def() outer._run_handler(h) end)
+          reject2("ASYNC_QUEUE_LIMIT")
+        end
+      end
+    end)
+  end
+
+  def catch(onRejected)
+    return self.then(nil, onRejected)
+  end
+
+  static def resolve(v)
+    return Promise(def(res, rej) res(v) end)
+  end
+
+  static def reject(r)
+    return Promise(def(res, rej) rej(r) end)
+  end
+end
+
+# system.sleep(ms) -> Promise<void>
+def _cos_system_sleep(ms)
+  return Promise(def(resolve, reject)
+    var r = cos_async_sleep(ms, def() resolve(nil) end, def(reason) reject(reason) end)
+    if type(r) != 'map' || r.find('ok') != true
+      var tag = "ASYNC_TIMER_LIMIT"
+      if type(r) == 'map' && r.contains('tag')
+        tag = r['tag']
+      end
+      log("Async timer scheduling failed: " + str(tag))
+      reject(tag)
+    end
+  end)
+end
+)BERRY";
+
+static void install_async_bootstrap(bvm *vm)
+{
+    if (be_loadbuffer(vm, "async-bootstrap", ASYNC_BOOTSTRAP, sizeof(ASYNC_BOOTSTRAP) - 1) != 0 || be_pcall(vm, 0) != 0)
+    {
+        const char *error = be_tostring(vm, -1);
+        ESP_LOGE(TAG, "Async bootstrap failed: %s", error != nullptr ? error : "unknown Berry error");
+        be_pop(vm, 1);
+        return;
+    }
+    be_pop(vm, 1);
+}
+
 extern "C" esp_err_t berry_runtime_init(void)
 {
     const std::lock_guard<std::recursive_mutex> lock(s_vm_mutex);
@@ -2155,6 +2709,8 @@ extern "C" esp_err_t berry_runtime_init(void)
     be_regfunc(s_vm, "cos_import", native_cos_import);
     be_regfunc(s_vm, "cos_module", native_cos_module);
     be_regfunc(s_vm, "cos_lazy_member", native_cos_lazy_member);
+    be_regfunc(s_vm, "cos_async_enqueue", native_cos_async_enqueue);
+    be_regfunc(s_vm, "cos_async_sleep", native_cos_async_sleep);
 
     // R6 (2026-11-08): COS native modules are not eagerly loaded at Berry
     // startup. `console`, `fs`, `net`, and `ui` remain in be_modtab.c and are
@@ -2173,8 +2729,10 @@ extern "C" esp_err_t berry_runtime_init(void)
     install_lazy_module_global(s_vm, "net");
     install_lazy_module_global(s_vm, "ui");
 
+    install_async_bootstrap(s_vm);
+
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
-    ui::set_tick_callback(berry_ui_tick);
+    ui::set_tick_callback(berry_runtime_combined_tick);
     ui::set_exit_callback(close_app_from_ui);
 
     log_lifecycle_checkpoint("1 Berry VM initialized");
@@ -2192,6 +2750,8 @@ extern "C" void berry_runtime_deinit(void)
         be_vm_delete(s_vm);
         s_vm = nullptr;
     }
+    s_async_timers.clear();
+    s_async_microtasks.clear();
 }
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)

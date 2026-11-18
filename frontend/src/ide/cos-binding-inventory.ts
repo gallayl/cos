@@ -158,6 +158,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'meminfo' },
       { kind: 'function', name: 'uptime' },
       { kind: 'function', name: 'time_info' },
+      { kind: 'function', name: 'sleep' },
     ],
   },
 ]

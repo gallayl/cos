@@ -32,11 +32,13 @@ declare module '@cos/system' {
   export function meminfo(): MemInfoOk | MemInfoFailed;
   export function uptime(): string;
   export function time_info(): TimeInfoOk | TimeInfoFailed;
+  export function sleep(ms: number): Promise<void>;
 
   const system: {
     meminfo: typeof meminfo;
     uptime: typeof uptime;
     time_info: typeof time_info;
+    sleep: typeof sleep;
   };
   export default system;
 }
