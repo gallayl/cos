@@ -137,7 +137,12 @@ static void test_rejected_urls(void)
 static void test_methods_headers_and_timeouts(void)
 {
     TEST_ASSERT_TRUE(network_http_method_valid("GET"));
+    TEST_ASSERT_TRUE(network_http_method_valid("POST"));
+    TEST_ASSERT_TRUE(network_http_method_valid("PUT"));
+    TEST_ASSERT_TRUE(network_http_method_valid("PATCH"));
     TEST_ASSERT_TRUE(network_http_method_valid("DELETE"));
+    TEST_ASSERT_TRUE(network_http_method_valid("HEAD"));
+    TEST_ASSERT_FALSE(network_http_method_valid("OPTIONS"));
     TEST_ASSERT_FALSE(network_http_method_valid("get"));
     TEST_ASSERT_FALSE(network_http_method_valid(NULL));
     TEST_ASSERT_FALSE(network_http_method_allows_body("GET"));
@@ -147,6 +152,7 @@ static void test_methods_headers_and_timeouts(void)
     TEST_ASSERT_TRUE(network_http_method_allows_body("PATCH"));
     TEST_ASSERT_TRUE(network_http_method_allows_body("DELETE"));
     TEST_ASSERT_FALSE(network_http_method_allows_body("OPTIONS"));
+    TEST_ASSERT_FALSE(network_http_method_allows_body(NULL));
     TEST_ASSERT_TRUE(network_http_header_valid("Authorization", "Bearer token"));
     TEST_ASSERT_TRUE(network_http_header_valid("X-Empty", ""));
     TEST_ASSERT_FALSE(network_http_header_valid("Bad Name", "x"));
@@ -172,6 +178,14 @@ static void test_methods_headers_and_timeouts(void)
     TEST_ASSERT_TRUE(network_http_timeout_valid(NETWORK_HTTP_TIMEOUT_MAX_MS));
     TEST_ASSERT_FALSE(network_http_timeout_valid(NETWORK_HTTP_TIMEOUT_MIN_MS - 1));
     TEST_ASSERT_FALSE(network_http_timeout_valid(NETWORK_HTTP_TIMEOUT_MAX_MS + 1));
+}
+
+static void test_scheme_less_localhost_not_treated_as_absolute_host(void)
+{
+    char url[NETWORK_URL_MAX + 1];
+    TEST_ASSERT_EQUAL(ESP_OK, network_set_base_url(""));
+    /* "localhost" has no dot, so host-URL heuristic does not treat it as absolute. */
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, network_compose_url("localhost/path", url, sizeof(url)));
 }
 
 static void test_absolute_localhost_and_ipv4_port_normalization(void)
@@ -234,7 +248,8 @@ static void test_compose_rejects_invalid_edge_cases(void)
     TEST_ASSERT_EQUAL(ESP_OK, network_set_base_url(""));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, network_compose_url("http:/missing-slashes", url, sizeof(url)));
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, network_compose_url("localhost/path", url, sizeof(url)));
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, network_compose_url("http://example.com/very/long/path", small, sizeof(small)));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE,
+                      network_compose_url("http://example.com/very/long/path", small, sizeof(small)));
     char too_long[NETWORK_URL_MAX + 2];
     memset(too_long, 'a', sizeof(too_long) - 1);
     too_long[sizeof(too_long) - 1] = '\0';
@@ -264,5 +279,6 @@ int main(void)
     RUN_TEST(test_relative_resolution_edge_cases);
     RUN_TEST(test_base_and_get_base_url_contracts);
     RUN_TEST(test_compose_rejects_invalid_edge_cases);
+    RUN_TEST(test_scheme_less_localhost_not_treated_as_absolute_host);
     return UNITY_END();
 }

@@ -438,6 +438,16 @@ target_include_directories(test_http_auth PRIVATE
 target_link_libraries(test_http_auth PRIVATE unity http_auth_logic mock_esp)
 add_test(NAME test_http_auth COMMAND test_http_auth)
 
+# --- Test: http_multipart (includes .c directly to test static helpers) ---
+add_executable(test_http_multipart test_http_multipart.c)
+target_include_directories(test_http_multipart PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/http_server/src
+)
+target_link_libraries(test_http_multipart PRIVATE unity mock_esp)
+add_test(NAME test_http_multipart COMMAND test_http_multipart)
+
 # --- Library: text_buffer (pure C, no ESP-IDF deps) ---
 add_library(text_buffer STATIC
     ${COMPONENT_DIR}/components/text_console/src/text_buffer.c

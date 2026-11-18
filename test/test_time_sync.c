@@ -1,7 +1,7 @@
-#include "unity.h"
-#include "time_sync.h"
-#include "mock_sntp.h"
 #include "mock_console.h"
+#include "mock_sntp.h"
+#include "time_sync.h"
+#include "unity.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -12,9 +12,7 @@ void setUp(void)
     mock_console_reset();
 }
 
-void tearDown(void)
-{
-}
+void tearDown(void) {}
 
 /* --- time_sync_init --- */
 
@@ -23,6 +21,11 @@ void test_init_calls_sntp(void)
     TEST_ASSERT_EQUAL(ESP_OK, time_sync_init());
     TEST_ASSERT_EQUAL(1, mock_sntp_get_init_count());
     TEST_ASSERT_NOT_NULL(mock_sntp_get_server());
+    TEST_ASSERT_EQUAL_STRING("pool.ntp.org", mock_sntp_get_server());
+
+    /* Re-init is deterministic with mock (increments init count). */
+    TEST_ASSERT_EQUAL(ESP_OK, time_sync_init());
+    TEST_ASSERT_EQUAL(2, mock_sntp_get_init_count());
 }
 
 /* --- time_sync_is_synced --- */
@@ -56,11 +59,21 @@ void test_get_utc_buffer_too_small(void)
 {
     char buf[10];
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_utc(buf, sizeof(buf)));
+    char boundary[20];
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_utc(boundary, sizeof(boundary)));
 }
 
 void test_get_utc_null_buffer(void)
 {
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_utc(NULL, 32));
+}
+
+void test_get_utc_min_buffer_succeeds(void)
+{
+    char buf[21];
+    TEST_ASSERT_EQUAL(ESP_OK, time_sync_get_utc(buf, sizeof(buf)));
+    TEST_ASSERT_EQUAL(20, (int)strlen(buf));
+    TEST_ASSERT_EQUAL('Z', buf[19]);
 }
 
 /* --- time_sync_get_local --- */
@@ -86,6 +99,29 @@ void test_get_local_buffer_too_small(void)
 {
     char buf[10];
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_local(buf, sizeof(buf)));
+    char boundary[25];
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_local(boundary, sizeof(boundary)));
+}
+
+void test_get_local_null_buffer(void)
+{
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_SIZE, time_sync_get_local(NULL, 32));
+}
+
+void test_get_local_min_buffer_succeeds(void)
+{
+#if defined(_WIN32) || defined(__MINGW32__)
+    _putenv_s("TZ", "UTC0");
+#else
+    setenv("TZ", "UTC0", 1);
+#endif
+    tzset();
+
+    char buf[26];
+    TEST_ASSERT_EQUAL(ESP_OK, time_sync_get_local(buf, sizeof(buf)));
+    TEST_ASSERT_EQUAL(25, (int)strlen(buf));
+    TEST_ASSERT_NOT_NULL(strchr(buf, 'T'));
+    TEST_ASSERT_TRUE(strchr(buf, '+') != NULL || strchr(buf, '-') != NULL);
 }
 
 /* --- time_sync_get_epoch --- */
@@ -106,9 +142,12 @@ int main(void)
     RUN_TEST(test_get_utc_formats_correctly);
     RUN_TEST(test_get_utc_buffer_too_small);
     RUN_TEST(test_get_utc_null_buffer);
+    RUN_TEST(test_get_utc_min_buffer_succeeds);
 
     RUN_TEST(test_get_local_formats_correctly);
     RUN_TEST(test_get_local_buffer_too_small);
+    RUN_TEST(test_get_local_null_buffer);
+    RUN_TEST(test_get_local_min_buffer_succeeds);
 
     RUN_TEST(test_get_epoch_returns_positive);
 
