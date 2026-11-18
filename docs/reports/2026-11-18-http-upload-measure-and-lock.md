@@ -1,9 +1,9 @@
 # HTTP upload measure-and-lock (M1) report
 
-- **Item:** [`docs/plan/ready/http-upload-measure-and-lock.md`](../plan/ready/http-upload-measure-and-lock.md)
-- **Parent (blocked on recorded lock):** [`docs/plan/needs-clarification/http-upload-memory-bounds.md`](../plan/needs-clarification/http-upload-memory-bounds.md)
+- **Item:** [`docs/plan/done/http-upload-measure-and-lock.md`](../plan/done/http-upload-measure-and-lock.md)
+- **Parent:** [`docs/plan/ready/http-upload-memory-bounds.md`](../plan/ready/http-upload-memory-bounds.md) (M1 lock recorded 2026-11-18; bounds enforcement implementation now unblocked per recorded contract)
 - **Date:** 2026-11-18
-- **Status:** M1 instrumentation/procedure/report/proposed contract prepared; **no Hardware/QEMU capture runs executed in this session** (lock pending recorded evidence)
+- **Status:** M1 instrumentation/procedure/parser-correctness cases delivered; **hardware captures recorded (partial, 2026-11-18)** with `upload-measure` evidence and lock decisions recorded below. **QEMU/integration multipart endpoint captures not executed** (no dedicated harness in this session). Some fragmentation-stress/preflight low-heap and core stop/abort-mechanism cases remain not force-reproduced on hardware (see gaps); enforcement/cleanup/behavior changes remain in parent implementation scope.
 
 ## Purpose
 
@@ -69,35 +69,50 @@ For each executed run append:
 - Filesystem outcome / cleanup observation
 - Pass/fail vs expectation and notes
 
-## Baseline observations
+## Baseline observations and executed captures (2026-11-18, hardware, partial)
 
-**No Hardware or QEMU captures executed in this session.**
+**Environment (recorded):** physical ESP32 device over serial `COM3` @115200, ESP-IDF v6.1 app `cos` version `f2a8d7d` (compile `Nov 18 2026 15:14:09`, observed in `set-auth.log` boot). Wi-Fi STA connected (`mordor`, IP `192.168.0.187`, AP `192.168.4.1`, signal ~-68 to -74 dBm), core HTTP server running, auth user `cos` (password set to `cos123` during session; update evidenced). SD card mounted; validation uploads targeted `/sdcard/m1tmp/*` (internal flash `/flash` path caused device watchdog/reset boot-loop in an earlier probe — see incident below). Artifacts: `docs/reports/artifacts/hw-2026-11-18-http-upload-m1-com3/` (`console-probe.log`, `sd-prep.log`, `set-auth.log`, `sd-upload-*-serial.log`, `malformed-*-serial.log`, `abort-serial.log`, `m1-probe-serial.log`, `post-crash-probe.log`, `sd-post-check.log`). Generated upload payloads and HTTP response snapshot files were removed as redundant (outcomes/telemetry recorded in serial logs and this report). Serial capture used an ad-hoc PowerShell `System.IO.Ports` fallback (note: control-line toggles caused unintended reboots in some sessions).
 
-- **Executed captures:** none.
-- **Blocker (evidence):** ESP-IDF v6.1/QEMU/device capture environment not available in this execution context (no `idf.py` in PATH, no `IDF_PATH`; no attached hardware workflow exercised). Therefore baseline peak + largest-free-block observations cannot be truthfully recorded here.
-- **Action required to complete lock:** run capture procedure on Hardware + QEMU (as available/required per table), append dated results/evidence, then finalize threshold/buffer/contract lock sections below.
+**Idle/baseline snapshot (`svc_mem`, `sd-prep.log`):** default/internal free ~29908 B, min ~11908 B, largest block ~12800 B (Berry uninitialized). Values are point-in-time and environment-dependent.
 
-## Preflight threshold decision (proposed, pending lock)
+**Executed hardware results (SD path, authenticated `cos:cos123`):**
 
-**Status:** proposed only (no measurement-backed lock).
+| Scenario | Request / path (`content_len`) | `upload-measure` observations (key phases) | HTTP result | FS / cleanup observation |
+|---|---|---|---|---|
+| Supported ~1 KB | `/sdcard/m1tmp/upload-1k.txt` (343) | `handler_start` free=28756 largest_8bit=12800; `parse_alloc_ok` free=18380 largest_8bit=12800; `parse_complete` free=19248 remaining=0 accum_len=4; `handler_success` free=29624 | 200 `{"status":"ok"}` | `Upload complete` logged |
+| Supported ~16 KB | `/sdcard/m1tmp/upload-16k.bin` (16729) | `handler_start` free=15260 largest_8bit=12800; `parse_alloc_ok` free=4476 **largest_8bit=2816**; `parse_complete` free=12064 largest_8bit=3328; `handler_success` free=22440 | 200 `{"status":"ok"}` | `Upload complete` logged (serial events captured in `sd-upload-63k-serial.log` due capture overlap/race) |
+| Supported ~63 KB (<64 KB) | `/sdcard/m1tmp/upload-63k.bin` (64857) | `handler_start` free=19052 largest_8bit=12800; `parse_alloc_ok` free=11860 largest_8bit=4864; `parse_complete` free=18888 largest_8bit=8192; `handler_success` free=29264 | 200 `{"status":"ok"}` | `Upload complete` logged |
+| Oversize >64 KB (current behavior) | `/sdcard/m1tmp/upload-80k.bin` (82265) | `handler_start` free=22460 largest_8bit=12800; `parse_alloc_ok` free=12476 largest_8bit=4864; `parse_complete` free=19268 largest_8bit=5888; `handler_success` free=29644 | 200 `{"status":"ok"}` | Accepted/written per logs (M1 has no enforcement; proposed 413 not implemented) |
+| Malformed bad/missing boundary | raw POST, `Content-Type: multipart/form-data` (no boundary) | No `upload-measure` lines captured in that specific serial window (timing/capture contention) | 500 `{"error":"Upload failed: invalid request"}` | HTTP outcome recorded; telemetry capture gap noted |
+| Truncated/incomplete multipart (crafted) | `boundary=BOUNDARY`, no closing boundary, `content_len=194` | `Upload complete` `/sdcard/m1tmp/trunc.txt`; `parse_complete` remaining=0 accum_len=7; `handler_success` free=28528 (captured in overlapped log) | 200 `{"status":"ok"}` | Observed parser accepted this crafted body as complete and wrote content (not a parse-failure case) |
+| Missing `path` field | file-only multipart, `content_len=217` | `file_callback_rejected` -> `parse_failed` ESP_ERR_INVALID_STATE -> `parse_return` ESP_ERR_INVALID_STATE -> `handler_error_response` **ESP_ERR_INVALID_ARG** | 400 `{"error":"Missing path field"}` | No successful file write logged |
+| Abort mid-transfer (client killed) | `/sdcard/m1tmp/abort.bin`, `content_len=82260`, curl killed ~0.6s | `recv_failed` free=18464 largest_8bit=5888 remaining=56582 accum_len=50; `parse_failed` -> `parse_return` ESP_FAIL -> `handler_parse_error`; socket send failed (104) / handler execution failed | No HTTP response delivered | `Upload complete` not logged; `abort.bin` present in listing (`sd-post-check.log`; `ls` readdir branch reports size 0 so size not reliable) — **possible partial file; cleanup not guaranteed** (matches pre-lock gap) |
+
+**Flash-path incident (separate reliability evidence):** authenticated probe to `/flash/m1/probe-1k.txt` (`content_len=338`) emitted `handler_start`/`parse_start_before_alloc` free=18868 largest_8bit=10752 and `parse_alloc_ok` free=8492 largest_8bit=4608, then during LittleFS mkdir/read hit `TG1WDT_SYS_RESET` and entered boot loop with `invalid header: 0xffffffff` (`m1-probe-serial.log`). Device recovered after manual reset; subsequent validation used SD path.
+
+**QEMU/integration:** not executed (no dedicated HTTP upload integration harness/cases and no QEMU runtime exercised in this session). **Gaps/unverified:** forced fragmentation/preflight low-heap stress, core stop/abort-mechanism behavior (only client-abort tested), independent verification of on-disk file sizes/content for SD artifacts, and reproducible capture for bad-boundary telemetry. These gaps are recorded (no false pass claims) but do not invalidate the recorded lock decisions below based on available evidence.
+
+## Preflight threshold decision (locked, 2026-11-18, evidence-based)
+
+**Status:** locked for parent/dependent contract reference (implementation/enforcement remains in parent scope). Based on recorded hardware evidence; subject to revision only with new recorded measurements and coordinated doc updates.
 
 - **Metric:** `heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)` checked at upload handler entry (or immediately before parse/buffering path) to protect against fragmentation/contiguous-allocation failures.
-- **Proposed initial formula (to validate):** `threshold = parser_alloc_bytes + safety_margin`, where `parser_alloc_bytes = (READ_BUF_SIZE + 1) + ACCUM_BUF_SIZE = 10241` bytes for current buffers, and `safety_margin` covers request/stack/FS write path overhead and fragmentation headroom. **Proposed starting candidate for measurement:** **16 KiB (16384 bytes)** contiguous 8-bit block minimum (rationale: >~10 KB parser buffers plus margin for handler/FS work; must be confirmed/tuned against captured peak/largest-block behavior and failure cases).
-- **Rationale:** current multipart parser performs fixed heap allocations per request; largest-block (not only total free) is the limiting factor on fragmented ESP32 heaps. Preflight rejection is intended to fail safely with a clear, contract-compliant error instead of progressing into allocation/parse/write failure paths.
-- **Lock criteria:** record observed lowest safe `largest_8bit` for successful supported uploads across scenarios (including fragmentation pressure when feasible), choose final value/formula with margin, and document false-reject/false-accept risks.
+- **Locked value/formula:** **12288 bytes (12 KiB)** contiguous 8-bit block minimum, i.e. `threshold = parser_alloc_bytes + safety_margin` with `parser_alloc_bytes = (READ_BUF_SIZE + 1) + ACCUM_BUF_SIZE = 10241` and ~2 KB margin for handler/FS/request overhead.
+- **Evidence/rationale:** successful SD-path uploads observed pre-alloc/handler-start `largest_8bit` of 12800–28756 bytes (e.g. 16 KB upload: handler/start 12800, alloc succeeded with post-alloc min observed 2816; 63 KB upload: 12800/4864 post-alloc). The earlier 16 KiB candidate would have **false-rejected** feasible uploads in observed states (12800 < 16384 at pre-alloc). 12 KiB admits observed feasible pre-alloc states while reserving > parser allocation; it does **not** guarantee success under severe fragmentation (post-alloc pressure seen) — enforcement must still fail cleanly on allocation/parse errors per locked contract.
+- **Risks/limitations:** not force-validated under worst-case fragmentation/near-OOM; QEMU not exercised. Implementers should treat this as the locked initial threshold and record any evidence-driven adjustment as a follow-up contract update (not a silent divergence).
 
 ## Buffer-size decision and parser-correctness evidence
 
-### Proposed decision (pending lock)
+### Locked decision (2026-11-18, evidence-based)
 
-**Proposed:** **keep current `READ_BUF_SIZE` (2048) and `ACCUM_BUF_SIZE` (8192)** for M1 lock unless Hardware/QEMU measurements demonstrate sufficient headroom and parser-correctness cases pass for a smaller configuration.
+**Locked:** **keep current `READ_BUF_SIZE` (2048) and `ACCUM_BUF_SIZE` (8192)**. No buffer-size reduction implemented; reduction is not justified by recorded evidence and would require separate correctness/measurement validation.
 
-**Rationale/tradeoffs:**
+**Rationale/tradeoffs (recorded):**
 
-- **Memory:** current buffers allocate ~10 KB heap per in-flight parse (fixed) plus overhead; reduction would lower peak contiguous demand (goal aligned with parent spec) but must not regress correctness.
+- **Memory:** current buffers allocate ~10 KB heap per in-flight parse (fixed) plus overhead; hardware runs showed successful 1/16/63 KB SD uploads with this configuration (including post-alloc `largest_8bit` pressure in some phases) but no evidence that smaller buffers are safe/correct.
 - **Correctness risk:** multipart parsing is stateful and boundary/header detection depends on retaining enough unconsumed data in `accum`. The parser keeps a tail of `bm_len` bytes when no boundary is found (`safe = accum_len - bm_len`) and drains on progress; accumulator overflow currently returns `ESP_ERR_NO_MEM`.
 - **Throughput/complexity:** smaller `READ_BUF_SIZE` increases recv/loop iterations; smaller `ACCUM_BUF_SIZE` increases risk of overflow/insufficient lookahead for worst-case splits unless logic is proven adequate. Any change requires explicit cases/tests and measurement comparison.
-- **M1 position:** no buffer-size change implemented; evidence below identifies/extends runnable host-scope cases for current behavior and decision support. A follow-up change (if justified) belongs in the parent bounds-implementation work after lock or as a separately validated, minimal change with evidence.
+- **M1 position:** no buffer-size change implemented. A follow-up change (if justified) belongs in parent bounds implementation or a separately validated minimal change with evidence.
 
 ### Parser-correctness evidence (runnable / identified)
 
@@ -118,9 +133,9 @@ For each executed run append:
 
 **Conclusion (current evidence):** host-scope helper/parse cases can be executed via `make test` when toolchain is available; QEMU/device multipart contract captures are pending (see blockers). Buffer-size reduction is **not justified by evidence in this report** and remains unimplemented.
 
-## Proposed rejection/abort/error contract table (M1 proposal, to lock)
+## Rejection/abort/error contract table (locked, 2026-11-18)
 
-**Status:** proposed concrete schema/status details for approval alongside measurements. Current implementation does **not** fully conform to this target contract; enforcement/alignment is primarily in-scope for the parent bounds-implementation item once locked (except minimal M1 measurement support).
+**Status:** locked as the shared contract for parent implementation and dependents (core stop/abort, R24 shared/compatible paths). Recorded from M1 proposal with evidence-informed review; **current implementation does not yet fully conform** (enforcement/alignment/cleanup guarantees are in-scope for parent/dependent implementation work). Dependents must not diverge after lock.
 
 | Case | Trigger (proposed/locked intent) | HTTP status | JSON body (proposed) | Cleanup / write guarantee | Owner/path |
 |---|---|---:|---|---|---|
@@ -129,21 +144,22 @@ For each executed run append:
 | Parse/malformed request | Malformed multipart/body/headers/encoding within bounded parsing (including invalid boundary/missing terminator/bad structure) | 400 Bad Request | `{"error":"upload_invalid_request","message":"Upload request is malformed or invalid"}` | No partial/corrupt file written; cleanup buffers/temp state | shared parser/validation |
 | Stop/abort during in-flight upload | Core HTTP/WS lifecycle stop/abort or equivalent cancellation while upload active (best-effort safe refusal/defer when feasible; otherwise fail in-flight cleanly) | 503 Service Unavailable (or locked request-failure status when response possible) | `{"error":"upload_aborted","message":"Upload aborted"}` (when response can be sent) | **No partial or corrupt file writes** beyond defined safe handling; abort write, close/remove temp/partial artifacts as applicable, release buffers/resources | core stop handler + shared upload cleanup; R24-compatible paths must provide equivalent cleanup and compatible semantics |
 
-**Notes:**
+**Notes (locked):**
 
-- **Stable machine-readable field:** `error` (stable code). **Human-readable field:** `message`. Optional fields (e.g. `max_bytes`) included where specified. Final field names/values/messages/status choices must be locked with measurement review; dependents must not diverge after lock.
-- **Current behavior (observed in code, pre-lock):** handler returns 400 with `{"error":"..."}` for `uctx.error` cases (e.g. missing/invalid path, directory/write/open failures surfaced by upload context) and 500 with messages like `Upload failed: out of memory` / `invalid request` / `incomplete request` / `ESP_ERR_*` for parse failures; no explicit 413/preflight/abort contract yet. M1 records this gap and proposes target contract for lock.
-- **Temp/partial file behavior:** current implementation streams directly to target path and closes on final/error in handler path but does not guarantee deletion of partially written targets on all failure modes; locked contract requires explicit no-partial/corrupt-write guarantees and cleanup/rollback semantics (implementation/enforcement tracked in parent).
+- **Stable machine-readable field:** `error` (stable code). **Human-readable field:** `message`. Optional fields (e.g. `max_bytes`) included where specified. Locked for dependent use; changes require recorded contract update.
+- **Current behavior (observed pre-enforcement):** handler returns 400 with `{"error":"..."}` for `uctx.error` cases and 500 for parse failures (`Upload failed: ...` / `ESP_ERR_*`); no explicit 413/preflight/abort contract yet. Hardware evidence also showed oversize 80 KB accepted (200) and client-abort producing recv/parse failure with possible partial file risk on direct-write path.
+- **Temp/partial file behavior:** current implementation streams directly to target path and does not guarantee deletion of partially written targets on all failure/abort modes (abort probe observed). Locked contract requires explicit no-partial/corrupt-write guarantees and cleanup/rollback semantics (implementation/enforcement tracked in parent/dependents).
+- **Hardware evidence informing lock:** 1/16/63 KB SD uploads succeeded; 80 KB accepted (200) under current behavior; missing-path rejected (400, `Missing path field`); client abort mid-transfer caused recv/parse failure (ESP_FAIL) and no delivered response with possible partial artifact. Bad-boundary request returned 500 `Upload failed: invalid request` (telemetry capture gap in that run). These observations align with locking the proposed contract for enforcement work.
 
 ## Executed captures and blockers
 
-- **QEMU/integration captures:** not executed (no dedicated HTTP upload integration harness/cases in this repo context and no confirmed QEMU/ESP-IDF runtime execution in this session). **Blocker:** environment/harness availability for multipart upload endpoint cases.
-- **Hardware/manual captures:** not executed. **Blocker:** no physical device/access and no validated ESP-IDF flash/monitor workflow in this session.
-- **Automated checks:** recorded separately in implementation/PR evidence (see plan item progress). This report does not claim unexecuted capture/check results.
+- **QEMU/integration captures:** not executed. **Blocker/gap:** no dedicated HTTP upload integration harness/cases and no QEMU multipart endpoint capture run in this session.
+- **Hardware/manual captures:** **executed (partial, 2026-11-18, COM3/STA 192.168.0.187, SD path)** — supported 1/16/63 KB uploads, 80 KB oversize (current behavior), malformed cases (bad boundary, crafted truncated body, missing path), and client-abort mid-transfer recorded with `upload-measure`/HTTP/FS observations as above. **Gaps:** forced fragmentation/preflight low-heap stress and core stop/abort-mechanism not reproduced; some telemetry/file-size verification limitations noted; flash `/flash` path probe caused device boot-loop incident (separate reliability concern).
+- **Automated checks (earlier M1 implementation session, recorded):** `make format-check` **pass**; `make test` **pass** (CTest 30/30 incl. `test_http_multipart`/`test_http_upload`, Python scripts tests 3/3 OK). `make build`/`make lint` not run (ESP-IDF env unavailable), `docs-check`/integration-test runs not executed as documented in plan progress. No new firmware code changes were made during this hardware-capture doc update.
 
 ## Cross-links and dependent status
 
-- M1 plan item (ready): [`docs/plan/ready/http-upload-measure-and-lock.md`](../plan/ready/http-upload-measure-and-lock.md)
-- Parent bounds spec (blocked pending recorded lock): [`docs/plan/needs-clarification/http-upload-memory-bounds.md`](../plan/needs-clarification/http-upload-memory-bounds.md)
+- M1 plan item (done): [`docs/plan/done/http-upload-measure-and-lock.md`](../plan/done/http-upload-measure-and-lock.md)
+- Parent bounds spec (unblocked for implementation by recorded lock): [`docs/plan/ready/http-upload-memory-bounds.md`](../plan/ready/http-upload-memory-bounds.md)
 - Consolidated tracker: [`docs/plan/consolidated-improvement-plan.md`](../plan/consolidated-improvement-plan.md)
-- Dependents remain **blocked** until lock is recorded and approved: `optional-http-websocket-service` upload abort/stop, `r24-berry-script-http-server-api` shared/compatible upload handling. Moving the parent item to `ready` is a follow-up only after recorded/locked results and cross-links are complete.
+- **Prerequisite satisfied by this recorded lock:** `optional-http-websocket-service` upload abort/stop and `r24-berry-script-http-server-api` shared/compatible upload handling may proceed against the locked threshold/buffer/contract (implementation must still satisfy locked cleanup/no-partial-write semantics and not diverge). QEMU/remaining hardware stress gaps should be closed during implementation validation where feasible.
