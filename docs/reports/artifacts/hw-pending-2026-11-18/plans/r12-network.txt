@@ -1,0 +1,7 @@
+# R12 network checks (requires Wi-Fi/network; touch scrollback is manual-only)
+wifi status
+services
+ping 8.8.8.8
+ping 127.0.0.1
+nslookup example.com
+berry eval "print('MANUAL: perform Milestone 4 touch scrollback gestures and record pass/fail/acceptance notes')"

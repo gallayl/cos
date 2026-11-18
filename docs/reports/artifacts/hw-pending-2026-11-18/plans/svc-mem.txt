@@ -1,0 +1,9 @@
+# svc_mem observability baseline/repeatability (safe in default profile on unaffected builds)
+svc_mem
+svc_mem
+mem
+berry profile
+services
+# For before/after cycles, combine with controlled service actions (e.g. Wi-Fi stop/start) and capture snapshots.
+# Avoid low-memory-offline services/svc_mem on builds affected by websocket diagnostics crash.
+berry eval "print('MANUAL: record device-measured ranges/watermarks, stability across repeated reads, and R2-style A-B observations per docs/reports/2026-11-17-svc-mem-memory-budget-observability.md')"

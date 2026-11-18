@@ -1,0 +1,22 @@
+# Wi-Fi managed lifecycle checks (state-changing). Ensure you can recover access (serial/local console).
+# Do not run in environments where losing Wi-Fi access blocks required recovery.
+wifi status
+services
+mem
+svc_mem
+wifi stop
+wifi status
+services
+mem
+svc_mem
+# Expected while stopped: scan/restart/connect may be denied with clear errors (record actual behavior)
+wifi scan
+wifi restart
+wifi start
+wifi status
+services
+wifi restart
+wifi status
+svc_mem
+mem
+berry eval "print('MANUAL: verify persisted-disabled reboot, profile-forced-off reboot case, active scan/connect/disconnect/repeated cycles, reconnect completion, and memory/power observations as feasible')"

@@ -1,0 +1,9 @@
+# R20 pipes runtime v1 CYD smoke subset (requires scripts/apps present on mounted storage; no /flash writes)
+# Happy path may depend on script location and console.stdin/log visibility.
+berry eval "print('PIPE_HELLO')" | /flash/scripts/pipe_stdin.be
+berry eval "print('x')" | mem
+berry eval "print('a')" | /flash/scripts/pipe_stdin.be | /flash/scripts/pipe_stdin.be
+berry eval "print('x')" | /flash/scripts/pipe_stdin.be > /flash/pipe_out.txt
+berry eval "var i=0; while(i<300) print('01234567890123456789012345678'); i=i+1; end" | /flash/scripts/pipe_stdin.be
+time | /flash/scripts/pipe_stdin.be
+berry eval "print('MANUAL: confirm expected output/status/console restoration for happy path, verify handled diagnostics, and retest non-Berry rhs `| mem` behavior on current firmware')"

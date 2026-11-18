@@ -1,0 +1,30 @@
+# Read-only baseline snapshot (default/normal state). No /flash writes. No reboot/profile changes.
+# Record firmware commit/build/ELF, board, storage, Wi-Fi/BT env manually.
+berry eval "print('=== HW BASELINE START ===')"
+boot_profile
+path list
+services
+wifi status
+berry app
+mem
+berry profile
+svc_mem
+uptime
+info
+light
+/flash/scripts/light.be
+berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+time
+time utc
+time epoch
+time foo
+berry eval "var m = cos_import('@cos/system'); var s = m.find('default'); print(s.time_info())"
+ping 8.8.8.8
+ping 127.0.0.1
+nslookup example.com
+# R20 diagnostics subset (safe; may depend on script presence)
+berry eval "print('a')" | /flash/scripts/pipe_stdin.be | /flash/scripts/pipe_stdin.be
+berry eval "print('x')" | /flash/scripts/pipe_stdin.be > /flash/pipe_out.txt
+berry eval "var i=0; while(i<300) print('01234567890123456789012345678'); i=i+1; end" | /flash/scripts/pipe_stdin.be
+# NOTE: do not rely on /flash write target above being created; command is for pipe+redirection diagnostic behavior.
+berry eval "print('=== HW BASELINE END ===')"

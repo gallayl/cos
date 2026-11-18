@@ -1,0 +1,10 @@
+# R22 M3 light validation (repeat reads while changing lighting manually between runs if possible)
+# Error/unavailable path may be N/A; record rationale.
+light
+light
+light
+/flash/scripts/light.be
+berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+berry eval "print('MANUAL: document lighting conditions for each sample, cover low/high light sweep, and record if read-failure path is reproducible or N/A')"
