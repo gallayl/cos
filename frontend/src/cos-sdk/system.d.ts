@@ -57,6 +57,14 @@ declare global {
      * Read current time and sync status (read-only view; clock sync remains native).
      */
     function time_info(): TimeInfoOk | TimeInfoFailed;
+
+    /**
+     * Cooperatively sleep for `ms` milliseconds (R18 v1 async awaitable).
+     * Returns a Promise that resolves with no value after the delay elapses under the runtime pump.
+     * `ms <= 0` resolves on the next cooperative pump/drain opportunity. Invalid arguments fail
+     * deterministically (no pending timer). Timer-cap overflow rejects with a deterministic error tag.
+     */
+    function sleep(ms: number): Promise<void>;
   }
 }
 

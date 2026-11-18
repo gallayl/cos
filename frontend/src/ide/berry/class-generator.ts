@@ -2,7 +2,8 @@ import ts from '@typescript/typescript6'
 
 import type { GenerationContext } from './context'
 import { emitExpressionMapped } from './expression-generator'
-import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from './function-emitter'
+import { beginFunction, endFunction, hasUnsupportedFunctionModifiers, isAsyncFunctionLike } from './function-emitter'
+import { tryEmitSequentialAsyncMethod } from './statement-generator'
 import { hasDecorators, hasModifier, isAmbient, isDefaultExport, isNamedExport } from './syntax'
 
 export interface CosClassInfo {
@@ -162,13 +163,23 @@ function propertyField(
 }
 
 function emitMethod(ctx: GenerationContext, node: ts.MethodDeclaration): void {
-  if (!node.body || hasUnsupportedFunctionModifiers(ctx, node)) return
+  if (!node.body || hasUnsupportedFunctionModifiers(ctx, node, { allowAsync: isAsyncFunctionLike(node) })) return
   if (!ts.isIdentifier(node.name)) {
     ctx.report(node.name, 'Only identifier method names are supported.', 'error', 'cos/method-name')
     return
   }
   ctx.noteMapping(node)
   const header = `def ${node.name.text}`
+  if (isAsyncFunctionLike(node)) {
+    if (!tryEmitSequentialAsyncMethod(ctx, header, node.parameters, node.body)) {
+      ctx.report(node, 'This async method form is not supported yet (R18 v1 subset).')
+      if (beginFunction(ctx, header, node.parameters)) {
+        ctx.writeLine('return Promise.reject("ASYNC_UNSUPPORTED_FORM")')
+        endFunction(ctx)
+      }
+    }
+    return
+  }
   if (!beginFunction(ctx, header, node.parameters)) return
   for (const statement of node.body.statements) ctx.emitStatement(statement)
   endFunction(ctx)
