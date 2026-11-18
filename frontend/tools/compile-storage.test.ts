@@ -31,6 +31,7 @@ describe('storage TypeScript scripts', () => {
   it('compiles every script to the device Berry program', () => {
     expect(main()).toBe(0)
     expect(report.scripts.map((script) => script.name)).toEqual([
+      'apps/async_demo',
       'apps/breakout',
       'apps/tap_dash',
       'autoexec',

@@ -4,7 +4,7 @@ import { BOOLEAN_CONDITION_MESSAGE, isStructurallyBoolean } from './boolean-expr
 import { emitClass } from './class-generator'
 import type { GenerationContext } from './context'
 import { CALL_PRECEDENCE, emitExpressionMapped, emitGroupedMapped } from './expression-generator'
-import { beginFunction, endFunction, hasUnsupportedFunctionModifiers } from './function-emitter'
+import { beginFunction, endFunction, hasUnsupportedFunctionModifiers, isAsyncFunctionLike } from './function-emitter'
 import { emitExportDeclaration, emitImportDeclaration } from './module-declarations'
 import {
   hasDecorators,
@@ -147,7 +147,11 @@ export function emitStatement(ctx: GenerationContext, node: ts.Statement): void 
 
 function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclaration): void {
   if (hasDecorators(node)) ctx.report(node, 'Decorators are not supported.')
-  if (hasUnsupportedFunctionModifiers(ctx, node) || !node.body) return
+  if (hasUnsupportedFunctionModifiers(ctx, node, { allowAsync: isAsyncFunctionLike(node) }) || !node.body) return
+  if (isAsyncFunctionLike(node)) {
+    emitAsyncFunctionDeclaration(ctx, node)
+    return
+  }
   const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp('__cos_default_') : undefined)
   if (!name) {
     ctx.report(node, 'Functions must be named.')
@@ -159,6 +163,31 @@ function emitFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclar
   if (!beginFunction(ctx, `def ${name}`, node.parameters)) return
   for (const statement of node.body.statements) ctx.emitStatement(statement)
   endFunction(ctx)
+  if (isDefaultExport(node)) ctx.noteDefaultExport(name, node)
+  else if (isNamedExport(node) && node.name) ctx.noteNamedExport(node.name.text, node.name.text, node)
+}
+
+function emitAsyncFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionDeclaration): void {
+  if (!node.body) return
+  const name = node.name?.text ?? (isDefaultExport(node) ? ctx.nextTemp('__cos_default_') : undefined)
+  if (!name) {
+    ctx.report(node, 'Functions must be named.')
+    return
+  }
+  if (node.name) ctx.declareName(node.name.text, node.name)
+  else ctx.declareName(name, node)
+  ctx.noteMapping(node)
+  // Minimal v1 lowering: support straight-line async bodies with await expressions in
+  // expression statements and return statements only (sequential). Unsupported awaits/control flow
+  // are diagnosed (no silent miscompile).
+  if (!tryEmitSequentialAsyncFunction(ctx, `def ${name}`, node.parameters, node.body)) {
+    ctx.report(node, 'This async function form is not supported yet (R18 v1 subset).')
+    // Emit a stub that returns rejected Promise to avoid silent success.
+    if (beginFunction(ctx, `def ${name}`, node.parameters)) {
+      ctx.writeLine('return Promise.reject("ASYNC_UNSUPPORTED_FORM")')
+      endFunction(ctx)
+    }
+  }
   if (isDefaultExport(node)) ctx.noteDefaultExport(name, node)
   else if (isNamedExport(node) && node.name) ctx.noteNamedExport(node.name.text, node.name.text, node)
 }
@@ -270,7 +299,7 @@ function emitFor(ctx: GenerationContext, node: ts.ForStatement): void {
 }
 
 function emitForOf(ctx: GenerationContext, node: ts.ForOfStatement): void {
-  if (node.awaitModifier) ctx.report(node, 'for-await is not supported.')
+  if (node.awaitModifier) ctx.report(node, 'for await is not supported.')
   const binding = forOfBinding(ctx, node.initializer)
   if (!binding) return
   if (capturesLoopBinding(node)) ctx.report(node, LOOP_CLOSURE_MESSAGE)
@@ -522,4 +551,127 @@ function emitTry(ctx: GenerationContext, node: ts.TryStatement): void {
 
 function emitClassDeclaration(ctx: GenerationContext, node: ts.ClassDeclaration): void {
   emitClass(ctx, node)
+}
+
+function containsAwait(node: ts.Node): boolean {
+  let found = false
+  const visit = (n: ts.Node): void => {
+    if (found) return
+    if (ts.isAwaitExpression(n)) {
+      found = true
+      return
+    }
+    if (ts.isFunctionLike(n)) return // nested function boundary (do not traverse into new async scopes for this check simplistically)
+    ts.forEachChild(n, visit)
+  }
+  ts.forEachChild(node, visit)
+  return found
+}
+
+export function tryEmitSequentialAsyncMethod(
+  ctx: GenerationContext,
+  header: string,
+  parameters: readonly ts.ParameterDeclaration[],
+  body: ts.Block,
+): boolean {
+  return tryEmitSequentialAsyncFunction(ctx, header, parameters, body)
+}
+
+function tryEmitSequentialAsyncFunction(
+  ctx: GenerationContext,
+  header: string,
+  parameters: readonly ts.ParameterDeclaration[],
+  body: ts.Block,
+): boolean {
+  // Only support simple sequential bodies: statements may be await-expression statements,
+  // variable declarations with single identifier initialized by await expression,
+  // return [await] expr / return, or statements with no await. No control flow across awaits.
+  // try-catch containing awaits, if/while/for/switch containing awaits are not supported in v1 lowering.
+  for (const st of body.statements) {
+    if (!containsAwait(st)) continue
+    // allow only specific forms with await
+    if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) continue
+    if (
+      ts.isVariableStatement(st) &&
+      st.declarationList.declarations.length === 1 &&
+      ts.isIdentifier(st.declarationList.declarations[0].name) &&
+      st.declarationList.declarations[0].initializer &&
+      ts.isAwaitExpression(st.declarationList.declarations[0].initializer)
+    )
+      continue
+    if (ts.isReturnStatement(st) && (!st.expression || ts.isAwaitExpression(st.expression) || !containsAwait(st)))
+      continue
+    return false
+  }
+  if (!beginFunction(ctx, header, parameters)) return false
+  emitAsyncBodyAsPromise(ctx, body.statements)
+  endFunction(ctx)
+  return true
+}
+
+function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.Statement[]): void {
+  // Build a chain: Promise.resolve(nil).then(...).then(...)
+  // but easier recursive emission from index 0.
+  const emitFrom = (index: number): void => {
+    if (index >= statements.length) {
+      ctx.writeLine('return nil')
+      return
+    }
+    const st = statements[index]
+    if (!containsAwait(st)) {
+      // Emit statement and continue chain as next then? For simplicity emit statement then recurse.
+      ctx.emitStatement(st)
+      emitFrom(index + 1)
+      return
+    }
+    if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) {
+      const expr = st.expression.expression
+      const prefix = 'return ('
+      const e = emitExpressionMapped(ctx, expr, prefix.length)
+      ctx.writeLine(`${prefix}${e}).then(def(_cos_await_v)`)
+      ctx.indent()
+      emitFrom(index + 1)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
+    if (ts.isVariableStatement(st)) {
+      const decl = st.declarationList.declarations[0]
+      const name = (decl.name as ts.Identifier).text
+      const expr = (decl.initializer as ts.AwaitExpression).expression
+      const prefix = 'return ('
+      const e = emitExpressionMapped(ctx, expr, prefix.length)
+      ctx.writeLine(`${prefix}${e}).then(def(${name})`)
+      ctx.indent()
+      ctx.declareName(name, decl.name)
+      emitFrom(index + 1)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
+    if (ts.isReturnStatement(st)) {
+      if (!st.expression) {
+        ctx.writeLine('return nil')
+        return
+      }
+      if (ts.isAwaitExpression(st.expression)) {
+        const prefix = 'return '
+        ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, st.expression.expression, prefix.length)}`)
+        return
+      }
+      const prefix = 'return '
+      ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, st.expression, prefix.length)}`)
+      return
+    }
+    // Should have been rejected earlier
+    ctx.report(st, 'Unsupported await form in async function.')
+    ctx.writeLine('return Promise.reject("ASYNC_UNSUPPORTED_FORM")')
+  }
+
+  // Wrap whole chain in Promise.resolve().then to create async context; ensure exceptions reject.
+  ctx.writeLine('return Promise.resolve(nil).then(def(_cos_async_init)')
+  ctx.indent()
+  emitFrom(0)
+  ctx.dedent()
+  ctx.writeLine('end)')
 }
