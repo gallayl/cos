@@ -345,6 +345,7 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
 
     int rc = VFS_FCLOSE(f);
     ESP_LOGD(TAG, "vfs_write_file: fclose=%d", rc);
+    (void)rc;
     return ESP_OK;
 }
 
