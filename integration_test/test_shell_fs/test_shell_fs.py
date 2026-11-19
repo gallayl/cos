@@ -15,7 +15,7 @@ def _wait_ready(dut):
     dut.expect(PROMPT_RE, timeout=BOOT_TIMEOUT)
 
 
-# ÔöÇÔöÇ Boot & basics ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+# ── Boot & basic operations (grouped to reduce QEMU boots) ────────────
 
 
 @pytest.mark.flaky(reruns=3, reruns_delay=5)
@@ -25,46 +25,119 @@ def test_shell_boots(dut):
 
 
 @pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_pwd_default(dut):
+def test_shell_fs_operations(dut):
     _wait_ready(dut)
+
+    # pwd default
     dut.write("pwd\n")
     dut.expect("/flash", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
-
-# ÔöÇÔöÇ File creation & listing ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_touch_and_ls(dut):
-    _wait_ready(dut)
+    # touch and ls
     dut.write("touch /flash/newfile.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ls /flash\n")
     dut.expect("newfile.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_ls_shows_seeded_files(dut):
-    _wait_ready(dut)
+    # ls shows seeded files
     dut.write("ls /flash\n")
     dut.expect("hello.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
-
-# ÔöÇÔöÇ cat with actual content ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_cat_with_content(dut):
-    _wait_ready(dut)
+    # cat with actual content
     dut.write("cat /flash/hello.txt\n")
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_cat_streams_large_file(dut):
-    _wait_ready(dut)
+    # cat streams large file
     dut.write("cat /flash/large.txt\n")
     dut.expect(re.compile(r"A{100,}B{100,}"), timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # help lists registered commands
+    dut.write("help\n")
+    dut.expect("cat", timeout=CMD_TIMEOUT)
+    dut.expect("berry", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # ping/nslookup report unavailable network
+    dut.write("ping example.com\n")
+    dut.expect(r"ping: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("nslookup example.com\n")
+    dut.expect(r"nslookup: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # berry console read line async
+    dut.write("berry run /flash/berry_input.be\n")
+    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
+    dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
+    dut.write("Cos user\n")
+    dut.expect("INPUT_VALUE:Cos user", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # berry console read line can be cancelled
+    dut.write("berry run /flash/berry_input.be\n")
+    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
+    dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
+    time.sleep(0.2)
+    dut.write("\x03")
+    dut.expect("INPUT_CANCELLED", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # hexdump
+    dut.write("hexdump /flash/binary.bin\n")
+    dut.expect("00 01 02 41 42 43", timeout=CMD_TIMEOUT)
+    dut.expect("6 bytes", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # mkdir and cd
+    dut.write("mkdir /flash/testdir\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cd /flash/testdir\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("pwd\n")
+    dut.expect("/flash/testdir", timeout=CMD_TIMEOUT)
+    dut.write("cd /flash\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # info command (flash usage)
+    dut.write("info\n")
+    dut.expect("Flash", timeout=CMD_TIMEOUT)
+    dut.expect(re.compile(r"Total:\s+\d+"), timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # alias smoke tests
+    dut.write("dir /flash\n")
+    dut.expect("hello.txt", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("type /flash/hello.txt\n")
+    dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("md /flash/mdtest\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cd /flash/mdtest\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("pwd\n")
+    dut.expect("/flash/mdtest", timeout=CMD_TIMEOUT)
+    dut.write("cd /flash\n")
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+    # error cases
+    dut.write("cd /flash/does_not_exist\n")
+    dut.expect("not a directory", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("cat /flash/no_such_file.txt\n")
+    dut.expect("cannot read", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+    dut.write("rm /flash/ghost.txt\n")
+    dut.expect("failed to remove", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
+
+
+# ── Skipped: QEMU esp_partition_read hang in LittleFS metadata scans ──
+# Re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md).
 
 
 @pytest.mark.skip(
@@ -76,14 +149,6 @@ def test_autocomplete_command_and_path(dut):
     dut.expect("Usage: berry run", timeout=CMD_TIMEOUT)
     dut.write("cat /flash/hel\t\n")
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_help_lists_registered_commands(dut):
-    _wait_ready(dut)
-    dut.write("help\n")
-    dut.expect("cat", timeout=CMD_TIMEOUT)
-    dut.expect("berry", timeout=CMD_TIMEOUT)
 
 
 @pytest.mark.skip(
@@ -100,22 +165,6 @@ def test_shell_alias_lifecycle(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ll\n")
     dut.expect("Unknown command: ll", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_ping_reports_unavailable_network(dut):
-    _wait_ready(dut)
-    dut.write("ping example.com\n")
-    dut.expect(r"ping: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_nslookup_reports_unavailable_network(dut):
-    _wait_ready(dut)
-    dut.write("nslookup example.com\n")
-    dut.expect(r"nslookup: example.com failed \(ESP_ERR_INVALID_STATE\)", timeout=CMD_TIMEOUT)
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
 @pytest.mark.skip(
@@ -148,54 +197,6 @@ def test_berry_filesystem_and_network_apis(dut):
     for marker in net_markers:
         dut.expect(marker, timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_berry_console_read_line_async(dut):
-    _wait_ready(dut)
-    dut.write("berry run /flash/berry_input.be\n")
-    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
-    dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
-    dut.write("Cos user\n")
-    dut.expect("INPUT_VALUE:Cos user", timeout=CMD_TIMEOUT)
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_berry_console_read_line_can_be_cancelled(dut):
-    _wait_ready(dut)
-    dut.write("berry run /flash/berry_input.be\n")
-    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
-    dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
-    time.sleep(0.2)
-    dut.write("\x03")
-    dut.expect("INPUT_CANCELLED", timeout=CMD_TIMEOUT)
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-
-
-# ÔöÇÔöÇ hexdump ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_hexdump(dut):
-    _wait_ready(dut)
-    dut.write("hexdump /flash/binary.bin\n")
-    dut.expect("00 01 02 41 42 43", timeout=CMD_TIMEOUT)
-    dut.expect("6 bytes", timeout=CMD_TIMEOUT)
-
-
-# ÔöÇÔöÇ mkdir & cd ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_mkdir_and_cd(dut):
-    _wait_ready(dut)
-    dut.write("mkdir /flash/testdir\n")
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    dut.write("cd /flash/testdir\n")
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    dut.write("pwd\n")
-    dut.expect("/flash/testdir", timeout=CMD_TIMEOUT)
 
 
 @pytest.mark.skip(
@@ -278,9 +279,6 @@ def test_rmdir_only_removes_empty_directories(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
-# ÔöÇÔöÇ Relative path resolution ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
 @pytest.mark.skip(
     reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
 )
@@ -296,9 +294,6 @@ def test_cd_relative(dut):
     dut.expect("/flash/reldir", timeout=CMD_TIMEOUT)
 
 
-# ÔöÇÔöÇ rm ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
 @pytest.mark.skip(
     reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
 )
@@ -312,45 +307,6 @@ def test_rm_file(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT, not_matching=["deleteme.txt"])
 
 
-# ÔöÇÔöÇ info command (flash usage) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_info_command(dut):
-    _wait_ready(dut)
-    dut.write("info\n")
-    dut.expect("Flash", timeout=CMD_TIMEOUT)
-    dut.expect(re.compile(r"Total:\s+\d+"), timeout=CMD_TIMEOUT)
-
-
-# ÔöÇÔöÇ Alias smoke tests ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_alias_dir(dut):
-    _wait_ready(dut)
-    dut.write("dir /flash\n")
-    dut.expect("hello.txt", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_alias_type(dut):
-    _wait_ready(dut)
-    dut.write("type /flash/hello.txt\n")
-    dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_alias_md(dut):
-    _wait_ready(dut)
-    dut.write("md /flash/mdtest\n")
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    dut.write("cd /flash/mdtest\n")
-    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    dut.write("pwd\n")
-    dut.expect("/flash/mdtest", timeout=CMD_TIMEOUT)
-
-
 @pytest.mark.skip(
     reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
 )
@@ -362,27 +318,3 @@ def test_alias_del(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ls /flash\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT, not_matching=["delalias.txt"])
-
-
-# ÔöÇÔöÇ Error cases ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_cd_nonexistent(dut):
-    _wait_ready(dut)
-    dut.write("cd /flash/does_not_exist\n")
-    dut.expect("not a directory", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_cat_nonexistent(dut):
-    _wait_ready(dut)
-    dut.write("cat /flash/no_such_file.txt\n")
-    dut.expect("cannot read", timeout=CMD_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_rm_nonexistent(dut):
-    _wait_ready(dut)
-    dut.write("rm /flash/ghost.txt\n")
-    dut.expect("failed to remove", timeout=CMD_TIMEOUT)
