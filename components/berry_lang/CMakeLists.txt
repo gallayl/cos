@@ -84,13 +84,14 @@ idf_component_register(
         "src/berry_network.cpp"
         "src/berry_system.cpp"
         "src/berry_light.cpp"
+        "src/berry_http.cpp"
     INCLUDE_DIRS
         "include"
         "src"
         "${COS_BERRY_SOURCE_DIR}/src"
         "${COS_BERRY_SOURCE_DIR}/default"
         "${COS_BERRY_SOURCE_DIR}/generate"
-    REQUIRES console filesystem input network system text_console ui esp_timer esp_hw_support time_sync
+    REQUIRES console filesystem input network system text_console ui esp_timer esp_hw_support time_sync esp_http_server
     PRIV_REQUIRES light_sensor
 )
 
