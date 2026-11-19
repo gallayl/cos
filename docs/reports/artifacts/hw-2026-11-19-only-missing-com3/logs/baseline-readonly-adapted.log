@@ -1,0 +1,105 @@
+# hw_console_session log
+# time=2026-11-19 18:05:25.090
+# port=COM3 baud=115200
+# commands=33
+
+[2026-11-19 18:05:26.067] TX ﻿# Baseline read-only adapted: no /flash writes, use /sdcard where needed. No reboot/profile changes.
+[2026-11-19 18:05:26.964] RX ���# Baseline read-only adapted: no /flash writes, use /sdcard where needed. No reboot/profile changes.
+[2026-11-19 18:05:26.964] RX Unknown command: ﻿# Baseline read-only adapted: no /flash writes, use /sdcard where needed. No reboot/profile changes.
+[2026-11-19 18:05:26.964] RX COS/flash> 
+[2026-11-19 18:05:26.964] TX berry eval "print('=== HW BASELINE ADAPTED START ===')"
+[2026-11-19 18:05:27.847] RX berry eval "print('=== HW BASELINE ADAPTED START ===')"
+[2026-11-19 18:05:27.847] RX === HW BASELINE ADAPTED START ===
+[2026-11-19 18:05:27.847] RX COS/flash> 
+[2026-11-19 18:05:27.847] TX boot_profile
+[2026-11-19 18:05:28.714] RX boot_profile
+[2026-11-19 18:05:28.714] RX Stored:    default
+[2026-11-19 18:05:28.714] RX Effective: default (current boot)
+[2026-11-19 18:05:28.714] RX Next boot: default
+[2026-11-19 18:05:28.714] RX Profiles:  default, low-memory-offline
+[2026-11-19 18:05:28.714] RX Note: changes take effect on next boot/restart.
+[2026-11-19 18:05:28.714] RX COS/flash> 
+[2026-11-19 18:05:28.714] TX path list
+[2026-11-19 18:05:29.579] RX path list
+[2026-11-19 18:05:29.579] RX /sdcard/scripts
+[2026-11-19 18:05:29.579] RX COS/flash> 
+[2026-11-19 18:05:29.579] TX services
+[2026-11-19 18:05:30.459] RX services
+[2026-11-19 18:05:30.459] RX [http_server] HTTP server: state=running
+[2026-11-19 18:05:30.459] RX [websocket] WebSocket: state=running clients=0 http_server=yes
+[2026-11-19 18:05:30.459] RX [wifi] Wi-Fi: state=connected connected=yes stored_credentials=yes
+[2026-11-19 18:05:30.459] RX [bluetooth] Bluetooth: state=running enabled=yes enabling=no connected=no
+[2026-11-19 18:05:30.459] RX [network] Network: state=idle diagnostics_worker=no
+[2026-11-19 18:05:30.459] RX [time_sync] Time sync: state=ready synced=yes
+[2026-11-19 18:05:30.459] RX COS/flash> 
+[2026-11-19 18:05:30.459] TX wifi status
+[2026-11-19 18:05:31.340] RX wifi status
+[2026-11-19 18:05:31.340] RX Service: started
+[2026-11-19 18:05:31.340] RX User enabled (persisted): yes
+[2026-11-19 18:05:31.340] RX Boot profile: allowed
+[2026-11-19 18:05:31.340] RX Effective: enabled
+[2026-11-19 18:05:31.340] RX Mode:    AP+STA
+[2026-11-19 18:05:31.340] RX AP IP:   192.168.4.1
+[2026-11-19 18:05:31.340] RX STA:     mordor
+[2026-11-19 18:05:31.340] RX STA IP:  192.168.0.187
+[2026-11-19 18:05:31.340] RX Signal:  -63 dBm (Very good)
+[2026-11-19 18:05:31.340] RX MAC:     34:5F:45:AA:CF:40
+[2026-11-19 18:05:31.340] RX COS/flash> 
+[2026-11-19 18:05:31.340] TX berry app
+[2026-11-19 18:05:32.205] RX berry app
+[2026-11-19 18:05:32.206] RX none
+[2026-11-19 18:05:32.206] RX COS/flash> 
+[2026-11-19 18:05:32.206] TX mem
+[2026-11-19 18:05:33.070] RX mem
+[2026-11-19 18:05:33.070] TX berry profile
+[2026-11-19 18:05:33.922] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:33.922] TX svc_mem
+[2026-11-19 18:05:34.773] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:34.773] TX uptime
+[2026-11-19 18:05:35.624] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:35.624] TX info
+[2026-11-19 18:05:36.476] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:36.476] TX logging
+[2026-11-19 18:05:37.326] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:37.326] TX light
+[2026-11-19 18:05:38.177] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:38.177] TX /sdcard/scripts/light.be
+[2026-11-19 18:05:39.029] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:39.030] TX berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+[2026-11-19 18:05:39.880] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:39.880] TX time
+[2026-11-19 18:05:40.730] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:40.730] TX time utc
+[2026-11-19 18:05:41.581] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:41.581] TX time epoch
+[2026-11-19 18:05:42.432] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:42.432] TX time foo
+[2026-11-19 18:05:43.285] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:43.285] TX berry eval "var m = cos_import('@cos/system'); var s = m.find('default'); print(s.time_info())"
+[2026-11-19 18:05:44.138] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:44.138] TX ping 8.8.8.8
+[2026-11-19 18:05:44.989] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:44.989] TX ping 127.0.0.1
+[2026-11-19 18:05:45.841] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:45.841] TX nslookup example.com
+[2026-11-19 18:05:46.693] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:46.693] TX berry eval "print('a')" | /sdcard/scripts/pipe_stdin.be | /sdcard/scripts/pipe_stdin.be
+[2026-11-19 18:05:47.544] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:47.544] TX berry eval "print('x')" | /sdcard/scripts/pipe_stdin.be
+[2026-11-19 18:05:48.394] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:48.395] TX berry eval "var i=0; while(i<300) print('01234567890123456789012345678'); i=i+1; end" | /sdcard/scripts/pipe_stdin.be
+[2026-11-19 18:05:49.246] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:49.246] TX berry eval "print(fs.exists('/sdcard/scripts'))"
+[2026-11-19 18:05:50.096] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:50.096] TX berry eval "print(fs.exists('/sdcard/scripts/pipe_stdin.be'))"
+[2026-11-19 18:05:50.949] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:50.949] TX berry eval "print(fs.exists('/sdcard/scripts/light.be'))"
+[2026-11-19 18:05:51.799] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:51.799] TX berry eval "print(fs.exists('/sdcard/scripts/time.be'))"
+[2026-11-19 18:05:52.651] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:52.651] TX berry eval "print(fs.cwd())"
+[2026-11-19 18:05:53.503] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:05:53.503] TX berry eval "print('=== HW BASELINE ADAPTED END ===')"
+[2026-11-19 18:05:54.355] INFO (no output within idle=800ms/timeout=30.0s)
+
+# end=2026-11-19 18:05:54.592 status=0

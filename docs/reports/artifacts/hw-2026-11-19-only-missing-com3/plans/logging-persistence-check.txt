@@ -1,0 +1,6 @@
+﻿# Logging persistence check: expects level set to info before reboot in prior step; verifies then restores warn.
+berry eval "print('=== LOGGING PERSISTENCE CHECK START ===')"
+logging
+logging warn
+logging
+berry eval "print('=== LOGGING PERSISTENCE CHECK END ===')"

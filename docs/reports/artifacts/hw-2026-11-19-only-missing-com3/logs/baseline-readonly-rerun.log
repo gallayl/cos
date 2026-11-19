@@ -1,0 +1,63 @@
+# hw_console_session log
+# time=2026-11-19 18:07:23.747
+# port=COM3 baud=115200
+# commands=28
+
+[2026-11-19 18:07:24.732] TX ﻿# Baseline read-only adapted rerun (after prior capture issue). No /flash writes, no reboot/profile changes.
+[2026-11-19 18:07:25.583] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:25.583] TX berry eval "print('=== HW BASELINE RERUN START ===')"
+[2026-11-19 18:07:26.435] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:26.435] TX boot_profile
+[2026-11-19 18:07:27.288] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:27.294] TX path list
+[2026-11-19 18:07:28.155] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:28.156] TX services
+[2026-11-19 18:07:29.007] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:29.007] TX wifi status
+[2026-11-19 18:07:29.859] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:29.859] TX berry app
+[2026-11-19 18:07:30.710] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:30.710] TX mem
+[2026-11-19 18:07:31.560] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:31.560] TX berry profile
+[2026-11-19 18:07:32.412] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:32.413] TX svc_mem
+[2026-11-19 18:07:33.263] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:33.264] TX uptime
+[2026-11-19 18:07:34.114] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:34.114] TX info
+[2026-11-19 18:07:34.964] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:34.964] TX logging
+[2026-11-19 18:07:35.815] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:35.815] TX /sdcard/scripts/light.be
+[2026-11-19 18:07:36.668] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:36.668] TX berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+[2026-11-19 18:07:37.520] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:37.521] TX time
+[2026-11-19 18:07:38.373] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:38.374] TX time utc
+[2026-11-19 18:07:39.225] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:39.225] TX time epoch
+[2026-11-19 18:07:40.077] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:40.077] TX time foo
+[2026-11-19 18:07:40.929] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:40.929] TX berry eval "var m = cos_import('@cos/system'); var s = m.find('default'); print(s.time_info())"
+[2026-11-19 18:07:41.780] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:41.780] TX ping 8.8.8.8
+[2026-11-19 18:07:42.630] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:42.630] TX ping 127.0.0.1
+[2026-11-19 18:07:43.482] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:43.482] TX nslookup example.com
+[2026-11-19 18:07:44.332] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:44.332] TX berry eval "print('a')" | /sdcard/scripts/pipe_stdin.be | /sdcard/scripts/pipe_stdin.be
+[2026-11-19 18:07:45.185] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:45.185] TX berry eval "print('x')" | /sdcard/scripts/pipe_stdin.be
+[2026-11-19 18:07:46.036] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:46.036] TX berry eval "print(fs.exists('/sdcard/scripts/pipe_stdin.be'))"
+[2026-11-19 18:07:46.888] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:46.888] TX berry eval "print(fs.cwd())"
+[2026-11-19 18:07:47.740] INFO (no output within idle=800ms/timeout=30.0s)
+[2026-11-19 18:07:47.740] TX berry eval "print('=== HW BASELINE RERUN END ===')"
+[2026-11-19 18:07:48.590] INFO (no output within idle=800ms/timeout=30.0s)
+
+# end=2026-11-19 18:07:48.828 status=0

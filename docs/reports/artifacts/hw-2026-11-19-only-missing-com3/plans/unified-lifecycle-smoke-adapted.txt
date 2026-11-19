@@ -1,0 +1,10 @@
+﻿# Unified lifecycle smoke: post-boot/default snapshot (with reset/boot capture). No /flash writes.
+berry eval "print('=== UNIFIED LIFECYCLE SMOKE START ===')"
+boot_profile
+services
+wifi status
+berry app
+mem
+berry profile
+svc_mem
+berry eval "print('=== UNIFIED LIFECYCLE SMOKE END ===')"

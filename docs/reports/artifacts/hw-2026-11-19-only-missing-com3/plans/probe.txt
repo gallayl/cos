@@ -1,0 +1,24 @@
+﻿# Probe: identity/state snapshot (no /flash writes, no reboot)
+berry eval "print('=== PROBE START ===')"
+boot_profile
+path list
+services
+wifi status
+berry app
+mem
+berry profile
+svc_mem
+uptime
+info
+logging
+ls /sdcard
+ls /sdcard/scripts
+berry eval "print(fs.exists('/sdcard/scripts'))"
+berry eval "print(fs.exists('/sdcard/scripts/light.be'))"
+berry eval "print(fs.exists('/sdcard/scripts/pipe_stdin.be'))"
+berry eval "print(fs.exists('/sdcard/scripts/time.be'))"
+light
+/sdcard/scripts/light.be
+time
+/sdcard/scripts/time.be
+berry eval "print('=== PROBE END ===')"
