@@ -6,15 +6,10 @@
 
 #include "generated_test_scripts.h"
 
-#include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 static const char *const TAG = "test_shell_fs";
-static char s_large_file[1200];
 
 static void init_nvs(void)
 {
@@ -31,8 +26,12 @@ static void init_nvs(void)
 
 static void seed_test_files(void)
 {
-    ESP_ERROR_CHECK(vfs_write_file("/flash/hello.txt", "Hello, COS!\n", 12));
-    ESP_ERROR_CHECK(vfs_write_file("/flash/binary.bin", "\x00\x01\x02\x41\x42\x43", 6));
+    static const char hello_txt[] = "Hello, COS!\n";
+    static const char binary_bin[] = "\x00\x01\x02\x41\x42\x43";
+    static char large_file[1200];
+
+    ESP_ERROR_CHECK(vfs_write_file("/flash/hello.txt", hello_txt, sizeof(hello_txt) - 1));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/binary.bin", binary_bin, sizeof(binary_bin) - 1));
     ESP_ERROR_CHECK(vfs_mkdir("/flash/berry-empty"));
     ESP_ERROR_CHECK(vfs_write_file("/flash/ls.be", (const char *)shell_fs_fixture_ls_be, shell_fs_fixture_ls_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/dir.be", (const char *)shell_fs_fixture_dir_be, shell_fs_fixture_dir_be_len));
@@ -44,9 +43,9 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_write_file("/flash/nslookup.be", (const char *)shell_fs_fixture_nslookup_be, shell_fs_fixture_nslookup_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/info.be", (const char *)shell_fs_fixture_info_be, shell_fs_fixture_info_be_len));
 
-    memset(s_large_file, 'A', 600);
-    memset(s_large_file + 600, 'B', sizeof(s_large_file) - 600);
-    ESP_ERROR_CHECK(vfs_write_file("/flash/large.txt", s_large_file, sizeof(s_large_file)));
+    memset(large_file, 'A', 600);
+    memset(large_file + 600, 'B', sizeof(large_file) - 600);
+    ESP_ERROR_CHECK(vfs_write_file("/flash/large.txt", large_file, sizeof(large_file)));
 }
 
 void app_main(void)
