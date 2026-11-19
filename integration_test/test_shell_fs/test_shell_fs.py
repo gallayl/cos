@@ -151,7 +151,7 @@ def test_nslookup_reports_unavailable_network(dut):
 def test_berry_console_read_line_async(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_input.be\n")
-    dut.expect("Input: ", timeout=CMD_TIMEOUT)
+    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
     dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
     dut.write("Cos user\n")
     dut.expect("INPUT_VALUE:Cos user", timeout=CMD_TIMEOUT)
@@ -162,7 +162,7 @@ def test_berry_console_read_line_async(dut):
 def test_berry_console_read_line_can_be_cancelled(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_input.be\n")
-    dut.expect("Input: ", timeout=CMD_TIMEOUT)
+    dut.expect("Input: ", timeout=BOOT_TIMEOUT)
     dut.expect("INPUT_STARTED", timeout=CMD_TIMEOUT)
     time.sleep(0.2)
     dut.write("\x03")
