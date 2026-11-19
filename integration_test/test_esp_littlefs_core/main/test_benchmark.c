@@ -49,13 +49,14 @@ static void setup_fat(){
 }
 
 static void setup_littlefs() {
+    /* Ensure a clean filesystem before mounting. Formatting while mounted is rejected. */
+    TEST_ESP_OK(esp_littlefs_format("flash_test"));
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "/littlefs",
         .partition_label = "flash_test",
         .format_if_mount_failed = true
     };
     TEST_ESP_OK(esp_vfs_littlefs_register(&conf));
-    esp_littlefs_format("flash_test");
 }
 
 static void test_benchmark_setup() {

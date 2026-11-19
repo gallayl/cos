@@ -19,7 +19,8 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 ## Notes / blockers
 - Vendored source matches managed `joltwallet/littlefs` v1.23.1 present locally (IDF 6.1 target esp32, includes `esp_blockdev`/`littlefs_bdl.c` path). `make format`/`format-check` now cover vendored `esp_littlefs` sources (reformatted to repo style).
 - `make lint-db` includes `esp_littlefs` in the clang compile DB/build graph. `make lint` excludes `components/esp_littlefs/**` from clang-tidy `SOURCES` because upstream/wrapper code does not satisfy project clang-tidy/Werror rules; treating it as project-lint-clean would require large, risky rewrites.
-- `make test` (host ctest + `python -m unittest discover -s scripts`) passes; no esp_littlefs-specific host unit targets added (ESP/flash-coupled implementation). Migrated `integration_test/test_esp_littlefs` Unity suite and other filesystem integration/QEMU flows not executed in this session (require QEMU + pinned deps / runtime). Hardware/QEMU-sensitive LittleFS mount-fail→format behavior not validated.
+- `make test` (host ctest + `python -m unittest discover -s scripts`) passes; no esp_littlefs-specific host unit targets added (ESP/flash-coupled implementation). Hardware/QEMU-sensitive and backend-specific (SD/MMAP/BDL) fault/error-injection validation remain environment-dependent; see ready/validation items for per-change evidence.
+- **2026-11-19 hardening follow-up (separate item):** audit-driven stability/diagnostics hardening implemented in vendored `components/esp_littlefs/` (log noise reduction, format-use safety rejecting mounted/active format, registry synchronization, `F_GETPATH` truncation/error handling, mmap unmap guard, bounds/error checks, runtime-reachable assert hardening; `portMAX_DELAY` waits kept and documented). Behavior/limitations documented in `components/esp_littlefs/README.md`. Integration tests updated to match safe format contract. See [`../plan/ready/esp-littlefs-stability-hardening.md`](../plan/ready/esp-littlefs-stability-hardening.md) and [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md).
 
 ## Commands run (F1 continuation)
 - `make format` — pass (exit 0). Included `components/esp_littlefs` (wrapper + `src/littlefs` core).
@@ -44,3 +45,25 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 - `make lint-db` — pass/reconfigured (ESP-IDF v6.1 clang build dir `build/clang`): configured and generated build files including `E:/dev/cos/components/esp_littlefs` in component graph.
 - `make lint` — pass (exit 0) with project clang-tidy on linted sources; vendored `components/esp_littlefs` remains excluded from tidy `SOURCES`.
 - Not run: `frontend/` checks (no frontend changes), `make docs-check` (not in scope), `integration_test/test_esp_littlefs/` Unity suite and other integration/QEMU flows, hardware/QEMU-sensitive LittleFS mount-fail→format behavior.
+
+## Hardening follow-up (2026-11-19, `feat/esp-littlefs-stability-hardening`)
+- Plan: [`../plan/ready/esp-littlefs-stability-hardening.md`](../plan/ready/esp-littlefs-stability-hardening.md)
+- Validation cross-link: [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md)
+
+### Commands run
+- `make format` — pass (exit 0).
+- `make format-check` — pass (exit 0).
+- `make test` — pass (exit 0): ctest 30/30 passed; `python -m unittest discover -s scripts -p "test_*.py"` 3 tests OK.
+- `make build` — pass (exit 0, ESP-IDF v6.1). Initial attempt failed due to edit-introduced declaration/order issues in `components/esp_littlefs/src/esp_littlefs.c`; fixed and rebuild passed. Pre-existing warnings noted (Kconfig, managed_components, `ESP_ROM_ELF_DIR` gdbinit, unused `resolve_arg` in shell).
+- `make lint` — **not cleanly completed (environment/tooling blocker, pre-existing)**: clang-tidy failed (exit 1) with many missing-header errors and existing warnings across unrelated components in this environment; `components/esp_littlefs/**` excluded from lint SOURCES.
+- `make integration-test-build-test_esp_littlefs_core` — build completed (artifacts generated, "Project build complete"; background shell reported exit code 1 despite successful output).
+- `make integration-test-build-test_esp_littlefs_extra` — build completed (artifacts generated, "Project build complete"; background shell reported exit code 1 despite successful output).
+- Integration execution (`test_esp_littlefs_core`/`test_esp_littlefs_extra`, QEMU/target) — **not executed** (no `qemu-system-xtensa` found).
+
+### Review/fix follow-up
+- Independent `reviewer` subagent (`ses_e0c98946bffeEc1E4V0BFC10gN`) completed: no must-fix; 3 should-fix addressed (init global-lock scope reduced around mount/format/grow I/O with per-FS locking + direct `format_from_efs` recovery; unregister detaches/frees only after successful VFS unregister; info usage avoids global lock during `lfs_fs_size` and rejects unmounted contexts). Added `F_GETPATH` truncation regression assertions in core/extra integration tests (compile-validated).
+- Post-fix revalidation: `make format`/`make format-check`/`make test`/`make build` pass; both esp_littlefs integration test projects rebuilt successfully with latest changes. No additional reviewer pass executed after fixes.
+
+### Gaps
+- SDMMC/BDL/mmap runtime and hardware fault/error-injection validation not executed.
+- QEMU/integration test runtime not executed in this environment.

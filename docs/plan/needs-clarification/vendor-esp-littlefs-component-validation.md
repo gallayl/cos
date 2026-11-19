@@ -23,3 +23,4 @@ Vendoring implemented in repo; local/CI validation in an ESP-IDF v6.1 (+ QEMU wh
 
 ## Progress / evidence
 - 2026-11-15: created (implementation present; validation/follow-up clarification needed).
+- 2026-11-19 (cross-link): `docs/plan/ready/esp-littlefs-stability-hardening.md` implemented audit-driven hardening in `components/esp_littlefs/` and updated integration tests/README/docs. Local validation evidence recorded there (`make format-check`, `make test`, `make build` pass; `make lint` blocked by pre-existing environment/tooling issues with esp_littlefs excluded from lint SOURCES; `test_esp_littlefs_core` integration build completed, extra build attempted; QEMU runtime/target and SDMMC/BDL/mmap fault-injection gaps remain). This may partially inform validation scope but does not by itself resolve this item's open questions.
