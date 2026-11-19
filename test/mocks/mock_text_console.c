@@ -59,6 +59,8 @@ const char *text_console_log_level_name(text_console_log_level_t level)
         return "warn";
     case TEXT_CONSOLE_LOG_INFO:
         return "info";
+    case TEXT_CONSOLE_LOG_DEBUG:
+        return "debug";
     default:
         return "unknown";
     }
