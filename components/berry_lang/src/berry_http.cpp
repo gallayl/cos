@@ -316,7 +316,7 @@ bool read_body(httpd_req_t *req, std::string &body, bool &too_large, bool &recv_
     body.clear();
     too_large = false;
     recv_err = false;
-    size_t remain = req->content_len;
+    const size_t remain = req->content_len;
     if (remain > MAX_BODY_BYTES)
     {
         too_large = true;
@@ -339,6 +339,28 @@ bool read_body(httpd_req_t *req, std::string &body, bool &too_large, bool &recv_
         off += static_cast<size_t>(r);
     }
     return true;
+}
+
+void drain_body(httpd_req_t *req, size_t max_drain)
+{
+    size_t remain = req->content_len;
+    if (remain == 0 || max_drain == 0)
+        return;
+    if (remain > max_drain)
+        remain = max_drain;
+    char buf[256];
+    while (remain > 0)
+    {
+        size_t chunk = remain < sizeof(buf) ? remain : sizeof(buf);
+        int r = httpd_req_recv(req, buf, chunk);
+        if (r <= 0)
+        {
+            if (r == HTTPD_SOCK_ERR_TIMEOUT)
+                continue;
+            return;
+        }
+        remain -= static_cast<size_t>(r);
+    }
 }
 
 void collect_req_headers(httpd_req_t *req, std::map<std::string, std::string> &out, bool &too_many, bool &too_large)
@@ -441,6 +463,24 @@ void destroy_server(HttpUserServer *s, bvm *vm)
     delete s;
 }
 
+bool match_use_prefix(const std::string &pattern, const std::string &path)
+{
+    if (pattern == "/" || pattern.empty())
+        return true;
+    auto a = split_segments(pattern);
+    auto b = split_segments(path);
+    if (a.size() > b.size())
+        return false;
+    for (size_t i = 0; i < a.size(); ++i)
+    {
+        if (!a[i].empty() && a[i][0] == ':')
+            continue;
+        if (a[i] != b[i])
+            return false;
+    }
+    return true;
+}
+
 // Build chain for request under server mutex assumptions (routes snapshot used).
 // Returns: 0 = no path match, 1 = handler chain built, 2 = path matched but method not allowed.
 int build_chain(HttpUserServer *s, const std::string &method, const std::string &path)
@@ -449,17 +489,20 @@ int build_chain(HttpUserServer *s, const std::string &method, const std::string 
     s->req_params.clear();
     bool path_matched_any = false;
     bool handler_added = false;
+    std::map<std::string, std::string> endpoint_params;
+
     for (const auto &r : s->routes)
     {
         std::map<std::string, std::string> p;
         if (r.kind == "USE")
         {
-            if (match_route_pattern(r.path, path, p))
+            if (match_use_prefix(r.path, path))
             {
                 path_matched_any = true;
-                s->matched_chain.push_back(r);
-                if (s->req_params.empty())
+                // keep prefix middleware in chain order before endpoint; params best-effort from exact match
+                if (match_route_pattern(r.path, path, p) && s->req_params.empty())
                     s->req_params = p;
+                s->matched_chain.push_back(r);
             }
             continue;
         }
@@ -470,12 +513,14 @@ int build_chain(HttpUserServer *s, const std::string &method, const std::string 
             continue;
         if (r.kind == "ALL" || r.kind == method)
         {
-            s->matched_chain.push_back(r);
-            s->req_params = p;
+            endpoint_params = p;
             handler_added = true;
+            s->matched_chain.push_back(r);
             break; // first matching handler wins for v1
         }
     }
+    if (!endpoint_params.empty())
+        s->req_params = endpoint_params;
     if (handler_added)
         return 1;
     if (path_matched_any)
@@ -788,13 +833,14 @@ esp_err_t generic_handler(httpd_req_t *req)
 
     bool too_large_body = false, recv_err = false;
     std::string body;
-    // only read body for methods that may carry it
+    // read body for methods that may carry it; drain oversized bodies best-effort to keep connection usable
     if (method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE")
     {
         if (!read_body(req, body, too_large_body, recv_err))
         {
             if (too_large_body)
             {
+                drain_body(req, MAX_BODY_BYTES + 512);
                 return send_resp(req, 413, {{"Content-Type", "application/json"}}, "{\"error\":\"Payload Too Large\"}",
                                  method == "HEAD");
             }
@@ -802,28 +848,28 @@ esp_err_t generic_handler(httpd_req_t *req)
                              method == "HEAD");
         }
     }
-    else
+    else if (req->content_len > 0)
     {
-        // drain/ignore if any? content_len usually 0
-        if (req->content_len > 0)
+        if (req->content_len > MAX_BODY_BYTES)
         {
-            if (req->content_len > MAX_BODY_BYTES)
+            drain_body(req, MAX_BODY_BYTES + 512);
+            return send_resp(req, 413, {{"Content-Type", "application/json"}}, "{\"error\":\"Payload Too Large\"}",
+                             method == "HEAD");
+        }
+        std::string tmp;
+        bool tl = false, re = false;
+        if (!read_body(req, tmp, tl, re))
+        {
+            if (tl)
             {
+                drain_body(req, MAX_BODY_BYTES + 512);
                 return send_resp(req, 413, {{"Content-Type", "application/json"}}, "{\"error\":\"Payload Too Large\"}",
                                  method == "HEAD");
             }
-            std::string tmp;
-            bool tl = false, re = false;
-            if (!read_body(req, tmp, tl, re))
-            {
-                if (tl)
-                    return send_resp(req, 413, {{"Content-Type", "application/json"}},
-                                     "{\"error\":\"Payload Too Large\"}", method == "HEAD");
-                return send_resp(req, 400, {{"Content-Type", "application/json"}}, "{\"error\":\"Bad Request\"}",
-                                 method == "HEAD");
-            }
-            body = tmp;
+            return send_resp(req, 400, {{"Content-Type", "application/json"}}, "{\"error\":\"Bad Request\"}",
+                             method == "HEAD");
         }
+        body = tmp;
     }
 
     // single request at a time gate + prepare exchange
@@ -1013,19 +1059,19 @@ int http_close(bvm *vm)
     HttpUserServer *s = get_server(vm, 1);
     if (s == nullptr)
     {
-        be_pushbool(vm, 1); // idempotent on invalid/already-destroyed? treat as closed
+        be_pushbool(vm, 1); // idempotent on invalid/already-destroyed
         be_return(vm);
     }
     {
         std::lock_guard<std::mutex> lock(s->mu);
+        if (s->in_flight)
+            be_raise(vm, "runtime_error", "cannot close during request dispatch");
         s->closing = true;
         s->listening = false;
     }
     stop_and_clear_server(s);
-    // remove routes callbacks and destroy
     berry_runtime_lock();
     bvm *rvm = berry_runtime_get_vm();
-    // remove from registry and free
     {
         std::lock_guard<std::mutex> lock(g_servers_mu);
         auto it = std::find(g_servers.begin(), g_servers.end(), s);
