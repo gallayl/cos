@@ -73,8 +73,10 @@ struct HttpUserServer
     std::map<std::string, std::string> req_params;
     std::map<std::string, std::string> req_query;
     std::vector<Route> matched_chain; // middleware/handlers to invoke in order
+    std::string req_allow;            // allowed methods for 405 responses
     size_t chain_index = 0;
     bool handler_error = false;
+    bool next_requested = false;
 
     int resp_status = 200;
     std::map<std::string, std::string> resp_headers;
@@ -87,6 +89,7 @@ struct HttpUserServer
 std::mutex g_servers_mu;
 std::vector<HttpUserServer *> g_servers;
 int g_next_cb = 1;
+HttpUserServer *g_dispatch_server = nullptr;
 
 void cb_global_name(int id, char *buf, size_t len)
 {
@@ -328,11 +331,14 @@ bool read_body(httpd_req_t *req, std::string &body, bool &too_large, bool &recv_
     size_t off = 0;
     while (off < remain)
     {
-        int r = httpd_req_recv(req, &body[off], remain - off);
+        const size_t to_read = remain - off;
+        const int r = httpd_req_recv(req, &body[off], static_cast<int>(to_read));
         if (r <= 0)
         {
             if (r == HTTPD_SOCK_ERR_TIMEOUT)
+            {
                 continue;
+            }
             recv_err = true;
             return false;
         }
@@ -351,12 +357,14 @@ void drain_body(httpd_req_t *req, size_t max_drain)
     char buf[256];
     while (remain > 0)
     {
-        size_t chunk = remain < sizeof(buf) ? remain : sizeof(buf);
-        int r = httpd_req_recv(req, buf, chunk);
+        const size_t chunk = remain < sizeof(buf) ? remain : sizeof(buf);
+        const int r = httpd_req_recv(req, buf, static_cast<int>(chunk));
         if (r <= 0)
         {
             if (r == HTTPD_SOCK_ERR_TIMEOUT)
+            {
                 continue;
+            }
             return;
         }
         remain -= static_cast<size_t>(r);
@@ -481,50 +489,108 @@ bool match_use_prefix(const std::string &pattern, const std::string &path)
     return true;
 }
 
+std::string allow_header_for(const std::vector<std::string> &methods)
+{
+    static const char *order[] = {"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"};
+    std::string out;
+    for (const char *m : order)
+    {
+        if (std::find(methods.begin(), methods.end(), std::string(m)) != methods.end())
+        {
+            if (!out.empty())
+                out += ", ";
+            out += m;
+        }
+    }
+    return out;
+}
+
 // Build chain for request under server mutex assumptions (routes snapshot used).
-// Returns: 0 = no path match, 1 = handler chain built, 2 = path matched but method not allowed.
+// Returns: 0 = no path match, 1 = handler chain built, 2 = path matched by endpoint but method not allowed.
 int build_chain(HttpUserServer *s, const std::string &method, const std::string &path)
 {
     s->matched_chain.clear();
     s->req_params.clear();
-    bool path_matched_any = false;
+    s->req_allow.clear();
+
+    bool endpoint_path_matched = false;
     bool handler_added = false;
     std::map<std::string, std::string> endpoint_params;
+    std::vector<std::string> allowed;
 
     for (const auto &r : s->routes)
     {
         std::map<std::string, std::string> p;
         if (r.kind == "USE")
-        {
-            if (match_use_prefix(r.path, path))
-            {
-                path_matched_any = true;
-                // keep prefix middleware in chain order before endpoint; params best-effort from exact match
-                if (match_route_pattern(r.path, path, p) && s->req_params.empty())
-                    s->req_params = p;
-                s->matched_chain.push_back(r);
-            }
             continue;
-        }
         if (!match_route_pattern(r.path, path, p))
             continue;
-        path_matched_any = true;
-        if (handler_added)
-            continue;
-        if (r.kind == "ALL" || r.kind == method)
+        endpoint_path_matched = true;
+        if (r.kind == "ALL")
+        {
+            static const char *all_methods[] = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"};
+            for (const char *m : all_methods)
+            {
+                if (std::find(allowed.begin(), allowed.end(), std::string(m)) == allowed.end())
+                    allowed.push_back(m);
+            }
+        }
+        else if (std::find(allowed.begin(), allowed.end(), r.kind) == allowed.end())
+        {
+            allowed.push_back(r.kind);
+        }
+
+        if (!handler_added && (r.kind == "ALL" || r.kind == method))
         {
             endpoint_params = p;
             handler_added = true;
-            s->matched_chain.push_back(r);
-            break; // first matching handler wins for v1
         }
     }
+
+    // collect applicable USE middleware in registration order (prefix match)
+    for (const auto &r : s->routes)
+    {
+        if (r.kind != "USE")
+            continue;
+        if (!match_use_prefix(r.path, path))
+            continue;
+        std::map<std::string, std::string> p;
+        if (match_route_pattern(r.path, path, p) && s->req_params.empty())
+            s->req_params = p;
+        s->matched_chain.push_back(r);
+    }
+
+    // append first matching endpoint handler after middleware
+    if (handler_added)
+    {
+        for (const auto &r : s->routes)
+        {
+            if (r.kind == "USE")
+                continue;
+            std::map<std::string, std::string> p;
+            if (!match_route_pattern(r.path, path, p))
+                continue;
+            if (r.kind == "ALL" || r.kind == method)
+            {
+                s->matched_chain.push_back(r);
+                endpoint_params = p;
+                break;
+            }
+        }
+    }
+
     if (!endpoint_params.empty())
         s->req_params = endpoint_params;
     if (handler_added)
         return 1;
-    if (path_matched_any)
+    if (endpoint_path_matched)
+    {
+        s->req_allow = allow_header_for(allowed);
         return 2;
+    }
+    // USE-only prefix match without endpoint => 404 (no route)
+    s->matched_chain.clear();
+    s->req_params.clear();
     return 0;
 }
 
@@ -603,14 +669,18 @@ bool execute_chain_berry(HttpUserServer *s)
             {
                 // cleanup stack to remove parse result/source
                 while (be_top(vm) > req_idx)
+                {
                     be_pop(vm, 1);
+                }
                 be_pushnil(vm);
                 json_pushed = true;
             }
         }
     }
     if (!json_pushed)
+    {
         be_pushnil(vm);
+    }
     be_data_insert(vm, req_idx);
     be_pop(vm, 2);
 
@@ -635,10 +705,12 @@ bool execute_chain_berry(HttpUserServer *s)
     be_pop(vm, 2);
 
     bool handled = false;
+    g_dispatch_server = s;
     for (const auto &r : s->matched_chain)
     {
         if (r.cb < 0)
             continue;
+        s->next_requested = false;
         char name[48];
         cb_global_name(r.cb, name, sizeof(name));
         be_getglobal(vm, name);
@@ -647,10 +719,20 @@ bool execute_chain_berry(HttpUserServer *s)
             be_pop(vm, 1);
             continue;
         }
-        // call handler(req, res)
+        // call handler(req, res, next)
         be_pushvalue(vm, req_idx);
         be_pushvalue(vm, res_idx);
-        if (be_pcall(vm, 2) != 0)
+        be_getglobal(vm, "http");
+        if (be_ismodule(vm, -1) || be_isinstance(vm, -1))
+            be_getmethod(vm, -1, "next");
+        else
+        {
+            be_pop(vm, 1);
+            be_pushnil(vm);
+        }
+        if (be_top(vm) > 0 && (be_ismodule(vm, -2) || be_isinstance(vm, -2)))
+            be_remove(vm, -2); // remove module/instance, keep next function or nil
+        if (be_pcall(vm, 3) != 0)
         {
             const char *err = be_tostring(vm, -1);
             ESP_LOGE(TAG, "handler error: %s", err ? err : "(unknown)");
@@ -659,8 +741,7 @@ bool execute_chain_berry(HttpUserServer *s)
             handled = true;
             break;
         }
-        be_pop(vm, 1); // result (pcall consumes func+args, pushes result)
-        // read res state
+        be_pop(vm, 1); // result
         bool sent = false;
         if (map_get_field(vm, res_idx, "_sent"))
         {
@@ -668,22 +749,21 @@ bool execute_chain_berry(HttpUserServer *s)
                 sent = be_tobool(vm, -1);
             be_pop(vm, 1);
         }
-        if (sent)
+        if (sent || s->resp_sent)
         {
             handled = true;
             break;
         }
-        // middleware without sending continues to next; if this was final handler and not sent, continue (will
-        // 500/empty) For USE we continue; for endpoint handlers we could stop but spec allows next-like behavior? keep
-        // simple: continue.
-        if (r.kind != "USE")
+        if (r.kind == "USE")
         {
-            // if handler returned without sending, treat as handled attempt but response not sent -> will result in 500
-            // below
-            handled = true;
-            break;
+            // middleware continues unless it errored/sent; next() is supported but not required for v1
+            continue;
         }
+        // endpoint handler returned without sending
+        handled = true;
+        break;
     }
+    g_dispatch_server = nullptr;
 
     // Extract response from res map (instance-safe access)
     if (map_get_field(vm, res_idx, "_status"))
@@ -906,11 +986,18 @@ esp_err_t generic_handler(httpd_req_t *req)
     }
     if (chain_state == 2)
     {
-        std::lock_guard<std::mutex> lock(s->mu);
-        s->in_flight = false;
-        s->matched_chain.clear();
-        return send_resp(req, 405, {{"Content-Type", "application/json"}}, "{\"error\":\"Method Not Allowed\"}",
-                         method == "HEAD");
+        std::string allow;
+        {
+            std::lock_guard<std::mutex> lock(s->mu);
+            allow = s->req_allow;
+            s->in_flight = false;
+            s->matched_chain.clear();
+            s->req_allow.clear();
+        }
+        std::map<std::string, std::string> hdrs = {{"Content-Type", "application/json"}};
+        if (!allow.empty())
+            hdrs["Allow"] = allow;
+        return send_resp(req, 405, hdrs, "{\"error\":\"Method Not Allowed\"}", method == "HEAD");
     }
 
     // Execute Berry handlers synchronously under runtime lock on this (httpd) thread.
@@ -1263,13 +1350,19 @@ int http_res_send(bvm *vm)
         be_pushbool(vm, 0);
         be_return(vm);
     }
-    const char *body = "";
+    const char *body = nullptr;
     if (be_isstring(vm, 2))
+    {
         body = be_tostring(vm, 2);
+    }
     else if (be_isnil(vm, 2))
+    {
         body = "";
+    }
     else
+    {
         be_raise(vm, "value_error", "body must be string");
+    }
     be_pushstring(vm, "_body");
     be_pushstring(vm, body ? body : "");
     be_data_insert(vm, 1);
@@ -1334,6 +1427,17 @@ int http_res_end(bvm *vm)
     be_data_insert(vm, 1);
     be_pop(vm, 2);
     mark_sent(vm, 1);
+    be_pushbool(vm, 1);
+    be_return(vm);
+}
+
+int http_next(bvm *vm)
+{
+    (void)vm;
+    if (g_dispatch_server != nullptr)
+    {
+        g_dispatch_server->next_requested = true;
+    }
     be_pushbool(vm, 1);
     be_return(vm);
 }
@@ -1403,6 +1507,7 @@ static bntvmodobj_t const http_attrs[] = {
     be_native_module_function("res_send", http_res_send),
     be_native_module_function("res_json", http_res_json),
     be_native_module_function("res_end", http_res_end),
+    be_native_module_function("next", http_next),
 };
 
 // NOLINTNEXTLINE(readability-identifier-naming)

@@ -177,6 +177,7 @@ export const cosNativeModules: readonly NativeModuleInventory[] = [
       { kind: 'function', name: 'res_send' },
       { kind: 'function', name: 'res_json' },
       { kind: 'function', name: 'res_end' },
+      { kind: 'function', name: 'next' },
     ],
   },
   {

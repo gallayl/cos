@@ -21,7 +21,7 @@ declare module '@cos/http' {
     _headers?: { [name: string]: string };
   }
 
-  export type Handler = (req: Request, res: Response, next?: unknown) => void;
+  export type Handler = (req: Request, res: Response, next?: () => void) => void;
 
   export function create_server(): Server;
   export function listen(server: Server, port: number, host?: string): true;
@@ -46,6 +46,7 @@ declare module '@cos/http' {
   export function res_send(res: Response, body: string): boolean;
   export function res_json(res: Response, value: unknown): boolean;
   export function res_end(res: Response, body?: string): boolean;
+  export function next(): boolean;
 
   const http: {
     create_server: typeof create_server;
@@ -69,6 +70,7 @@ declare module '@cos/http' {
     res_send: typeof res_send;
     res_json: typeof res_json;
     res_end: typeof res_end;
+    next: typeof next;
   };
   export default http;
 }

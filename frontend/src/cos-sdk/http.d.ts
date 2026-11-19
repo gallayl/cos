@@ -38,7 +38,7 @@ declare global {
     }
 
     /** Route/middleware handler. Call response helpers (e.g. `http.res_json`) to send a response. */
-    type Handler = (req: Request, res: Response, next?: unknown) => void;
+    type Handler = (req: Request, res: Response, next?: () => void) => void;
 
     /** Create a separate user HTTP server instance. */
     function create_server(): Server;
@@ -78,6 +78,9 @@ declare global {
     function res_send(res: Response, body: string): boolean;
     function res_json(res: Response, value: unknown): boolean;
     function res_end(res: Response, body?: string): boolean;
+
+    /** Continue to the next middleware/handler in the current dispatch chain (v1). */
+    function next(): boolean;
   }
 }
 
