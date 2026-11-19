@@ -448,6 +448,25 @@ target_include_directories(test_http_multipart PRIVATE
 target_link_libraries(test_http_multipart PRIVATE unity mock_esp)
 add_test(NAME test_http_multipart COMMAND test_http_multipart)
 
+# --- Library/Test: http_static route helper ---
+add_library(http_static_logic STATIC
+    ${COMPONENT_DIR}/components/http_server/src/http_static.c
+)
+target_include_directories(http_static_logic PUBLIC
+    ${COMPONENT_DIR}/components/http_server/include
+    ${COMPONENT_DIR}/components/http_server/src
+    mocks
+)
+target_link_libraries(http_static_logic PRIVATE mock_esp http_mime vfs_path)
+
+add_executable(test_http_static test_http_static.c)
+target_include_directories(test_http_static PRIVATE
+    mocks
+    ${COMPONENT_DIR}/components/http_server/include
+)
+target_link_libraries(test_http_static PRIVATE unity http_static_logic http_mime vfs_path mock_esp)
+add_test(NAME test_http_static COMMAND test_http_static)
+
 # --- Library: text_buffer (pure C, no ESP-IDF deps) ---
 add_library(text_buffer STATIC
     ${COMPONENT_DIR}/components/text_console/src/text_buffer.c

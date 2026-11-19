@@ -73,6 +73,18 @@ extern "C"
      */
     const char *http_mime_type(const char *path);
 
+    /**
+     * @brief Return whether a URI is reserved for API/WebSocket routes.
+     *
+     * Static file serving must not handle these routes. Returns true for paths
+     * under `/api/` and for `/ws` (including `/ws/...` and legacy `/ws` prefix
+     * matches) to preserve existing behavior.
+     *
+     * @param uri  Request URI (must be non-NULL for a meaningful result).
+     * @return true if the URI is an API/WS route, false otherwise.
+     */
+    bool http_static_is_api_route(const char *uri);
+
     /* --- Static file serving --- */
 
     /** @brief Enable or disable static file serving. Persists to NVS. */
