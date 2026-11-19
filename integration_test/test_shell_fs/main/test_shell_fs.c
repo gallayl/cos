@@ -33,6 +33,8 @@ static void seed_test_files(void)
     ESP_ERROR_CHECK(vfs_write_file("/flash/hello.txt", hello_txt, sizeof(hello_txt) - 1));
     ESP_ERROR_CHECK(vfs_write_file("/flash/binary.bin", binary_bin, sizeof(binary_bin) - 1));
     ESP_ERROR_CHECK(vfs_mkdir("/flash/berry-empty"));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/ls.be", (const char *)shell_fs_fixture_ls_be, shell_fs_fixture_ls_be_len));
+    ESP_ERROR_CHECK(vfs_write_file("/flash/dir.be", (const char *)shell_fs_fixture_dir_be, shell_fs_fixture_dir_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_api.be", (const char *)shell_fs_fixture_berry_api_be, shell_fs_fixture_berry_api_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_net.be", (const char *)shell_fs_fixture_berry_net_be, shell_fs_fixture_berry_net_be_len));
     ESP_ERROR_CHECK(vfs_write_file("/flash/berry_input.be", (const char *)shell_fs_fixture_berry_input_be, shell_fs_fixture_berry_input_be_len));

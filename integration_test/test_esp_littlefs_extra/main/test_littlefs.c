@@ -23,17 +23,30 @@ TEST_CASE("can initialize LittleFS in erased partition", "[littlefs]")
     test_teardown();
 }
 
-TEST_CASE("can format mounted partition", "[littlefs]")
+TEST_CASE("format rejects mounted partition", "[littlefs]")
 {
-    // Mount LittleFS, create file, format, check that the file does not exist.
+    // Formatting a mounted/active filesystem is unsafe and must be rejected.
+    // Callers must unmount before formatting.
     const esp_partition_t *part = get_test_data_partition();
     TEST_ASSERT_NOT_NULL(part);
     test_setup();
     const char *filename = littlefs_base_path "/hello.txt";
     test_littlefs_create_file_with_text(filename, littlefs_test_hello_str);
-    printf("Deleting \"%s\" via formatting fs.\n", filename);
-    esp_littlefs_format(part->label);
+
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, esp_littlefs_format(part->label));
+
     FILE *f = fopen(filename, "r");
+    TEST_ASSERT_NOT_NULL(f);
+    fclose(f);
+
+    test_teardown();
+    TEST_ESP_OK(esp_littlefs_format(part->label));
+
+    const esp_vfs_littlefs_conf_t conf = {.base_path = littlefs_base_path,
+                                          .partition_label = littlefs_test_partition_label,
+                                          .format_if_mount_failed = false};
+    TEST_ESP_OK(esp_vfs_littlefs_register(&conf));
+    f = fopen(filename, "r");
     TEST_ASSERT_NULL(f);
     test_teardown();
 }
@@ -949,6 +962,14 @@ TEST_CASE("open with flag O_DIRECTORY", "[littlefs]")
     TEST_ASSERT_EQUAL(0, ret);
     TEST_ASSERT_EQUAL_STRING("/littlefs/dir1/dir2/test.txt", path);
     memset(path, 0, MAXPATHLEN);
+
+    {
+        char small_path[8];
+        errno = 0;
+        ret = fcntl(fd, F_GETPATH, small_path);
+        TEST_ASSERT_EQUAL(-1, ret);
+        TEST_ASSERT_EQUAL(ENAMETOOLONG, errno);
+    }
 #endif
     ret = fstat(fd, &stat);
     TEST_ASSERT_EQUAL(0, ret);

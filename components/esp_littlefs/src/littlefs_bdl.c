@@ -62,6 +62,11 @@ int littlefs_bdl_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t o
     {
         return LFS_ERR_IO;
     }
+    if (!buffer)
+    {
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL read invalid buffer");
+        return LFS_ERR_INVAL;
+    }
 
     /* Enforce LittleFS contract: read confined to a block */
     if (off + size > c->block_size)
@@ -89,8 +94,8 @@ int littlefs_bdl_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t o
     esp_err_t err = dev->ops->read(dev, (uint8_t *)buffer, size, addr, size);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL read failed: addr=0x%016" PRIx64 ", size=0x%08x, err=0x%x", addr,
-                 (unsigned)size, err);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL read failed: addr=0x%016" PRIx64 ", size=0x%08x, err=0x%x (%s)", addr,
+                 (unsigned)size, err, esp_err_to_name(err));
     }
     return esp_err_to_lfs(err);
 }
@@ -103,6 +108,11 @@ int littlefs_bdl_write(const struct lfs_config *c, lfs_block_t block, lfs_off_t 
     if (!validate_handle(dev, "write") || !dev->ops->write)
     {
         return LFS_ERR_IO;
+    }
+    if (!buffer)
+    {
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL write invalid buffer");
+        return LFS_ERR_INVAL;
     }
 
     if ((efs && efs->read_only) || dev->device_flags.read_only)
@@ -135,8 +145,8 @@ int littlefs_bdl_write(const struct lfs_config *c, lfs_block_t block, lfs_off_t 
     esp_err_t err = dev->ops->write(dev, (const uint8_t *)buffer, addr, size);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL write failed: addr=0x%016" PRIx64 ", size=0x%08x, err=0x%x", addr,
-                 (unsigned)size, err);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL write failed: addr=0x%016" PRIx64 ", size=0x%08x, err=0x%x (%s)", addr,
+                 (unsigned)size, err, esp_err_to_name(err));
     }
     return esp_err_to_lfs(err);
 }
@@ -200,8 +210,8 @@ int littlefs_bdl_erase(const struct lfs_config *c, lfs_block_t block)
     esp_err_t err = dev->ops->erase(dev, addr, erase_len);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL erase failed: addr=0x%016" PRIx64 ", len=0x%08x, err=0x%x", addr,
-                 (unsigned)erase_len, err);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL erase failed: addr=0x%016" PRIx64 ", len=0x%08x, err=0x%x (%s)", addr,
+                 (unsigned)erase_len, err, esp_err_to_name(err));
     }
     return esp_err_to_lfs(err);
 }
@@ -227,7 +237,7 @@ int littlefs_bdl_sync(const struct lfs_config *c)
     esp_err_t err = dev->ops->sync(dev);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL sync failed: err=0x%x", err);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "BDL sync failed: err=0x%x (%s)", err, esp_err_to_name(err));
     }
     return esp_err_to_lfs(err);
 }

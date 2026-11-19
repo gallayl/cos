@@ -114,6 +114,7 @@ static void esp_littlefs_dir_free(vfs_littlefs_dir_t *dir);
 #endif
 
 static void esp_littlefs_take_efs_lock(void);
+static inline void esp_littlefs_give_efs_lock(void);
 static esp_err_t esp_littlefs_init_efs(esp_littlefs_t **efs, const esp_partition_t *partition, bool read_only);
 static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *index);
 
@@ -158,7 +159,7 @@ static int vfs_littlefs_fcntl(void *ctx, int fd, int cmd, int arg);
 static int sem_take(esp_littlefs_t *efs);
 static int sem_give(esp_littlefs_t *efs);
 static esp_err_t format_from_efs(esp_littlefs_t *efs);
-static void get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *used_bytes);
+static esp_err_t get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *used_bytes);
 
 static SemaphoreHandle_t _efs_lock = NULL;
 static esp_littlefs_t *_efs[CONFIG_LITTLEFS_MAX_PARTITIONS] = {0};
@@ -173,6 +174,8 @@ static esp_littlefs_t *_efs[CONFIG_LITTLEFS_MAX_PARTITIONS] = {0};
  * @param lfs_errno The enumerated littlefs error.
  */
 static const char *esp_littlefs_errno(enum lfs_error lfs_errno);
+#else
+#define esp_littlefs_errno(x) ""
 #endif
 
 static inline void *esp_littlefs_calloc(size_t __nmemb, size_t __size)
@@ -244,22 +247,18 @@ static int lfs_errno_remap(enum lfs_error err)
 
 esp_err_t format_from_efs(esp_littlefs_t *efs)
 {
-    assert(efs);
-    bool was_mounted = false;
+    if (!efs)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
 
-    /* Unmount if mounted */
+    /* Reject unsafe format requests on mounted/active contexts. */
     if (efs->cache_size > 0)
     {
-        int res;
-        ESP_LOGV(ESP_LITTLEFS_TAG, "Partition was mounted. Unmounting...");
-        was_mounted = true;
-        res = lfs_unmount(efs->fs);
-        if (res != LFS_ERR_OK)
-        {
-            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unmount.");
-            return ESP_FAIL;
-        }
-        esp_littlefs_free_fds(efs);
+        ESP_LOGE(ESP_LITTLEFS_TAG,
+                 "Rejecting format: filesystem is mounted/active (base_path=\"%s\"). Unmount before formatting.",
+                 efs->base_path);
+        return ESP_ERR_INVALID_STATE;
     }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
@@ -279,7 +278,7 @@ esp_err_t format_from_efs(esp_littlefs_t *efs)
 
     /* Format */
     {
-        esp_err_t res = ESP_OK;
+        int res = LFS_ERR_OK;
         ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting filesystem");
 
         /* Need to write explicit block_count to cfg; but skip if it's the SD card */
@@ -300,6 +299,11 @@ esp_err_t format_from_efs(esp_littlefs_t *efs)
         else
 #endif
         {
+            if (!efs->partition || efs->cfg.block_size == 0)
+            {
+                ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to format filesystem: invalid partition geometry");
+                return ESP_ERR_INVALID_STATE;
+            }
             efs->cfg.block_count = efs->partition->size / efs->cfg.block_size;
             res = lfs_format(efs->fs, &efs->cfg);
             efs->cfg.block_count = 0;
@@ -307,44 +311,34 @@ esp_err_t format_from_efs(esp_littlefs_t *efs)
 
         if (res != LFS_ERR_OK)
         {
-            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to format filesystem");
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to format filesystem: %s (%d)", esp_littlefs_errno(res), res);
             return ESP_FAIL;
         }
     }
 
-    /* Mount filesystem */
-    if (was_mounted)
-    {
-        int res;
-        /* Remount the partition */
-        ESP_LOGV(ESP_LITTLEFS_TAG, "Remounting formatted partition");
-        res = lfs_mount(efs->fs, &efs->cfg);
-        if (res != LFS_ERR_OK)
-        {
-            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to re-mount filesystem");
-            return ESP_FAIL;
-        }
-        efs->cache_size = CONFIG_LITTLEFS_FD_CACHE_MIN_SIZE; // Initial size of cache; will resize ondemand
-        efs->cache = esp_littlefs_calloc(efs->cache_size, sizeof(*efs->cache));
-        if (efs->cache == NULL)
-        {
-            efs->cache_size = 0;
-            lfs_unmount(efs->fs);
-            ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to allocate file cache after format");
-            return ESP_ERR_NO_MEM;
-        }
-    }
     ESP_LOGV(ESP_LITTLEFS_TAG, "Format Success!");
-
     return ESP_OK;
 }
 
-void get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *used_bytes)
+static esp_err_t get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *used_bytes)
 {
+    if (!efs)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     sem_take(efs);
+    if (efs->cache_size == 0 || efs->fs == NULL)
+    {
+        sem_give(efs);
+        return ESP_ERR_INVALID_STATE;
+    }
+
     uint64_t total_bytes_local = (uint64_t)efs->cfg.block_size * efs->fs->block_count;
     if (total_bytes)
+    {
         *total_bytes = total_bytes_local > SIZE_MAX ? SIZE_MAX : (size_t)total_bytes_local;
+    }
 
     /* lfs_fs_size may return a size larger than the actual filesystem size.
      * https://github.com/littlefs-project/littlefs/blob/9c7e232086f865cff0bb96fe753deb66431d91fd/lfs.h#L658
@@ -356,6 +350,7 @@ void get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *
         *used_bytes = used_bytes_local > SIZE_MAX ? SIZE_MAX : (size_t)used_bytes_local;
     }
     sem_give(efs);
+    return ESP_OK;
 }
 
 /********************
@@ -364,102 +359,223 @@ void get_total_and_used_bytes(esp_littlefs_t *efs, size_t *total_bytes, size_t *
 
 bool esp_littlefs_mounted(const char *partition_label)
 {
-    int index;
-    esp_err_t err;
+    bool mounted = false;
+    const esp_partition_t *partition = NULL;
 
-    err = esp_littlefs_by_label(partition_label, &index);
-    if (err != ESP_OK)
-        return false;
-    return _efs[index]->cache_size > 0;
+    if (!partition_label)
+    {
+        partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_LITTLEFS, NULL);
+        if (!partition)
+        {
+            return false;
+        }
+        partition_label = partition->label;
+    }
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (strncmp(partition_label, p->partition->label, 17) == 0)
+        {
+            mounted = p->cache_size > 0;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    return mounted;
 }
 
 bool esp_littlefs_partition_mounted(const esp_partition_t *partition)
 {
-    int index;
-    esp_err_t err = esp_littlefs_by_partition(partition, &index);
-
-    if (err != ESP_OK)
+    bool mounted = false;
+    if (!partition)
         return false;
-    return _efs[index]->cache_size > 0;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (p->partition->address == partition->address)
+        {
+            mounted = p->cache_size > 0;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    return mounted;
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
 bool esp_littlefs_sdmmc_mounted(sdmmc_card_t *sdcard)
 {
-    int index;
-    esp_err_t err = esp_littlefs_by_sdmmc_handle(sdcard, &index);
-
-    if (err != ESP_OK)
+    bool mounted = false;
+    if (!sdcard)
         return false;
-    return _efs[index]->cache_size > 0;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->sdcard)
+            continue;
+        if (p->sdcard == sdcard)
+        {
+            mounted = p->cache_size > 0;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    return mounted;
 }
 #endif
 
 #if ESP_LITTLEFS_HAS_BLOCKDEV
 bool esp_littlefs_blockdev_mounted(esp_blockdev_handle_t blockdev)
 {
-    int index;
-    esp_err_t err = esp_littlefs_by_blockdev(blockdev, &index);
-
-    if (err != ESP_OK)
+    bool mounted = false;
+    if (!blockdev)
         return false;
-    return _efs[index]->cache_size > 0;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->bdl_handle)
+            continue;
+        if (p->bdl_handle == blockdev)
+        {
+            mounted = p->cache_size > 0;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    return mounted;
 }
 #endif
 
 esp_err_t esp_littlefs_info(const char *partition_label, size_t *total_bytes, size_t *used_bytes)
 {
-    int index;
-    esp_err_t err;
+    esp_littlefs_t *efs = NULL;
+    const esp_partition_t *partition = NULL;
 
-    err = esp_littlefs_by_label(partition_label, &index);
-    if (err != ESP_OK)
-        return err;
-    get_total_and_used_bytes(_efs[index], total_bytes, used_bytes);
+    if (!partition_label)
+    {
+        partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_LITTLEFS, NULL);
+        if (!partition)
+        {
+            return ESP_ERR_NOT_FOUND;
+        }
+        partition_label = partition->label;
+    }
 
-    return ESP_OK;
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (strncmp(partition_label, p->partition->label, 17) == 0)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+
+    if (!efs)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    return get_total_and_used_bytes(efs, total_bytes, used_bytes);
 }
 
 esp_err_t esp_littlefs_partition_info(const esp_partition_t *partition, size_t *total_bytes, size_t *used_bytes)
 {
-    int index;
-    esp_err_t err;
+    esp_littlefs_t *efs = NULL;
+    if (!partition)
+        return ESP_ERR_INVALID_ARG;
 
-    err = esp_littlefs_by_partition(partition, &index);
-    if (err != ESP_OK)
-        return err;
-    get_total_and_used_bytes(_efs[index], total_bytes, used_bytes);
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (p->partition->address == partition->address)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
-    return ESP_OK;
+    if (!efs)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    return get_total_and_used_bytes(efs, total_bytes, used_bytes);
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
 esp_err_t esp_littlefs_sdmmc_info(sdmmc_card_t *sdcard, size_t *total_bytes, size_t *used_bytes)
 {
-    int index;
-    esp_err_t err;
+    esp_littlefs_t *efs = NULL;
+    if (!sdcard)
+        return ESP_ERR_INVALID_ARG;
 
-    err = esp_littlefs_by_sdmmc_handle(sdcard, &index);
-    if (err != ESP_OK)
-        return err;
-    get_total_and_used_bytes(_efs[index], total_bytes, used_bytes);
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->sdcard)
+            continue;
+        if (p->sdcard == sdcard)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
-    return ESP_OK;
+    if (!efs)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    return get_total_and_used_bytes(efs, total_bytes, used_bytes);
 }
 #endif
 
 #if ESP_LITTLEFS_HAS_BLOCKDEV
 esp_err_t esp_littlefs_blockdev_info(esp_blockdev_handle_t blockdev, size_t *total_bytes, size_t *used_bytes)
 {
-    int index;
-    esp_err_t err;
+    esp_littlefs_t *efs = NULL;
+    if (!blockdev)
+        return ESP_ERR_INVALID_ARG;
 
-    err = esp_littlefs_by_blockdev(blockdev, &index);
-    if (err != ESP_OK)
-        return err;
-    get_total_and_used_bytes(_efs[index], total_bytes, used_bytes);
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->bdl_handle)
+            continue;
+        if (p->bdl_handle == blockdev)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
-    return ESP_OK;
+    if (!efs)
+    {
+        return ESP_ERR_NOT_FOUND;
+    }
+    return get_total_and_used_bytes(efs, total_bytes, used_bytes);
 }
 #endif
 
@@ -511,8 +627,12 @@ static esp_vfs_fs_ops_t s_vfs_littlefs = {
 #endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
 esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t *conf)
 {
+    if (!conf || !conf->base_path)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     int index;
-    assert(conf->base_path);
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
     const esp_vfs_t vfs = vfs_littlefs_create_struct(!conf->read_only);
 #endif // ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
@@ -548,90 +668,214 @@ esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t *conf)
 
 esp_err_t esp_vfs_littlefs_unregister(const char *partition_label)
 {
-    int index;
-    if (esp_littlefs_by_label(partition_label, &index) != ESP_OK)
+    esp_littlefs_t *efs = NULL;
+    const esp_partition_t *partition = NULL;
+    const char *label = partition_label;
+
+    if (!label)
+    {
+        partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_LITTLEFS, NULL);
+        if (!partition)
+        {
+            ESP_LOGE(ESP_LITTLEFS_TAG, "No data partition with subtype \"littlefs\" found");
+            return ESP_ERR_NOT_FOUND;
+        }
+        label = partition->label;
+    }
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (strncmp(label, p->partition->label, 17) == 0)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+
+    if (!efs)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "Partition was never registered.");
         return ESP_ERR_INVALID_STATE;
     }
-    ESP_LOGV(ESP_LITTLEFS_TAG, "Unregistering \"%s\"", partition_label);
-    esp_err_t err = esp_vfs_unregister(_efs[index]->base_path);
+
+    ESP_LOGV(ESP_LITTLEFS_TAG, "Unregistering \"%s\"", label);
+    esp_err_t err = esp_vfs_unregister(efs->base_path);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister \"%s\"", partition_label);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister \"%s\": %s (0x%x)", label, esp_err_to_name(err), err);
         return err;
     }
-    esp_littlefs_free(&_efs[index]);
-    _efs[index] = NULL;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        if (_efs[i] == efs)
+        {
+            _efs[i] = NULL;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    esp_littlefs_free(&efs);
     return ESP_OK;
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
 esp_err_t esp_vfs_littlefs_unregister_sdmmc(sdmmc_card_t *sdcard)
 {
-    assert(sdcard);
-    int index;
-    if (esp_littlefs_by_sdmmc_handle(sdcard, &index) != ESP_OK)
+    if (!sdcard)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_littlefs_t *efs = NULL;
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->sdcard)
+            continue;
+        if (p->sdcard == sdcard)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+
+    if (!efs)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "Partition was never registered.");
         return ESP_ERR_INVALID_STATE;
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Unregistering SD card \"%p\"", sdcard);
-    esp_err_t err = esp_vfs_unregister(_efs[index]->base_path);
+    esp_err_t err = esp_vfs_unregister(efs->base_path);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister SD card \"%p\"", sdcard);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister SD card \"%p\": %s (0x%x)", sdcard, esp_err_to_name(err), err);
         return err;
     }
 
-    esp_littlefs_free(&_efs[index]);
-    _efs[index] = NULL;
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        if (_efs[i] == efs)
+        {
+            _efs[i] = NULL;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    esp_littlefs_free(&efs);
     return ESP_OK;
 }
 #endif
 
 esp_err_t esp_vfs_littlefs_unregister_partition(const esp_partition_t *partition)
 {
-    assert(partition);
-    int index;
-    if (esp_littlefs_by_partition(partition, &index) != ESP_OK)
+    if (!partition)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_littlefs_t *efs = NULL;
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
+            continue;
+        if (p->partition->address == partition->address)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+
+    if (!efs)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "Partition was never registered.");
         return ESP_ERR_INVALID_STATE;
     }
+
     ESP_LOGV(ESP_LITTLEFS_TAG, "Unregistering \"0x%08" PRIX32 "\"", partition->address);
-    esp_err_t err = esp_vfs_unregister(_efs[index]->base_path);
+    esp_err_t err = esp_vfs_unregister(efs->base_path);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister \"0x%08" PRIX32 "\"", partition->address);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister \"0x%08" PRIX32 "\": %s (0x%x)", partition->address,
+                 esp_err_to_name(err), err);
         return err;
     }
-    esp_littlefs_free(&_efs[index]);
-    _efs[index] = NULL;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        if (_efs[i] == efs)
+        {
+            _efs[i] = NULL;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    esp_littlefs_free(&efs);
     return ESP_OK;
 }
 
 #if ESP_LITTLEFS_HAS_BLOCKDEV
 esp_err_t esp_vfs_littlefs_unregister_blockdev(esp_blockdev_handle_t blockdev)
 {
-    assert(blockdev);
-    int index;
-    if (esp_littlefs_by_blockdev(blockdev, &index) != ESP_OK)
+    if (!blockdev)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_littlefs_t *efs = NULL;
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->bdl_handle)
+            continue;
+        if (p->bdl_handle == blockdev)
+        {
+            efs = p;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+
+    if (!efs)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "Blockdev was never registered.");
         return ESP_ERR_INVALID_STATE;
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Unregistering blockdev %p", blockdev);
-    esp_err_t err = esp_vfs_unregister(_efs[index]->base_path);
+    esp_err_t err = esp_vfs_unregister(efs->base_path);
     if (err != ESP_OK)
     {
-        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister blockdev %p", blockdev);
+        ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to unregister blockdev %p: %s (0x%x)", blockdev, esp_err_to_name(err), err);
         return err;
     }
-    esp_littlefs_free(&_efs[index]);
-    _efs[index] = NULL;
+
+    esp_littlefs_take_efs_lock();
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    {
+        if (_efs[i] == efs)
+        {
+            _efs[i] = NULL;
+            break;
+        }
+    }
+    esp_littlefs_give_efs_lock();
+    esp_littlefs_free(&efs);
     return ESP_OK;
 }
 #endif
@@ -641,11 +885,25 @@ esp_err_t esp_littlefs_format(const char *partition_label)
     bool efs_free = false;
     int index = -1;
     esp_err_t err;
+    esp_littlefs_t *efs = NULL;
 
-    ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting \"%s\"", partition_label);
+    ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting \"%s\"", partition_label ? partition_label : "(default)");
 
     /* Get a context */
+    esp_littlefs_take_efs_lock();
     err = esp_littlefs_by_label(partition_label, &index);
+    if (err == ESP_OK)
+    {
+        efs = _efs[index];
+        if (efs && efs->cache_size > 0)
+        {
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Rejecting format of mounted partition \"%s\" (base_path=\"%s\")",
+                     partition_label ? partition_label : "(default)", efs->base_path);
+            esp_littlefs_give_efs_lock();
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
     if (err != ESP_OK)
     {
@@ -669,13 +927,29 @@ esp_err_t esp_littlefs_format(const char *partition_label)
 
 exit:
     if (efs_free && index >= 0)
-        esp_littlefs_free(&_efs[index]);
+    {
+        esp_littlefs_take_efs_lock();
+        if (_efs[index])
+        {
+            esp_littlefs_t *tmp = _efs[index];
+            _efs[index] = NULL;
+            esp_littlefs_give_efs_lock();
+            esp_littlefs_free(&tmp);
+        }
+        else
+        {
+            esp_littlefs_give_efs_lock();
+        }
+    }
     return err;
 }
 
 esp_err_t esp_littlefs_format_partition(const esp_partition_t *partition)
 {
-    assert(partition);
+    if (!partition)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
 
     bool efs_free = false;
     int index = -1;
@@ -684,7 +958,20 @@ esp_err_t esp_littlefs_format_partition(const esp_partition_t *partition)
     ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting partition at \"0x%08" PRIX32 "\"", partition->address);
 
     /* Get a context */
+    esp_littlefs_take_efs_lock();
     err = esp_littlefs_by_partition(partition, &index);
+    if (err == ESP_OK)
+    {
+        esp_littlefs_t *efs = _efs[index];
+        if (efs && efs->cache_size > 0)
+        {
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Rejecting format of mounted partition 0x%08" PRIX32 " (base_path=\"%s\")",
+                     partition->address, efs->base_path);
+            esp_littlefs_give_efs_lock();
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
     if (err != ESP_OK)
     {
@@ -709,14 +996,30 @@ esp_err_t esp_littlefs_format_partition(const esp_partition_t *partition)
 
 exit:
     if (efs_free && index >= 0)
-        esp_littlefs_free(&_efs[index]);
+    {
+        esp_littlefs_take_efs_lock();
+        if (_efs[index])
+        {
+            esp_littlefs_t *tmp = _efs[index];
+            _efs[index] = NULL;
+            esp_littlefs_give_efs_lock();
+            esp_littlefs_free(&tmp);
+        }
+        else
+        {
+            esp_littlefs_give_efs_lock();
+        }
+    }
     return err;
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
 esp_err_t esp_littlefs_format_sdmmc(sdmmc_card_t *sdcard)
 {
-    assert(sdcard);
+    if (!sdcard)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
 
     bool efs_free = false;
     int index = -1;
@@ -724,8 +1027,20 @@ esp_err_t esp_littlefs_format_sdmmc(sdmmc_card_t *sdcard)
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting sdcard %p", sdcard);
 
-    /* Get a context */
+    esp_littlefs_take_efs_lock();
     err = esp_littlefs_by_sdmmc_handle(sdcard, &index);
+    if (err == ESP_OK)
+    {
+        esp_littlefs_t *efs = _efs[index];
+        if (efs && efs->cache_size > 0)
+        {
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Rejecting format of mounted SD card %p (base_path=\"%s\")", sdcard,
+                     efs->base_path);
+            esp_littlefs_give_efs_lock();
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
     if (err != ESP_OK)
     {
@@ -752,7 +1067,20 @@ esp_err_t esp_littlefs_format_sdmmc(sdmmc_card_t *sdcard)
 
 exit:
     if (efs_free && index >= 0)
-        esp_littlefs_free(&_efs[index]);
+    {
+        esp_littlefs_take_efs_lock();
+        if (_efs[index])
+        {
+            esp_littlefs_t *tmp = _efs[index];
+            _efs[index] = NULL;
+            esp_littlefs_give_efs_lock();
+            esp_littlefs_free(&tmp);
+        }
+        else
+        {
+            esp_littlefs_give_efs_lock();
+        }
+    }
     return err;
 }
 #endif
@@ -760,7 +1088,10 @@ exit:
 #if ESP_LITTLEFS_HAS_BLOCKDEV
 esp_err_t esp_littlefs_format_blockdev(esp_blockdev_handle_t blockdev)
 {
-    assert(blockdev);
+    if (!blockdev)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
 
     bool efs_free = false;
     int index = -1;
@@ -768,8 +1099,20 @@ esp_err_t esp_littlefs_format_blockdev(esp_blockdev_handle_t blockdev)
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Formatting blockdev %p", blockdev);
 
-    /* Get a context */
+    esp_littlefs_take_efs_lock();
     err = esp_littlefs_by_blockdev(blockdev, &index);
+    if (err == ESP_OK)
+    {
+        esp_littlefs_t *efs = _efs[index];
+        if (efs && efs->cache_size > 0)
+        {
+            ESP_LOGE(ESP_LITTLEFS_TAG, "Rejecting format of mounted blockdev %p (base_path=\"%s\")", blockdev,
+                     efs->base_path);
+            esp_littlefs_give_efs_lock();
+            return ESP_ERR_INVALID_STATE;
+        }
+    }
+    esp_littlefs_give_efs_lock();
 
     if (err != ESP_OK)
     {
@@ -791,11 +1134,22 @@ esp_err_t esp_littlefs_format_blockdev(esp_blockdev_handle_t blockdev)
     err = format_from_efs(_efs[index]);
 
 exit:
-    if (efs_free && index >= 0 && _efs[index])
+    if (efs_free && index >= 0)
     {
-        /* Formatting through a temporary EFS context must not consume caller-owned handles. */
-        _efs[index]->bdl_handle = NULL;
-        esp_littlefs_free(&_efs[index]);
+        esp_littlefs_take_efs_lock();
+        if (_efs[index])
+        {
+            esp_littlefs_t *tmp = _efs[index];
+            /* Formatting through a temporary EFS context must not consume caller-owned handles. */
+            tmp->bdl_handle = NULL;
+            _efs[index] = NULL;
+            esp_littlefs_give_efs_lock();
+            esp_littlefs_free(&tmp);
+        }
+        else
+        {
+            esp_littlefs_give_efs_lock();
+        }
     }
     return err;
 }
@@ -852,7 +1206,7 @@ static const char *esp_littlefs_errno(enum lfs_error lfs_errno)
     return "";
 }
 #else
-#define esp_littlefs_errno(x) ""
+/* esp_littlefs_errno is defined as a macro when CONFIG_LITTLEFS_HUMAN_READABLE is disabled. */
 #endif
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 4, 0)
@@ -935,7 +1289,11 @@ static void esp_littlefs_free(esp_littlefs_t **efs)
         vSemaphoreDelete(e->lock);
 
 #ifdef CONFIG_LITTLEFS_MMAP_PARTITION
-    esp_partition_munmap(e->mmap_handle);
+    if (e->mmap_data != NULL)
+    {
+        esp_partition_munmap(e->mmap_handle);
+        e->mmap_data = NULL;
+    }
 #endif
 
 #if ESP_LITTLEFS_HAS_BLOCKDEV
@@ -973,32 +1331,33 @@ static void esp_littlefs_dir_free(vfs_littlefs_dir_t *dir)
  */
 static esp_err_t esp_littlefs_by_partition(const esp_partition_t *part, int *index)
 {
-    int i;
-    esp_littlefs_t *p;
+    esp_err_t ret = ESP_ERR_NOT_FOUND;
 
     if (!part || !index)
         return ESP_ERR_INVALID_ARG;
 
+    esp_littlefs_take_efs_lock();
     ESP_LOGV(ESP_LITTLEFS_TAG, "Searching for existing filesystem for partition \"0x%08" PRIX32 "\"", part->address);
 
-    for (i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
     {
-        p = _efs[i];
-        if (!p)
-            continue;
-        if (!p->partition)
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
             continue;
         if (part->address == p->partition->address)
         {
             *index = i;
             ESP_LOGV(ESP_LITTLEFS_TAG, "Found existing filesystem \"0x%08" PRIX32 "\" at index %d", part->address,
                      *index);
-            return ESP_OK;
+            ret = ESP_OK;
+            goto out;
         }
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Existing filesystem \"0x%08" PRIX32 "\" not found", part->address);
-    return ESP_ERR_NOT_FOUND;
+out:
+    esp_littlefs_give_efs_lock();
+    return ret;
 }
 
 /**
@@ -1008,15 +1367,14 @@ static esp_err_t esp_littlefs_by_partition(const esp_partition_t *part, int *ind
  */
 static esp_err_t esp_littlefs_by_label(const char *label, int *index)
 {
-    int i;
-    esp_littlefs_t *p;
     const esp_partition_t *partition;
+    esp_err_t ret = ESP_ERR_NOT_FOUND;
 
     if (!index)
         return ESP_ERR_INVALID_ARG;
     if (!label)
     {
-        // Search for first dat partition with subtype "littlefs"
+        // Search for first data partition with subtype "littlefs"
         partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_LITTLEFS, NULL);
         if (!partition)
         {
@@ -1026,52 +1384,58 @@ static esp_err_t esp_littlefs_by_label(const char *label, int *index)
         label = partition->label;
     }
 
+    esp_littlefs_take_efs_lock();
     ESP_LOGV(ESP_LITTLEFS_TAG, "Searching for existing filesystem for partition \"%s\"", label);
 
-    for (i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
+    for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
     {
-        p = _efs[i];
-        if (!p)
-            continue;
-        if (!p->partition)
+        esp_littlefs_t *p = _efs[i];
+        if (!p || !p->partition)
             continue;
         if (strncmp(label, p->partition->label, 17) == 0)
         {
             *index = i;
             ESP_LOGV(ESP_LITTLEFS_TAG, "Found existing filesystem \"%s\" at index %d", label, *index);
-            return ESP_OK;
+            ret = ESP_OK;
+            goto out;
         }
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Existing filesystem \"%s\" not found", label);
-    return ESP_ERR_NOT_FOUND;
+out:
+    esp_littlefs_give_efs_lock();
+    return ret;
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
 static esp_err_t esp_littlefs_by_sdmmc_handle(sdmmc_card_t *handle, int *index)
 {
+    esp_err_t ret = ESP_ERR_NOT_FOUND;
+
     if (!handle || !index)
         return ESP_ERR_INVALID_ARG;
 
+    esp_littlefs_take_efs_lock();
     ESP_LOGV(ESP_LITTLEFS_TAG, "Searching for existing filesystem for SD handle %p", handle);
 
     for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
     {
         esp_littlefs_t *p = _efs[i];
-        if (!p)
-            continue;
-        if (!p->sdcard)
+        if (!p || !p->sdcard)
             continue;
         if (p->sdcard == handle)
         {
             *index = i;
             ESP_LOGV(ESP_LITTLEFS_TAG, "Found existing filesystem %p at index %d", handle, *index);
-            return ESP_OK;
+            ret = ESP_OK;
+            goto out;
         }
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Existing filesystem %p not found", handle);
-    return ESP_ERR_NOT_FOUND;
+out:
+    esp_littlefs_give_efs_lock();
+    return ret;
 }
 #endif
 
@@ -1084,28 +1448,32 @@ static esp_err_t esp_littlefs_by_sdmmc_handle(sdmmc_card_t *handle, int *index)
  */
 static esp_err_t esp_littlefs_by_blockdev(esp_blockdev_handle_t blockdev, int *index)
 {
+    esp_err_t ret = ESP_ERR_NOT_FOUND;
+
     if (!blockdev || !index)
         return ESP_ERR_INVALID_ARG;
 
+    esp_littlefs_take_efs_lock();
     ESP_LOGV(ESP_LITTLEFS_TAG, "Searching for existing filesystem for blockdev %p", blockdev);
 
     for (int i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
     {
         esp_littlefs_t *p = _efs[i];
-        if (!p)
-            continue;
-        if (!p->bdl_handle)
+        if (!p || !p->bdl_handle)
             continue;
         if (p->bdl_handle == blockdev)
         {
             *index = i;
             ESP_LOGV(ESP_LITTLEFS_TAG, "Found existing filesystem %p at index %d", blockdev, *index);
-            return ESP_OK;
+            ret = ESP_OK;
+            goto out;
         }
     }
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Existing filesystem %p not found", blockdev);
-    return ESP_ERR_NOT_FOUND;
+out:
+    esp_littlefs_give_efs_lock();
+    return ret;
 }
 #endif
 
@@ -1116,17 +1484,26 @@ static esp_err_t esp_littlefs_by_blockdev(esp_blockdev_handle_t blockdev, int *i
  */
 static esp_err_t esp_littlefs_get_empty(int *index)
 {
-    assert(index);
+    if (index == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t ret = ESP_FAIL;
+    esp_littlefs_take_efs_lock();
     for (uint8_t i = 0; i < CONFIG_LITTLEFS_MAX_PARTITIONS; i++)
     {
         if (_efs[i] == NULL)
         {
             *index = i;
-            return ESP_OK;
+            ret = ESP_OK;
+            goto out;
         }
     }
     ESP_LOGE(ESP_LITTLEFS_TAG, "No more free partitions available.");
-    return ESP_FAIL;
+out:
+    esp_littlefs_give_efs_lock();
+    return ret;
 }
 
 /**
@@ -1193,7 +1570,7 @@ static void esp_littlefs_take_efs_lock(void)
 #endif
         if (_efs_lock == NULL)
         {
-            _efs_lock = xSemaphoreCreateMutex();
+            _efs_lock = xSemaphoreCreateRecursiveMutex();
             assert(_efs_lock);
         }
 #ifdef ESP8266
@@ -1203,7 +1580,15 @@ static void esp_littlefs_take_efs_lock(void)
 #endif
     }
 
-    xSemaphoreTake(_efs_lock, portMAX_DELAY);
+    xSemaphoreTakeRecursive(_efs_lock, portMAX_DELAY);
+}
+
+static inline void esp_littlefs_give_efs_lock(void)
+{
+    if (_efs_lock != NULL)
+    {
+        xSemaphoreGiveRecursive(_efs_lock);
+    }
 }
 
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
@@ -1605,33 +1990,39 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
     esp_err_t err = ESP_FAIL;
     const esp_partition_t *partition = NULL;
     esp_littlefs_t *efs = NULL;
+    int slot = -1;
+
     *index = -1;
 
+    /* Reserve a registry slot and validate uniqueness under the global lock, but
+     * do not hold the global lock across mount/format/grow I/O. */
     esp_littlefs_take_efs_lock();
 
-    if (esp_littlefs_get_empty(index) != ESP_OK)
+    if (esp_littlefs_get_empty(&slot) != ESP_OK)
     {
         ESP_LOGE(ESP_LITTLEFS_TAG, "max mounted partitions reached");
         err = ESP_ERR_INVALID_STATE;
-        goto exit;
+        esp_littlefs_give_efs_lock();
+        return err;
     }
 
     if (conf->partition_label)
     {
-        /* Input and Environment Validation */
         int existing = -1;
         if (esp_littlefs_by_label(conf->partition_label, &existing) == ESP_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Partition already used");
             err = ESP_ERR_INVALID_STATE;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
         partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, conf->partition_label);
         if (!partition)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "partition \"%s\" could not be found", conf->partition_label);
             err = ESP_ERR_NOT_FOUND;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
     }
     else if (conf->partition)
@@ -1641,7 +2032,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Partition already used");
             err = ESP_ERR_INVALID_STATE;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
         partition = conf->partition;
 #ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
@@ -1653,7 +2045,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         if (err != ESP_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Failed when checking SD card status: 0x%x", err);
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
 #endif
 #if ESP_LITTLEFS_HAS_BLOCKDEV
@@ -1665,7 +2058,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "Blockdev already used");
             err = ESP_ERR_INVALID_STATE;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
 #endif
     }
@@ -1677,7 +2071,8 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "No data partition with subtype \"littlefs\" found");
             err = ESP_ERR_NOT_FOUND;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
     }
 
@@ -1685,10 +2080,6 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
     if (conf->sdcard)
     {
         err = esp_littlefs_init_sdcard(&efs, conf->sdcard, conf->read_only);
-        if (err != ESP_OK)
-        {
-            goto exit;
-        }
     }
     else
 #endif
@@ -1696,10 +2087,6 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
         if (conf->blockdev)
     {
         err = esp_littlefs_init_blockdev(&efs, conf->blockdev, conf->read_only);
-        if (err != ESP_OK)
-        {
-            goto exit;
-        }
     }
     else
 #endif
@@ -1711,59 +2098,52 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
             ESP_LOGE(ESP_LITTLEFS_TAG, "LITTLEFS_PAGE_SIZE is not multiple of flash chip page size (%u)",
                      (unsigned int)flash_page_size);
             err = ESP_ERR_INVALID_ARG;
-            goto exit;
+            esp_littlefs_give_efs_lock();
+            return err;
         }
 
         err = esp_littlefs_init_efs(&efs, partition, conf->read_only);
-
-        if (err != ESP_OK)
-        {
-            goto exit;
-        }
     }
 
-    // Mount and Error Check
-    _efs[*index] = efs;
+    if (err != ESP_OK || efs == NULL)
+    {
+        esp_littlefs_give_efs_lock();
+        esp_littlefs_free(&efs);
+        return (err == ESP_OK) ? ESP_FAIL : err;
+    }
+
+    /* Publish the context as a registered-but-unmounted slot so format helpers
+     * and mount-fail recovery can locate it; keep per-FS lock around FS I/O. */
+    _efs[slot] = efs;
+    *index = slot;
+    esp_littlefs_give_efs_lock();
+
     if (!conf->dont_mount)
     {
-        int res;
-
-        res = lfs_mount(efs->fs, &efs->cfg);
+        sem_take(efs);
+        int res = lfs_mount(efs->fs, &efs->cfg);
 
         if (conf->format_if_mount_failed && res != LFS_ERR_OK)
         {
             ESP_LOGW(ESP_LITTLEFS_TAG, "mount failed, %s (%i). formatting...", esp_littlefs_errno(res), res);
-#ifdef CONFIG_LITTLEFS_SDMMC_SUPPORT
-            if (conf->sdcard)
-            {
-                err = esp_littlefs_format_sdmmc(conf->sdcard);
-            }
-            else
-#endif
-#if ESP_LITTLEFS_HAS_BLOCKDEV
-                if (conf->blockdev)
-            {
-                err = esp_littlefs_format_blockdev(conf->blockdev);
-            }
-            else
-#endif
-            {
-                err = esp_littlefs_format_partition(efs->partition);
-            }
+            err = format_from_efs(efs);
             if (err != ESP_OK)
             {
                 ESP_LOGE(ESP_LITTLEFS_TAG, "format failed");
-                err = ESP_FAIL;
+                sem_give(efs);
                 goto exit;
             }
             res = lfs_mount(efs->fs, &efs->cfg);
         }
+
         if (res != LFS_ERR_OK)
         {
             ESP_LOGE(ESP_LITTLEFS_TAG, "mount failed, %s (%i)", esp_littlefs_errno(res), res);
             err = ESP_FAIL;
+            sem_give(efs);
             goto exit;
         }
+
         efs->cache_size = 4;
         efs->cache = esp_littlefs_calloc(efs->cache_size, sizeof(*efs->cache));
         if (efs->cache == NULL)
@@ -1771,6 +2151,7 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
             efs->cache_size = 0;
             ESP_LOGE(ESP_LITTLEFS_TAG, "Failed to allocate file cache");
             err = ESP_ERR_NO_MEM;
+            sem_give(efs);
             goto exit;
         }
 
@@ -1797,30 +2178,25 @@ static esp_err_t esp_littlefs_init(const esp_vfs_littlefs_conf_t *conf, int *ind
             {
                 ESP_LOGE(ESP_LITTLEFS_TAG, "FS grow failed, %s (%i)", esp_littlefs_errno(res), res);
                 err = ESP_FAIL;
+                sem_give(efs);
                 goto exit;
             }
         }
+
+        sem_give(efs);
     }
 
-    err = ESP_OK;
+    return ESP_OK;
 
 exit:
-    if (err != ESP_OK)
+    esp_littlefs_take_efs_lock();
+    if (slot >= 0 && slot < CONFIG_LITTLEFS_MAX_PARTITIONS && _efs[slot] == efs)
     {
-        /*
-         * Only tear down _efs[*index] when this call published the same context there.
-         * Otherwise, leave pre-existing mounts untouched (e.g. duplicate-register checks).
-         */
-        if (*index >= 0 && _efs[*index] == efs)
-        {
-            esp_littlefs_free(&_efs[*index]);
-        }
-        else
-        {
-            esp_littlefs_free(&efs);
-        }
+        _efs[slot] = NULL;
     }
-    xSemaphoreGive(_efs_lock);
+    esp_littlefs_give_efs_lock();
+    esp_littlefs_free(&efs);
+    *index = -1;
     return err;
 }
 
@@ -2088,14 +2464,19 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
     int fd = -1, lfs_flags, res;
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     vfs_littlefs_file_t *file = NULL;
+
+    if (!efs || !path)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
 #ifndef CONFIG_LITTLEFS_USE_ONLY_HASH
     size_t path_len = strlen(path) + 1; // include NULL terminator
 #endif
 #if CONFIG_LITTLEFS_OPEN_DIR
     struct lfs_info info;
 #endif
-
-    assert(path);
 
     ESP_LOGV(ESP_LITTLEFS_TAG, "Opening %s", path);
 
@@ -2151,9 +2532,9 @@ static int vfs_littlefs_open(void *ctx, const char *path, int flags, int mode)
 
 #ifndef CONFIG_LITTLEFS_MALLOC_STRATEGY_DISABLE
     /* Open File */
-    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_file_opencfg start: %s", path);
+    ESP_LOGV(ESP_LITTLEFS_TAG, "lfs_file_opencfg start: %s", path);
     res = lfs_file_opencfg(efs->fs, &file->file, path, lfs_flags, &file->lfs_file_config);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_file_opencfg done: %s res=%d", path, res);
+    ESP_LOGV(ESP_LITTLEFS_TAG, "lfs_file_opencfg done: %s res=%d", path, res);
 #if CONFIG_LITTLEFS_MTIME_USE_NONCE
     if (!(lfs_flags & LFS_O_RDONLY))
     {
@@ -2610,7 +2991,11 @@ static int vfs_littlefs_fstat(void *ctx, int fd, struct stat *st)
 #ifdef CONFIG_VFS_SUPPORT_DIR
 static int vfs_littlefs_stat(void *ctx, const char *path, struct stat *st)
 {
-    assert(path);
+    if (!path || !st)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     struct lfs_info info;
     int res;
@@ -2651,7 +3036,11 @@ static int vfs_littlefs_stat(void *ctx, const char *path, struct stat *st)
 static int vfs_littlefs_unlink(void *ctx, const char *path)
 {
 #define fail_str_1 "Failed to unlink path \"%s\"."
-    assert(path);
+    if (!path)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     struct lfs_info info;
     int res;
@@ -2704,6 +3093,11 @@ static int vfs_littlefs_unlink(void *ctx, const char *path)
 
 static int vfs_littlefs_rename(void *ctx, const char *src, const char *dst)
 {
+    if (!src || !dst)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     int res;
 
@@ -2752,6 +3146,11 @@ static int vfs_littlefs_rename(void *ctx, const char *src, const char *dst)
 
 static DIR *vfs_littlefs_opendir(void *ctx, const char *name)
 {
+    if (!name)
+    {
+        errno = EINVAL;
+        return NULL;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     int res;
     vfs_littlefs_dir_t *dir = NULL;
@@ -2928,14 +3327,19 @@ static void vfs_littlefs_seekdir(void *ctx, DIR *pdir, long offset)
 static int vfs_littlefs_mkdir(void *ctx, const char *name, mode_t mode)
 {
     /* Note: mode is currently unused */
+    if (!name)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     int res;
     ESP_LOGV(ESP_LITTLEFS_TAG, "mkdir \"%s\"", name);
 
     sem_take(efs);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_mkdir start: %s", name);
+    ESP_LOGV(ESP_LITTLEFS_TAG, "lfs_mkdir start: %s", name);
     res = lfs_mkdir(efs->fs, name);
-    ESP_LOGI(ESP_LITTLEFS_TAG, "lfs_mkdir done: %s res=%d", name, res);
+    ESP_LOGV(ESP_LITTLEFS_TAG, "lfs_mkdir done: %s res=%d", name, res);
     sem_give(efs);
     if (res < 0)
     {
@@ -2948,6 +3352,11 @@ static int vfs_littlefs_mkdir(void *ctx, const char *name, mode_t mode)
 
 static int vfs_littlefs_rmdir(void *ctx, const char *name)
 {
+    if (!name)
+    {
+        errno = EINVAL;
+        return -1;
+    }
     esp_littlefs_t *efs = (esp_littlefs_t *)ctx;
     struct lfs_info info;
     int res;
@@ -3278,16 +3687,23 @@ static int vfs_littlefs_fcntl(void *ctx, int fd, int cmd, int arg)
     {
         char *buffer = (char *)(uintptr_t)arg;
 
-        assert(buffer);
-
-        if (snprintf(buffer, MAXPATHLEN, "%s%s", efs->base_path, file->path) > 0)
-        {
-            result = 0;
-        }
-        else
+        if (buffer == NULL)
         {
             result = -1;
             errno = EINVAL;
+        }
+        else
+        {
+            int n = snprintf(buffer, MAXPATHLEN, "%s%s", efs->base_path, file->path);
+            if (n < 0 || n >= MAXPATHLEN)
+            {
+                result = -1;
+                errno = ENAMETOOLONG;
+            }
+            else
+            {
+                result = 0;
+            }
         }
     }
 #endif
