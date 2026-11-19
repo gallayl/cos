@@ -16,6 +16,7 @@ extern "C"
         TEXT_CONSOLE_LOG_ERROR,
         TEXT_CONSOLE_LOG_WARN,
         TEXT_CONSOLE_LOG_INFO,
+        TEXT_CONSOLE_LOG_DEBUG,
     } text_console_log_level_t;
 
     /** Foreground color for one console write. The grid background stays black. */

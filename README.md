@@ -185,12 +185,11 @@ rows when full. `display_mode clear` releases that history; it is also released
 when a Berry app starts. Output continues over UART while a Berry app owns the
 display, but is not retained in console history.
 
-The global ESP log threshold defaults to `warn`. Use `logging` to show the
-current setting, or `logging error`, `logging warn`, and `logging info` to
-change it; the selection persists across reboots and affects UART and console
-logs. Use `mem` (Berry script, resolved via CWD/`path`) for current free heap, minimum free heap since boot, total
-heap, and largest allocatable block. Berry app startup also logs heap snapshots
-at INFO level; set `logging info` to see them.
+The global ESP log threshold defaults to `warn` (on reset, missing, or invalid persisted value). Use `logging` to show the current setting, or `logging error|warn|info|debug` to change it. The selection is persisted in NVS (`console` namespace, `log_level` key) by `text_console`, applied at startup via `esp_log_level_set("*", ...)` (ESP-IDF `esp_log.h`), and affects UART/serial output and the on-screen text console (mirrored stream). Supported mappings: `error` → `ESP_LOG_ERROR`, `warn` → `ESP_LOG_WARN`, `info` → `ESP_LOG_INFO`, `debug` → `ESP_LOG_DEBUG` (`verbose` is not exposed).
+
+Logging policy (app code): use `ERROR` for failures that break the requested operation, `WARN` for recoverable/unexpected conditions, `INFO` for notable lifecycle/state changes (low rate), and `DEBUG` for verbose troubleshooting details (e.g. per-operation traces). Demote or remove noisy/unhelpful messages. Vendored `esp_littlefs` `ESP_LOGV` noise is out of scope here; see `docs/plan/needs-clarification/esp-littlefs-stability-hardening.md`.
+
+Use `mem` (Berry script, resolved via CWD/`path`) for current free heap, minimum free heap since boot, total heap, and largest allocatable block. Berry app startup also logs heap snapshots at INFO level; set `logging info` to see them. Set `logging debug` for verbose app debug traces.
 
 `nslookup`, `ping`, `uptime`, `info`, and `time` are provided as Berry command scripts (stock:
 `/flash/scripts/nslookup.be`, `/flash/scripts/ping.be`, `/flash/scripts/uptime.be`,

@@ -55,7 +55,7 @@ static int cmd_logging(int argc, char **argv)
 
     if (argc != 2)
     {
-        printf("Usage: logging [error|warn|info]\n");
+        printf("Usage: logging [error|warn|info|debug]\n");
         return 1;
     }
 
@@ -72,9 +72,13 @@ static int cmd_logging(int argc, char **argv)
     {
         level = TEXT_CONSOLE_LOG_INFO;
     }
+    else if (strcmp(argv[1], "debug") == 0)
+    {
+        level = TEXT_CONSOLE_LOG_DEBUG;
+    }
     else
     {
-        printf("Usage: logging [error|warn|info]\n");
+        printf("Usage: logging [error|warn|info|debug]\n");
         return 1;
     }
 
@@ -84,7 +88,8 @@ static int cmd_logging(int argc, char **argv)
         printf("logging: could not save level (%s)\n", esp_err_to_name(err));
         return 1;
     }
-    printf("Logging level set to %s (global: UART and console)\n", text_console_log_level_name(level));
+    printf("Logging level set to %s (global: UART/serial output and on-screen text console (mirrored stream))\n",
+           text_console_log_level_name(level));
     return 0;
 }
 
@@ -111,7 +116,7 @@ void text_console_register_commands(void)
     const esp_console_cmd_t logging_cmd = {
         .command = "logging",
         .help = "Set the persistent global ESP log threshold",
-        .hint = "[error|warn|info]",
+        .hint = "[error|warn|info|debug]",
         .func = &cmd_logging,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&logging_cmd));

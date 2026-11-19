@@ -51,6 +51,8 @@ static esp_log_level_t esp_log_level(text_console_log_level_t level)
         return ESP_LOG_ERROR;
     case TEXT_CONSOLE_LOG_INFO:
         return ESP_LOG_INFO;
+    case TEXT_CONSOLE_LOG_DEBUG:
+        return ESP_LOG_DEBUG;
     case TEXT_CONSOLE_LOG_WARN:
     default:
         return ESP_LOG_WARN;
@@ -59,7 +61,7 @@ static esp_log_level_t esp_log_level(text_console_log_level_t level)
 
 static bool valid_log_level(uint8_t level)
 {
-    return level <= TEXT_CONSOLE_LOG_INFO;
+    return level <= TEXT_CONSOLE_LOG_DEBUG;
 }
 
 extern "C" void text_console_apply_saved_log_level(void)
@@ -549,7 +551,8 @@ extern "C" esp_err_t text_console_release_scrollback(void)
 
 extern "C" esp_err_t text_console_set_log_level(text_console_log_level_t level)
 {
-    if (level != TEXT_CONSOLE_LOG_ERROR && level != TEXT_CONSOLE_LOG_WARN && level != TEXT_CONSOLE_LOG_INFO)
+    if (level != TEXT_CONSOLE_LOG_ERROR && level != TEXT_CONSOLE_LOG_WARN && level != TEXT_CONSOLE_LOG_INFO &&
+        level != TEXT_CONSOLE_LOG_DEBUG)
     {
         return ESP_ERR_INVALID_ARG;
     }
@@ -589,6 +592,8 @@ extern "C" const char *text_console_log_level_name(text_console_log_level_t leve
         return "error";
     case TEXT_CONSOLE_LOG_INFO:
         return "info";
+    case TEXT_CONSOLE_LOG_DEBUG:
+        return "debug";
     case TEXT_CONSOLE_LOG_WARN:
         return "warn";
     default:
