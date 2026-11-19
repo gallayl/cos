@@ -1,0 +1,87 @@
+# hw_console_session log
+# time=2026-11-19 18:08:16.221
+# port=COM3 baud=115200
+# commands=6
+
+[2026-11-19 18:08:17.072] TX ﻿berry eval "print('=== POST-RESET RECOVERY CHECK ===')"
+[2026-11-19 18:08:18.683] RX I (799) cpu_start: Multicore app
+[2026-11-19 18:08:18.683] RX I (807) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+[2026-11-19 18:08:18.683] RX I (807) cpu_start: Pro cpu start user code
+[2026-11-19 18:08:18.683] RX I (807) cpu_start: cpu freq: 160000000 Hz
+[2026-11-19 18:08:18.683] RX I (809) app_init: Application information:
+[2026-11-19 18:08:18.683] RX I (813) app_init: Project name:     cos
+[2026-11-19 18:08:18.683] RX I (816) app_init: App version:      4ef50c0
+[2026-11-19 18:08:18.683] RX I (820) app_init: ELF file SHA256:  2e6cd1e60...
+[2026-11-19 18:08:18.683] RX I (825) app_init: ESP-IDF:          v6.1
+[2026-11-19 18:08:18.683] RX I (828) efuse_init: Min chip rev:     v0.0
+[2026-11-19 18:08:18.683] RX I (832) efuse_init: Max chip rev:     v3.99 
+[2026-11-19 18:08:18.683] RX I (836) efuse_init: Chip rev:         v3.1
+[2026-11-19 18:08:18.683] RX I (840) heap_init: Initializing. RAM available for dynamic allocation:
+[2026-11-19 18:08:18.683] RX I (846) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+[2026-11-19 18:08:18.683] RX I (851) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+[2026-11-19 18:08:18.683] RX I (856) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+[2026-11-19 18:08:18.683] RX I (862) heap_init: At 3FFD5688 len 0000A978 (42 KiB): DRAM
+[2026-11-19 18:08:18.683] RX I (867) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+[2026-11-19 18:08:18.683] RX I (872) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+[2026-11-19 18:08:18.683] RX I (878) heap_init: At 4009A404 len 00005BFC (22 KiB): IRAM
+[2026-11-19 18:08:18.683] RX I (885) spi_flash: detected chip: boya
+[2026-11-19 18:08:18.683] RX I (886) spi_flash: flash io: dio
+[2026-11-19 18:08:18.683] RX I (891) coexist: coex firmware version: a830d28
+[2026-11-19 18:08:18.683] RX I (895) main_task: Started on CPU0
+[2026-11-19 18:08:18.683] RX I (895) main_task: Calling app_main()
+[2026-11-19 18:08:18.683] RX I (965) boot_profile: Stored boot profile: default (effective: default)
+[2026-11-19 18:08:18.683] RX I (965) main: COS starting up (boot profile: effective=default, next=default)
+[2026-11-19 18:08:18.683] RX I (1265) display: Display initialized (240x320)
+[2026-11-19 18:08:18.683] RX I (1265) cal_cmd: Registered 'calibrate' command
+[2026-11-19 18:08:18.683] RX I (1265) cal_storage: Loaded calibration for rotation 0
+[2026-11-19 18:08:18.683] RX I (1265) calibration: Calibration applied for rotation 0
+[2026-11-19 18:08:18.683] RX I (1275) light_sensor: Light sensor initialized
+[2026-11-19 18:08:18.683] RX I (1275) rgb_led: No saved color, defaulting to off
+[2026-11-19 18:08:18.683] RX I (1275) rgb_led_cmd: Registered 'led' command
+[2026-11-19 18:08:18.683] RX I (1285) rgb_led: RGB LED initialized (color 0,0,0)
+[2026-11-19 18:08:18.683] RX I (1285) cal_storage: Loaded calibration for rotation 3
+[2026-11-19 18:08:18.683] RX I (1295) calibration: Calibration applied for rotation 3
+[2026-11-19 18:08:18.683] RX I (1295) brightness_cmd: Registered 'screen' command
+[2026-11-19 18:08:18.683] RX I (1305) brightness: Brightness initialized (level=128, mode=manual, rotation=3)
+[2026-11-19 18:08:18.683] RX COS/flash> ﻿berry eval "print('=== POST-RESET RECOVERY CHECK ===')"
+[2026-11-19 18:08:18.683] RX Unknown command: ﻿berry eval "print('=== POST-RESET RECOVERY CHECK ===')"
+[2026-11-19 18:08:18.683] RX COS/flash> E (1695) berry: /flash/autoexec.be: script must define __cos_entry or run(args)
+[2026-11-19 18:08:18.683] RX E (1695) shell_berry: Could not run /flash/autoexec.be: ESP_ERR_INVALID_ARG
+[2026-11-19 18:08:18.690] TX boot_profile
+[2026-11-19 18:08:19.334] RX boot_profile
+[2026-11-19 18:08:19.334] RX Stored:    default
+[2026-11-19 18:08:19.334] RX Effective: default (current boot)
+[2026-11-19 18:08:19.334] RX Next boot: default
+[2026-11-19 18:08:19.334] RX Profiles:  default, low-memory-offline
+[2026-11-19 18:08:19.335] RX Note: changes take effect on next boot/restart.
+[2026-11-19 18:08:19.335] RX COS/flash> 
+[2026-11-19 18:08:19.335] TX services
+[2026-11-19 18:08:19.999] RX services
+[2026-11-19 18:08:20.000] RX [http_server] HTTP server: state=running
+[2026-11-19 18:08:20.000] RX [websocket] WebSocket: state=running clients=0 http_server=yes
+[2026-11-19 18:08:20.000] RX [wifi] Wi-Fi: state=running connected=no stored_credentials=yes
+[2026-11-19 18:08:20.000] RX [bluetooth] Bluetooth: state=running enabled=yes enabling=no connected=no
+[2026-11-19 18:08:20.000] RX [network] Network: state=idle diagnostics_worker=no
+[2026-11-19 18:08:20.000] RX [time_sync] Time sync: state=running synced=no
+[2026-11-19 18:08:20.000] RX COS/flash> 
+[2026-11-19 18:08:20.000] TX mem
+[2026-11-19 18:08:20.694] RX mem
+[2026-11-19 18:08:20.694] RX Free heap:      8904 bytes
+[2026-11-19 18:08:20.694] RX Min free heap:  8624 bytes
+[2026-11-19 18:08:20.694] RX Total heap:     211920 bytes
+[2026-11-19 18:08:20.694] RX Max alloc:      7936 bytes
+[2026-11-19 18:08:20.694] RX Internal free:  8904 bytes
+[2026-11-19 18:08:20.694] RX Internal min:   8624 bytes
+[2026-11-19 18:08:20.694] RX Internal total: 211920 bytes
+[2026-11-19 18:08:20.694] RX Internal max:   7936 bytes
+[2026-11-19 18:08:20.694] RX COS/flash> 
+[2026-11-19 18:08:20.694] TX logging
+[2026-11-19 18:08:21.329] RX logging
+[2026-11-19 18:08:21.329] RX Logging level: warn
+[2026-11-19 18:08:21.329] RX COS/flash> 
+[2026-11-19 18:08:21.329] TX berry eval "print('=== POST-RESET RECOVERY CHECK END ===')"
+[2026-11-19 18:08:21.981] RX berry eval "print('=== POST-RESET RECOVERY CHECK END ===')"
+[2026-11-19 18:08:21.981] RX === POST-RESET RECOVERY CHECK END ===
+[2026-11-19 18:08:21.981] RX COS/flash> 
+
+# end=2026-11-19 18:08:22.216 status=0

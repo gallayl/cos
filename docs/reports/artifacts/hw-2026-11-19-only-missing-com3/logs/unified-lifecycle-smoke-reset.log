@@ -1,0 +1,161 @@
+# hw_console_session log
+# time=2026-11-19 17:58:58.233
+# port=COM3 baud=115200
+# commands=10
+
+[2026-11-19 17:58:59.080] TX ﻿# Unified lifecycle smoke: post-boot/default snapshot (with reset/boot capture). No /flash writes.
+[2026-11-19 17:59:00.707] RX I (799) cpu_start: Multicore app
+[2026-11-19 17:59:00.707] RX I (807) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+[2026-11-19 17:59:00.707] RX I (807) cpu_start: Pro cpu start user code
+[2026-11-19 17:59:00.707] RX I (807) cpu_start: cpu freq: 160000000 Hz
+[2026-11-19 17:59:00.707] RX I (809) app_init: Application information:
+[2026-11-19 17:59:00.707] RX I (813) app_init: Project name:     cos
+[2026-11-19 17:59:00.707] RX I (816) app_init: App version:      4ef50c0
+[2026-11-19 17:59:00.707] RX I (820) app_init: ELF file SHA256:  2e6cd1e60...
+[2026-11-19 17:59:00.707] RX I (825) app_init: ESP-IDF:          v6.1
+[2026-11-19 17:59:00.707] RX I (828) efuse_init: Min chip rev:     v0.0
+[2026-11-19 17:59:00.707] RX I (832) efuse_init: Max chip rev:     v3.99 
+[2026-11-19 17:59:00.707] RX I (836) efuse_init: Chip rev:         v3.1
+[2026-11-19 17:59:00.707] RX I (840) heap_init: Initializing. RAM available for dynamic allocation:
+[2026-11-19 17:59:00.707] RX I (846) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+[2026-11-19 17:59:00.707] RX I (851) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+[2026-11-19 17:59:00.707] RX I (856) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+[2026-11-19 17:59:00.707] RX I (862) heap_init: At 3FFD5688 len 0000A978 (42 KiB): DRAM
+[2026-11-19 17:59:00.707] RX I (867) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+[2026-11-19 17:59:00.707] RX I (872) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+[2026-11-19 17:59:00.707] RX I (878) heap_init: At 4009A404 len 00005BFC (22 KiB): IRAM
+[2026-11-19 17:59:00.707] RX I (885) spi_flash: detected chip: boya
+[2026-11-19 17:59:00.707] RX I (886) spi_flash: flash io: dio
+[2026-11-19 17:59:00.707] RX I (891) coexist: coex firmware version: a830d28
+[2026-11-19 17:59:00.707] RX I (895) main_task: Started on CPU0
+[2026-11-19 17:59:00.707] RX I (895) main_task: Calling app_main()
+[2026-11-19 17:59:00.707] RX I (965) boot_profile: Stored boot profile: default (effective: default)
+[2026-11-19 17:59:00.707] RX I (965) main: COS starting up (boot profile: effective=default, next=default)
+[2026-11-19 17:59:00.707] RX I (1265) display: Display initialized (240x320)
+[2026-11-19 17:59:00.707] RX I (1265) cal_cmd: Registered 'calibrate' command
+[2026-11-19 17:59:00.707] RX I (1265) cal_storage: Loaded calibration for rotation 0
+[2026-11-19 17:59:00.707] RX I (1265) calibration: Calibration applied for rotation 0
+[2026-11-19 17:59:00.707] RX I (1275) light_sensor: Light sensor initialized
+[2026-11-19 17:59:00.707] RX I (1275) rgb_led: No saved color, defaulting to off
+[2026-11-19 17:59:00.707] RX I (1275) rgb_led_cmd: Registered 'led' command
+[2026-11-19 17:59:00.707] RX I (1285) rgb_led: RGB LED initialized (color 0,0,0)
+[2026-11-19 17:59:00.707] RX I (1285) cal_storage: Loaded calibration for rotation 3
+[2026-11-19 17:59:00.707] RX I (1295) calibration: Calibration applied for rotation 3
+[2026-11-19 17:59:00.707] RX I (1295) brightness_cmd: Registered 'screen' command
+[2026-11-19 17:59:00.707] RX I (1305) brightness: Brightness initialized (level=128, mode=manual, rotation=3)
+[2026-11-19 17:59:00.707] RX COS/flash> ﻿# Unified lifecycle smoke: post-boot/default snapshot (with reset/boot capture). No /flash writes.
+[2026-11-19 17:59:00.707] RX Unknown command: ﻿# Unified lifecycle smoke: post-boot/default snapshot (with reset/boot capture). No /flash writes.
+[2026-11-19 17:59:00.707] RX COS/flash> E (1705) berry: /flash/autoexec.be: script must define __cos_entry or run(args)
+[2026-11-19 17:59:00.707] RX E (1705) shell_berry: Could not run /flash/autoexec.be: ESP_ERR_INVALID_ARG
+[2026-11-19 17:59:00.714] TX berry eval "print('=== UNIFIED LIFECYCLE SMOKE START ===')"
+[2026-11-19 17:59:01.357] RX berry eval "print('=== UNIFIED LIFECYCLE SMOKE START ===')"
+[2026-11-19 17:59:01.357] RX === UNIFIED LIFECYCLE SMOKE START ===
+[2026-11-19 17:59:01.357] RX COS/flash> 
+[2026-11-19 17:59:01.358] TX boot_profile
+[2026-11-19 17:59:02.008] RX boot_profile
+[2026-11-19 17:59:02.008] RX Stored:    default
+[2026-11-19 17:59:02.008] RX Effective: default (current boot)
+[2026-11-19 17:59:02.008] RX Next boot: default
+[2026-11-19 17:59:02.008] RX Profiles:  default, low-memory-offline
+[2026-11-19 17:59:02.008] RX Note: changes take effect on next boot/restart.
+[2026-11-19 17:59:02.008] RX COS/flash> 
+[2026-11-19 17:59:02.008] TX services
+[2026-11-19 17:59:02.675] RX services
+[2026-11-19 17:59:02.676] RX [http_server] HTTP server: state=running
+[2026-11-19 17:59:02.676] RX [websocket] WebSocket: state=running clients=0 http_server=yes
+[2026-11-19 17:59:02.676] RX [wifi] Wi-Fi: state=connected connected=yes stored_credentials=yes
+[2026-11-19 17:59:02.676] RX [bluetooth] Bluetooth: state=running enabled=yes enabling=no connected=no
+[2026-11-19 17:59:02.676] RX [network] Network: state=idle diagnostics_worker=no
+[2026-11-19 17:59:02.676] RX [time_sync] Time sync: state=running synced=no
+[2026-11-19 17:59:02.676] RX COS/flash> 
+[2026-11-19 17:59:02.676] TX wifi status
+[2026-11-19 17:59:03.341] RX wifi status
+[2026-11-19 17:59:03.341] RX Service: started
+[2026-11-19 17:59:03.341] RX User enabled (persisted): yes
+[2026-11-19 17:59:03.341] RX Boot profile: allowed
+[2026-11-19 17:59:03.341] RX Effective: enabled
+[2026-11-19 17:59:03.341] RX Mode:    AP+STA
+[2026-11-19 17:59:03.341] RX AP IP:   192.168.4.1
+[2026-11-19 17:59:03.341] RX STA:     mordor
+[2026-11-19 17:59:03.341] RX STA IP:  192.168.0.187
+[2026-11-19 17:59:03.341] RX Signal:  -63 dBm (Very good)
+[2026-11-19 17:59:03.341] RX MAC:     34:5F:45:AA:CF:40
+[2026-11-19 17:59:03.341] RX COS/flash> 
+[2026-11-19 17:59:03.341] TX berry app
+[2026-11-19 17:59:03.977] RX berry app
+[2026-11-19 17:59:03.977] RX none
+[2026-11-19 17:59:03.977] RX COS/flash> 
+[2026-11-19 17:59:03.977] TX mem
+[2026-11-19 17:59:04.689] RX mem
+[2026-11-19 17:59:04.689] RX Free heap:      8632 bytes
+[2026-11-19 17:59:04.689] RX Min free heap:  7672 bytes
+[2026-11-19 17:59:04.689] RX Total heap:     211920 bytes
+[2026-11-19 17:59:04.689] RX Max alloc:      6912 bytes
+[2026-11-19 17:59:04.689] RX Internal free:  8632 bytes
+[2026-11-19 17:59:04.689] RX Internal min:   7672 bytes
+[2026-11-19 17:59:04.689] RX Internal total: 211920 bytes
+[2026-11-19 17:59:04.689] RX Internal max:   6912 bytes
+[2026-11-19 17:59:04.689] RX COS/flash> 
+[2026-11-19 17:59:04.689] TX berry profile
+[2026-11-19 17:59:05.355] RX berry profile
+[2026-11-19 17:59:05.355] RX Berry memory profile (R2/R5/R8)
+[2026-11-19 17:59:05.355] RX   Default heap:  free=7520 min=5864 total=211920 largest=6912
+[2026-11-19 17:59:05.355] RX   Internal heap: free=7520 min=5864 total=211920 largest=6912
+[2026-11-19 17:59:05.355] RX   Berry GC:      initialized=yes managed=14107 bytes step_rate=200
+[2026-11-19 17:59:05.355] RX   Heap snapshot: free=7520 min=5864 largest=6912 internal_free=30308 internal_min=28620 internal_largest=22528
+[2026-11-19 17:59:05.355] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-19 17:59:05.355] RX COS/flash> 
+[2026-11-19 17:59:05.355] TX svc_mem
+[2026-11-19 17:59:06.145] RX svc_mem
+[2026-11-19 17:59:06.145] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-19 17:59:06.145] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [system_heap] System heap
+[2026-11-19 17:59:06.145] RX   default_free: 7520 bytes
+[2026-11-19 17:59:06.145] RX   default_min_free: 3952 bytes
+[2026-11-19 17:59:06.145] RX   default_largest_block: 6912 bytes
+[2026-11-19 17:59:06.145] RX   internal_free: 7520 bytes
+[2026-11-19 17:59:06.145] RX   internal_min_free: 3952 bytes
+[2026-11-19 17:59:06.145] RX   internal_largest_block: 6912 bytes
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-19 17:59:06.145] RX   initialized: true
+[2026-11-19 17:59:06.145] RX   gc_managed: 14107 bytes
+[2026-11-19 17:59:06.145] RX   gc_step_rate: 200
+[2026-11-19 17:59:06.145] RX   heap_free: 7520 bytes
+[2026-11-19 17:59:06.145] RX   heap_min_free: 3952 bytes
+[2026-11-19 17:59:06.145] RX   heap_largest_block: 6912 bytes
+[2026-11-19 17:59:06.145] RX   internal_free: 30308 bytes
+[2026-11-19 17:59:06.145] RX   internal_min_free: 26708 bytes
+[2026-11-19 17:59:06.145] RX   internal_largest_block: 22528 bytes
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-19 17:59:06.145] RX   worker_stack_cfg: 6144 bytes
+[2026-11-19 17:59:06.145] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-19 17:59:06.145] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-19 17:59:06.145] RX   worker_hwm_available: false
+[2026-11-19 17:59:06.145] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [wifi] Wi-Fi (state=connected)
+[2026-11-19 17:59:06.145] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [bluetooth] Bluetooth (state=running)
+[2026-11-19 17:59:06.145] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [text_console] Text console (state=unknown)
+[2026-11-19 17:59:06.145] RX   cols: unknown (not exposed)
+[2026-11-19 17:59:06.145] RX   rows: unknown (not exposed)
+[2026-11-19 17:59:06.145] RX   font_size: unknown (not exposed)
+[2026-11-19 17:59:06.145] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX [shell_input] Shell input (state=ready)
+[2026-11-19 17:59:06.145] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-19 17:59:06.145] RX 
+[2026-11-19 17:59:06.145] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-19 17:59:06.145] RX COS/flash> 
+[2026-11-19 17:59:06.145] TX berry eval "print('=== UNIFIED LIFECYCLE SMOKE END ===')"
+[2026-11-19 17:59:06.793] RX berry eval "print('=== UNIFIED LIFECYCLE SMOKE END ===')"
+[2026-11-19 17:59:06.793] RX === UNIFIED LIFECYCLE SMOKE END ===
+[2026-11-19 17:59:06.793] RX COS/flash> 
+
+# end=2026-11-19 17:59:07.029 status=0

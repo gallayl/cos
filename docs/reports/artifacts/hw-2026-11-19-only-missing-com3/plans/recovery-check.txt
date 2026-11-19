@@ -1,0 +1,6 @@
+﻿berry eval "print('=== POST-RESET RECOVERY CHECK ===')"
+boot_profile
+services
+mem
+logging
+berry eval "print('=== POST-RESET RECOVERY CHECK END ===')"

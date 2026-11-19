@@ -1,0 +1,35 @@
+﻿# Baseline read-only adapted: no /flash writes, use /sdcard where needed. No reboot/profile changes.
+berry eval "print('=== HW BASELINE ADAPTED START ===')"
+boot_profile
+path list
+services
+wifi status
+berry app
+mem
+berry profile
+svc_mem
+uptime
+info
+logging
+light
+/sdcard/scripts/light.be
+berry eval "var m = cos_import('@cos/light'); var l = m.find('default'); print(l.read())"
+time
+time utc
+time epoch
+time foo
+berry eval "var m = cos_import('@cos/system'); var s = m.find('default'); print(s.time_info())"
+ping 8.8.8.8
+ping 127.0.0.1
+nslookup example.com
+# R20/pipe checks adapted to /sdcard (read-only; no file redirection writes)
+berry eval "print('a')" | /sdcard/scripts/pipe_stdin.be | /sdcard/scripts/pipe_stdin.be
+berry eval "print('x')" | /sdcard/scripts/pipe_stdin.be
+berry eval "var i=0; while(i<300) print('01234567890123456789012345678'); i=i+1; end" | /sdcard/scripts/pipe_stdin.be
+# fs/paths (read-only checks)
+berry eval "print(fs.exists('/sdcard/scripts'))"
+berry eval "print(fs.exists('/sdcard/scripts/pipe_stdin.be'))"
+berry eval "print(fs.exists('/sdcard/scripts/light.be'))"
+berry eval "print(fs.exists('/sdcard/scripts/time.be'))"
+berry eval "print(fs.cwd())"
+berry eval "print('=== HW BASELINE ADAPTED END ===')"

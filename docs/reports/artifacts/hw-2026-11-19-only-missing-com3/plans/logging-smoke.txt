@@ -1,0 +1,14 @@
+﻿# Logging smoke (in-session). No reboot in this file. Restores warn at end.
+berry eval "print('=== LOGGING SMOKE START ===')"
+logging
+logging error
+logging
+logging warn
+logging
+logging info
+logging
+logging debug
+logging
+logging warn
+logging
+berry eval "print('=== LOGGING SMOKE END ===')"
