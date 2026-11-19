@@ -1168,21 +1168,34 @@ int http_res_status(bvm *vm)
     be_return(vm);
 }
 
+bool res_is_sent(bvm *vm, int res_idx)
+{
+    bool sent = false;
+    if (map_get_field(vm, res_idx, "_sent"))
+    {
+        if (be_isbool(vm, -1))
+            sent = be_tobool(vm, -1);
+        be_pop(vm, 1);
+    }
+    return sent;
+}
+
 int http_res_set(bvm *vm)
 {
     if (be_top(vm) < 3 || !be_ismapinstance(vm, 1) || !be_isstring(vm, 2) || !be_isstring(vm, 3))
         be_raise(vm, "value_error", "res_set(res, name, value)");
-    be_pushstring(vm, "_headers");
-    if (!be_getindex(vm, 1) || !be_ismapinstance(vm, -1))
+    if (!map_get_field(vm, 1, "_headers") || !be_ismapinstance(vm, -1))
     {
-        be_pop(vm, 1);
+        // map_get_field either pushed nothing or pushed a non-instance value
+        if (be_top(vm) > 3)
+            be_pop(vm, 1);
         be_raise(vm, "runtime_error", "invalid response");
     }
     int hdr_idx = be_top(vm);
     be_pushvalue(vm, 2);
     be_pushvalue(vm, 3);
     be_data_insert(vm, hdr_idx);
-    be_pop(vm, 3);
+    be_pop(vm, 3); // key, value, headers map
     be_pushvalue(vm, 1);
     be_return(vm);
 }
@@ -1199,13 +1212,7 @@ int http_res_send(bvm *vm)
 {
     if (be_top(vm) < 2 || !be_ismapinstance(vm, 1))
         be_raise(vm, "value_error", "res_send(res, body)");
-    // prevent double send
-    be_pushstring(vm, "_sent");
-    bool sent = false;
-    if (be_getindex(vm, 1) && be_isbool(vm, -1))
-        sent = be_tobool(vm, -1);
-    be_pop(vm, 1);
-    if (sent)
+    if (res_is_sent(vm, 1))
     {
         be_pushbool(vm, 0);
         be_return(vm);
@@ -1221,13 +1228,6 @@ int http_res_send(bvm *vm)
     be_pushstring(vm, body ? body : "");
     be_data_insert(vm, 1);
     be_pop(vm, 2);
-    // ensure content-type default
-    be_pushstring(vm, "_headers");
-    if (be_getindex(vm, 1) && be_ismapinstance(vm, -1))
-    {
-        // leave as-is; send_resp adds default if missing
-    }
-    be_pop(vm, 1);
     mark_sent(vm, 1);
     be_pushbool(vm, 1);
     be_return(vm);
@@ -1237,12 +1237,7 @@ int http_res_json(bvm *vm)
 {
     if (be_top(vm) < 2 || !be_ismapinstance(vm, 1))
         be_raise(vm, "value_error", "res_json(res, value)");
-    be_pushstring(vm, "_sent");
-    bool sent = false;
-    if (be_getindex(vm, 1) && be_isbool(vm, -1))
-        sent = be_tobool(vm, -1);
-    be_pop(vm, 1);
-    if (sent)
+    if (res_is_sent(vm, 1))
     {
         be_pushbool(vm, 0);
         be_return(vm);
@@ -1259,16 +1254,15 @@ int http_res_json(bvm *vm)
     be_pop(vm, 2);
     be_pop(vm, 1); // json string
     // set content-type
-    be_pushstring(vm, "_headers");
-    if (be_getindex(vm, 1) && be_ismapinstance(vm, -1))
+    if (map_get_field(vm, 1, "_headers") && be_ismapinstance(vm, -1))
     {
         int h = be_top(vm);
         be_pushstring(vm, "Content-Type");
         be_pushstring(vm, "application/json");
         be_data_insert(vm, h);
-        be_pop(vm, 3);
+        be_pop(vm, 3); // key, value, headers map
     }
-    else
+    else if (be_top(vm) > 2)
     {
         be_pop(vm, 1);
     }
@@ -1284,13 +1278,7 @@ int http_res_end(bvm *vm)
         be_raise(vm, "value_error", "res_end(res[, body])");
     if (argc >= 2 && !be_isnil(vm, 2))
         return http_res_send(vm);
-    // end without body
-    be_pushstring(vm, "_sent");
-    bool sent = false;
-    if (be_getindex(vm, 1) && be_isbool(vm, -1))
-        sent = be_tobool(vm, -1);
-    be_pop(vm, 1);
-    if (sent)
+    if (res_is_sent(vm, 1))
     {
         be_pushbool(vm, 0);
         be_return(vm);
