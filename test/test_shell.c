@@ -218,6 +218,15 @@ static void test_cmd_rm_no_arg(void)
     TEST_ASSERT_EQUAL(1, ret);
 }
 
+static void test_cmd_rm_empty_directory(void)
+{
+    mock_filesystem_add_directory("/flash/emptydir");
+    char *argv[] = {"rm", "emptydir"};
+    int ret = mock_console_run_cmd("rm", 2, argv);
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_FALSE(vfs_exists("/flash/emptydir"));
+}
+
 static void test_cmd_cat_no_arg(void)
 {
     char *argv[] = {"cat"};
@@ -698,6 +707,7 @@ int main(void)
     RUN_TEST(test_cmd_mkdir_no_arg);
     RUN_TEST(test_cmd_rm);
     RUN_TEST(test_cmd_rm_no_arg);
+    RUN_TEST(test_cmd_rm_empty_directory);
     RUN_TEST(test_cmd_cat_no_arg);
     RUN_TEST(test_cmd_touch);
     RUN_TEST(test_cmd_touch_no_arg);
