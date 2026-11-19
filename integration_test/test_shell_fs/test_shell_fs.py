@@ -10,22 +10,18 @@ PROMPT_RE = re.compile(r"COS.+>")
 
 
 def _wait_ready(dut):
-    """Wait for shell boot (test app formats flash and seeds files on startup)."""
+    """Wait for shell prompt."""
     dut.write("\n")
-    dut.expect(PROMPT_RE, timeout=BOOT_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
-# ── Boot & basic operations (grouped to reduce QEMU boots) ────────────
+# ── Boot & basic operations (single boot to reduce QEMU hang exposure) ─
 
 
 @pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_shell_boots(dut):
+def test_shell_fs(dut):
     dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
     dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
-
-
-@pytest.mark.flaky(reruns=3, reruns_delay=5)
-def test_shell_fs_operations(dut):
     _wait_ready(dut)
 
     # pwd default
