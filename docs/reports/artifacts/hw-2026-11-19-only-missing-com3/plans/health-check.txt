@@ -1,0 +1,6 @@
+﻿berry eval "print('=== HEALTH CHECK ===')"
+mem
+services
+uptime
+logging
+berry eval "print('=== HEALTH CHECK END ===')"
