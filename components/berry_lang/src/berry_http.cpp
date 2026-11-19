@@ -18,6 +18,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <sys/types.h>
 #include <utility>
 #include <vector>
 
@@ -310,8 +311,10 @@ esp_err_t send_resp(httpd_req_t *req, int status, const std::map<std::string, st
     if (!has_ct)
         httpd_resp_set_type(req, "text/plain; charset=utf-8");
     if (head_only)
+    {
         return httpd_resp_send(req, nullptr, 0);
-    return httpd_resp_send(req, body.data(), body.size());
+    }
+    return httpd_resp_send(req, body.data(), static_cast<ssize_t>(body.size()));
 }
 
 bool read_body(httpd_req_t *req, std::string &body, bool &too_large, bool &recv_err)
@@ -326,7 +329,9 @@ bool read_body(httpd_req_t *req, std::string &body, bool &too_large, bool &recv_
         return false;
     }
     if (remain == 0)
+    {
         return true;
+    }
     body.resize(remain);
     size_t off = 0;
     while (off < remain)
