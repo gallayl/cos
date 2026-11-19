@@ -13,10 +13,26 @@ extern "C"
 #define WEBSOCKET_MAX_CLIENTS 4
 
     /**
-     * @brief Initialize WebSocket: register /ws endpoint on the HTTP server
-     *        and register the ws shell command.
+     * @brief Initialize/start WebSocket service: register /ws endpoint on the HTTP
+     *        server and register the ws shell command. Idempotent when running.
+     *
+     * Requires the core HTTP server to be running.
      */
     esp_err_t websocket_init(void);
+
+    /** @brief Start the WebSocket service (idempotent). Requires HTTP server running. */
+    esp_err_t websocket_start(void);
+
+    /**
+     * @brief Stop the WebSocket service (best-effort).
+     *
+     * Detaches handlers/listeners, clears clients, and unregisters /ws when possible.
+     * Safe when already stopped.
+     */
+    esp_err_t websocket_stop(void);
+
+    /** @brief True if the WebSocket service is running. */
+    bool websocket_is_running(void);
 
     /** Longest text frame accepted from a client, excluding the trailing newline. */
 #define WEBSOCKET_MAX_TEXT 126

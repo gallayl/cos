@@ -1,6 +1,7 @@
 #include "websocket.h"
 #include "http_server.h"
 
+#include "boot_profile.h"
 #include "esp_console.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -19,9 +20,17 @@ static size_t s_client_count = 0;
 static SemaphoreHandle_t s_mutex = NULL;
 static websocket_text_handler_t s_text_handler = NULL;
 static void *s_text_handler_context = NULL;
+static bool s_running = false;
+static bool s_commands_registered = false;
+
+static void websocket_pre_stop_hook(void);
 
 void websocket_set_text_handler(websocket_text_handler_t handler, void *context)
 {
+    if (s_mutex == NULL)
+    {
+        s_mutex = xSemaphoreCreateMutex();
+    }
     if (s_mutex != NULL)
     {
         xSemaphoreTake(s_mutex, portMAX_DELAY);
@@ -34,11 +43,42 @@ void websocket_set_text_handler(websocket_text_handler_t handler, void *context)
     }
 }
 
-static void remove_client(int fd);
+static void remove_client_locked(int fd)
+{
+    for (size_t i = 0; i < s_client_count; i++)
+    {
+        if (s_clients[i] == fd)
+        {
+            s_clients[i] = s_clients[s_client_count - 1];
+            s_client_count--;
+            break;
+        }
+    }
+}
+
+static void remove_client(int fd)
+{
+    if (s_mutex == NULL)
+    {
+        return;
+    }
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    remove_client_locked(fd);
+    xSemaphoreGive(s_mutex);
+}
 
 static void add_client(int fd)
 {
+    if (s_mutex == NULL)
+    {
+        return;
+    }
     xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (!s_running)
+    {
+        xSemaphoreGive(s_mutex);
+        return;
+    }
     bool known = false;
     for (size_t i = 0; i < s_client_count; i++)
     {
@@ -71,21 +111,6 @@ static void ws_tx_done(esp_err_t err, int sockfd, void *arg)
     free(tx);
 }
 
-static void remove_client(int fd)
-{
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
-    for (size_t i = 0; i < s_client_count; i++)
-    {
-        if (s_clients[i] == fd)
-        {
-            s_clients[i] = s_clients[s_client_count - 1];
-            s_client_count--;
-            break;
-        }
-    }
-    xSemaphoreGive(s_mutex);
-}
-
 void websocket_on_session_close(int sockfd)
 {
     remove_client(sockfd);
@@ -93,16 +118,25 @@ void websocket_on_session_close(int sockfd)
 
 size_t websocket_client_count(void)
 {
+    if (s_mutex == NULL)
+    {
+        return 0;
+    }
     xSemaphoreTake(s_mutex, portMAX_DELAY);
-    size_t count = s_client_count;
+    const size_t count = s_running ? s_client_count : 0;
     xSemaphoreGive(s_mutex);
     return count;
+}
+
+bool websocket_is_running(void)
+{
+    return s_running;
 }
 
 esp_err_t websocket_broadcast(const char *msg, size_t len)
 {
     httpd_handle_t server = http_server_get_handle();
-    if (!server || !msg || len == 0)
+    if (!server || !msg || len == 0 || !s_running)
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -110,6 +144,11 @@ esp_err_t websocket_broadcast(const char *msg, size_t len)
     int fds[WEBSOCKET_MAX_CLIENTS];
     size_t count = 0;
     xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (!s_running)
+    {
+        xSemaphoreGive(s_mutex);
+        return ESP_ERR_INVALID_STATE;
+    }
     count = s_client_count;
     for (size_t i = 0; i < count; i++)
     {
@@ -150,6 +189,11 @@ esp_err_t websocket_broadcast(const char *msg, size_t len)
 
 static esp_err_t ws_handler(httpd_req_t *req)
 {
+    if (!s_running)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
     if (req->method == HTTP_GET)
     {
         if (http_auth_check(req) != ESP_OK)
@@ -214,11 +258,8 @@ static esp_err_t ws_handler(httpd_req_t *req)
     if (s_mutex != NULL)
     {
         xSemaphoreTake(s_mutex, portMAX_DELAY);
-    }
-    handler = s_text_handler;
-    handler_ctx = s_text_handler_context;
-    if (s_mutex != NULL)
-    {
+        handler = s_running ? s_text_handler : NULL;
+        handler_ctx = s_text_handler_context;
         xSemaphoreGive(s_mutex);
     }
 
@@ -244,16 +285,76 @@ static esp_err_t ws_handler(httpd_req_t *req)
 
 static int cmd_ws(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
-    printf("WebSocket clients: %u\n", (unsigned)websocket_client_count());
-    return 0;
+    if (argc == 1 || (argc >= 2 && strcmp(argv[1], "status") == 0))
+    {
+        printf("WebSocket: %s\n", websocket_is_running() ? "running" : "stopped");
+        printf("Clients:   %u\n", (unsigned)websocket_client_count());
+        return 0;
+    }
+
+    if (strcmp(argv[1], "start") == 0)
+    {
+        if (!boot_profile_allows_websocket())
+        {
+            printf("ws: start failed: forced off by boot profile for this boot\n");
+            return 1;
+        }
+        if (!http_server_is_running())
+        {
+            printf("ws: start failed: HTTP server is not running\n");
+            return 1;
+        }
+        if (websocket_is_running())
+        {
+            printf("WebSocket already running\n");
+            return 0;
+        }
+        esp_err_t err = websocket_start();
+        if (err != ESP_OK)
+        {
+            printf("ws: start failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        printf("WebSocket started\n");
+        return 0;
+    }
+
+    if (strcmp(argv[1], "stop") == 0)
+    {
+        if (!websocket_is_running())
+        {
+            printf("WebSocket already stopped\n");
+            return 0;
+        }
+        esp_err_t err = websocket_stop();
+        if (err != ESP_OK)
+        {
+            printf("ws: stop failed (%s)\n", esp_err_to_name(err));
+            return 1;
+        }
+        printf("WebSocket stopped\n");
+        return 0;
+    }
+
+    printf("Usage: ws [status|start|stop]\n");
+    return 1;
 }
 
-esp_err_t websocket_init(void)
+static void websocket_pre_stop_hook(void)
 {
+    /* Best-effort dependency stop: WebSocket must not outlive HTTP server. */
+    (void)websocket_stop();
+}
+
+esp_err_t websocket_start(void)
+{
+    if (s_running)
+    {
+        return ESP_OK;
+    }
+
     httpd_handle_t server = http_server_get_handle();
-    if (!server)
+    if (!http_server_is_running() || server == NULL)
     {
         ESP_LOGE(TAG, "HTTP server not running");
         return ESP_ERR_INVALID_STATE;
@@ -262,13 +363,45 @@ esp_err_t websocket_init(void)
     if (s_mutex == NULL)
     {
         s_mutex = xSemaphoreCreateMutex();
-        if (!s_mutex)
+        if (s_mutex == NULL)
         {
             return ESP_ERR_NO_MEM;
         }
     }
 
+    if (!s_commands_registered)
+    {
+        const esp_console_cmd_t cmd = {
+            .command = "ws",
+            .help = "WebSocket service control (status, start, stop)",
+            .hint = "[status|start|stop]",
+            .func = &cmd_ws,
+        };
+        esp_err_t cmd_err = esp_console_cmd_register(&cmd);
+        if (cmd_err == ESP_OK)
+        {
+            s_commands_registered = true;
+            ESP_LOGI(TAG, "Registered 'ws' command");
+        }
+        else if (cmd_err == ESP_ERR_INVALID_STATE)
+        {
+            s_commands_registered = true;
+            ESP_LOGD(TAG, "'ws' command already registered");
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to register 'ws' command: %s", esp_err_to_name(cmd_err));
+            return cmd_err;
+        }
+    }
+
+    /* Reset runtime client state; configured text handler is preserved and becomes active when running. */
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    s_client_count = 0;
+    xSemaphoreGive(s_mutex);
+
     http_server_set_session_close_cb(websocket_on_session_close);
+    http_server_set_pre_stop_hook(websocket_pre_stop_hook);
 
     const httpd_uri_t ws_uri = {
         .uri = "/ws",
@@ -277,16 +410,58 @@ esp_err_t websocket_init(void)
         .user_ctx = NULL,
         .is_websocket = true,
     };
-    httpd_register_uri_handler(server, &ws_uri);
+    esp_err_t err = httpd_register_uri_handler(server, &ws_uri);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to register /ws handler: %s", esp_err_to_name(err));
+        http_server_clear_session_close_cb_if(websocket_on_session_close);
+        return err;
+    }
 
-    const esp_console_cmd_t cmd = {
-        .command = "ws",
-        .help = "Show WebSocket client count",
-        .hint = NULL,
-        .func = &cmd_ws,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    s_running = true;
+    xSemaphoreGive(s_mutex);
 
     ESP_LOGI(TAG, "WebSocket endpoint registered at /ws");
     return ESP_OK;
+}
+
+esp_err_t websocket_stop(void)
+{
+    if (!s_running)
+    {
+        return ESP_OK;
+    }
+
+    /* Mark stopped first to prevent dispatch/broadcasts using stale state. */
+    if (s_mutex != NULL)
+    {
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+        s_running = false;
+        s_client_count = 0;
+        xSemaphoreGive(s_mutex);
+    }
+    else
+    {
+        s_running = false;
+        s_client_count = 0;
+    }
+
+    httpd_handle_t server = http_server_get_handle();
+    if (server != NULL && http_server_is_running())
+    {
+        /* Best-effort: unregister endpoint so new upgrades/frames are not accepted. */
+        (void)httpd_unregister_uri_handler(server, "/ws", HTTP_GET);
+    }
+
+    http_server_clear_session_close_cb_if(websocket_on_session_close);
+    /* Pre-stop hook may remain registered; it is harmless (idempotent stop). */
+
+    ESP_LOGI(TAG, "WebSocket stopped");
+    return ESP_OK;
+}
+
+esp_err_t websocket_init(void)
+{
+    return websocket_start();
 }

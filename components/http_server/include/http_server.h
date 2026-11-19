@@ -15,8 +15,21 @@ extern "C"
     /** @brief Initialize and start the HTTP server. Registers API endpoints and shell commands. */
     esp_err_t http_server_init(void);
 
-    /** @brief Stop the HTTP server. */
+    /**
+     * @brief Start the core HTTP server service (idempotent).
+     *
+     * Registers/starts httpd, endpoints, and the server command if needed.
+     * Safe to call when already running.
+     *
+     * @return ESP_OK on success or if already running.
+     */
+    esp_err_t http_server_start(void);
+
+    /** @brief Stop the HTTP server (best-effort). Safe when already stopped. */
     esp_err_t http_server_stop(void);
+
+    /** @brief True if the HTTP server is running. */
+    bool http_server_is_running(void);
 
     /**
      * @brief Get the httpd handle for endpoint registration by other components.
@@ -104,9 +117,15 @@ extern "C"
      * @brief Register a session-close callback.
      *
      * Used by components that maintain per-socket state (e.g. WebSocket).
-     * Pass NULL to clear. Must be set before or is effective for future closes.
+     * Pass NULL to clear.
      */
     void http_server_set_session_close_cb(http_session_close_cb_t cb);
+
+    /** @brief Clear the session-close callback only if it matches cb. */
+    void http_server_clear_session_close_cb_if(http_session_close_cb_t cb);
+
+    /** @brief Register a best-effort hook run before HTTP server teardown (e.g. stop dependent WebSocket). */
+    void http_server_set_pre_stop_hook(void (*hook)(void));
 
 #ifdef __cplusplus
 }

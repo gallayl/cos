@@ -189,12 +189,22 @@ static esp_err_t svc_init_time_sync(service_descriptor_t *svc)
 static esp_err_t svc_init_http_server(service_descriptor_t *svc)
 {
     (void)svc;
-    return http_server_init();
+    return http_server_start();
+}
+static esp_err_t svc_stop_http_server(service_descriptor_t *svc)
+{
+    (void)svc;
+    return http_server_stop();
 }
 static esp_err_t svc_init_websocket(service_descriptor_t *svc)
 {
     (void)svc;
-    return websocket_init();
+    return websocket_start();
+}
+static esp_err_t svc_stop_websocket(service_descriptor_t *svc)
+{
+    (void)svc;
+    return websocket_stop();
 }
 static esp_err_t svc_init_system(service_descriptor_t *svc)
 {
@@ -302,14 +312,16 @@ void app_main(void)
         {.id = "http_server",
          .name = "HTTP server",
          .init = svc_init_http_server,
-         .capabilities = SERVICE_CAP_CAN_START,
+         .stop = svc_stop_http_server,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_CAN_STOP,
          .enabled = true},
         {.id = "websocket",
          .name = "WebSocket",
          .depends_on = WS_DEPS,
          .depends_on_count = 1,
          .init = svc_init_websocket,
-         .capabilities = SERVICE_CAP_CAN_START,
+         .stop = svc_stop_websocket,
+         .capabilities = SERVICE_CAP_CAN_START | SERVICE_CAP_CAN_STOP,
          .enabled = true},
         {.id = "system",
          .name = "System",
@@ -386,13 +398,18 @@ void app_main(void)
         text_console_set_output_listener(broadcast_console_output, NULL);
     }
 
-    if (ws_ok && shell_ok) // NOLINT(readability-implicit-bool-conversion)
+    if (shell_ok) // NOLINT(readability-implicit-bool-conversion)
     {
+        /* Configure handler once; dispatch is active only while WebSocket service is running. */
         websocket_set_text_handler(submit_console_text, NULL);
+        if (!ws_ok)
+        {
+            ESP_LOGI(TAG, "WebSocket text input will attach when WebSocket service starts");
+        }
     }
-    else if (ws_ok) // NOLINT(readability-implicit-bool-conversion)
+    else
     {
-        ESP_LOGW(TAG, "WebSocket text input disabled because shell is unavailable");
+        ESP_LOGW(TAG, "WebSocket text input unavailable because shell is not running");
     }
 
     if (!boot_profile_allows_bluetooth_stack() && bt_ok) // NOLINT(readability-implicit-bool-conversion)

@@ -290,15 +290,29 @@ static void collect_wifi(service_diag_wifi_snapshot_t *wifi)
 
 static void collect_http_server(service_diag_http_server_snapshot_t *http_server)
 {
-    http_server->state = (http_server_get_handle() != NULL) ? SERVICE_DIAG_STATE_RUNNING : SERVICE_DIAG_STATE_STOPPED;
+    http_server->state = http_server_is_running() ? SERVICE_DIAG_STATE_RUNNING : SERVICE_DIAG_STATE_STOPPED;
 }
 
 static void collect_websocket(service_diag_websocket_snapshot_t *websocket)
 {
-    const bool http_running = http_server_get_handle() != NULL;
+    const bool http_running = http_server_is_running();
+    const bool ws_running = websocket_is_running();
     websocket->clients = metric_u32_ok((uint32_t)websocket_client_count());
     websocket->http_server_available = metric_bool_ok(http_running);
-    websocket->state = http_running ? SERVICE_DIAG_STATE_RUNNING : SERVICE_DIAG_STATE_UNSUPPORTED;
+
+    if (ws_running)
+    {
+        websocket->state = SERVICE_DIAG_STATE_RUNNING;
+    }
+    else if (!http_running)
+    {
+        /* WebSocket service depends on HTTP server availability. */
+        websocket->state = SERVICE_DIAG_STATE_UNSUPPORTED;
+    }
+    else
+    {
+        websocket->state = SERVICE_DIAG_STATE_STOPPED;
+    }
 }
 
 static void collect_network(service_diag_network_coarse_snapshot_t *network)
