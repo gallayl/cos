@@ -60,7 +60,7 @@ Repository audit (2026-11-16, focus: unified service infrastructure and memory c
 
 ### 2026-11-19 logging review follow-ups
 
-- [logging-levels-and-audit](./ready/logging-levels-and-audit.md) — clarify ESP-IDF log level model (persisted global via `text_console`, NVS `console/log_level`), expose `logging` levels including `debug` (no `verbose` now), default WARN on reset/invalid, output terminology “UART/serial output and on-screen text console (mirrored stream)”, and apply a logging policy (demote/remove noisy app logs) with vendored `esp_littlefs` VERBOSE cross-linked to `esp-littlefs-stability-hardening`. Status: **ready (approved, 2026-11-19)**.
+- [logging-levels-and-audit](./done/logging-levels-and-audit.md) — clarify ESP-IDF log level model (persisted global via `text_console`, NVS `console/log_level`), expose `logging` levels including `debug` (no `verbose` now), default WARN on reset/invalid, output terminology “UART/serial output and on-screen text console (mirrored stream)”, and apply a logging policy (demote/remove noisy app logs) with vendored `esp_littlefs` VERBOSE cross-linked to `esp-littlefs-stability-hardening`. **Done (delivered 2026-11-19, PR [#93](https://github.com/gallayl/cos/pull/93) merged `e038512`, CI run [44508714243](https://github.com/gallayl/cos/actions/runs/44508714243) green; pending human hardware/manual validation evidence or explicit waiver per PR comment).**
 
 ### Ready queue implementation order / blockers (2026-11-16 audit follow-ups)
 
