@@ -128,8 +128,12 @@ bool http_static_is_spa(void)
     return s_spa;
 }
 
-static bool is_api_route(const char *uri)
+bool http_static_is_api_route(const char *uri)
 {
+    if (uri == NULL)
+    {
+        return false;
+    }
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     return (strncmp(uri, "/api/", 5) == 0) ||
            (strncmp(uri, "/ws", 3) == 0); // NOLINT(readability-implicit-bool-conversion)
@@ -190,7 +194,7 @@ esp_err_t http_static_handler(httpd_req_t *req, httpd_err_code_t err_code)
 
     const char *uri = req->uri;
 
-    if (is_api_route(uri))
+    if (http_static_is_api_route(uri))
     {
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Not found");
         return ESP_OK;
