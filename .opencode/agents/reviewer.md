@@ -87,6 +87,87 @@ permissions:
     resource: "git config --list*"
     effect: allow
   - action: shell
+    resource: "git --no-pager status*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager diff*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager show*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager log*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager blame*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager ls-files*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager rev-parse*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager grep*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager shortlog*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager describe*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager show-ref*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager cat-file*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager name-rev*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager merge-base*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager remote -v*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager remote show*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager remote get-url*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch --show-current*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch -a*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch -r*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch -v*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch --list*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch --contains*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch --merged*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager branch --no-merged*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager config --get*"
+    effect: allow
+  - action: shell
+    resource: "git --no-pager config --list*"
+    effect: allow
+  - action: shell
     resource: "*"
     effect: ask
 ---
