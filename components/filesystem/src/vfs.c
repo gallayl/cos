@@ -324,9 +324,9 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
         return err;
     }
 
-    ESP_LOGI(TAG, "vfs_write_file: fopen %s", real_path);
+    ESP_LOGD(TAG, "vfs_write_file: fopen %s", real_path);
     FILE *f = VFS_FOPEN(real_path, "wb");
-    ESP_LOGI(TAG, "vfs_write_file: fopen=%p", (void *)f);
+    ESP_LOGD(TAG, "vfs_write_file: fopen=%p", (void *)f);
     if (f == NULL)
     {
         return ESP_FAIL;
@@ -335,7 +335,7 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
     if (len > 0)
     {
         size_t written = VFS_FWRITE(data, 1, len, f);
-        ESP_LOGI(TAG, "vfs_write_file: fwrite=%u/%u", (unsigned)written, (unsigned)len);
+        ESP_LOGD(TAG, "vfs_write_file: fwrite=%u/%u", (unsigned)written, (unsigned)len);
         if (written != len)
         {
             VFS_FCLOSE(f);
@@ -344,7 +344,8 @@ esp_err_t vfs_write_file(const char *path, const char *data, size_t len)
     }
 
     int rc = VFS_FCLOSE(f);
-    ESP_LOGI(TAG, "vfs_write_file: fclose=%d", rc);
+    ESP_LOGD(TAG, "vfs_write_file: fclose=%d", rc);
+    (void)rc;
     return ESP_OK;
 }
 
@@ -492,10 +493,10 @@ esp_err_t vfs_mkdir(const char *path)
         return err;
     }
 
-    ESP_LOGI(TAG, "vfs_mkdir: %s", real_path);
+    ESP_LOGD(TAG, "vfs_mkdir: %s", real_path);
     if (VFS_MKDIR(real_path, 0775) == 0)
     {
-        ESP_LOGI(TAG, "vfs_mkdir: ok %s", real_path);
+        ESP_LOGD(TAG, "vfs_mkdir: ok %s", real_path);
         return ESP_OK;
     }
 
