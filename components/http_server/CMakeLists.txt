@@ -11,5 +11,5 @@ idf_component_register(
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES esp_http_server console nvs_flash mbedtls
-    PRIV_REQUIRES filesystem
+    PRIV_REQUIRES filesystem boot_profile
 )

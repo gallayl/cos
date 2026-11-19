@@ -3,7 +3,14 @@
 
 #include <string.h>
 
-void setUp(void) {}
+void mock_set_http_server_running(bool running);
+void mock_set_websocket_running(bool running);
+
+void setUp(void)
+{
+    mock_set_http_server_running(false);
+    mock_set_websocket_running(false);
+}
 void tearDown(void) {}
 
 static void test_canonical_service_ids_and_names(void)
@@ -80,6 +87,28 @@ static void test_collect_populates_snapshot(void)
     TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_READY, snap.shell_input.state);
 }
 
+static void test_collect_reports_http_websocket_runtime_states(void)
+{
+    service_diag_snapshot_t snap;
+
+    mock_set_http_server_running(true);
+    mock_set_websocket_running(false);
+    TEST_ASSERT_EQUAL(ESP_OK, service_diag_collect(&snap));
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_RUNNING, snap.http_server.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_STOPPED, snap.websocket.state);
+
+    mock_set_websocket_running(true);
+    TEST_ASSERT_EQUAL(ESP_OK, service_diag_collect(&snap));
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_RUNNING, snap.http_server.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_RUNNING, snap.websocket.state);
+
+    mock_set_http_server_running(false);
+    mock_set_websocket_running(false);
+    TEST_ASSERT_EQUAL(ESP_OK, service_diag_collect(&snap));
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_STOPPED, snap.http_server.state);
+    TEST_ASSERT_EQUAL(SERVICE_DIAG_STATE_UNSUPPORTED, snap.websocket.state);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -87,5 +116,6 @@ int main(void)
     RUN_TEST(test_canonical_states_and_metric_statuses);
     RUN_TEST(test_collect_rejects_null);
     RUN_TEST(test_collect_populates_snapshot);
+    RUN_TEST(test_collect_reports_http_websocket_runtime_states);
     return UNITY_END();
 }
