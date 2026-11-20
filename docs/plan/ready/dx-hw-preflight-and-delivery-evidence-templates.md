@@ -53,13 +53,13 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 
 ## Acceptance criteria / definition of done
 
-- [ ] `docs/reports/templates/hw-validation-preflight.md` created with required baseline preflight fields/sections and closure/context notes consistent with this spec.
-- [ ] `docs/reports/templates/hw-validation-session.md` created with batched-session metadata, per-item outcome mapping, evidence path fields, and explicit waiver fields (rationale, approver, context, date) supporting per-item traceability.
-- [ ] `docs/reports/templates/delivery-evidence-checklist.md` created with required local-check/CI/HW-manual-status/pending-human-actions/queue-finalization fields consistent with `docs/README.md` and `AGENTS.md`.
-- [ ] Minimal cross-links added in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md` to the new templates without contradicting current process/gates.
-- [ ] Ownership/cadence/waiver guidance and success-metric/baseline statements in this item are reflected in template/doc content as applicable (no open questions).
-- [ ] `make format-check`, `make test`, and `make docs-check` run and reported with exact pass/fail outcomes for the committed docs-only change.
-- [ ] Cross-links updated as applicable (`dx-delivery-acceleration-bottlenecks.md`, consolidated plan if applicable, this item). On delivery, move to `docs/plan/done/` with evidence per `docs/README.md` (merge remains a human action).
+- [x] `docs/reports/templates/hw-validation-preflight.md` created with required baseline preflight fields/sections and closure/context notes consistent with this spec.
+- [x] `docs/reports/templates/hw-validation-session.md` created with batched-session metadata, per-item outcome mapping, evidence path fields, and explicit waiver fields (rationale, approver, context, date) supporting per-item traceability.
+- [x] `docs/reports/templates/delivery-evidence-checklist.md` created with required local-check/CI/HW-manual-status/pending-human-actions/queue-finalization fields consistent with `docs/README.md` and `AGENTS.md`.
+- [x] Minimal cross-links added in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md` to the new templates without contradicting current process/gates.
+- [x] Ownership/cadence/waiver guidance and success-metric/baseline statements in this item are reflected in template/doc content as applicable (no open questions).
+- [x] `make format-check`, `make test`, and `make docs-check` run and reported with exact pass/fail outcomes for the committed docs-only change (see Progress / evidence).
+- [ ] Cross-links updated as applicable (`dx-delivery-acceleration-bottlenecks.md`, consolidated plan if applicable, this item). On delivery, move to `docs/plan/done/` with evidence per `docs/README.md` (merge remains a human action). Pending: PR delivery, required PR CI green per scope, then finalize/move to `docs/plan/done/` with evidence.
 
 ## Validation plan
 
@@ -77,7 +77,7 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 - **Update (minimal cross-links/state):**
   - `docs/README.md`
   - `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`
-  - `docs/plan/needs-clarification/dx-delivery-acceleration-bottlenecks.md` (umbrella cross-link/status updates)
+  - `docs/plan/needs-clarification/dx-delivery-acceleration-bottlenecks.md` (umbrella cross-link/status updates, if applicable)
   - `docs/plan/ready/dx-hw-preflight-and-delivery-evidence-templates.md` (this item)
   - `docs/plan/consolidated-improvement-plan.md` only if adding/updating a tracker cross-link is deemed applicable
 - **Must not change:** CI workflows, scripts, devcontainer, firmware/frontend/runtime code, or other ready-queue items.
@@ -101,3 +101,4 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 - 2026-11-20: Created from umbrella `dx-delivery-acceleration-bottlenecks.md` after user decisions (v1 = HW validation + process streamlining; split; drive first slice to Ready; combined docs-only core templates; per-item evidence + explicit human waiver). Draft spec added; open questions recorded.
 - 2026-11-20 (clarify-feature, round 3, user): confirmed ID/title/paths/cross-links, recommended ownership/cadence/waiver guidance, adoption/compliance baseline+targets (quantitative targets deferred), and recommended content scope. Spec completed with all Ready-contract fields satisfied and **Open questions: none**.
 - 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark ready and move to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates (merge remains human). No implementation/checks run yet.
+- 2026-11-20 (implementation): implemented docs-only scope on branch `docs/dx-hw-delivery-evidence-templates` from healthy base `main@5c86e2b` (CI run 44721409172 success). Created `docs/reports/templates/hw-validation-preflight.md`, `docs/reports/templates/hw-validation-session.md`, and `docs/reports/templates/delivery-evidence-checklist.md`; added minimal cross-links in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`. Consolidated plan/umbrella cross-links reviewed (no additional updates deemed necessary at this step). Manual template review: required fields/closure policy/per-item evidence+waiver guidance present; references authoritative docs (`AGENTS.md`, `docs/README.md`, HW inventory/reports, skills); no scripts/CI/devcontainer/runtime changes. Optional dry-run against a real/retrospective example: **not performed** (no new device evidence claimed). Local checks (repo root, executed): `make format-check` — **pass** (exit 0); `make test` — **pass** (exit 0; CTest 31/31 passed, Python `scripts` unittest 3/3 OK); `make docs-check` — **pass** (exit 0). PR delivery/CI and final move to `docs/plan/done/` pending.
