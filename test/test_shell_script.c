@@ -758,6 +758,51 @@ static void test_configured_path_wins_over_default_flash_scripts(void)
     TEST_ASSERT_EQUAL_STRING("/flash/custom/tool.be", mock_berry_last_path());
 }
 
+static void test_which_resolves_bare_name_with_script_search_order(void)
+{
+    mock_filesystem_add_directory("/flash/scripts");
+    mock_filesystem_add_directory("/flash/custom");
+    mock_filesystem_add_file("/flash/scripts/tool.be");
+    mock_filesystem_add_file("/flash/custom/tool.be");
+
+    char *add[] = {"path", "add", "/flash/custom"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("path", 3, add));
+
+    mock_berry_reset();
+    char *which[] = {"which", "tool"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("which", 2, which));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+}
+
+static void test_which_resolves_explicit_path_without_executing(void)
+{
+    mock_filesystem_add_directory("/flash/tools");
+    mock_filesystem_add_file("/flash/tools/ping.be");
+
+    mock_berry_reset();
+    char *which[] = {"which", "tools/ping"};
+    TEST_ASSERT_EQUAL(0, mock_console_run_cmd("which", 2, which));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+}
+
+static void test_which_missing_reports_not_found_without_executing(void)
+{
+    mock_filesystem_add_directory("/flash/scripts");
+    mock_berry_reset();
+
+    char *which_bare[] = {"which", "nosuch"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("which", 2, which_bare));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+
+    char *which_explicit[] = {"which", "./missing.be"};
+    TEST_ASSERT_EQUAL(1, mock_console_run_cmd("which", 2, which_explicit));
+    TEST_ASSERT_EQUAL_STRING("", mock_berry_last_path());
+    TEST_ASSERT_EQUAL(0, mock_berry_run_call_count());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -803,5 +848,8 @@ int main(void)
     RUN_TEST(test_dispatch_handles_stderr_fd_redirection_runtime_path);
     RUN_TEST(test_bare_command_searches_default_flash_scripts);
     RUN_TEST(test_configured_path_wins_over_default_flash_scripts);
+    RUN_TEST(test_which_resolves_bare_name_with_script_search_order);
+    RUN_TEST(test_which_resolves_explicit_path_without_executing);
+    RUN_TEST(test_which_missing_reports_not_found_without_executing);
     return UNITY_END();
 }

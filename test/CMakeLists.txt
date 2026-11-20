@@ -131,6 +131,7 @@ add_library(shell_logic STATIC
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
     ${COMPONENT_DIR}/components/shell/src/shell_script.c
     ${COMPONENT_DIR}/components/shell/src/shell_redirection.c
+    ${COMPONENT_DIR}/components/shell/src/shell_keyparse.c
     ${COMPONENT_DIR}/components/shell/src/shell_fs_cmds.c
     ${COMPONENT_DIR}/components/shell/src/shell_completion.c
     ${COMPONENT_DIR}/components/shell/src/shell_sd_cmds.c
@@ -487,6 +488,7 @@ add_test(NAME test_text_buffer COMMAND test_text_buffer)
 add_library(shell_input_deps STATIC
     mocks/mock_freertos_extra.c
     ${COMPONENT_DIR}/components/shell/src/shell_alias.c
+    ${COMPONENT_DIR}/components/shell/src/shell_keyparse.c
 )
 target_include_directories(shell_input_deps PUBLIC
     mocks
