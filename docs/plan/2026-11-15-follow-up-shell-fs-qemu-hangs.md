@@ -3,7 +3,7 @@
 **Status:** Open — revalidation in progress (tests re-enabled in branch/PR for CI evidence; historical workaround context below)  
 **Created:** 2026-11-15  
 **Updated:** 2026-11-20  
-**Branch/PR context:** `feat/r14-ts-diags` / PR #22 (historical); revalidation on `fix/shell-fs-qemu-hangs-revalidate` / PR TBD  
+**Branch/PR context:** `feat/r14-ts-diags` / PR #22 (historical); revalidation on `fix/shell-fs-qemu-hangs-revalidate` / PR [#108](https://github.com/gallayl/cos/pull/108)  
 **Related:** [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md), [2026-11-14-unit-test-coverage-and-integration-rebalance.md](2026-11-14-unit-test-coverage-and-integration-rebalance.md), [../ideas/2026-11-10-refactoring-and-testability.md](../ideas/2026-11-10-refactoring-and-testability.md), [ready/unblock-shell-fs-pipeline-and-qemu-hangs.md](ready/unblock-shell-fs-pipeline-and-qemu-hangs.md)
 
 ## Summary
@@ -49,6 +49,7 @@ Disabled in `integration_test/test_shell_fs/test_shell_fs.py` (pending re-enable
 
 - Baseline: `origin/main@5d8b343` (main CI [44744734342](https://github.com/gallayl/cos/actions/runs/44744734342) success). Branch: `fix/shell-fs-qemu-hangs-revalidate`.
 - Change: re-enabled all skipped `shell_fs` tests in `integration_test/test_shell_fs/test_shell_fs.py` (no local ESP-IDF v6.1/QEMU).
+- PR: [#108](https://github.com/gallayl/cos/pull/108) (draft), head commit `cc12fe0` initially.
 - CI: pending (record run/job IDs, pass/fail, and log evidence here).
 
 ## Suggested next investigations
