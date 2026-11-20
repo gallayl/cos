@@ -44,6 +44,7 @@ Clarify and deliver a small, practical improvement around the deferred shell lin
 ## Risks / constraints
 - ESP32 memory/stack and shell input complexity; key-parse extraction must not change timing/behavior.
 - Must preserve resolver contract (order, `.be` handling, explicit vs non-explicit, handled-error semantics). Error string changes only where approved in this item (improved messages mentioning searched locations) and must not produce misleading `Unknown command` for handled cases.
+- **Shell-surface overlap:** `unblock-shell-fs-pipeline-and-qemu-hangs` (ready) may touch shell/VFS/FS/test areas for evidence-backed remediation; coordinate changes/rebase when editing shared shell files to avoid regressions or merge conflicts.
 - No new dependencies required by design; avoid scope creep into listing/copy helpers.
 
 ## Open questions
@@ -53,3 +54,4 @@ Clarify and deliver a small, practical improvement around the deferred shell lin
 - 2026-11-18: created from analysis of done/ready features and R20 dangling backlog follow-ups (proposed as new feature idea 1).
 - 2026-11-18 (clarify-feature): reviewed `components/shell/src/shell_input.c/.h`, `shell_script.c/.h`, R20 backlog and R22 plan context. User choices recorded (1A–4A). Open questions resolved.
 - 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.
+- 2026-11-20 (Ponytail Audit, plan-conflict resolution, doc-only): added coordination/risk note for shell-surface overlap with `unblock-shell-fs-pipeline-and-qemu-hangs` (ready). No implementation/validation performed.

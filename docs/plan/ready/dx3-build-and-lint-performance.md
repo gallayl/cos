@@ -65,6 +65,7 @@ First DX3 slice (**DX3a**): integrate/validate compiler caching (ccache / `IDF_C
 - **Cache correctness/invalidation:** stale cache entries if keys omit relevant inputs can cause confusing build/lint behavior; keys must include relevant toolchain/config/source/workflow inputs and be maintainable.
 - **Cache effectiveness/limits:** GitHub Actions cache size/eviction and runner image differences may reduce hit rates; timing improvements may vary and are “when feasible” to measure.
 - **No coverage/signal regression:** caching must not skip or alter required checks, diagnostics, or failure conditions.
+- **Workflow overlap/merge conflicts:** `unblock-shell-fs-pipeline-and-qemu-hangs` (ready) may also require evidence-backed changes to `.github/workflows/integration-test.yml` and/or integration/QEMU config; coordinate sequencing/rebase to avoid conflicting workflow edits while preserving required checks and coverage.
 - **Environment differences:** local ccache behavior and paths differ across Windows/Linux/macOS; docs must state practical/local notes and limitations.
 - **Multi-platform claims:** do not claim cross-platform validation unless executed; mark unvalidated where applicable.
 
@@ -74,4 +75,5 @@ First DX3 slice (**DX3a**): integrate/validate compiler caching (ccache / `IDF_C
 ## Progress / evidence
 - 2026-11-20: created from DX umbrella/source plan/DX1 report after user selected DX3 as next DX slice. Clarification started.
 - 2026-11-20 (clarify-feature, user): selected **DX3a (CI/repo compiler caching integration)** as first slice; recorded future changed-files lint policy preference as **advisory local-only** (out of DX3a scope); set evidence baseline (CI/workflow evidence + local docs/commands; timing deltas when feasible). Accepted suggested DX3a defaults (scope, cache design, docs, DoD/evidence, validation plan, areas/files, dependencies/risks). **Open questions cleared; spec complete.**
-- 2026-11-20 (clarify-feature, user approval): explicit approval recorded to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human. No implementation started.
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human. No implementation started.
+- 2026-11-20 (Ponytail Audit, plan-conflict resolution, doc-only): added coordination/risk note for possible `.github/workflows/integration-test.yml` overlap with `unblock-shell-fs-pipeline-and-qemu-hangs` (ready). No implementation/validation performed.
