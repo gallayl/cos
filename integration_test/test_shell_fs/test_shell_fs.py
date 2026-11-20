@@ -18,9 +18,6 @@ def _wait_ready(dut):
 # ── Boot & basic operations (single boot to reduce QEMU hang exposure) ─
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_shell_fs(dut):
     dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
     dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
@@ -134,13 +131,9 @@ def test_shell_fs(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
-# ── Skipped: QEMU esp_partition_read hang in LittleFS metadata scans ──
-# Re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md).
+# ── Additional FS/shell command coverage (re-enabled after QEMU hang revalidation) ──
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_autocomplete_command_and_path(dut):
     _wait_ready(dut)
     dut.write("ber\t\n")
@@ -149,9 +142,6 @@ def test_autocomplete_command_and_path(dut):
     dut.expect("Hello, COS!", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_shell_alias_lifecycle(dut):
     _wait_ready(dut)
     dut.write("alias ll ls\n")
@@ -165,9 +155,6 @@ def test_shell_alias_lifecycle(dut):
     dut.expect("Unknown command: ll", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_berry_filesystem_and_network_apis(dut):
     _wait_ready(dut)
     dut.write("berry run /flash/berry_api.be\n")
@@ -197,9 +184,6 @@ def test_berry_filesystem_and_network_apis(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_nested_mkdir(dut):
     _wait_ready(dut)
     dut.write("mkdir /flash/outer\n")
@@ -212,9 +196,6 @@ def test_nested_mkdir(dut):
     dut.expect("/flash/outer/inner", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_cp_copies_without_overwriting(dut):
     _wait_ready(dut)
     dut.write("cp /flash/hello.txt /flash/copied.txt\n")
@@ -231,9 +212,6 @@ def test_cp_copies_without_overwriting(dut):
     dut.expect("already exists", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_cp_rejects_directory_copy(dut):
     _wait_ready(dut)
     dut.write("mkdir /flash/copy-source-dir\n")
@@ -242,9 +220,6 @@ def test_cp_rejects_directory_copy(dut):
     dut.expect("directory copies are not supported", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_mv_moves_file(dut):
     _wait_ready(dut)
     dut.write("touch /flash/move-source.txt\n")
@@ -258,9 +233,6 @@ def test_mv_moves_file(dut):
     dut.expect("cannot read", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_rmdir_only_removes_empty_directories(dut):
     _wait_ready(dut)
     dut.write("mkdir /flash/empty-to-remove\n")
@@ -277,9 +249,6 @@ def test_rmdir_only_removes_empty_directories(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_cd_relative(dut):
     _wait_ready(dut)
     dut.write("mkdir /flash/reldir\n")
@@ -292,9 +261,6 @@ def test_cd_relative(dut):
     dut.expect("/flash/reldir", timeout=CMD_TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_rm_file(dut):
     _wait_ready(dut)
     dut.write("touch /flash/deleteme.txt\n")
@@ -305,9 +271,6 @@ def test_rm_file(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT, not_matching=["deleteme.txt"])
 
 
-@pytest.mark.skip(
-    reason="TODO(shell-fs-qemu): QEMU esp_partition_read hang in LittleFS metadata scans; re-enable when mitigated (docs/plan/2026-11-15-follow-up-shell-fs-qemu-hangs.md)."
-)
 def test_alias_del(dut):
     _wait_ready(dut)
     dut.write("touch /flash/delalias.txt\n")

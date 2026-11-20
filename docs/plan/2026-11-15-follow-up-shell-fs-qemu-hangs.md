@@ -1,13 +1,16 @@
 # Follow-up: re-enable `shell_fs` integration tests (QEMU LittleFS flash-read hangs)
 
-**Status:** Open (merge-unblock workaround applied)  
+**Status:** Open — revalidation in progress (tests re-enabled in branch/PR for CI evidence; historical workaround context below)  
 **Created:** 2026-11-15  
-**Branch/PR context:** `feat/r14-ts-diags` / PR #22  
-**Related:** [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md), [2026-11-14-unit-test-coverage-and-integration-rebalance.md](2026-11-14-unit-test-coverage-and-integration-rebalance.md), [../ideas/2026-11-10-refactoring-and-testability.md](../ideas/2026-11-10-refactoring-and-testability.md)
+**Updated:** 2026-11-20  
+**Branch/PR context:** `feat/r14-ts-diags` / PR #22 (historical); revalidation on `fix/shell-fs-qemu-hangs-revalidate` / PR TBD  
+**Related:** [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md), [2026-11-14-unit-test-coverage-and-integration-rebalance.md](2026-11-14-unit-test-coverage-and-integration-rebalance.md), [../ideas/2026-11-10-refactoring-and-testability.md](../ideas/2026-11-10-refactoring-and-testability.md), [ready/unblock-shell-fs-pipeline-and-qemu-hangs.md](ready/unblock-shell-fs-pipeline-and-qemu-hangs.md)
 
 ## Summary
 
-To unblock PR #22 merging, a subset of `integration_test/test_shell_fs/test_shell_fs.py` cases known to hang under QEMU were temporarily disabled (commented out with TODOs). Other integration suites and non-`shell_fs` coverage remain green on CI; host/unit coverage for shell FS/VFS behavior has been expanded as part of the unblock effort.
+To unblock PR #22 merging, a subset of `integration_test/test_shell_fs/test_shell_fs.py` cases known to hang under QEMU were temporarily disabled (skip/TODO markers). Other integration suites and non-`shell_fs` coverage remained green on CI at the time; host/unit coverage for shell FS/VFS behavior was expanded as part of the unblock effort.
+
+**2026-11-20 revalidation:** as part of the ready item, the 11 historically listed tests and the combined `test_shell_fs` case were re-enabled (skip markers removed) to obtain current CI evidence under ESP-IDF v6.1 + bundled QEMU. Outcome/CI run IDs pending; update this section with resolution or remediation evidence when available.
 
 ## Current disabled tests
 
@@ -37,10 +40,16 @@ Disabled in `integration_test/test_shell_fs/test_shell_fs.py` (pending re-enable
 
 ## Re-enable criteria
 
-- [ ] Identify/fix or reliably mitigate the QEMU `esp_partition_read` hang during LittleFS metadata operations triggered by `shell_fs` workload (evidence-backed).
-- [ ] Restore disabled tests in `integration_test/test_shell_fs/test_shell_fs.py` and remove TODO markers.
+- [ ] Identify/fix or reliably mitigate the QEMU `esp_partition_read` hang during LittleFS metadata operations triggered by `shell_fs` workload (evidence-backed), **or** document evidence that the issue is no longer reproduced in current CI.
+- [~] Restore disabled tests in `integration_test/test_shell_fs/test_shell_fs.py` and remove TODO markers. **2026-11-20:** removed 12 skip/TODO markers (combined `test_shell_fs` + 11 historically listed tests) in revalidation branch/PR; pending CI confirmation.
 - [ ] `shell_fs` integration suite passes consistently on CI (no command-time hangs/timeouts) alongside other integration suites.
 - [ ] Update [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md) with resolution evidence and mark pipeline green.
+
+## 2026-11-20 revalidation log (CI-authoritative)
+
+- Baseline: `origin/main@5d8b343` (main CI [44744734342](https://github.com/gallayl/cos/actions/runs/44744734342) success). Branch: `fix/shell-fs-qemu-hangs-revalidate`.
+- Change: re-enabled all skipped `shell_fs` tests in `integration_test/test_shell_fs/test_shell_fs.py` (no local ESP-IDF v6.1/QEMU).
+- CI: pending (record run/job IDs, pass/fail, and log evidence here).
 
 ## Suggested next investigations
 
