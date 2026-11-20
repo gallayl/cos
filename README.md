@@ -187,6 +187,15 @@ rows when full. `display_mode clear` releases that history; it is also released
 when a Berry app starts. Output continues over UART while a Berry app owns the
 display, but is not retained in console history.
 
+The shell supports best-effort stdout/stderr file redirection for stdio/fd
+producers: `>` / `>>` (stdout), `2>` / `2>>` (stderr), and `&>` / `&>>`
+(stdout+stderr to one shared target). Targets use virtual paths resolved like
+other file commands (relative to the current directory or absolute `/flash` /
+`/sdcard`). `ESP_LOG*` output may bypass redirected stdio fds depending on log
+routing/configuration and is not guaranteed to appear in redirected files; see
+the canonical matrix/playbook and caveats in
+[`docs/reports/2026-11-20-r20b-stderr-fd-evidence-playbook.md`](./docs/reports/2026-11-20-r20b-stderr-fd-evidence-playbook.md).
+
 The global ESP log threshold defaults to `warn` (on reset, missing, or invalid persisted value). Use `logging` to show the current setting, or `logging error|warn|info|debug` to change it. The selection is persisted in NVS (`console` namespace, `log_level` key) by `text_console`, applied at startup via `esp_log_level_set("*", ...)` (ESP-IDF `esp_log.h`), and affects UART/serial output and the on-screen text console (mirrored stream). Supported mappings: `error` → `ESP_LOG_ERROR`, `warn` → `ESP_LOG_WARN`, `info` → `ESP_LOG_INFO`, `debug` → `ESP_LOG_DEBUG` (`verbose` is not exposed).
 
 Logging policy (app code): use `ERROR` for failures that break the requested operation, `WARN` for recoverable/unexpected conditions, `INFO` for notable lifecycle/state changes (low rate), and `DEBUG` for verbose troubleshooting details (e.g. per-operation traces). Demote or remove noisy/unhelpful messages. Vendored `esp_littlefs` `ESP_LOGV` noise is out of scope here; see `docs/plan/needs-clarification/esp-littlefs-stability-hardening.md`.
