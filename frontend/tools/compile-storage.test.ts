@@ -33,6 +33,8 @@ describe('storage TypeScript scripts', () => {
     expect(report.scripts.map((script) => script.name)).toEqual([
       'apps/async_demo',
       'apps/breakout',
+      'apps/http_chat',
+      'apps/http_echo',
       'apps/tap_dash',
       'autoexec',
       'scripts/arg_test',
@@ -43,8 +45,6 @@ describe('storage TypeScript scripts', () => {
       'scripts/font_size',
       'scripts/hello',
       'scripts/host_info',
-      'scripts/http_chat',
-      'scripts/http_echo',
       'scripts/info',
       'scripts/light',
       'scripts/list_files',

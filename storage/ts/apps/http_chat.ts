@@ -1,6 +1,9 @@
 import http from "@cos/http";
+import ui from "@cos/ui";
 
-export default class HttpChat implements CosApplication {
+export default class HttpChat implements CosUiApplication {
+  server: http.Server = null as any;
+  status_label: ui.LabelHandle = null as any;
   messages: any = [];
   max_messages: number = 20;
 
@@ -11,30 +14,20 @@ export default class HttpChat implements CosApplication {
     }
   }
 
-  run(args: string[]): number {
-    let port = 8082;
-    if (args.length > 1) {
-      print("usage: http_chat [port]");
-      return 1;
-    }
-    if (args.length === 1) {
-      let parsed = 0;
-      try {
-        parsed = int(args[0]);
-      } catch {
-        print("invalid port");
-        return 1;
+  setup(_content: unknown, width: number, _height: number): void {
+    this.status_label = ui.label(0, "HTTP chat: starting...", 16, 16, width - 32, 24)!;
+    const exit = ui.button(0, "EXIT", 16, 56, 88, 36)!;
+    ui.on_click(exit, () => {
+      if (this.server !== null) {
+        http.close(this.server);
       }
-      if (str(parsed) !== args[0] || parsed <= 0 || parsed > 65535) {
-        print("invalid port");
-        return 1;
-      }
-      port = parsed;
-    }
+      ui.exit();
+    });
 
-    const server = http.create_server();
+    const port = 8082;
+    this.server = http.create_server();
 
-    http.post(server, "/send", (req, res) => {
+    http.post(this.server, "/send", (req, res) => {
       let text: any = null;
       let from: any = null;
       const body: any = req.json;
@@ -57,20 +50,17 @@ export default class HttpChat implements CosApplication {
       http.res_json(res, { ok: true, count: size(this.messages) });
     });
 
-    http.get(server, "/messages", (_req, res) => {
+    http.get(this.server, "/messages", (_req, res) => {
       http.res_status(res, 200);
       http.res_json(res, { ok: true, messages: this.messages });
     });
 
     try {
-      http.listen(server, port, "0.0.0.0");
-      print("http_chat listening on 0.0.0.0:" + str(port));
-      print("POST /send {\"text\":\"hi\"}; GET /messages");
-      return 0;
+      http.listen(this.server, port, "0.0.0.0");
+      ui.set_text(this.status_label, "HTTP chat: 0.0.0.0:" + str(port) + " /send /messages");
     } catch (e) {
-      print("http_chat listen failed: " + str(e as any));
-      http.close(server);
-      return 1;
+      ui.set_text(this.status_label, "Listen failed: " + str(e as any));
+      http.close(this.server);
     }
   }
 }
