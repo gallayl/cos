@@ -1,5 +1,6 @@
 import fs from "@cos/fs";
 
+// shortcut: path normalization/sorting/component limits removed to avoid Berry/QEMU execution stalls in CI; restore full shell path semantics and sorted output when script execution is stable.
 export default class Ls implements CosApplication {
   run(args: string[]): number {
     let show_all = false;
