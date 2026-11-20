@@ -1,17 +1,24 @@
 # DX: Delivery acceleration from recent CI/validation bottlenecks
 
 - **ID:** dx-delivery-acceleration-bottlenecks
-- **Status:** needs-clarification
+- **Status:** needs-clarification (umbrella triage; v1 first slice approved and moved to ready)
 - **Created:** 2026-11-20
 - **Source/links:**
   - Evidence (this draft is derived from): `git log --since="5 days ago"` / PRs `fb458ad`…`5ec95d3` (2026-11-17→2026-11-20), `.github/workflows/ci.yaml` and reusable workflows, `docs/plan/consolidated-improvement-plan.md`, `docs/plan/ready/` (5 items), `docs/plan/needs-clarification/` (17 items at time of draft)
   - Reports: [`docs/reports/2026-11-11-dx1-baseline-measurements.md`](../../reports/2026-11-11-dx1-baseline-measurements.md), [`docs/reports/2026-11-18-pending-hardware-validation-inventory.md`](../../reports/2026-11-18-pending-hardware-validation-inventory.md), [`docs/reports/2026-11-19-hw-validation-only-missing-com3.md`](../../reports/2026-11-19-hw-validation-only-missing-com3.md)
   - Related: [`docs/plan/needs-clarification/developer-tooling-dx-improvement-plan.md`](./developer-tooling-dx-improvement-plan.md), [`docs/plan/done/dx1-canonical-baseline-report.md`](../done/dx1-canonical-baseline-report.md), [`docs/plan/needs-clarification/unblock-shell-fs-pipeline-and-qemu-hangs.md`](./unblock-shell-fs-pipeline-and-qemu-hangs.md), pending hardware-validation items listed in the 2026-11-18 inventory
-- **Approval:** pending (explicit approval required after specification; not Ready/pre-approved)
+  - First v1 slice (ready, approved): [`dx-hw-preflight-and-delivery-evidence-templates`](../ready/dx-hw-preflight-and-delivery-evidence-templates.md) (separate item, specified and approved 2026-11-20; moved to `docs/plan/ready/`).
+- **Approval:** pending for this umbrella and for the first slice (explicit approval required after specification; not Ready/pre-approved)
 
 ## Summary
 
-Draft a prioritized, evidence-backed improvement program to reduce cycle time from implementation to merge-ready/delivered features. Focus areas observed in recent work: hardware/manual validation tail and setup fragility, local↔CI parity and expensive checks, integration/QEMU cost and flakiness, and plan/PR/finalization overhead. This item captures candidate slices and open questions; it does **not** implement tooling/CI/runtime changes.
+Umbrella triage item for an evidence-backed improvement program to reduce cycle time from implementation to merge-ready/delivered features. Observed focus areas: hardware/manual validation tail and setup fragility, local↔CI parity and expensive checks, integration/QEMU cost and flakiness, and plan/PR/finalization overhead. This file captures evidence, candidate slices, and triage decisions; it does **not** implement tooling/CI/runtime changes. Per 2026-11-20 decisions, v1 prioritizes **hardware validation lane + process/merge-readiness streamlining** and will be delivered via a **separate, fully specified ready item** (this umbrella remains in `needs-clarification` as the program/triage record, similar to `developer-tooling-dx-improvement-plan`).
+
+## Decisions (recorded)
+
+- **2026-11-20 (user, clarify-feature round 1): v1 priority/scope:** **HW validation + process streamlining** — start with hardware-validation preflight/batching/evidence workflow and merge-readiness/PR-plan/queue streamlining (targets observed HW tail/setup drift and finalization/queue churn; low CI-signal risk).
+- **2026-11-20 (user, clarify-feature round 1): Item shape:** **Split: umbrella triage + separate first ready slice** — keep this file in `needs-clarification` as umbrella/program record; create/specify a separate ready item for the chosen v1 slice once fully specified/approved (DX1 precedent).
+- **2026-11-20 (user, clarify-feature round 1): Session goal:** **Drive first chosen slice to Ready now** — continue specification (scope/non-goals, acceptance/DoD, validation, metrics/baseline, ownership/cadence, dependencies/risks, expected areas/files) and request/record explicit approval after specification before moving the first slice item to `plan/ready/`.
 
 ## Observed bottlenecks (evidence snapshot, 2026-11-17→2026-11-20)
 
@@ -49,27 +56,24 @@ Draft a prioritized, evidence-backed improvement program to reduce cycle time fr
    - Reinforce sync/checklist for script-facing API changes (declarations, native bindings, inventory/manifest/tests, compiled examples) and include device-script compatibility in HW checklist when relevant.
    - Standard cheap A-B evidence (`mem`/`berry profile`/`svc_mem`) for lifecycle/memory changes and prioritize fixes that unblock broad validation.
 
-## Non-goals (for this draft)
+## Non-goals (for this umbrella triage item)
 
-- Implementing CI workflow changes, scripts, devcontainer/tooling, firmware/frontend/runtime behavior, or dependency upgrades in this item.
-- Declaring specific improvements approved, scheduled, or complete.
+- Implementing CI workflow changes, scripts, devcontainer/tooling, firmware/frontend/runtime behavior, or dependency upgrades in this umbrella item.
+- Declaring improvements approved, scheduled, or complete without explicit recorded approval and evidence.
 - Claiming checks or hardware validation were executed beyond evidence cited from existing reports/history.
-- Marking this item Ready without satisfying the Ready contract and explicit approval after specification.
+- Moving this umbrella to `plan/ready/` as a whole program; ready work must be tracked as separate, fully specified slice item(s) with explicit approval after specification.
 
-## Acceptance criteria (for clarifying/moving this item toward Ready)
+## Acceptance criteria (for this umbrella triage item)
 
-- [ ] Prioritized scope selected (which slices/increments are in v1, and which are deferred/split into separate items).
-- [ ] For each in-scope slice: concrete deliverables, owner/process or automation target, success metrics/baseline, and validation/rollout plan defined.
-- [ ] Dependencies/prerequisites and risks documented (CI cost, maintainer burden, hardware availability, policy/process changes).
-- [ ] Open questions resolved and **Open questions: none** recorded; explicit approval (who/when/context) captured after specification.
-- [ ] Item placed in correct queue/state with consolidated-plan cross-links updated consistently.
+- [x] Prioritized v1 direction selected and recorded: **HW validation + process streamlining** (2026-11-20, user).
+- [x] Delivery shape selected and recorded: **split** (umbrella stays needs-clarification; first v1 slice specified as a separate ready item) (2026-11-20, user).
+- [x] First v1 slice specified and explicitly approved (Ready-contract fields complete, **Open questions: none**), moved to `docs/plan/ready/`: [`dx-hw-preflight-and-delivery-evidence-templates`](../ready/dx-hw-preflight-and-delivery-evidence-templates.md). Cross-links updated in umbrella and slice; consolidated plan update recorded as applicable.
+- [ ] Remaining/deferred slices (local↔CI parity, integration/QEMU throughput/tiering, coupled-change guardrails, and any out-of-scope HW/process sub-areas) kept explicit here with rationale and what would make them promotable.
 
-## Validation plan (when implementation slices are later approved)
+## Validation plan (for this clarification/specification pass)
 
-- Docs-only/planning changes: `make format-check`, `make test`, `make docs-check` (and report exact outcomes).
-- CI/workflow or script changes (if later in scope): run relevant local checks feasible in environment, validate workflow behavior where possible, and rely on/report PR CI evidence; do not claim unrun checks.
-- Tooling/process changes affecting on-device validation: update inventory/plans/templates and record at least one executed dry-run or real session with evidence when feasible.
-- Hardware/manual validation: only where a deliverable requires it; state remaining steps explicitly.
+- **This pass (docs/planning):** review and update markdown only. No runtime/build validation required by scope; when docs-only changes are committed, run `make format-check`, `make test`, and `make docs-check` and report exact outcomes per `AGENTS.md`.
+- **First v1 slice (when specified/implemented later):** validation must match approved slice scope. Docs-only/templates/checklists: `make format-check`, `make test`, `make docs-check`. Any script/workflow/devcontainer changes: run feasible local checks and report PR CI evidence; do not claim unrun checks. Any tooling/process change affecting on-device validation: include a documented dry-run or real session with evidence when feasible, and state remaining hardware/manual steps explicitly.
 
 ## Expected areas/files (future, depending on approved slices)
 
@@ -91,16 +95,32 @@ Draft a prioritized, evidence-backed improvement program to reduce cycle time fr
 - Process changes add maintenance burden if not lightweight and aligned with `AGENTS.md`/global gates.
 - ESP32 resource constraints mean some bottlenecks (memory/fragmentation/peripheral behavior) are intrinsic and require measurement, not only workflow fixes.
 
-## Open questions
+## Open questions (umbrella / first-slice specification)
 
-1. **Priority/scope for v1:** which 1–2 slices should be tackled first (HW validation batching, local/CI parity, integration tiering, or process streamlining)?
-2. **Single program vs split items:** keep as one umbrella needs-clarification item, or split into separate promotable items per slice once prioritized?
-3. **Integration policy:** which QEMU/integration suites (if any) are candidates for required-smoke vs extended/nightly/quarantine, and what is the acceptable flake/latency budget?
-4. **Hardware validation definition of “done”:** for items requiring HW/manual evidence, should closure require a scheduled batched pass, per-item evidence, or explicit human waiver workflow (and how tracked)?
-5. **Environment baseline:** should devcontainer be the canonical local path for build/lint/integration, with native Windows documented as best-effort?
-6. **Ownership/cadence:** who runs/triages HW validation batches and CI-flake follow-ups, and at what cadence/trigger?
-7. **Success metrics:** which DX1/CI/hardware metrics should be treated as baseline targets (e.g. lint/build/integration times, flake rate, time-to-merge-ready, pending-HW backlog age)?
+### Resolved
+1. **Priority/scope for v1:** **Resolved (2026-11-20, user).** HW validation lane + process/merge-readiness streamlining.
+2. **Single program vs split items:** **Resolved (2026-11-20, user).** Split: umbrella triage remains here; specify/promote a separate first ready slice item.
+
+### Resolved for first slice / deferred for umbrella
+3. **First slice boundary & deliverables:** **Resolved (2026-11-20, user).** One combined docs/process ready item (`dx-hw-preflight-and-delivery-evidence-templates`, docs/templates + minimal cross-links only; no scripts/CI/devcontainer/runtime). Core bundle and exact paths/content confirmed: create `docs/reports/templates/hw-validation-preflight.md`, `docs/reports/templates/hw-validation-session.md`, `docs/reports/templates/delivery-evidence-checklist.md`; minimal cross-links in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`.
+4. **Hardware validation definition of “done” / closure model:** **Resolved (2026-11-20, user).** Per-item evidence + explicit human waiver (rationale, approver, context, date); batched sessions may collect evidence but do not replace per-item traceability. Tracking/fields specified in slice.
+5. **Ownership/cadence/process rules:** **Resolved (2026-11-20, user, for slice spec).** Recommended practice guidance (not CI-enforced): use preflight+session templates for HW validation passes (batched when pending-HW backlog actionable or before release/milestone closure); complete delivery-evidence checklist for PRs/plan updates claiming merge-ready/done or HW-closure; performer records per-item evidence or explicit waiver. Waiver authority: maintainer/reviewer with rationale recorded.
+6. **Success metrics/baseline:** **Resolved (2026-11-20, user, for slice spec).** Adoption/compliance baseline and targets documented (2026-11-18 inventory/report baseline; templates cross-linked; future HW closures use per-item evidence or waiver fields; delivery/finalization uses checklist). Quantitative time/count/age targets deferred to follow-up measurement.
+7. **Expected artifacts/areas and constraints:** **Resolved (2026-11-20, user).** Exact create/update paths and no-change areas specified in slice; must remain compatible with `AGENTS.md`, `docs/README.md`, existing HW inventory/reports, and human merge/hardware limits.
+8. **Deferred slices (umbrella):** **Resolved as deferred from v1 (2026-11-20, per prioritization).** Integration/QEMU tiering policy, local↔CI parity/devcontainer baseline, and coupled-change guardrails remain out of v1. Promotable later as separate needs-clarification/ready slices with own specs/approvals: integration policy needs suite/flake/latency/signal decisions and CI impact analysis; local↔CI parity needs env/tooling/platform scope decisions; guardrails need concrete checklist/enforcement scope.
+
+### Still open (umbrella)
+- **None for current v1 slice.** First slice [`dx-hw-preflight-and-delivery-evidence-templates`](../ready/dx-hw-preflight-and-delivery-evidence-templates.md) is **ready (approved, 2026-11-20)** and moved to `docs/plan/ready/`. This umbrella remains in `needs-clarification` for future slice triage/specification as needed (deferred: integration/QEMU tiering, local↔CI parity/devcontainer, coupled-change guardrails).
+
+### Previously listed (deferred from v1 unless pulled into slice)
+- **Integration policy (former Q3):** deferred from v1; candidate for a later separate slice.
+- **Environment baseline/devcontainer canonical path (former Q5):** deferred from v1 (overlaps local↔CI parity); candidate for a later separate slice.
 
 ## Progress / evidence
 
 - 2026-11-20: Drafted from recent delivery-bottleneck analysis (git/CI/docs/reports). Item created in `needs-clarification` pending prioritization/specification and explicit approval; no implementation started.
+- 2026-11-20 (clarify-feature): Clarification started. Reviewed target + `docs/README.md`, Ready contract, consolidated plan cross-link, related DX/QEMU/HW-validation docs/reports, and ready-item structure. Open questions 1–7 identified; item remained **needs-clarification** (not Ready).
+- 2026-11-20 (clarify-feature, round 1, user): decisions recorded — **v1 priority = HW validation + process streamlining**, **shape = split (umbrella triage + separate first ready slice)**, **session goal = drive first chosen slice to Ready now**. Umbrella updated to triage-record framing; Q1/Q2 resolved, remaining open questions narrowed/refined for first-slice specification. Status remains **needs-clarification**.
+- 2026-11-20 (clarify-feature, round 2, user): first-slice decisions recorded — **one combined docs/process item** (docs/templates + minimal cross-links only; no scripts/CI/devcontainer/runtime), **Core docs/templates** bundle (HW preflight checklist; batched HW validation session + per-session evidence/log template linked to existing inventory/reports; PR/plan evidence & finalization checklist/template; minimal cross-links), **HW closure = per-item evidence + explicit human waiver** (rationale/approver/context/date; batched sessions do not replace per-item traceability). Created separate slice item [`dx-hw-preflight-and-delivery-evidence-templates`](./dx-hw-preflight-and-delivery-evidence-templates.md) for specification. Status remains **needs-clarification**.
+- 2026-11-20 (clarify-feature, round 3, user): confirmed slice ID/title/paths/cross-links, recommended ownership/cadence/waiver guidance, adoption/compliance baseline+targets (quantitative targets deferred), and recommended content scope. Slice spec completed with all Ready-contract fields satisfied and **Open questions: none**; deferred v1 slices recorded with rationale in umbrella.
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark [`dx-hw-preflight-and-delivery-evidence-templates`](../ready/dx-hw-preflight-and-delivery-evidence-templates.md) **ready (approved)** and move it to `docs/plan/ready/` (pre-approved for implementation/PR flow per global gates; merge remains human). Umbrella and slice cross-links updated. No implementation/checks run yet. Umbrella remains **needs-clarification** (triage record for deferred/future slices).
