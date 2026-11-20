@@ -406,6 +406,25 @@ function emitArgument(ctx: GenerationContext, node: ts.Expression): EmittedExpre
 
 function emitCall(ctx: GenerationContext, node: ts.CallExpression): EmittedExpression {
   if (node.questionDotToken) ctx.report(node, 'Optional chaining is not supported.')
+
+  if (ts.isPropertyAccessExpression(node.expression) && !node.expression.questionDotToken) {
+    const method = node.expression.name.text
+    if (method === 'charAt' && node.arguments.length === 1) {
+      const argNode = node.arguments[0]
+      if (argNode && !ts.isSpreadElement(argNode)) {
+        const object = parenthesize(lowerExpression(ctx, node.expression.expression), CALL_PRECEDENCE, 'left', 'left')
+        const index = lowerExpression(ctx, argNode)
+        const indexText = isSimpleExpression(argNode) ? index.text : `(${index.text})`
+        const text = `${object.text}[${indexText}..${indexText}]`
+        return withNode(node, {
+          text,
+          precedence: CALL_PRECEDENCE,
+          spans: [...object.spans, ...shiftSpans(index.spans, `${object.text}[`)],
+        })
+      }
+    }
+  }
+
   const callee = parenthesize(lowerExpression(ctx, node.expression), CALL_PRECEDENCE, 'left', 'left')
   const { text: argsText, spans: argSpans } = emitArguments(ctx, node.arguments)
   const text = `${callee.text}(${argsText})`
@@ -476,6 +495,20 @@ function emitElement(ctx: GenerationContext, node: ts.ElementAccessExpression): 
     precedence: CALL_PRECEDENCE,
     spans: [...object.spans, ...shiftSpans(index.spans, `${object.text}[`)],
   })
+}
+
+function isSimpleExpression(node: ts.Expression): boolean {
+  const expression = unwrapTransparent(node)
+  return (
+    ts.isIdentifier(expression) ||
+    ts.isNumericLiteral(expression) ||
+    ts.isStringLiteral(expression) ||
+    ts.isNoSubstitutionTemplateLiteral(expression) ||
+    expression.kind === ts.SyntaxKind.TrueKeyword ||
+    expression.kind === ts.SyntaxKind.FalseKeyword ||
+    expression.kind === ts.SyntaxKind.NullKeyword ||
+    expression.kind === ts.SyntaxKind.UndefinedKeyword
+  )
 }
 
 function isCallee(node: ts.Node): boolean {

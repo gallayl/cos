@@ -279,6 +279,23 @@ describe('berry source map (R14)', () => {
     expect(line4.some((m) => m.kind === 'PropertyAccessExpression')).toBe(true)
   })
 
+  it('lowers string charAt to Berry range indexing for supported single-arg calls', () => {
+    const result = astToBerry(
+      getAst(`
+        function f(s: string, i: number): void {
+          const a = s.charAt(0)
+          const b = s.charAt(i)
+          log(a, b)
+        }
+      `),
+      { entrypoint: false, profile: 'dev' },
+    )
+    expect(result.ok).toBe(true)
+    expect(result.code).toContain('var a = s[0..0]')
+    expect(result.code).toContain('var b = s[i..i]')
+    expect(result.code).not.toContain('.charAt')
+  })
+
   it('annotates Berry/runtime-style error text with mapped TypeScript locations', () => {
     const source = `function boom(): void {\n  throw "x"\n}\n`
     const result = astToBerry(getAst(source), { entrypoint: false, profile: 'dev' })

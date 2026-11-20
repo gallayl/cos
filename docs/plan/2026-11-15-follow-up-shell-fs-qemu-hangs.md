@@ -1,31 +1,22 @@
 # Follow-up: re-enable `shell_fs` integration tests (QEMU LittleFS flash-read hangs)
 
-**Status:** Open (merge-unblock workaround applied)  
+**Status:** Open — revalidation in progress (tests re-enabled in branch/PR for CI evidence; historical workaround context below)  
 **Created:** 2026-11-15  
-**Branch/PR context:** `feat/r14-ts-diags` / PR #22  
-**Related:** [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md), [2026-11-14-unit-test-coverage-and-integration-rebalance.md](2026-11-14-unit-test-coverage-and-integration-rebalance.md), [../ideas/2026-11-10-refactoring-and-testability.md](../ideas/2026-11-10-refactoring-and-testability.md)
+**Updated:** 2026-11-20  
+**Branch/PR context:** `feat/r14-ts-diags` / PR #22 (historical); revalidation on `fix/shell-fs-qemu-hangs-revalidate` / PR [#108](https://github.com/gallayl/cos/pull/108)  
+**Related:** [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md), [2026-11-14-unit-test-coverage-and-integration-rebalance.md](2026-11-14-unit-test-coverage-and-integration-rebalance.md), [../ideas/2026-11-10-refactoring-and-testability.md](../ideas/2026-11-10-refactoring-and-testability.md), [ready/unblock-shell-fs-pipeline-and-qemu-hangs.md](ready/unblock-shell-fs-pipeline-and-qemu-hangs.md)
 
 ## Summary
 
-To unblock PR #22 merging, a subset of `integration_test/test_shell_fs/test_shell_fs.py` cases known to hang under QEMU were temporarily disabled (commented out with TODOs). Other integration suites and non-`shell_fs` coverage remain green on CI; host/unit coverage for shell FS/VFS behavior has been expanded as part of the unblock effort.
+To unblock PR #22 merging, a subset of `integration_test/test_shell_fs/test_shell_fs.py` cases known to hang under QEMU were temporarily disabled (skip/TODO markers). Other integration suites and non-`shell_fs` coverage remained green on CI at the time; host/unit coverage for shell FS/VFS behavior was expanded as part of the unblock effort.
+
+**2026-11-20 revalidation:** as part of the ready item, the 11 historically listed tests and the combined `test_shell_fs` case were re-enabled (skip markers removed) to obtain current CI evidence under ESP-IDF v6.1 + bundled QEMU. CI iterations have not yet produced a fully green `shell_fs` run (see revalidation log). As of the latest follow-up fix, coverage from the 11 separately booted cases is folded into the unified single-boot `test_shell_fs` flow to reduce QEMU boot/flakiness exposure; CI validation remains pending.
 
 ## Current disabled tests
 
-Disabled in `integration_test/test_shell_fs/test_shell_fs.py` (pending re-enable when root cause fixed/mitigated):
+None (historical workaround removed). The combined `test_shell_fs` and the 11 historically affected scenarios are active in `integration_test/test_shell_fs/test_shell_fs.py`; the 11 scenarios are now executed inside the single-boot `test_shell_fs` flow to reduce QEMU boot/flakiness exposure (not as separate pytest cases).
 
-- `test_autocomplete_command_and_path`
-- `test_shell_alias_lifecycle`
-- `test_berry_filesystem_and_network_apis`
-- `test_nested_mkdir`
-- `test_cp_copies_without_overwriting`
-- `test_cp_rejects_directory_copy`
-- `test_mv_moves_file`
-- `test_rmdir_only_removes_empty_directories`
-- `test_cd_relative`
-- `test_rm_file`
-- `test_alias_del`
-
-> Note: latest HEAD CI (run [43640354444](https://github.com/gallayl/cos/actions/runs/43640354444), Integration Tests, failure on `2c264cf`) could not be broken down to per-test failures during this change due to GitHub API connectivity issues; the disabled set reflects the latest available evidence-backed failing/hanging cases from [43633877205](https://github.com/gallayl/cos/actions/runs/43633877205) / [43634305900](https://github.com/gallayl/cos/actions/runs/43634305900) (20/31 pass in `shell_fs`, 11 failures).
+> Historical note: the list below was the evidence-backed failing/hanging set from [43633877205](https://github.com/gallayl/cos/actions/runs/43633877205) / [43634305900](https://github.com/gallayl/cos/actions/runs/43634305900) (20/31 pass in `shell_fs`, 11 failures). Run [43640354444](https://github.com/gallayl/cos/actions/runs/43640354444) could not be broken down to per-test failures at the time. Scenarios: `test_autocomplete_command_and_path`, `test_shell_alias_lifecycle`, `test_berry_filesystem_and_network_apis`, `test_nested_mkdir`, `test_cp_copies_without_overwriting`, `test_cp_rejects_directory_copy`, `test_mv_moves_file`, `test_rmdir_only_removes_empty_directories`, `test_cd_relative`, `test_rm_file`, `test_alias_del`.
 
 ## Evidence / root-cause hypothesis
 
@@ -37,10 +28,23 @@ Disabled in `integration_test/test_shell_fs/test_shell_fs.py` (pending re-enable
 
 ## Re-enable criteria
 
-- [ ] Identify/fix or reliably mitigate the QEMU `esp_partition_read` hang during LittleFS metadata operations triggered by `shell_fs` workload (evidence-backed).
-- [ ] Restore disabled tests in `integration_test/test_shell_fs/test_shell_fs.py` and remove TODO markers.
+- [ ] Identify/fix or reliably mitigate the QEMU `esp_partition_read` hang during LittleFS metadata operations triggered by `shell_fs` workload (evidence-backed), **or** document evidence that the issue is no longer reproduced in current CI.
+- [x] Restore disabled tests/scenarios in `integration_test/test_shell_fs/test_shell_fs.py` and remove TODO/skip markers. **2026-11-20:** removed 12 skip/TODO markers (combined `test_shell_fs` + 11 historically listed scenarios). Follow-up: folded the 11 scenarios into the single-boot `test_shell_fs` flow to reduce boot/flakiness exposure while preserving coverage (CI confirmation pending).
 - [ ] `shell_fs` integration suite passes consistently on CI (no command-time hangs/timeouts) alongside other integration suites.
 - [ ] Update [2026-11-14-unblock-shell-fs-pipeline.md](2026-11-14-unblock-shell-fs-pipeline.md) with resolution evidence and mark pipeline green.
+
+## 2026-11-20 revalidation log (CI-authoritative)
+
+- Baseline: `origin/main@5d8b343` (main CI [44744734342](https://github.com/gallayl/cos/actions/runs/44744734342) success). Branch: `fix/shell-fs-qemu-hangs-revalidate`.
+- Change: re-enabled all skipped `shell_fs` tests in `integration_test/test_shell_fs/test_shell_fs.py` (no local ESP-IDF v6.1/QEMU).
+- PR: [#108](https://github.com/gallayl/cos/pull/108) (draft), head commits `cc12fe0`, `0d707e0` initially.
+- CI run [44748487138](https://github.com/gallayl/cos/actions/runs/44748487138) (head `0d707e0`): **failure**. `shell_fs` job [136329951615](https://github.com/gallayl/cos/actions/runs/44748487138/job/136329951615) failed (4m40s, 12 failed / 13 warnings); all other required integration suites passed (`esp_littlefs_core`, `esp_littlefs_extra`, `init_sequence`, `nvs_calibration`, `stability`, `system`, `vfs_ops`). Evidence (`integration-test-logs-shell_fs` artifact 14634781111): `test_shell_fs` timed out waiting for `hello.txt` after `ls /flash` because embedded `/flash/ls.be` failed with `'string' value has no method 'charAt'` (`ls: ESP_FAIL`); 11 individual tests timed out waiting for prompt and their `dut.log` files showed boot stopped after filesystem mount/SD-card-disabled log before shell init/seeding completion (possible historical hang recurrence/flakiness; inconclusive). Mitigation applied in `4965e3d`: transpiler lowers `charAt` to Berry range and canonical `ls.be`/`dir.be` regenerated; per-test boot-marker waits added in `test_shell_fs.py`.
+- CI run [44751146082](https://github.com/gallayl/cos/actions/runs/44751146082) (head `4965e3d`): **failure**. `shell_fs` job [136339179879](https://github.com/gallayl/cos/actions/runs/44751146082/job/136339179879) failed (8m43s, **5 failed, 7 passed, 13 warnings**); all other required integration suites passed. Evidence: `ls.be` stalled on `ls /flash` (shadowing/`slice`), alias lifecycle test rejected script-resolved target, autocomplete path case timed out, and `berry_api.be` stalled after `S1` (possible FS hang, inconclusive). Fix `8575459`: corrected `ls/dir` scripts and adjusted alias test.
+- CI run [44753607575](https://github.com/gallayl/cos/actions/runs/44753607575) (head `8575459`): **failure**. `shell_fs` job [136347566017](https://github.com/gallayl/cos/actions/runs/44753607575/job/136347566017) failed (8m28s, **4 failed, 8 passed, 13 warnings**); all other required integration suites/checks passed. Evidence: alias lifecycle fixed; `ls` script still stalled after compile, autocomplete path case timed out, `berry_api` stalled after `S1` before `FS_LIST_OK`. Fix `5838b1a`: simplified `ls/dir` scripts.
+- CI run [44755594919](https://github.com/gallayl/cos/actions/runs/44755594919) (head `5838b1a`): **failure — hard blocker**. `shell_fs` job [136354476596](https://github.com/gallayl/cos/actions/runs/44755594919/job/136354476596) failed (6m44s, **3 failed, 9 passed, 13 warnings**); all other required integration suites/checks passed. Evidence: `test_shell_fs`/`test_mv_moves_file` still stall after `ls /flash` compiles simplified `ls.be` (3895 bytes) with no output/prompt; `test_autocomplete_command_and_path` times out expecting `Hello, COS!` after path completion; `test_berry_filesystem_and_network_apis` passed. No local ESP-IDF v6.1 + QEMU available for root-cause debugging of remaining QEMU/Berry/script-dispatch stalls and console behavior. Ready item remains blocked/unresolved for fully green `shell_fs`.
+- CI run [44772244208](https://github.com/gallayl/cos/actions/runs/44772244208) (head `f41482b`, merged with `origin/main`): **failure**. `shell_fs` job [136412826552](https://github.com/gallayl/cos/actions/runs/44772244208/job/136412826552) failed (run step ~6m09s, **4 failed, 8 passed, 13 warnings in 366.76s**); all other required integration suites/checks passed or were skipped as non-applicable. Failed cases from log summary: `test_shell_fs` (timeout expecting `hello.txt` after `ls /flash` loaded/compiled `ls.be`), `test_autocomplete_command_and_path` (timeout expecting `Hello, COS!` after path completion attempt), `test_berry_filesystem_and_network_apis` (timeout expecting `FS_LIST_OK` after `berry_api.be` loaded), `test_mv_moves_file` (timeout expecting `cannot read` after `ls /flash` stalled). Symptoms remain consistent with intermittent Berry script execution/console stalls under QEMU in this workload.
+- Fix iteration (local, pushed as `1bfea6c`): folded the 11 re-enabled scenarios into the single-boot `test_shell_fs` flow and removed separate boot-per-test cases to reduce boot/flakiness exposure while preserving coverage; documented simplified `ls`/`dir` behavior limits with `shortcut:` comments in TS sources; added transpiler test coverage for `charAt` lowering. Local validation: `make format-check` pass, `make test` pass (31/31 ctest, 3/3 Python), frontend `yarn format:check`/`lint`/`test`/`build` and `npx tsc --noEmit` pass. No local ESP-IDF v6.1 + QEMU integration run.
+- CI run [44775890371](https://github.com/gallayl/cos/actions/runs/44775890371) (head `1bfea6c`): **failure**. `shell_fs` job [136425544475](https://github.com/gallayl/cos/actions/runs/44775890371/job/136425544475) failed (**1 failed, 2 warnings in 39.45s**); all other required integration suites/checks passed or were skipped as non-applicable. Log summary: unified `test_shell_fs` timed out with `Not found "hello.txt"` after `ls /flash` loaded/compiled `ls.be` (3895 bytes) and compilation completed without producing listing/prompt output (stall signature persists). **Blocked:** no local ESP-IDF v6.1 + QEMU for root-cause debugging of remaining QEMU/Berry script execution stall.
 
 ## Suggested next investigations
 
