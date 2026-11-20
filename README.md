@@ -97,7 +97,9 @@ export IDF_CCACHE_ENABLE=1   # PowerShell: $env:IDF_CCACHE_ENABLE = "1"
 make build
 ```
 
-On Windows with Espressif tools, `ccache` may already be installed under `%IDF_TOOLS_PATH%\ccache\...` (add its directory to `PATH` before building). Local DX measurements on 2026-11-11 showed a clean firmware rebuild improved from ~139.5 s to ~72.1 s with a warm cache (~1.94× faster); see `docs/reports/2026-11-11-dx1-baseline-measurements.md`. CI enablement is tracked under DX7.
+On Windows with Espressif tools, `ccache` may already be installed under `%IDF_TOOLS_PATH%\ccache\...` (add its directory to `PATH` before building). The root `Makefile` can also auto-detect Espressif `ccache` tools and honor `USE_CCACHE=1` / `IDF_CCACHE_ENABLE=1` for local ESP-IDF builds. Local DX measurements on 2026-11-11 showed a clean firmware rebuild improved from ~139.5 s to ~72.1 s with a warm cache (~1.94× faster); see `docs/reports/2026-11-11-dx1-baseline-measurements.md`.
+
+**CI behavior (DX3a, scoped workflows):** `.github/workflows/build-and-lint.yml` and `.github/workflows/integration-test.yml` enable compiler caching for ESP-IDF firmware builds in `espressif/idf:v6.1` with `IDF_CCACHE_ENABLE=1` and `CCACHE_DIR=$GITHUB_WORKSPACE/.ccache`. Each scoped job installs/configures `ccache`, restores/saves `.ccache` via `actions/cache`, runs `ccache --zero-stats` / `ccache --show-stats` around firmware builds, and keeps integration-test `integration_test/test_*/build` directory caching consistent. Cache keys are based on runner/OS, `idf-v6.1`, workflow/job context (including matrix suite for integration tests), and hashes of relevant build inputs (workflow/config/CMake/`sdkconfig.defaults`/`partitions.csv`/source/integration-suite files as applicable), with `restore-keys` fallbacks. **Limitations:** GitHub Actions cache eviction/size limits and runner/image differences can reduce hit rates; path-filtered CI runs may skip scoped jobs so cache steps/stats are not visible for every run; timing deltas vary by cache warmth and inputs. See DX1 report notes/addendum and DX3a plan evidence for observed CI runs.
 
 ## Build and flash
 
