@@ -4,6 +4,7 @@ idf_component_register(
          "src/shell_script.c"
          "src/shell_redirection.c"
          "src/shell_input.c"
+         "src/shell_keyparse.c"
          "src/shell_completion.c"
          "src/shell_fs_cmds.c"
          "src/shell_sd_cmds.c"

@@ -327,23 +327,21 @@ static esp_err_t resolve_explicit_script(const char *token, char *resolved, size
     return ESP_OK;
 }
 
-static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_path, char *resolved, size_t len,
-                                        bool *found)
+static esp_err_t resolve_script_token(const char *token, bool explicit_path, char *resolved, size_t len, bool *found)
 {
-    (void)argc;
     *found = false;
-    if (argv == NULL || argv[0] == NULL)
+    if (token == NULL)
     {
         return ESP_ERR_INVALID_ARG;
     }
 
     if (explicit_path)
     {
-        return resolve_explicit_script(argv[0], resolved, len, found);
+        return resolve_explicit_script(token, resolved, len, found);
     }
 
     char name[VFS_PATH_MAX];
-    esp_err_t err = script_candidate_name(argv[0], false, name, sizeof(name));
+    esp_err_t err = script_candidate_name(token, false, name, sizeof(name));
     if (err != ESP_OK)
     {
         return err;
@@ -402,6 +400,79 @@ static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_pat
     return ESP_OK;
 }
 
+static esp_err_t resolve_script_command(int argc, char **argv, bool explicit_path, char *resolved, size_t len,
+                                        bool *found)
+{
+    (void)argc;
+    if (argv == NULL || argv[0] == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return resolve_script_token(argv[0], explicit_path, resolved, len, found);
+}
+
+static void print_nonexplicit_search_locations(void)
+{
+    printf("  %s\n", shell_get_cwd());
+    for (size_t i = 0; i < s_path_count; i++)
+    {
+        printf("  %s\n", s_path_dirs[i]);
+    }
+    printf("  /flash/scripts\n");
+}
+
+static void print_which_usage(void)
+{
+    printf("Usage: which <name-or-path>\n");
+}
+
+static int cmd_which(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        print_which_usage();
+        return 1;
+    }
+
+    const char *token = argv[1];
+    const bool explicit_path = is_explicit_script_token(token);
+    char resolved[VFS_PATH_MAX];
+    bool found = false;
+    esp_err_t err = resolve_script_token(token, explicit_path, resolved, sizeof(resolved), &found);
+    if (err != ESP_OK)
+    {
+        printf("which: %s: %s\n", token, esp_err_to_name(err));
+        if (explicit_path)
+        {
+            printf("Searched explicit path: %s\n", resolved[0] != '\0' ? resolved : token);
+        }
+        else
+        {
+            printf("Searched locations:\n");
+            print_nonexplicit_search_locations();
+        }
+        return 1;
+    }
+    if (found)
+    {
+        printf("%s\n", resolved);
+        return 0;
+    }
+
+    if (explicit_path)
+    {
+        printf("which: %s: not found\n", token);
+        printf("Searched explicit path: %s\n", resolved[0] != '\0' ? resolved : token);
+    }
+    else
+    {
+        printf("which: %s: not found\n", token);
+        printf("Searched locations:\n");
+        print_nonexplicit_search_locations();
+    }
+    return 1;
+}
+
 esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *ret, bool *handled)
 {
     if (argv == NULL || argv[0] == NULL || ret == NULL || handled == NULL)
@@ -418,10 +489,17 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
     if (err != ESP_OK)
     {
         printf("%s: %s\n", argv[0], esp_err_to_name(err));
+        if (explicit_path)
+        {
+            printf("Searched explicit path: %s\n", resolved[0] != '\0' ? resolved : argv[0]);
+        }
+        else
+        {
+            printf("Searched locations:\n");
+            print_nonexplicit_search_locations();
+        }
         *handled = true;
-        return err; // placeholder no change? line 350 region? not matching warning line 350 is `if
-                    // (vfs_exists(candidate) && !vfs_is_directory(candidate))`? need to target actual line 350 as
-                    // reported. I'll fix separately.
+        return err;
     }
 
     if (!found)
@@ -429,6 +507,7 @@ esp_err_t shell_script_try_exec(int argc, char **argv, bool explicit_path, int *
         if (explicit_path)
         {
             printf("%s: script not found\n", argv[0]);
+            printf("Searched explicit path: %s\n", resolved[0] != '\0' ? resolved : argv[0]);
             *handled = true;
             return ESP_ERR_NOT_FOUND;
         }
@@ -885,6 +964,18 @@ esp_err_t shell_script_init(void)
         .func = &cmd_path,
     };
     esp_err_t err = esp_console_cmd_register(&path_command);
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    const esp_console_cmd_t which_command = {
+        .command = "which",
+        .help = "Resolve a script name or path without executing it",
+        .hint = "<name-or-path>",
+        .func = &cmd_which,
+    };
+    err = esp_console_cmd_register(&which_command);
     if (err != ESP_OK)
     {
         return err;
