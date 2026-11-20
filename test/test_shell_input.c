@@ -492,6 +492,24 @@ static void test_read_key_rejects_other_task_requests(void)
     TEST_ASSERT_FALSE(shell_input_is_reading_line());
 }
 
+static void test_keyparse_csi_and_ss3_name_mapping(void)
+{
+    TEST_ASSERT_EQUAL_STRING("up", shell_keyparse_csi_name(0, 'A'));
+    TEST_ASSERT_EQUAL_STRING("left", shell_keyparse_csi_name(0, 'D'));
+    TEST_ASSERT_EQUAL_STRING("home", shell_keyparse_csi_name(1, '~'));
+    TEST_ASSERT_EQUAL_STRING("delete", shell_keyparse_csi_name(3, '~'));
+    TEST_ASSERT_EQUAL_STRING("pagedown", shell_keyparse_csi_name(6, '~'));
+    TEST_ASSERT_EQUAL_STRING("f5", shell_keyparse_csi_name(15, '~'));
+    TEST_ASSERT_EQUAL_STRING("f12", shell_keyparse_csi_name(24, '~'));
+    TEST_ASSERT_NULL(shell_keyparse_csi_name(99, '~'));
+    TEST_ASSERT_NULL(shell_keyparse_csi_name(0, 'Z'));
+
+    TEST_ASSERT_EQUAL_STRING("up", shell_keyparse_ss3_name('A'));
+    TEST_ASSERT_EQUAL_STRING("f1", shell_keyparse_ss3_name('P'));
+    TEST_ASSERT_EQUAL_STRING("end", shell_keyparse_ss3_name('F'));
+    TEST_ASSERT_NULL(shell_keyparse_ss3_name('Z'));
+}
+
 /* ── main ────────────────────────────────────────────────── */
 
 int main(void)
@@ -540,6 +558,7 @@ int main(void)
     RUN_TEST(test_read_char_skips_arrows_until_a_character);
     RUN_TEST(test_key_read_rejects_a_second_request_and_can_be_cancelled);
     RUN_TEST(test_read_key_rejects_other_task_requests);
+    RUN_TEST(test_keyparse_csi_and_ss3_name_mapping);
 
     return UNITY_END();
 }
