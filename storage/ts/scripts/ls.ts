@@ -114,7 +114,7 @@ export default class Ls implements CosApplication {
           // skip
         } else if (token === "..") {
           if (components.length > 0) {
-            components = (components as any).slice(0, components.length - 1);
+            (components as any).pop();
           }
         } else {
           if (components.length >= 32) {
@@ -145,8 +145,8 @@ export default class Ls implements CosApplication {
     return result;
   }
 
-  pad_size(size: number): string {
-    let s = str(int(size));
+  pad_size(file_size: number): string {
+    let s = str(int(file_size));
     while (s.length < 5) {
       s = " " + s;
     }
@@ -208,22 +208,22 @@ export default class Ls implements CosApplication {
       while (k < filtered.length) {
         let e = filtered[k];
         let name = "" + e["name"];
-        let size = int(e["size"]);
+        let entry_size = int(e["size"]);
         let mtime = int(e["mtime"]);
         if (e["is_dir"] === true) {
           dir_count += 1;
           if (long_format) {
-            print("d " + str(size) + " " + str(mtime) + " " + name + "/");
+            print("d " + str(entry_size) + " " + str(mtime) + " " + name + "/");
           } else {
             print("  <DIR>  " + name + "/");
           }
         } else {
           file_count += 1;
-          total_bytes += size;
+          total_bytes += entry_size;
           if (long_format) {
-            print("- " + str(size) + " " + str(mtime) + " " + name);
+            print("- " + str(entry_size) + " " + str(mtime) + " " + name);
           } else {
-            print("  " + this.pad_size(size) + "  " + name);
+            print("  " + this.pad_size(entry_size) + "  " + name);
           }
         }
         k += 1;

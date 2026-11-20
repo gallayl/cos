@@ -98,7 +98,7 @@ class Dir
                 elif token == "."
                 elif token == ".."
                     if size(components) > 0
-                        components = (components).slice(0, size(components) - 1)
+                        (components).pop()
                     end
                 else
                     if size(components) >= 32
@@ -126,8 +126,8 @@ class Dir
         end
         return result
     end
-    def pad_size(size)
-        var s = str(int(size))
+    def pad_size(file_size)
+        var s = str(int(file_size))
         while size(s) < 5
             s = " " + s
         end
@@ -183,22 +183,22 @@ class Dir
             while k < size(filtered)
                 var e = filtered[k]
                 var name = "" + e["name"]
-                var size = int(e["size"])
+                var entry_size = int(e["size"])
                 var mtime = int(e["mtime"])
                 if e["is_dir"] == true
                     dir_count += 1
                     if long_format
-                        print("d " + str(size) + " " + str(mtime) + " " + name + "/")
+                        print("d " + str(entry_size) + " " + str(mtime) + " " + name + "/")
                     else
                         print("  <DIR>  " + name + "/")
                     end
                 else
                     file_count += 1
-                    total_bytes += size
+                    total_bytes += entry_size
                     if long_format
-                        print("- " + str(size) + " " + str(mtime) + " " + name)
+                        print("- " + str(entry_size) + " " + str(mtime) + " " + name)
                     else
-                        print("  " + self.pad_size(size) + "  " + name)
+                        print("  " + self.pad_size(entry_size) + "  " + name)
                     end
                 end
                 k += 1

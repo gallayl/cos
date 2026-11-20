@@ -151,10 +151,10 @@ def test_autocomplete_command_and_path(dut):
 
 def test_shell_alias_lifecycle(dut):
     _wait_boot_ready(dut)
-    dut.write("alias ll ls\n")
+    dut.write("alias ll help\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
-    dut.write("ll /flash\n")
-    dut.expect("hello.txt", timeout=CMD_TIMEOUT)
+    dut.write("ll\n")
+    dut.expect("berry", timeout=CMD_TIMEOUT)
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("unalias ll\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
