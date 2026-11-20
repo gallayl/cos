@@ -20,7 +20,7 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 - Vendored source matches managed `joltwallet/littlefs` v1.23.1 present locally (IDF 6.1 target esp32, includes `esp_blockdev`/`littlefs_bdl.c` path). `make format`/`format-check` now cover vendored `esp_littlefs` sources (reformatted to repo style).
 - `make lint-db` includes `esp_littlefs` in the clang compile DB/build graph. `make lint` excludes `components/esp_littlefs/**` from clang-tidy `SOURCES` because upstream/wrapper code does not satisfy project clang-tidy/Werror rules; treating it as project-lint-clean would require large, risky rewrites.
 - `make test` (host ctest + `python -m unittest discover -s scripts`) passes; no esp_littlefs-specific host unit targets added (ESP/flash-coupled implementation). Hardware/QEMU-sensitive and backend-specific (SD/MMAP/BDL) fault/error-injection validation remain environment-dependent; see ready/validation items for per-change evidence.
-- **2026-11-19 hardening follow-up (separate item):** audit-driven stability/diagnostics hardening implemented in vendored `components/esp_littlefs/` (log noise reduction, format-use safety rejecting mounted/active format, registry synchronization, `F_GETPATH` truncation/error handling, mmap unmap guard, bounds/error checks, runtime-reachable assert hardening; `portMAX_DELAY` waits kept and documented). Behavior/limitations documented in `components/esp_littlefs/README.md`. Integration tests updated to match safe format contract. See [`../plan/ready/esp-littlefs-stability-hardening.md`](../plan/ready/esp-littlefs-stability-hardening.md) and [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md).
+- **2026-11-19 hardening follow-up (separate item):** audit-driven stability/diagnostics hardening implemented in vendored `components/esp_littlefs/` (log noise reduction, format-use safety rejecting mounted/active format, registry synchronization, `F_GETPATH` truncation/error handling, mmap unmap guard, bounds/error checks, runtime-reachable assert hardening; `portMAX_DELAY` waits kept and documented). Behavior/limitations documented in `components/esp_littlefs/README.md`. Integration tests updated to match safe format contract. Delivered in PR #94 and tracked in [`../plan/done/esp-littlefs-stability-hardening.md`](../plan/done/esp-littlefs-stability-hardening.md); broader validation follow-up remains in [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md).
 
 ## Commands run (F1 continuation)
 - `make format` — pass (exit 0). Included `components/esp_littlefs` (wrapper + `src/littlefs` core).
@@ -46,9 +46,9 @@ Plan: [docs/plan/2026-11-13-vendor-esp-littlefs-component.md](../plan/2026-11-13
 - `make lint` — pass (exit 0) with project clang-tidy on linted sources; vendored `components/esp_littlefs` remains excluded from tidy `SOURCES`.
 - Not run: `frontend/` checks (no frontend changes), `make docs-check` (not in scope), `integration_test/test_esp_littlefs/` Unity suite and other integration/QEMU flows, hardware/QEMU-sensitive LittleFS mount-fail→format behavior.
 
-## Hardening follow-up (2026-11-19, `feat/esp-littlefs-stability-hardening`)
-- Plan: [`../plan/ready/esp-littlefs-stability-hardening.md`](../plan/ready/esp-littlefs-stability-hardening.md)
-- Validation cross-link: [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md)
+## Hardening follow-up (2026-11-19, delivered PR #94; finalized 2026-11-20)
+- Plan/item: [`../plan/done/esp-littlefs-stability-hardening.md`](../plan/done/esp-littlefs-stability-hardening.md) (delivered in PR [#94](https://github.com/gallayl/cos/pull/94), merge `4ef50c0`, CI run [44558353735](https://github.com/gallayl/cos/actions/runs/44558353735) green incl. esp_littlefs integration tests)
+- Validation cross-link: [`../plan/needs-clarification/vendor-esp-littlefs-component-validation.md`](../plan/needs-clarification/vendor-esp-littlefs-component-validation.md) (open questions/gaps remain)
 
 ### Commands run
 - `make format` — pass (exit 0).
