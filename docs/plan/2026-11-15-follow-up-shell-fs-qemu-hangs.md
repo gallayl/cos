@@ -49,8 +49,8 @@ Disabled in `integration_test/test_shell_fs/test_shell_fs.py` (pending re-enable
 
 - Baseline: `origin/main@5d8b343` (main CI [44744734342](https://github.com/gallayl/cos/actions/runs/44744734342) success). Branch: `fix/shell-fs-qemu-hangs-revalidate`.
 - Change: re-enabled all skipped `shell_fs` tests in `integration_test/test_shell_fs/test_shell_fs.py` (no local ESP-IDF v6.1/QEMU).
-- PR: [#108](https://github.com/gallayl/cos/pull/108) (draft), head commit `cc12fe0` initially.
-- CI: pending (record run/job IDs, pass/fail, and log evidence here).
+- PR: [#108](https://github.com/gallayl/cos/pull/108) (draft), head commits `cc12fe0`, `0d707e0` initially.
+- CI run [44748487138](https://github.com/gallayl/cos/actions/runs/44748487138) (head `0d707e0`): **failure**. `shell_fs` job [136329951615](https://github.com/gallayl/cos/actions/runs/44748487138/job/136329951615) failed (4m40s, 12 failed / 13 warnings); all other required integration suites passed (`esp_littlefs_core`, `esp_littlefs_extra`, `init_sequence`, `nvs_calibration`, `stability`, `system`, `vfs_ops`). Evidence (`integration-test-logs-shell_fs` artifact 14634781111): `test_shell_fs` timed out waiting for `hello.txt` after `ls /flash` because embedded `/flash/ls.be` failed with `'string' value has no method 'charAt'` (`ls: ESP_FAIL`); 11 individual tests timed out waiting for prompt and their `dut.log` files showed boot stopped after filesystem mount/SD-card-disabled log before shell init/seeding completion (possible historical hang recurrence/flakiness; inconclusive). Mitigation applied (CI pending): transpiler lowers `charAt` to Berry range and canonical `ls.be`/`dir.be` regenerated; per-test boot-marker waits added in `test_shell_fs.py`. Next CI run pending.
 
 ## Suggested next investigations
 

@@ -8,7 +8,7 @@ class Dir
         var i = 0
         while i < size(args)
             var a = args[i]
-            if path_arg != nil && size(a) > 0 && (a).charAt(0) == "-"
+            if path_arg != nil && size(a) > 0 && (a)[0..0] == "-"
                 return self.usage()
             end
             if a == "-a"
@@ -18,7 +18,7 @@ class Dir
             elif a == "-la" || a == "-al"
                 show_all = true
                 long_format = true
-            elif size(a) > 0 && (a).charAt(0) == "-"
+            elif size(a) > 0 && (a)[0..0] == "-"
                 return self.usage()
             else
                 if path_arg != nil
@@ -76,7 +76,7 @@ class Dir
     end
     def normalize_shell_path(input, cwd)
         var working = ""
-        if size(input) > 0 && (input).charAt(0) == "/"
+        if size(input) > 0 && (input)[0..0] == "/"
             working = input
         else
             if cwd == "/"
@@ -91,7 +91,7 @@ class Dir
         while i <= size(working)
             var ch = ""
             if i < size(working)
-                ch = (working).charAt(i)
+                ch = (working)[i..i]
             end
             if i == size(working) || ch == "/"
                 if size(token) == 0
@@ -165,7 +165,7 @@ class Dir
                 i += 1
                 continue
             end
-            if !show_all && size(name) > 0 && (name).charAt(0) == "."
+            if !show_all && size(name) > 0 && (name)[0..0] == "."
                 i += 1
                 continue
             end

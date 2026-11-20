@@ -15,6 +15,13 @@ def _wait_ready(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
 
 
+def _wait_boot_ready(dut):
+    """Wait for shell boot markers and prompt (each test boots a fresh QEMU instance)."""
+    dut.expect("AUTOEXEC_OK", timeout=BOOT_TIMEOUT)
+    dut.expect("SHELL_READY", timeout=BOOT_TIMEOUT)
+    _wait_ready(dut)
+
+
 # ── Boot & basic operations (single boot to reduce QEMU hang exposure) ─
 
 
@@ -135,7 +142,7 @@ def test_shell_fs(dut):
 
 
 def test_autocomplete_command_and_path(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("ber\t\n")
     dut.expect("Usage: berry run", timeout=CMD_TIMEOUT)
     dut.write("cat /flash/hel\t\n")
@@ -143,7 +150,7 @@ def test_autocomplete_command_and_path(dut):
 
 
 def test_shell_alias_lifecycle(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("alias ll ls\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ll /flash\n")
@@ -156,7 +163,7 @@ def test_shell_alias_lifecycle(dut):
 
 
 def test_berry_filesystem_and_network_apis(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("berry run /flash/berry_api.be\n")
     fs_markers = (
         "FS_LIST_OK",
@@ -185,7 +192,7 @@ def test_berry_filesystem_and_network_apis(dut):
 
 
 def test_nested_mkdir(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("mkdir /flash/outer\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("mkdir /flash/outer/inner\n")
@@ -197,7 +204,7 @@ def test_nested_mkdir(dut):
 
 
 def test_cp_copies_without_overwriting(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("cp /flash/hello.txt /flash/copied.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cat /flash/copied.txt\n")
@@ -213,7 +220,7 @@ def test_cp_copies_without_overwriting(dut):
 
 
 def test_cp_rejects_directory_copy(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("mkdir /flash/copy-source-dir\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cp /flash/copy-source-dir /flash/copy-destination\n")
@@ -221,7 +228,7 @@ def test_cp_rejects_directory_copy(dut):
 
 
 def test_mv_moves_file(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("touch /flash/move-source.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("mv /flash/move-source.txt /flash/move-destination.txt\n")
@@ -234,7 +241,7 @@ def test_mv_moves_file(dut):
 
 
 def test_rmdir_only_removes_empty_directories(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("mkdir /flash/empty-to-remove\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("rmdir /flash/empty-to-remove\n")
@@ -250,7 +257,7 @@ def test_rmdir_only_removes_empty_directories(dut):
 
 
 def test_cd_relative(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("mkdir /flash/reldir\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("cd /flash\n")
@@ -262,7 +269,7 @@ def test_cd_relative(dut):
 
 
 def test_rm_file(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("touch /flash/deleteme.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("rm /flash/deleteme.txt\n")
@@ -272,7 +279,7 @@ def test_rm_file(dut):
 
 
 def test_alias_del(dut):
-    _wait_ready(dut)
+    _wait_boot_ready(dut)
     dut.write("touch /flash/delalias.txt\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("del /flash/delalias.txt\n")
