@@ -43,6 +43,8 @@ describe('storage TypeScript scripts', () => {
       'scripts/font_size',
       'scripts/hello',
       'scripts/host_info',
+      'scripts/http_chat',
+      'scripts/http_echo',
       'scripts/info',
       'scripts/light',
       'scripts/list_files',
