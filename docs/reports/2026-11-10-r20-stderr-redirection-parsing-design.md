@@ -74,3 +74,8 @@
 
 - ESP-IDF log-capture aware redirection (`esp_log_set_vprint`/routing) with clear concurrency/restore guarantees (separate milestone).
 - Multiple/combined target redirections (e.g. separate stdout+stderr targets) and integration with future pipe runtime semantics.
+
+## R20b playbook / HW smoke evidence (2026-11-20)
+
+- Canonical HW smoke matrix (`/flash` and `/sdcard`), one end-to-end shell session playbook, and explicit `&>`/`&>>`/`ESP_LOG*` caveat/limits/flush-ordering callouts: [`2026-11-20-r20b-stderr-fd-evidence-playbook.md`](./2026-11-20-r20b-stderr-fd-evidence-playbook.md).
+- **Hardware execution status:** not executed in this delivery (no CYD device/serial console and SD availability unknown). Required on-device evidence/commands and blockers are recorded in the playbook for human follow-up; existing `>`/`>>` hardware evidence remains in [`2026-11-10-r20-redirection-runtime-hw-guide.md`](./2026-11-10-r20-redirection-runtime-hw-guide.md).

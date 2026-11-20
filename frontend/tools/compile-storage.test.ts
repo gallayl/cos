@@ -35,6 +35,7 @@ describe('storage TypeScript scripts', () => {
       'apps/breakout',
       'apps/http_chat',
       'apps/http_echo',
+      'apps/onboarding',
       'apps/tap_dash',
       'autoexec',
       'scripts/arg_test',
