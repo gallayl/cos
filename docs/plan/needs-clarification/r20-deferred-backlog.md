@@ -10,8 +10,8 @@
 R20 bundles multiple deferred items. `>`/`>>` runtime is HW-validated; stderr/FD best-effort runtime implemented (HW smoke pending); pipes have parse/diagnostic foundation and runtime design/proposal but need contract/scope confirmation and implementation; other backlog items (editor seam, larger apps, image preview/support) are not started.
 
 ## Scope
-- **Umbrella item (remaining after split):** track and later clarify (b) stderr/FD HW smoke/remaining redirection semantics, (c) shell line-editor refactor seam, (d) larger apps (separately scoped), (e) image preview/Berry image support feasibility.
-- **Clarified/promoted as separate target:** (a) pipes runtime implementation v1 (scoped contract) — **Ready:** [`../ready/r20-pipes-runtime-v1.md`](../ready/r20-pipes-runtime-v1.md).
+- **Umbrella item (remaining after split):** track remaining R20 coordination/prioritization and any still-open questions not covered by split items.
+- **Clarified/promoted as separate items:** (a) pipes runtime implementation v1 — **Done:** [`../done/r20-pipes-runtime-v1.md`](../done/r20-pipes-runtime-v1.md). (b) stderr/FD hardened evidence + logging playbook — **Ready:** [`../ready/r20-stderr-fd-evidence-logging-playbook.md`](../ready/r20-stderr-fd-evidence-logging-playbook.md). (c) shell line-editor seam + script workflow polish — **Ready:** [`../ready/r20-shell-line-editor-script-workflow.md`](../ready/r20-shell-line-editor-script-workflow.md). (d) Berry/UI larger app patterns + reference template — **Ready:** [`../ready/r20-berry-ui-larger-app-patterns.md`](../ready/r20-berry-ui-larger-app-patterns.md). (e) image support feasibility spike / minimal spec — **Ready:** [`../ready/r20-image-support-feasibility-minimal.md`](../ready/r20-image-support-feasibility-minimal.md).
 
 ## Non-goals
 - Unscoped "do all of R20" in one change.
@@ -19,9 +19,9 @@ R20 bundles multiple deferred items. `>`/`>>` runtime is HW-validated; stderr/FD
 - Pipes v1 scope/contract decisions beyond what is specified/approved in `r20-pipes-runtime-v1.md`.
 
 ## Acceptance criteria
-- [ ] Remaining sub-items (b–e) prioritized and each given explicit scope/non-goals, acceptance criteria, validation plan, and approval (separate queue items as appropriate).
-- [x] Pipes runtime v1 clarified, explicitly approved, and moved to Ready as a separate item (`../ready/r20-pipes-runtime-v1.md`); umbrella retained for the rest (2026-11-15).
-- [ ] Other selected sub-items meet their clarified acceptance criteria and evidence recorded.
+- [x] Remaining sub-items (b–e) prioritized and each given explicit scope/non-goals, acceptance criteria, validation plan, and approval as separate queue items (2026-11-18 specs; explicitly approved and moved to `ready/` 2026-11-20).
+- [x] Pipes runtime v1 clarified, explicitly approved, and delivered (moved to `done/`); umbrella retained for coordination (2026-11-15/2026-11-17).
+- [ ] Selected sub-items meet their clarified acceptance criteria and evidence recorded (tracked in their respective ready/done items). Umbrella-level prioritization/order questions remain only if further R20 follow-ups beyond (b–e) are proposed.
 
 ## Validation plan
 - Automated: `make format-check`, `make test` and scope-appropriate checks per `AGENTS.md` (firmware build/lint, integration/QEMU, frontend/docs-check as applicable).
@@ -42,10 +42,10 @@ R20 bundles multiple deferred items. `>`/`>>` runtime is HW-validated; stderr/FD
 - [x] **Split/structure:** keep this umbrella item in `needs-clarification` for remaining R20 sub-items; pipes v1 tracked in `docs/plan/ready/r20-pipes-runtime-v1.md`.
 
 ## Open questions (remaining for umbrella R20)
-- [ ] **Stderr/FD:** is current best-effort runtime acceptable; what HW smoke/evidence is required to consider it done, and what (if any) log-capture/advanced semantics are in scope?
-- [ ] **Editor seam / larger apps / image support:** what concrete scope, acceptance criteria, and feasibility evidence are required before each becomes ready?
-- [ ] Prioritization/order for remaining sub-items after pipes v1 clarification/implementation.
+- None for the split sub-items (a–e); those are tracked in their own ready/done items with `Open questions: none` (b–e approved/moved to `ready/` 2026-11-20). If new R20 follow-ups beyond (a–e) are proposed (e.g. ESP log-capture-aware redirection, advanced shell semantics, additional editor/app/image work), create/specify them as separate items with explicit scope, acceptance criteria, validation, dependencies/risks, and approval before implementation. This umbrella remains in `needs-clarification` as a coordination record only while no such new follow-up is specified/approved. (No unanswered user questions blocking the umbrella as currently scoped.)
 
 ## Progress / evidence
 - 2026-11-15: created from R20 in-progress/backlog; multiple sub-items require clarification/splitting.
-- 2026-11-15 (clarification): prioritized Pipes runtime v1 for Ready clarification (separate item) and kept this umbrella for remaining sub-items (user decisions). `r20-pipes-runtime-v1.md` specified (scope/contract/AC/validation/dependencies/risks, open questions none), **explicitly approved by user**, and moved to `docs/plan/ready/r20-pipes-runtime-v1.md` (pre-approved for implementation/PR flow; merge remains human). Remaining R20 sub-items (stderr/FD completion evidence, editor seam, larger apps, image support) still need clarification/prioritization.
+- 2026-11-15 (clarification): prioritized Pipes runtime v1 for Ready clarification (separate item) and kept this umbrella for remaining sub-items (user decisions). `r20-pipes-runtime-v1.md` specified, **explicitly approved by user**, and moved to `docs/plan/ready/r20-pipes-runtime-v1.md` (pre-approved for implementation/PR flow; merge remains human).
+- 2026-11-18: separate needs-clarification items created for sub-items b–e with recorded scope decisions and `Open questions: none` pending approval (`r20-stderr-fd-evidence-logging-playbook`, `r20-shell-line-editor-script-workflow`, `r20-berry-ui-larger-app-patterns`, `r20-image-support-feasibility-minimal`).
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded to move sub-items b–e to `docs/plan/ready/` (pre-approved for implementation/PR flow per global gates; merge remains human). Umbrella updated to reflect split/ready items and no unanswered user questions for currently scoped umbrella coordination. Any new R20 follow-ups beyond (a–e) require separate clarification/spec/approval.
