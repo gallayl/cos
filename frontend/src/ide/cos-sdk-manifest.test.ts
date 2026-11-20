@@ -16,6 +16,7 @@ describe('COS SDK manifest', () => {
       `${sdkRoot}/console.d.ts`,
       `${sdkRoot}/filesystem.d.ts`,
       `${sdkRoot}/network.d.ts`,
+      `${sdkRoot}/http.d.ts`,
       `${sdkRoot}/light.d.ts`,
       `${sdkRoot}/system.d.ts`,
       `${sdkRoot}/json.d.ts`,

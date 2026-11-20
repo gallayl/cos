@@ -35,6 +35,7 @@ void berry_ui_begin_app(bvm *vm);
 void berry_ui_end_app(void);
 void berry_ui_set_key_state(uint8_t keycode, bool pressed);
 void berry_ui_tick(void);
+extern "C" void berry_http_runtime_teardown(void); // R24: stop user HTTP servers / cleanup on app close & VM reset
 
 namespace
 {
@@ -1497,6 +1498,9 @@ esp_err_t close_active_app()
     // and guarantee no user callbacks after teardown completes.
     berry_runtime_async_cancel_all(true);
 
+    // R24: stop user HTTP servers and drop callbacks/resources on app/script stop (no dangling callbacks).
+    berry_http_runtime_teardown();
+
     log_lifecycle_checkpoint(had_active_app ? "6 Before app teardown cleanup"
                                             : "6 Before app-state cleanup (no active app)");
     ui::stop();
@@ -1530,6 +1534,7 @@ esp_err_t close_active_app()
 void discard_app()
 {
     berry_runtime_async_cancel_all(true);
+    berry_http_runtime_teardown();
     berry_ui_end_app();
     ui::stop();
 }
@@ -2763,6 +2768,8 @@ extern "C" void berry_runtime_deinit(void)
     {
         cancel_pending_console_input();
         close_active_app();
+        // R24: ensure user HTTP servers are stopped (best-effort) before VM deletion.
+        berry_http_runtime_teardown();
         be_vm_delete(s_vm);
         s_vm = nullptr;
     }
@@ -2894,6 +2901,11 @@ void berry_runtime_lock()
 void berry_runtime_unlock()
 {
     s_vm_mutex.unlock();
+}
+
+bvm *berry_runtime_get_vm()
+{
+    return s_vm;
 }
 
 extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info)

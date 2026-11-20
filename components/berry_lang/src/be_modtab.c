@@ -11,6 +11,7 @@ be_extern_native_module(console);
 be_extern_native_module(fs);
 be_extern_native_module(light);
 be_extern_native_module(net);
+be_extern_native_module(http);
 be_extern_native_module(system);
 be_extern_native_module(ui);
 
@@ -34,8 +35,9 @@ BERRY_LOCAL const bntvmodule_t *const be_module_table[] = {
 #if BE_USE_INTROSPECT_MODULE
     &be_native_module(introspect),
 #endif
-    &be_native_module(console),    &be_native_module(fs), &be_native_module(light),     &be_native_module(net),
-    &be_native_module(system),     &be_native_module(ui), &be_native_module(undefined), NULL,
+    &be_native_module(console),    &be_native_module(fs),        &be_native_module(light),
+    &be_native_module(net),        &be_native_module(http),      &be_native_module(system),
+    &be_native_module(ui),         &be_native_module(undefined), NULL,
 };
 
 BERRY_LOCAL bclass_array be_class_table = {

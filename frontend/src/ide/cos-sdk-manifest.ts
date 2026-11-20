@@ -1,6 +1,7 @@
 import berryBuiltinsTypes from '../cos-sdk/berry-builtins.d.ts?raw' with { type: 'text' }
 import consoleTypes from '../cos-sdk/console.d.ts?raw' with { type: 'text' }
 import filesystemTypes from '../cos-sdk/filesystem.d.ts?raw' with { type: 'text' }
+import httpTypes from '../cos-sdk/http.d.ts?raw' with { type: 'text' }
 import indexTypes from '../cos-sdk/index.d.ts?raw' with { type: 'text' }
 import jsonTypes from '../cos-sdk/json.d.ts?raw' with { type: 'text' }
 import languageTypes from '../cos-sdk/language.d.ts?raw' with { type: 'text' }
@@ -13,6 +14,7 @@ import consoleModuleTypes from '../cos-sdk/modules/console.d.ts?raw' with { type
 import fsModuleTypes from '../cos-sdk/modules/fs.d.ts?raw' with { type: 'text' }
 import gcModuleTypes from '../cos-sdk/modules/gc.d.ts?raw' with { type: 'text' }
 import globalModuleTypes from '../cos-sdk/modules/global.d.ts?raw' with { type: 'text' }
+import httpModuleTypes from '../cos-sdk/modules/http.d.ts?raw' with { type: 'text' }
 import introspectModuleTypes from '../cos-sdk/modules/introspect.d.ts?raw' with { type: 'text' }
 import jsonModuleTypes from '../cos-sdk/modules/json.d.ts?raw' with { type: 'text' }
 import mathModuleTypes from '../cos-sdk/modules/math.d.ts?raw' with { type: 'text' }
@@ -35,6 +37,7 @@ export const cosLibs: readonly CosSdkLib[] = [
   { content: consoleTypes, filePath: `${sdkRoot}/console.d.ts` },
   { content: filesystemTypes, filePath: `${sdkRoot}/filesystem.d.ts` },
   { content: networkTypes, filePath: `${sdkRoot}/network.d.ts` },
+  { content: httpTypes, filePath: `${sdkRoot}/http.d.ts` },
   { content: lightTypes, filePath: `${sdkRoot}/light.d.ts` },
   { content: systemTypes, filePath: `${sdkRoot}/system.d.ts` },
   { content: jsonTypes, filePath: `${sdkRoot}/json.d.ts` },
@@ -60,6 +63,11 @@ export const cosModuleLibs: readonly CosSdkModuleLib[] = [
   },
   { content: gcModuleTypes, filePath: `${modulesRoot}/gc.d.ts`, specifiers: ['@cos/gc', '@berry/gc'] },
   { content: globalModuleTypes, filePath: `${modulesRoot}/global.d.ts`, specifiers: ['@cos/global', '@berry/global'] },
+  {
+    content: httpModuleTypes,
+    filePath: `${modulesRoot}/http.d.ts`,
+    specifiers: ['@cos/http', '@berry/http'],
+  },
   {
     content: introspectModuleTypes,
     filePath: `${modulesRoot}/introspect.d.ts`,
