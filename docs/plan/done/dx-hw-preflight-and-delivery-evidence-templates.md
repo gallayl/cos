@@ -1,17 +1,20 @@
 # DX: HW validation preflight and delivery evidence templates
 
 - **ID:** dx-hw-preflight-and-delivery-evidence-templates
-- **Status:** ready (approved)
+- **Status:** done (delivered; PR opened, required PR CI green per scope, evidence recorded) — pending human review/approval and merge
 - **Created:** 2026-11-20
 - **Updated:** 2026-11-20
 - **Source/links:**
+  - Delivery PR: [#103 docs(reports): add HW validation and delivery evidence templates](https://github.com/gallayl/cos/pull/103) (branch `docs/dx-hw-delivery-evidence-templates`, commit `b852cc4`)
+  - PR CI evidence: [run 44722447791](https://github.com/gallayl/cos/actions/runs/44722447791) — **success** (head `b852cc4`, required checks green; path-filtered jobs skipped as not applicable for docs-only change)
   - Umbrella triage: [`dx-delivery-acceleration-bottlenecks.md`](../needs-clarification/dx-delivery-acceleration-bottlenecks.md) (v1 first slice; split decision)
   - Evidence/baselines: [`docs/reports/2026-11-11-dx1-baseline-measurements.md`](../../reports/2026-11-11-dx1-baseline-measurements.md), [`docs/reports/2026-11-18-pending-hardware-validation-inventory.md`](../../reports/2026-11-18-pending-hardware-validation-inventory.md), [`docs/reports/2026-11-19-hw-validation-only-missing-com3.md`](../../reports/2026-11-19-hw-validation-only-missing-com3.md), [`docs/reports/artifacts/hw-pending-2026-11-18/`](../../reports/artifacts/hw-pending-2026-11-18/)
   - Process/constraints: [`docs/README.md`](../../README.md), root [`AGENTS.md`](../../../AGENTS.md), `.agents/skills/global-gates/SKILL.md`, `.agents/skills/on-device-validation/SKILL.md`
-  - Related: [`docs/plan/done/dx1-canonical-baseline-report.md`](../done/dx1-canonical-baseline-report.md)
+  - Related: [`dx1-canonical-baseline-report.md`](./dx1-canonical-baseline-report.md)
   - Consolidated tracker: [`docs/plan/consolidated-improvement-plan.md`](../consolidated-improvement-plan.md)
 - **Approval:** Approved by user in clarify-feature conversation on 2026-11-20 ("Approve and move to ready now"). Pre-approved for implementation/PR flow per global gates (merge remains human).
 - **Open questions:** none
+- **Remaining human actions:** review/approval and merge of PR #103 (human/maintainer). No on-device/hardware validation required for this docs/templates slice; when templates are later used, record per-item evidence or explicit waiver per template fields. This `done` state does not imply merge.
 
 ## Summary
 
@@ -59,7 +62,7 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 - [x] Minimal cross-links added in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md` to the new templates without contradicting current process/gates.
 - [x] Ownership/cadence/waiver guidance and success-metric/baseline statements in this item are reflected in template/doc content as applicable (no open questions).
 - [x] `make format-check`, `make test`, and `make docs-check` run and reported with exact pass/fail outcomes for the committed docs-only change (see Progress / evidence).
-- [ ] Cross-links updated as applicable (`dx-delivery-acceleration-bottlenecks.md`, consolidated plan if applicable, this item). On delivery, move to `docs/plan/done/` with evidence per `docs/README.md` (merge remains a human action). Pending: PR delivery, required PR CI green per scope, then finalize/move to `docs/plan/done/` with evidence.
+- [x] Cross-links updated as applicable (this item/umbrella/consolidated tracker) and item moved to `docs/plan/done/` with delivery evidence. Merge remains a human action (PR #103 pending review/approval/merge).
 
 ## Validation plan
 
@@ -77,9 +80,9 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 - **Update (minimal cross-links/state):**
   - `docs/README.md`
   - `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`
-  - `docs/plan/needs-clarification/dx-delivery-acceleration-bottlenecks.md` (umbrella cross-link/status updates, if applicable)
-  - `docs/plan/ready/dx-hw-preflight-and-delivery-evidence-templates.md` (this item)
-  - `docs/plan/consolidated-improvement-plan.md` only if adding/updating a tracker cross-link is deemed applicable
+  - `docs/plan/needs-clarification/dx-delivery-acceleration-bottlenecks.md` (umbrella cross-link updated to done path)
+  - `docs/plan/done/dx-hw-preflight-and-delivery-evidence-templates.md` (this item; moved from ready on delivery)
+  - `docs/plan/consolidated-improvement-plan.md` (tracker cross-link/status updated)
 - **Must not change:** CI workflows, scripts, devcontainer, firmware/frontend/runtime code, or other ready-queue items.
 
 ## Dependencies / prerequisites
@@ -101,4 +104,5 @@ Create a docs-only, reusable workflow/template set to reduce hardware-validation
 - 2026-11-20: Created from umbrella `dx-delivery-acceleration-bottlenecks.md` after user decisions (v1 = HW validation + process streamlining; split; drive first slice to Ready; combined docs-only core templates; per-item evidence + explicit human waiver). Draft spec added; open questions recorded.
 - 2026-11-20 (clarify-feature, round 3, user): confirmed ID/title/paths/cross-links, recommended ownership/cadence/waiver guidance, adoption/compliance baseline+targets (quantitative targets deferred), and recommended content scope. Spec completed with all Ready-contract fields satisfied and **Open questions: none**.
 - 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark ready and move to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates (merge remains human). No implementation/checks run yet.
-- 2026-11-20 (implementation): implemented docs-only scope on branch `docs/dx-hw-delivery-evidence-templates` from healthy base `main@5c86e2b` (CI run 44721409172 success). Created `docs/reports/templates/hw-validation-preflight.md`, `docs/reports/templates/hw-validation-session.md`, and `docs/reports/templates/delivery-evidence-checklist.md`; added minimal cross-links in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`. Consolidated plan/umbrella cross-links reviewed (no additional updates deemed necessary at this step). Manual template review: required fields/closure policy/per-item evidence+waiver guidance present; references authoritative docs (`AGENTS.md`, `docs/README.md`, HW inventory/reports, skills); no scripts/CI/devcontainer/runtime changes. Optional dry-run against a real/retrospective example: **not performed** (no new device evidence claimed). Local checks (repo root, executed): `make format-check` — **pass** (exit 0); `make test` — **pass** (exit 0; CTest 31/31 passed, Python `scripts` unittest 3/3 OK); `make docs-check` — **pass** (exit 0). PR delivery/CI and final move to `docs/plan/done/` pending.
+- 2026-11-20 (implementation): implemented docs-only scope on branch `docs/dx-hw-delivery-evidence-templates` from healthy base `main@5c86e2b` (CI run 44721409172 success). Created `docs/reports/templates/hw-validation-preflight.md`, `docs/reports/templates/hw-validation-session.md`, and `docs/reports/templates/delivery-evidence-checklist.md`; added minimal cross-links in `docs/README.md` and `docs/reports/2026-11-18-pending-hardware-validation-inventory.md`. Manual template review: required fields/closure policy/per-item evidence+waiver guidance present; references authoritative docs (`AGENTS.md`, `docs/README.md`, HW inventory/reports, skills); no scripts/CI/devcontainer/runtime changes. Optional dry-run against a real/retrospective example: **not performed** (no new device evidence claimed). Local checks (repo root, executed): `make format-check` — **pass** (exit 0); `make test` — **pass** (exit 0; CTest 31/31 passed, Python `scripts` unittest 3/3 OK); `make docs-check` — **pass** (exit 0).
+- 2026-11-20 (delivery/babysit): commit `b852cc4` pushed; independent `reviewer`/`code-review` subagent (session `ses_e076e48f6ffeVndQ5G95z7xncv`) completed with **no actionable findings** ("Looks good. Ship."). PR [#103](https://github.com/gallayl/cos/pull/103) opened/updated and marked ready; branch up to date with base (`main@5c86e2b`, merge state clean), no review threads/comments/change requests. PR CI run [44722447791](https://github.com/gallayl/cos/actions/runs/44722447791) for head `b852cc4` — **success** (required checks green; path-filtered jobs skipped as not applicable). Item moved to `docs/plan/done/` with evidence/cross-links updated. **Pending human actions:** review/approval and merge (human/maintainer). No on-device/hardware validation required for this docs-only slice.
