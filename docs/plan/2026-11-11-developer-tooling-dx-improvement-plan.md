@@ -1,4 +1,4 @@
-# Developer Tooling & DX Improvement Plan
+﻿# Developer Tooling & DX Improvement Plan
 
 **Created:** 2026-11-11  
 **Status:** Proposed plan (not started)  
@@ -25,7 +25,7 @@
 | Pain point | Evidence / likely contributors |
 |---|---|
 | Dependency installation is overcomplicated | Multiple toolchains/runtimes: ESP-IDF v6.1 + env vars (`IDF_PATH`, tools/python env), host GCC/CMake/Ninja/Python, clang-format/clang-tidy, QEMU + pinned `pytest-embedded-*`, Node 24 + Yarn for frontend (`README.md`, `.github/workflows/*`, `integration_test/requirements.txt`, `frontend/package.json`). Makefile injects tool paths but setup remains env-heavy (`Makefile:3-29`). Python entrypoints vary (`IDF_PYTHON`, system `python`, pytest). Generated/tracked artifact ambiguity increases confusion (`.gitignore` ignores `sdkconfig`/`build`/`managed_components`/`frontend/dist`/`frontend/node_modules`, but such artifacts exist in workspace snapshots). |
-| Build/lint/integration testing slow and resource-heavy | No repo/CI-configured compiler cache (`ccache`/`sccache`/launcher). Separate clang reconfigure DB (`scripts/prepare_lint_db.py` → `build/clang`) plus full clang-tidy over explicit `SOURCES` list (`Makefile:30-109`, `scripts/run_tidy.py`). 6 independent integration firmware projects (`integration_test/test_*`) built serially by default and run serially with verbose pytest (`scripts/integration_test.py` supports `-j` build but Makefile/CI do not use it by default). Host tests reconfigure/build each run (`Makefile:110-117`). Frontend toolchain is dependency-heavy on cold runs. |
+| Build/lint/integration testing slow and resource-heavy | Compiler caching for ESP-IDF builds is now integrated in scoped CI workflows (`build-and-lint`, `integration-test`) via DX3a (2026-11-20), but remaining bottlenecks include: separate clang reconfigure DB (`scripts/prepare_lint_db.py` â†’ `build/clang`) plus full clang-tidy over explicit `SOURCES` list (`Makefile:30-109`, `scripts/run_tidy.py`), 6+ independent integration firmware projects (`integration_test/test_*`) built serially by default and run serially with verbose pytest (`scripts/integration_test.py` supports `-j` build but Makefile/CI do not use it by default). Host tests reconfigure/build each run (`Makefile:110-117`). Frontend toolchain is dependency-heavy on cold runs. |
 | Output too noisy | Verbose defaults: raw `idf.py` output, command echoing, clang-tidy streaming all diagnostics, `pytest -v`, integration logs/artifacts/backtrace decoding in CI (`.github/workflows/integration-test.yml`, `scripts/integration_test.py`, `scripts/run_tidy.py`). Useful for forensics, but obscures first actionable failure in normal loops. |
 | Maintainability friction | Manual `SOURCES` enumeration in `Makefile:30-70` risks drift when components/files change. Environment definitions are spread across README, Makefile, devcontainer, and CI workflows. |
 
@@ -39,7 +39,7 @@
 
 ## Workstreams and prioritized actions
 
-### DX1 — Baseline metrics and observability (P0, prerequisite)
+### DX1 â€” Baseline metrics and observability (P0, prerequisite)
 
 **Objective:** make performance/noise improvements evidence-based and prevent regressions.
 
@@ -51,7 +51,7 @@
 - **Acceptance:** baseline report checked in or linked; future DX changes cite before/after deltas.
 - **Risks/notes:** hardware-adjacent steps excluded; focus on host/QEMU/frontend/docs checks.
 
-### DX2 — Reproducible environment & dependency simplification (P0)
+### DX2 â€” Reproducible environment & dependency simplification (P0)
 
 **Objective:** one obvious, supported path to a working toolchain; fewer manual env vars.
 
@@ -65,7 +65,7 @@
 - **Acceptance:** a new contributor can reach "build + host test + selected integration test" via documented canonical path with minimal manual variable setup; native path documented with explicit prerequisites.
 - **Risks/notes:** USB serial passthrough differs across hosts/containers; native flashing workflow must remain first-class.
 
-### DX3 — Build and lint performance (P1)
+### DX3 â€” Build and lint performance (P1)
 
 **Objective:** reduce redundant compilation/configuration and speed static analysis.
 
@@ -78,7 +78,7 @@
 - **Acceptance:** measurable reduction in incremental/clean build and lint times on at least one reference platform; format/lint coverage automatically includes new component sources; CI remains green/equivalent.
 - **Risks/notes:** clang-tidy against embedded toolchains can be sensitive to flags/DB freshness; validate `scripts/run_tidy.py` sanitization behavior after changes.
 
-### DX4 — Test and integration-test throughput (P1)
+### DX4 â€” Test and integration-test throughput (P1)
 
 **Objective:** make host and QEMU validation loops practical for frequent local runs.
 
@@ -92,7 +92,7 @@
 - **Acceptance:** documented fast paths for "one test project" and "all projects" with improved wall-clock time; no loss of required CI coverage.
 - **Risks/notes:** QEMU and ESP-IDF builds can be RAM/CPU intensive when parallelized; provide caps and fallback guidance.
 
-### DX5 — Output ergonomics and failure signal (P1)
+### DX5 â€” Output ergonomics and failure signal (P1)
 
 **Objective:** default output answers "what failed and why?" quickly.
 
@@ -105,7 +105,7 @@
 - **Acceptance:** typical failure cases (format violation, unit test failure, single integration failure, lint error) identifiable from the last ~50 lines of default output; full detail still available.
 - **Risks/notes:** avoid hiding intermittent/flaky context needed for embedded/QEMU debugging.
 
-### DX6 — Developer workflow UX and guardrails (P2)
+### DX6 â€” Developer workflow UX and guardrails (P2)
 
 **Objective:** make the right checks easy to run early.
 
@@ -117,7 +117,7 @@
 - **Acceptance:** common workflows invokable via memorable commands on all supported platforms; optional hooks improve catch rate without blocking normal commits.
 - **Risks/notes:** keep Make targets canonical for CI to avoid drift.
 
-### DX7 — CI efficiency and parity (P2)
+### DX7 â€” CI efficiency and parity (P2)
 
 **Objective:** faster, clearer CI with the same guarantees.
 
@@ -131,11 +131,11 @@
 
 ## Suggested execution order
 
-1. **DX1** — establish baselines and reporting format.
-2. **DX2** — simplify/reproducify environments (largest onboarding/setup leverage; enables consistent measurement).
-3. **DX3 + DX4** — attack build/lint/test throughput (caching, parallelism, scoping, selection).
-4. **DX5** — reduce noise once fast paths exist (summary-first UX, CI grouping).
-5. **DX6 + DX7** — workflow polish and CI efficiency/parity.
+1. **DX1** â€” establish baselines and reporting format.
+2. **DX2** â€” simplify/reproducify environments (largest onboarding/setup leverage; enables consistent measurement).
+3. **DX3 + DX4** â€” attack build/lint/test throughput (caching, parallelism, scoping, selection).
+4. **DX5** â€” reduce noise once fast paths exist (summary-first UX, CI grouping).
+5. **DX6 + DX7** â€” workflow polish and CI efficiency/parity.
 
 Quick wins to prioritize early (can start in parallel with DX1 instrumentation): expose integration parallel build flags in docs/Make, add CI/frontend/pip caching, add summary/quiet wrappers, and auto-discover format/lint sources.
 
@@ -165,10 +165,11 @@ Quick wins to prioritize early (can start in parallel with DX1 instrumentation):
 
 | ID | Workstream | Priority | Status | Notes |
 |---|---|---:|---|---|
-| DX1 | Baseline metrics and observability | P0 | 🟡 In progress | 2026-11-11: initial local script/tool baselines + firmware build baseline and ccache comparison recorded in `docs/reports/2026-11-11-dx1-baseline-measurements.md` (FB1–FB4: clean 139.52 s → warm cached 72.09 s, −48.3%); lint/integration/CI/cross-platform/peak metrics remain. |
-| DX2 | Reproducible environment & dependency simplification | P0 | ⬜ Not started |  |
-| DX3 | Build and lint performance | P1 | 🟡 In progress | 2026-11-11: validated local compiler caching via `IDF_CCACHE_ENABLE=1` + ccache (Espressif tools) with ~1.94× warm clean-build speedup and 73.7% hit rate. 2026-11-12: replaced manual Makefile `SOURCES` enumeration with deterministic discovery (`$(sort $(wildcard ...))` over `main/` and `components/*/{include,src}` for `.c/.cpp/.h`) so `format`/`format-check`/`lint` auto-cover new project sources; repo/CI cache integration and lint-pipeline optimizations remain. |
-| DX4 | Test and integration-test throughput | P1 | 🟡 In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
-| DX5 | Output ergonomics and failure signal | P1 | ⬜ Not started |  |
-| DX6 | Developer workflow UX and guardrails | P2 | ⬜ Not started |  |
-| DX7 | CI efficiency and parity | P2 | 🟡 In progress | 2026-11-11: local evidence supports adding compiler caching to CI (build-and-lint/integration workflows); implementation/validation in progress as next step. 2026-11-13: integration-test workflow now caches `integration_test/test_*/build` (keyed by source/config/workflow hashes) in addition to ccache to speed incremental/no-op firmware builds across CI runs. |
+| DX1 | Baseline metrics and observability | P0 | ðŸŸ¡ In progress | 2026-11-11: initial local script/tool baselines + firmware build baseline and ccache comparison recorded in `docs/reports/2026-11-11-dx1-baseline-measurements.md` (FB1â€“FB4: clean 139.52 s â†’ warm cached 72.09 s, âˆ’48.3%); lint/integration/CI/cross-platform/peak metrics remain. |
+| DX2 | Reproducible environment & dependency simplification | P0 | â¬œ Not started |  |
+| DX3 | Build and lint performance | P1 | ðŸŸ¡ In progress | 2026-11-11: validated local compiler caching via `IDF_CCACHE_ENABLE=1` + ccache (Espressif tools) with ~1.94Ã— warm clean-build speedup and 73.7% hit rate. 2026-11-12: replaced manual Makefile `SOURCES` enumeration with deterministic discovery so `format`/`format-check`/`lint` auto-cover new project sources. 2026-11-20: **DX3a (CI/repo compiler caching integration)** delivered/moved to `docs/plan/done/dx3-build-and-lint-performance.md` (PR [#106](https://github.com/gallayl/cos/pull/106), pending human review/merge): scoped CI workflows enable ccache/`actions/cache` with keyed `.ccache` restore/save/stats while preserving required checks/coverage and existing integration build-dir caching; docs/evidence recorded (DX1 report addendum). Remaining DX3 work: lint pipeline reuse/changed-files mode, lint summaries, and other non-DX3a build/lint optimizations. |
+| DX4 | Test and integration-test throughput | P1 | ðŸŸ¡ In progress | 2026-11-11: exposed `INTEGRATION_TEST_JOBS` in Makefile/docs (parallel build flag quick win); safe defaults/parallel run/selection ergonomics remain. |
+| DX5 | Output ergonomics and failure signal | P1 | â¬œ Not started |  |
+| DX6 | Developer workflow UX and guardrails | P2 | â¬œ Not started |  |
+| DX7 | CI efficiency and parity | P2 | ðŸŸ¡ In progress | 2026-11-11: local evidence supported adding compiler caching to CI. 2026-11-13: integration-test workflow caches `integration_test/test_*/build` in addition to ccache. 2026-11-20: **DX3a** delivered compiler-cache integration in scoped `build-and-lint` and `integration-test` firmware-build workflows with `actions/cache`/`ccache` config, keys, and stats (see `docs/plan/done/dx3-build-and-lint-performance.md`, PR [#106](https://github.com/gallayl/cos/pull/106)). Remaining DX7 work: broader workflow caching, parallel builds/runs where safe, quiet/summary parity, and image/toolchain freshness review. |
+
