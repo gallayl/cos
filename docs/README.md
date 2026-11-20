@@ -14,6 +14,7 @@ This directory is organized so you can quickly see what is **done/historical**, 
 | **History / specs** | [`history/`](./history/) | Dated improvement plans, design specs, and conformance documents. | **Historical design/spec records.** Many delivered; some have follow-ups tracked in plan queues. Treat as background/evidence, not the live queue. |
 | **Ideas / drafts** | [`ideas/`](./ideas/) | New proposals not yet fully scheduled or accepted. | **Draft/idea state.** Clarify and promote deliberately. |
 | **Reports / evidence** | [`reports/`](./reports/) | Hardware validation guides/results, profiling checklists, audits, focused reports. | **Validation evidence.** May imply open follow-ups (track in needs-clarification/plan as needed). |
+| **Report templates** | [`reports/templates/`](./reports/templates/) | Reusable docs-only templates for HW preflight/session evidence and PR/plan delivery finalization. | Recommended practice (not CI-enforced): use for on-device/HW validation passes and merge-ready/done or HW-closure claims to improve traceability; does not weaken `AGENTS.md` or `docs/README.md` gates. |
 | **Progress notes** | [`progress/`](./progress/) | Dated progress tracking for specific workstreams. | Supporting progress evidence; actionable follow-ups should be reflected in plan queues/tracker. |
 | **Review findings** | [`review-findings/`](./review-findings/) | Audits/reviews and findings. | Evidence/findings; convert actionable work into clarified items when appropriate. |
 

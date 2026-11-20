@@ -5,6 +5,14 @@
 - **Scope:** inventory of features/items that still require hardware/manual validation, with console-automatable command plans prepared for `scripts/hw_console_session.py` (no `/flash` writes). **No on-device validation was executed in this session** (serial port/device state not provided; `pyserial` not installed in active Python env).
 - **Rule applied:** do **not** write to `/flash` (flaky on device). Command plans avoid file writes to `/flash` and avoid `make flash-data`/erase/flash operations.
 
+## Reusable templates (recommended, docs-only)
+
+- [HW validation preflight checklist](./templates/hw-validation-preflight.md) — capture port/firmware/profile/storage/reboot/environment/tooling/blockers and a quick read-only probe/command plan before device sessions.
+- [HW validation session & evidence](./templates/hw-validation-session.md) — record batched session metadata, per-item outcomes with evidence paths/logs (`pass`/`fail`/`inconclusive`/`waived`), anomalies, and explicit waiver fields (rationale, approver, context, date) when needed. Batched sessions do not replace per-item traceability.
+- [PR/plan delivery evidence & finalization checklist](./templates/delivery-evidence-checklist.md) — record exact local checks, CI evidence, HW/manual status per item, pending human actions, and queue/cross-link/finalization steps.
+
+These templates are **recommended practice** (not CI-enforced). Use them to improve traceability for HW validation passes and merge-ready/done or HW-closure claims without weakening `AGENTS.md`, `docs/README.md`, or required gates (merge/review/approval and hardware validation remain human actions unless explicitly waived with rationale recorded). See [`docs/README.md`](../README.md).
+
 ## Baseline / local checks executed in this session (evidence)
 
 | Command | Result | Notes |
