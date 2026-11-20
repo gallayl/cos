@@ -1,10 +1,10 @@
 # R20e: Image support feasibility spike → minimal Berry/UI image display
 
 - **ID:** r20-image-support-feasibility-minimal
-- **Status:** needs-clarification
+- **Status:** ready (approved)
 - **Created:** 2026-11-18
-- **Source/links:** docs/plan/needs-clarification/r20-deferred-backlog.md (umbrella, item e: image preview/Berry image support feasibility); docs/plan/consolidated-improvement-plan.md (R20); Berry UI components (components/ui/*), frontend/docs history context
-- **Approval:** pending (ready/pre-approved asked after feature specification)
+- **Source/links:** [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (umbrella, item e: image preview/Berry image support feasibility); [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R20); Berry UI components (`components/ui/*`), frontend/docs history context
+- **Approval:** user (2026-11-20, clarify-feature conversation) — explicit approval to mark ready and move to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.
 
 ## Summary
 Run the deferred feasibility for image preview/support on ESP32 (CYD). This item is a **feasibility spike + written recommendation first** (go/no-go). If **go**, define a **minimal v1 spec** in the same item (or linked doc update) so implementation is a follow-up; if **no-go**, record rationale, blockers, and alternatives. Initial target direction (to validate in spike): constrained raw RGB565 (or preconverted) display from VFS via firmware/UI path with Berry/Cos SDK bindings.
@@ -35,7 +35,7 @@ Run the deferred feasibility for image preview/support on ESP32 (CYD). This item
 - `components/ui/*` (render/draw path), `components/filesystem/*` (VFS reads), `components/berry_lang/src/berry_ui.cpp` and related bindings, `frontend/src/cos-sdk/ui.d.ts` (if API added), example assets under `storage/flash_data/` or test paths, `docs/reports/*` for feasibility evidence.
 
 ## Dependencies / prerequisites
-- R20 umbrella: `docs/plan/needs-clarification/r20-deferred-backlog.md` (item e).
+- R20 umbrella: [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (item e).
 - Current display/LovyanGFX pipeline and memory context (R2/R5/R8 reports) for budgeting.
 
 ## Risks / constraints
@@ -48,4 +48,5 @@ Run the deferred feasibility for image preview/support on ESP32 (CYD). This item
 
 ## Progress / evidence
 - 2026-11-18: created from analysis of done/ready features and R20 dangling backlog follow-ups (proposed as new feature idea 2).
-- 2026-11-18 (clarify-feature): reviewed `components/ui/*`, R20 umbrella context. User choices recorded (feasibility-first + optional minimal v1 spec if go; raw RGB565 target direction; firmware/UI + Berry/TS bindings; load from `/flash` and `/sdcard` with tentative caps 96×96/~20 KiB RGB565 to validate; CYD HW required for minimal-slice validation if go). Awaiting explicit approval to move to `docs/plan/ready/r20-image-support-feasibility-minimal.md`.
+- 2026-11-18 (clarify-feature): reviewed `components/ui/*`, R20 umbrella context. User choices recorded (feasibility-first; raw RGB565 target; firmware/UI + Berry/TS bindings; `/flash`+`/sdcard` with tentative caps; CYD HW required for minimal-slice validation if go). Open questions resolved.
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.

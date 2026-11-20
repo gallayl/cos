@@ -1,10 +1,10 @@
 # R20b: Stderr/FD redirection hardened evidence + logging capture playbook
 
 - **ID:** r20-stderr-fd-evidence-logging-playbook
-- **Status:** needs-clarification
+- **Status:** ready (approved)
 - **Created:** 2026-11-18
-- **Source/links:** docs/plan/needs-clarification/r20-deferred-backlog.md (umbrella, item b: stderr/FD HW smoke/remaining semantics); docs/reports/2026-11-10-r20-stderr-redirection-parsing-design.md; docs/reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md; docs/plan/consolidated-improvement-plan.md (R20)
-- **Approval:** pending (ready/pre-approved asked after feature specification)
+- **Source/links:** [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (umbrella, item b: stderr/FD HW smoke/remaining semantics); [`../../reports/2026-11-10-r20-stderr-redirection-parsing-design.md`](../../reports/2026-11-10-r20-stderr-redirection-parsing-design.md); [`../../reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md`](../../reports/2026-11-10-r20-runtime-pipes-stderr-design-spike.md); [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R20)
+- **Approval:** user (2026-11-20, clarify-feature conversation) — explicit approval to mark ready and move to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.
 
 ## Summary
 Complete validation and documentation for best-effort stderr/FD redirection (`2>`, `2>>`, `&>`, `&>>`): finish HW smoke/evidence, document precisely what is captured (stdio/fd streams) versus what is not (ESP-IDF `ESP_LOG*` routing/capture caveats), and provide a small tested playbook (one end-to-end shell session example) for capturing output to files on-device.
@@ -37,7 +37,7 @@ Complete validation and documentation for best-effort stderr/FD redirection (`2>
 - User-facing note in `README.md` or a short docs page (location chosen in implementation)
 
 ## Dependencies / prerequisites
-- R20 umbrella: `docs/plan/needs-clarification/r20-deferred-backlog.md` (item b).
+- R20 umbrella: [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (item b).
 - Existing stderr/FD best-effort runtime and prior R20 stderr reports/design docs.
 
 ## Risks / constraints
@@ -50,4 +50,5 @@ Complete validation and documentation for best-effort stderr/FD redirection (`2>
 
 ## Progress / evidence
 - 2026-11-18: created from analysis of done/ready features and R20 dangling backlog follow-ups (proposed as new feature idea 5).
-- 2026-11-18 (clarify-feature): reviewed R20 stderr design/reports. User choices: HW smoke on both /flash and /sdcard with canonical matrix; docs in reports + short user-facing note (README/docs) linking to playbook; explicit &> callouts including ESP_LOG caveat and existing limits; one end-to-end shell session playbook. Awaiting explicit approval to move to `docs/plan/ready/r20-stderr-fd-evidence-logging-playbook.md`.
+- 2026-11-18 (clarify-feature): reviewed R20 stderr design/reports. User choices: HW smoke on both /flash and /sdcard with canonical matrix; docs in reports + short user-facing note (README/docs) linking to playbook; explicit &> callouts including ESP_LOG caveat and existing limits; one end-to-end shell session playbook. Open questions resolved.
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.

@@ -1,10 +1,10 @@
 # R20d: Berry/UI larger app patterns + reference template
 
 - **ID:** r20-berry-ui-larger-app-patterns
-- **Status:** needs-clarification
+- **Status:** ready (approved)
 - **Created:** 2026-11-18
-- **Source/links:** docs/plan/needs-clarification/r20-deferred-backlog.md (umbrella, item d: larger apps); docs/plan/consolidated-improvement-plan.md (R20); existing UI examples (e.g. Tap Dash/Breakout in storage/flash_data/apps and sources)
-- **Approval:** pending (ready/pre-approved asked after feature specification)
+- **Source/links:** [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (umbrella, item d: larger apps); [`../consolidated-improvement-plan.md`](../consolidated-improvement-plan.md) (R20); existing UI examples (e.g. Tap Dash/Breakout in `storage/flash_data/apps` and sources)
+- **Approval:** user (2026-11-20, clarify-feature conversation) — explicit approval to mark ready and move to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.
 
 ## Summary
 Define minimal, documented patterns for building larger/stateful Berry UI apps on ESP32 (multi-screen/state navigation, lifecycle notes, memory/stack pitfalls) and deliver one vetted reference template app. Goal: move beyond demo-only UI feel toward practical app structure guidance, using only current UI/net APIs.
@@ -41,7 +41,7 @@ Define minimal, documented patterns for building larger/stateful Berry UI apps o
 - `frontend/src/cos-sdk/ui.d.ts` / `net` docs references only if documentation clarifications needed (no API changes required by this item)
 
 ## Dependencies / prerequisites
-- R20 umbrella: `docs/plan/needs-clarification/r20-deferred-backlog.md` (item d).
+- R20 umbrella: [`../needs-clarification/r20-deferred-backlog.md`](../needs-clarification/r20-deferred-backlog.md) (item d).
 - Existing Berry UI runtime/examples (`tap_dash.ts`, `breakout.ts`) and `net.wifi()`/`net.host()` availability for status display (read-only guidance if calls unavailable/fail).
 - Current UI widget set (Label/Button/Checkbox/GroupBox) sufficient for the 3-screen flow.
 
@@ -55,4 +55,5 @@ Define minimal, documented patterns for building larger/stateful Berry UI apps o
 
 ## Progress / evidence
 - 2026-11-18: created from analysis of done/ready features and R20 dangling backlog follow-ups (proposed as new feature idea 4).
-- 2026-11-18 (clarify-feature): reviewed `storage/ts/apps/tap_dash.ts`, `components/ui/*`, `frontend/src/cos-sdk/network.d.ts` (no scan/text input in UI). User choices: onboarding 3-screen template (Greeting, Wi‑Fi status/guidance read-only via `net.wifi`/`net.host` with graceful fallback, Tips+Done/Exit), demo-only; guide in docs + annotated example in repo; work within current API and list gaps as follow-ups; automated checks + required on-device smoke (lightweight memory notes if feasible). Awaiting explicit approval to move to `docs/plan/ready/r20-berry-ui-larger-app-patterns.md`.
+- 2026-11-18 (clarify-feature): reviewed existing UI examples and `network.d.ts`. User choices recorded (onboarding 3-screen demo-only template, guide + annotated example, current API only, automated + on-device smoke). Open questions resolved.
+- 2026-11-20 (clarify-feature, user approval): explicit approval recorded (user, clarify-feature conversation) to mark **ready (approved)** and move from `docs/plan/needs-clarification/` to `docs/plan/ready/`. Pre-approved for implementation/PR flow per global gates; merge remains human.
