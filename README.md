@@ -16,6 +16,8 @@ COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featu
 
 One-liner: open this repository in VS Code → **Dev Containers: Reopen in Container**.
 
+> If `/dev/ttyUSB0` is not present on your host (board unplugged or different adapter name), update the `runArgs` device mapping in `.devcontainer/devcontainer.json` before reopening the container.
+
 ### Build & flash
 
 Inside the dev container terminal:

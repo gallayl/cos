@@ -3,6 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/project,type=bind,consistency=cached",
   "workspaceFolder": "/workspaces/project",
   "runArgs": [
     "--device=/dev/ttyUSB0:/dev/ttyUSB0"
