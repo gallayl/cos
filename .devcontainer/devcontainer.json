@@ -1,20 +1,23 @@
 {
-	"name": "ESP-IDF QEMU",
-	"build": {
-		"dockerfile": "Dockerfile"
-	},
-	"customizations": {
-		"vscode": {
-			"settings": {
-				"terminal.integrated.defaultProfile.linux": "bash",
-				"idf.gitPath": "/usr/bin/git"
-			},
-			"extensions": [
-				"espressif.esp-idf-extension",
-				"espressif.esp-idf-web",
-				"llvm-vs-code-extensions.vscode-clangd"
-			]
-		}
-	},
-	"runArgs": ["--privileged", "--device=\"/dev/ttyUSB0\""]
+  "name": "ESP-IDF Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspaces/project",
+  "runArgs": [
+    "--device=/dev/ttyUSB0:/dev/ttyUSB0"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "idf.espIdfPath": "/opt/esp/idf",
+        "idf.toolsPath": "/opt/esp"
+      },
+      "extensions": [
+        "espressif.esp-idf-extension",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools"
+      ]
+    }
+  }
 }

@@ -4,6 +4,33 @@
 
 COS is a firmware project for the ESP32-based CYD board (ESP32-2432S028R), featuring an ILI9341 display with XPT2046 resistive touch.
 
+## Quick start (Dev Container)
+
+### Prerequisites
+
+- [Bazzite DX](https://bazzite.gg/) (or another Linux host with Docker available)
+- Docker installed and running
+- An SSH key configured for GitHub access
+
+### Open in VS Code
+
+One-liner: open this repository in VS Code → **Dev Containers: Reopen in Container**.
+
+### Build & flash
+
+Inside the dev container terminal:
+
+```bash
+idf.py --version
+opencode --version
+make build
+make flash
+make monitor
+make clean
+```
+
+> The dev container is pinned to `espressif/idf:release-v5.5` as requested. The repository's native/CI ESP-IDF target is v6.1; use the host/native workflow below when building against the project's pinned toolchain.
+
 ## Prerequisites
 
 ### ESP-IDF
