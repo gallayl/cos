@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/reent.h>
 
 static const char *const TAG = "text_console";
 
@@ -207,6 +208,9 @@ static void render_task(void *arg)
         if (s_tee != NULL && stdout == s_original_stdout)
         {
             stdout = s_tee;
+            stderr = s_tee;
+            _GLOBAL_REENT->_stdout = s_tee;
+            _GLOBAL_REENT->_stderr = s_tee;
             if (s_original_stdout != NULL)
             {
                 fprintf(s_original_stdout, "[tc] stdout hook restored\n");
@@ -479,6 +483,9 @@ extern "C" esp_err_t text_console_init(void)
            created before this point still reference the original fd. */
         s_tee = tee;
         stdout = tee;
+        stderr = tee;
+        _GLOBAL_REENT->_stdout = tee;
+        _GLOBAL_REENT->_stderr = tee;
     }
     else
     {
@@ -552,6 +559,9 @@ extern "C" void text_console_deinit(void)
         /* Mirror the init path: restore both the C global and newlib's
            per-task _reent cache so all tasks pick up the change. */
         stdout = s_original_stdout;
+        stderr = s_original_stdout;
+        _GLOBAL_REENT->_stdout = s_original_stdout;
+        _GLOBAL_REENT->_stderr = s_original_stdout;
         fclose(tee);
     }
     s_tee = NULL;
