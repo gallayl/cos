@@ -192,6 +192,7 @@ static void handle_console_touch(void)
 static void render_task(void *arg)
 {
     (void)arg;
+    uint32_t heartbeat = 0;
     for (;;)
     {
         const TickType_t wait_ticks = s_screen_visible ? pdMS_TO_TICKS(RENDER_PERIOD_MS) : portMAX_DELAY;
@@ -218,6 +219,13 @@ static void render_task(void *arg)
                     fprintf(s_original_stdout, "[tc] render skipped: screen not visible\n");
                     fflush(s_original_stdout);
                 }
+            }
+            heartbeat++;
+            if (s_original_stdout != NULL && (heartbeat % 100u) == 0u)
+            {
+                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx\n", s_screen_visible ? 1 : 0,
+                        static_cast<unsigned long long>(s_buf.dirty_rows));
+                fflush(s_original_stdout);
             }
             xSemaphoreGive(s_mutex);
         }
@@ -267,6 +275,12 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
         text_buffer_write(&s_buf, buf, size);
         history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
         should_notify_render = s_screen_visible;
+        if (s_original_stdout != NULL)
+        {
+            fprintf(s_original_stdout, "[tcw] dirty=%llx vis=%d\n", static_cast<unsigned long long>(s_buf.dirty_rows),
+                    s_screen_visible ? 1 : 0);
+            fflush(s_original_stdout);
+        }
         xSemaphoreGive(s_mutex);
         if (should_notify_render && s_render_task != NULL)
         {
