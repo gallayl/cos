@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/reent.h>
 
 static const char *const TAG = "text_console";
 
@@ -172,16 +173,20 @@ static void render_task(void *arg)
 
         if (!s_initialized)
         {
-            continue;
+            s_render_task = NULL;
+            vTaskDelete(NULL);
+            return;
         }
 
         if (s_tee != NULL && stdout == s_original_stdout)
         {
             stdout = s_tee;
             stderr = s_tee;
+            _GLOBAL_REENT->_stdout = s_tee;
+            _GLOBAL_REENT->_stderr = s_tee;
         }
 
-        if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+        if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
             if (s_screen_visible)
             {
@@ -236,7 +241,7 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
 
     bool history_allocation_failed = false;
     bool should_notify_render = false;
-    if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
+    if (s_initialized && s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
         text_buffer_write(&s_buf, buf, size);
         history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
@@ -422,6 +427,8 @@ extern "C" esp_err_t text_console_init(void)
         s_tee = tee;
         stdout = tee;
         stderr = tee;
+        _GLOBAL_REENT->_stdout = tee;
+        _GLOBAL_REENT->_stderr = tee;
     }
     else
     {
@@ -488,23 +495,45 @@ extern "C" void text_console_deinit(void)
     s_output_listener = nullptr;
     s_output_listener_context = nullptr;
 
-    /* Restore stdout */
-    if (stdout != s_original_stdout)
+    TaskHandle_t render_task = s_render_task;
+    if (render_task != NULL)
     {
-        FILE *tee = stdout;
-        /* Mirror the init path: restore both the C global and newlib's
-           per-task _reent cache so all tasks pick up the change. */
-        stdout = s_original_stdout;
-        stderr = s_original_stdout;
+        xTaskNotifyGive(render_task);
+        for (int i = 0; i < 50 && s_render_task != NULL; ++i)
+        {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        if (s_render_task != NULL)
+        {
+            ESP_LOGW(TAG, "Render task did not exit cleanly, deleting");
+            vTaskDelete(s_render_task);
+            s_render_task = NULL;
+        }
+    }
+
+    /* Restore stdout after the render task has stopped touching the tee. */
+    if (s_tee != NULL)
+    {
+        FILE *tee = s_tee;
+        if (stdout == tee)
+        {
+            stdout = s_original_stdout;
+        }
+        if (stderr == tee)
+        {
+            stderr = s_original_stdout;
+        }
+        if (_GLOBAL_REENT->_stdout == tee)
+        {
+            _GLOBAL_REENT->_stdout = s_original_stdout;
+        }
+        if (_GLOBAL_REENT->_stderr == tee)
+        {
+            _GLOBAL_REENT->_stderr = s_original_stdout;
+        }
         fclose(tee);
     }
     s_tee = NULL;
-
-    if (s_render_task != NULL)
-    {
-        vTaskDelete(s_render_task);
-        s_render_task = NULL;
-    }
 
     if (s_mutex != NULL)
     {
