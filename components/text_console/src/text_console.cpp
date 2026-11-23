@@ -300,6 +300,11 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
             xTaskNotifyGive(s_render_task);
         }
     }
+    else if (s_original_stdout != NULL)
+    {
+        fprintf(s_original_stdout, "[tcw] skip init=%d mtx=%d\n", s_initialized ? 1 : 0, s_mutex != NULL ? 1 : 0);
+        fflush(s_original_stdout);
+    }
     if (history_allocation_failed)
     {
         static const char SCROLLBACK_ALLOC_FAILED_MSG[] =
