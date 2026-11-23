@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/reent.h>
 
 static const char *const TAG = "text_console";
 
@@ -180,8 +179,6 @@ static void render_task(void *arg)
         {
             stdout = s_tee;
             stderr = s_tee;
-            _GLOBAL_REENT->_stdout = s_tee;
-            _GLOBAL_REENT->_stderr = s_tee;
         }
 
         if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -425,8 +422,6 @@ extern "C" esp_err_t text_console_init(void)
         s_tee = tee;
         stdout = tee;
         stderr = tee;
-        _GLOBAL_REENT->_stdout = tee;
-        _GLOBAL_REENT->_stderr = tee;
     }
     else
     {
@@ -501,8 +496,6 @@ extern "C" void text_console_deinit(void)
            per-task _reent cache so all tasks pick up the change. */
         stdout = s_original_stdout;
         stderr = s_original_stdout;
-        _GLOBAL_REENT->_stdout = s_original_stdout;
-        _GLOBAL_REENT->_stderr = s_original_stdout;
         fclose(tee);
     }
     s_tee = NULL;
