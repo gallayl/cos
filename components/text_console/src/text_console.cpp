@@ -234,10 +234,10 @@ static void render_task(void *arg)
             heartbeat++;
             if (s_original_stdout != NULL && (heartbeat % 100u) == 0u)
             {
-                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx hook=%d out=%p tee=%p orig=%p\n",
+                FILE *outp = stdout;
+                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx hook=%d out=%p tee=%p\n",
                         s_screen_visible ? 1 : 0, static_cast<unsigned long long>(s_buf.dirty_rows),
-                        (stdout == s_original_stdout) ? 0 : 1, static_cast<void *>(stdout),
-                        static_cast<void *>(s_tee), static_cast<void *>(s_original_stdout));
+                        (outp == s_original_stdout) ? 0 : 1, static_cast<void *>(outp), static_cast<void *>(s_tee));
                 fflush(s_original_stdout);
             }
             xSemaphoreGive(s_mutex);
