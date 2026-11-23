@@ -122,6 +122,28 @@ static void render_dirty(void)
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
+            if (s_original_stdout != NULL)
+            {
+                int first = -1;
+                int last = -1;
+                for (int c = 0; c < s_buf.cols; c++)
+                {
+                    if (chars[c] != ' ')
+                    {
+                        if (first < 0)
+                        {
+                            first = c;
+                        }
+                        last = c;
+                    }
+                }
+                if (first >= 0)
+                {
+                    fprintf(s_original_stdout, "[tc] row=%d first=%d last=%d fg=%04x ch='%c'\n", r, first, last,
+                            static_cast<unsigned>(fg[first]), chars[first]);
+                    fflush(s_original_stdout);
+                }
+            }
             if (display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR))
             {
                 text_buffer_clear_row_dirty(&s_buf, r);
