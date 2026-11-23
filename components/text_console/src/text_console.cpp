@@ -186,6 +186,7 @@ static void render_task(void *arg)
             _GLOBAL_REENT->_stdout = s_tee;
             _GLOBAL_REENT->_stderr = s_tee;
 #else
+            extern struct _reent *_global_impure_ptr;
             _global_impure_ptr->_stdout = s_tee;
             _global_impure_ptr->_stderr = s_tee;
 #endif
@@ -436,6 +437,7 @@ extern "C" esp_err_t text_console_init(void)
         _GLOBAL_REENT->_stdout = tee;
         _GLOBAL_REENT->_stderr = tee;
 #else
+        extern struct _reent *_global_impure_ptr;
         _global_impure_ptr->_stdout = tee;
         _global_impure_ptr->_stderr = tee;
 #endif
@@ -543,6 +545,7 @@ extern "C" void text_console_deinit(void)
             _GLOBAL_REENT->_stderr = s_original_stdout;
         }
 #else
+        extern struct _reent *_global_impure_ptr;
         if (_global_impure_ptr->_stdout == tee)
         {
             _global_impure_ptr->_stdout = s_original_stdout;
