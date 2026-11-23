@@ -1,0 +1,72 @@
+# hw_console_session log
+# time=2026-11-23 10:25:12.040
+# port=COM3 baud=115200
+# commands=5
+
+[2026-11-23 10:25:12.791] TX screen brightness
+[2026-11-23 10:25:13.426] RX screen brightness
+[2026-11-23 10:25:13.426] RX Brightness: 128 (manual)
+[2026-11-23 10:25:13.426] RX COS/flash> 
+[2026-11-23 10:25:13.426] TX screen rotation
+[2026-11-23 10:25:14.061] RX screen rotation
+[2026-11-23 10:25:14.061] RX Rotation: 3
+[2026-11-23 10:25:14.061] RX COS/flash> 
+[2026-11-23 10:25:14.061] TX berry eval "print('SMOKE-OK')"
+[2026-11-23 10:25:14.696] RX berry eval "print('SMOKE-OK')"
+[2026-11-23 10:25:14.696] RX SMOKE-OK
+[2026-11-23 10:25:14.696] RX COS/flash> 
+[2026-11-23 10:25:14.696] TX berry eval "for(i:0..30) print('L'+str(i)) end"
+[2026-11-23 10:25:15.361] RX berry eval "for(i:0..30) print('L'+str(i)) end"
+[2026-11-23 10:25:15.361] RX E (702763) berry: shell: shell:1: missing iteration variable before '('
+[2026-11-23 10:25:15.361] RX berry: execution failed (ESP_FAIL)
+[2026-11-23 10:25:15.361] RX COS/flash> 
+[2026-11-23 10:25:15.361] TX svc_mem
+[2026-11-23 10:25:16.137] RX svc_mem
+[2026-11-23 10:25:16.137] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:25:16.137] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [system_heap] System heap
+[2026-11-23 10:25:16.137] RX   default_free: 23828 bytes
+[2026-11-23 10:25:16.137] RX   default_min_free: 7268 bytes
+[2026-11-23 10:25:16.137] RX   default_largest_block: 8192 bytes
+[2026-11-23 10:25:16.137] RX   internal_free: 23828 bytes
+[2026-11-23 10:25:16.137] RX   internal_min_free: 7268 bytes
+[2026-11-23 10:25:16.137] RX   internal_largest_block: 8192 bytes
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-23 10:25:16.137] RX   initialized: true
+[2026-11-23 10:25:16.137] RX   gc_managed: 16493 bytes
+[2026-11-23 10:25:16.137] RX   gc_step_rate: 200
+[2026-11-23 10:25:16.137] RX   heap_free: 23828 bytes
+[2026-11-23 10:25:16.137] RX   heap_min_free: 7268 bytes
+[2026-11-23 10:25:16.137] RX   heap_largest_block: 8192 bytes
+[2026-11-23 10:25:16.137] RX   internal_free: 57084 bytes
+[2026-11-23 10:25:16.137] RX   internal_min_free: 40492 bytes
+[2026-11-23 10:25:16.137] RX   internal_largest_block: 32768 bytes
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:25:16.137] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:25:16.137] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:25:16.137] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:25:16.137] RX   worker_hwm_available: false
+[2026-11-23 10:25:16.137] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [wifi] Wi-Fi (state=connected)
+[2026-11-23 10:25:16.137] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [bluetooth] Bluetooth (state=running)
+[2026-11-23 10:25:16.137] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:25:16.137] RX   cols: unknown (not exposed)
+[2026-11-23 10:25:16.137] RX   rows: unknown (not exposed)
+[2026-11-23 10:25:16.137] RX   font_size: unknown (not exposed)
+[2026-11-23 10:25:16.137] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:25:16.137] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:25:16.137] RX 
+[2026-11-23 10:25:16.137] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:25:16.137] RX COS/flash> 
+
+# end=2026-11-23 10:25:16.371 status=0

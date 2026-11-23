@@ -64,6 +64,8 @@ extern "C"
         bool scrollback_allocation_failed;       /**< Unreported history allocation failure. */
         bool scrollback_suspended;               /**< History retention/allocation suspended (e.g. console hidden). */
         bool pending_wrap;                       /**< Deferred wrap: cursor at EOL, wrap on next printable char. */
+        bool heuristic_fg;                       /**< Current fg was set by log-level heuristic, not ANSI SGR. */
+        bool suppress_log_heuristic;             /**< SGR seen on current line; don't auto-color log prefix. */
         uint16_t current_fg;                     /**< Current foreground color for new chars. */
         uint64_t dirty_rows;                     /**< Bitmask of rows containing dirty cells. */
         tb_parse_state_t state;                  /**< VT100 parser state. */

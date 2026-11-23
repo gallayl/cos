@@ -142,6 +142,12 @@ static void next_line(text_buffer_t *buf)
 {
     buf->cursor_col = 0;
     buf->cursor_row++;
+    if (buf->heuristic_fg)
+    {
+        buf->current_fg = TEXT_BUF_DEFAULT_FG;
+        buf->heuristic_fg = false;
+    }
+    buf->suppress_log_heuristic = false;
     if (buf->cursor_row >= buf->rows)
     {
         scroll_up(buf);
@@ -158,6 +164,21 @@ static void resolve_pending_wrap(text_buffer_t *buf)
     }
 }
 
+static uint16_t log_level_color(char level)
+{
+    switch (level)
+    {
+    case 'E':
+        return TEXT_BUF_COLOR_RED;
+    case 'W':
+        return TEXT_BUF_COLOR_YELLOW;
+    case 'I':
+        return TEXT_BUF_COLOR_GREEN;
+    default:
+        return TEXT_BUF_DEFAULT_FG;
+    }
+}
+
 static void put_char(text_buffer_t *buf, char ch)
 {
     resolve_pending_wrap(buf);
@@ -165,6 +186,25 @@ static void put_char(text_buffer_t *buf, char ch)
     if (buf->cursor_row < 0 || buf->cursor_row >= buf->rows || buf->cursor_col < 0 || buf->cursor_col >= buf->cols)
     {
         return;
+    }
+
+    if (buf->cursor_col == 1 && ch == ' ' && buf->current_fg == TEXT_BUF_DEFAULT_FG && !buf->heuristic_fg &&
+        !buf->suppress_log_heuristic)
+    {
+        const char level = buf->cells[buf->cursor_row][0].ch;
+        const uint16_t color = log_level_color(level);
+        if (color != TEXT_BUF_DEFAULT_FG)
+        {
+            buf->cells[buf->cursor_row][0].fg = color;
+            buf->cells[buf->cursor_row][0].dirty = true;
+            const int display_row = buf->cursor_row + buf->viewport_offset;
+            if (display_row < buf->rows)
+            {
+                buf->dirty_rows |= (1ULL << display_row);
+            }
+            buf->current_fg = color;
+            buf->heuristic_fg = true;
+        }
     }
 
     text_cell_t *cell = &buf->cells[buf->cursor_row][buf->cursor_col];
@@ -188,6 +228,12 @@ static void put_char(text_buffer_t *buf, char ch)
 static void handle_newline(text_buffer_t *buf)
 {
     buf->pending_wrap = false;
+    if (buf->heuristic_fg)
+    {
+        buf->current_fg = TEXT_BUF_DEFAULT_FG;
+        buf->heuristic_fg = false;
+    }
+    buf->suppress_log_heuristic = false;
     next_line(buf);
 }
 
@@ -233,6 +279,8 @@ static int clamp(int val, int min_val, int max_val)
 
 static void apply_sgr(text_buffer_t *buf)
 {
+    buf->heuristic_fg = false;
+    buf->suppress_log_heuristic = true;
     if (buf->csi_param_count == 0)
     {
         buf->current_fg = TEXT_BUF_DEFAULT_FG;
@@ -250,9 +298,17 @@ static void apply_sgr(text_buffer_t *buf)
         {
             buf->current_fg = S_ANSI_COLOR_TABLE[p - 30];
         }
+        else if (p == 39)
+        {
+            buf->current_fg = TEXT_BUF_DEFAULT_FG;
+        }
         else if (p == 1)
         {
             /* Bold -- ignored for now, color already set */
+        }
+        else if (p == 22)
+        {
+            /* Normal intensity -- ignored (bold not supported) */
         }
         else if (p == 49)
         {
@@ -491,6 +547,8 @@ void text_buffer_clear(text_buffer_t *buf)
     buf->cursor_row = 0;
     buf->cursor_col = 0;
     buf->pending_wrap = false;
+    buf->heuristic_fg = false;
+    buf->suppress_log_heuristic = false;
     buf->current_fg = TEXT_BUF_DEFAULT_FG;
     buf->state = TB_STATE_NORMAL;
 }

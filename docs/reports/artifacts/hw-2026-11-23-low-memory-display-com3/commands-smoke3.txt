@@ -1,0 +1,6 @@
+# Smoke3 - correct berry eval syntax, screen status
+screen brightness
+screen rotation
+berry eval "print('SMOKE-OK')"
+berry eval "for(i:0..30) print('L'+str(i)) end"
+svc_mem

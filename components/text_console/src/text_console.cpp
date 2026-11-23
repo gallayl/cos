@@ -38,6 +38,7 @@ static int s_touch_last_y = 0;
 static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
+static FILE *s_tee;
 static text_console_log_level_t s_log_level = TEXT_CONSOLE_LOG_WARN;
 static text_console_output_listener_t s_output_listener = nullptr;
 static void *s_output_listener_context = nullptr;
@@ -114,7 +115,6 @@ static void render_dirty(void)
     }
 
     uint64_t dirty = s_buf.dirty_rows;
-
     while (dirty)
     {
         const int r = __builtin_ctzll(dirty);
@@ -173,6 +173,12 @@ static void render_task(void *arg)
         if (!s_initialized)
         {
             continue;
+        }
+
+        if (s_tee != NULL && stdout == s_original_stdout)
+        {
+            stdout = s_tee;
+            stderr = s_tee;
         }
 
         if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -413,7 +419,9 @@ extern "C" esp_err_t text_console_init(void)
         /* Both must be updated: `stdout` is the C global, but newlib's
            per-task _reent struct caches its own _stdout pointer. Tasks
            created before this point still reference the original fd. */
+        s_tee = tee;
         stdout = tee;
+        stderr = tee;
     }
     else
     {
@@ -487,8 +495,10 @@ extern "C" void text_console_deinit(void)
         /* Mirror the init path: restore both the C global and newlib's
            per-task _reent cache so all tasks pick up the change. */
         stdout = s_original_stdout;
+        stderr = s_original_stdout;
         fclose(tee);
     }
+    s_tee = NULL;
 
     if (s_render_task != NULL)
     {

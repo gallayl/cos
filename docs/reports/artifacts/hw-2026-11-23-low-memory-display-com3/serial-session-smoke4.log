@@ -1,0 +1,98 @@
+# hw_console_session log
+# time=2026-11-23 10:25:44.813
+# port=COM3 baud=115200
+# commands=3
+
+[2026-11-23 10:25:45.560] TX berry eval "print('\x1b[31mRED\x1b[32mGREEN\x1b[0m NORM')"
+[2026-11-23 10:25:46.195] RX berry eval "print('\x1b[31mRED\x1b[32mGREEN\x1b[0m NORM')"
+[2026-11-23 10:25:46.195] RX 1b[31mRED1b[32mGREEN1b[0m NORM
+[2026-11-23 10:25:46.195] RX COS/flash> 
+[2026-11-23 10:25:46.195] TX berry eval "for i:0..35 print('scroll-'+str(i)) end"
+[2026-11-23 10:25:46.861] RX berry eval "for i:0..35 print('scroll-'+str(i)) end"
+[2026-11-23 10:25:46.861] RX scroll-0
+[2026-11-23 10:25:46.861] RX scroll-1
+[2026-11-23 10:25:46.861] RX scroll-2
+[2026-11-23 10:25:46.861] RX scroll-3
+[2026-11-23 10:25:46.861] RX scroll-4
+[2026-11-23 10:25:46.861] RX scroll-5
+[2026-11-23 10:25:46.861] RX scroll-6
+[2026-11-23 10:25:46.861] RX scroll-7
+[2026-11-23 10:25:46.861] RX scroll-8
+[2026-11-23 10:25:46.861] RX scroll-9
+[2026-11-23 10:25:46.861] RX scroll-10
+[2026-11-23 10:25:46.861] RX scroll-11
+[2026-11-23 10:25:46.861] RX scroll-12
+[2026-11-23 10:25:46.861] RX scroll-13
+[2026-11-23 10:25:46.861] RX scroll-14
+[2026-11-23 10:25:46.861] RX scroll-15
+[2026-11-23 10:25:46.861] RX scroll-16
+[2026-11-23 10:25:46.861] RX scroll-17
+[2026-11-23 10:25:46.861] RX scroll-18
+[2026-11-23 10:25:46.861] RX scroll-19
+[2026-11-23 10:25:46.861] RX scroll-20
+[2026-11-23 10:25:46.861] RX scroll-21
+[2026-11-23 10:25:46.861] RX scroll-22
+[2026-11-23 10:25:46.861] RX scroll-23
+[2026-11-23 10:25:46.861] RX scroll-24
+[2026-11-23 10:25:46.861] RX scroll-25
+[2026-11-23 10:25:46.861] RX scroll-26
+[2026-11-23 10:25:46.861] RX scroll-27
+[2026-11-23 10:25:46.861] RX scroll-28
+[2026-11-23 10:25:46.861] RX scroll-29
+[2026-11-23 10:25:46.861] RX scroll-30
+[2026-11-23 10:25:46.861] RX scroll-31
+[2026-11-23 10:25:46.861] RX scroll-32
+[2026-11-23 10:25:46.861] RX scroll-33
+[2026-11-23 10:25:46.861] RX scroll-34
+[2026-11-23 10:25:46.861] RX scroll-35
+[2026-11-23 10:25:46.861] RX COS/flash> 
+[2026-11-23 10:25:46.874] TX svc_mem
+[2026-11-23 10:25:47.650] RX svc_mem
+[2026-11-23 10:25:47.650] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:25:47.650] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [system_heap] System heap
+[2026-11-23 10:25:47.650] RX   default_free: 21364 bytes
+[2026-11-23 10:25:47.650] RX   default_min_free: 7268 bytes
+[2026-11-23 10:25:47.650] RX   default_largest_block: 8192 bytes
+[2026-11-23 10:25:47.650] RX   internal_free: 21364 bytes
+[2026-11-23 10:25:47.650] RX   internal_min_free: 7268 bytes
+[2026-11-23 10:25:47.650] RX   internal_largest_block: 8192 bytes
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-23 10:25:47.650] RX   initialized: true
+[2026-11-23 10:25:47.650] RX   gc_managed: 18402 bytes
+[2026-11-23 10:25:47.650] RX   gc_step_rate: 200
+[2026-11-23 10:25:47.650] RX   heap_free: 21364 bytes
+[2026-11-23 10:25:47.650] RX   heap_min_free: 7268 bytes
+[2026-11-23 10:25:47.650] RX   heap_largest_block: 8192 bytes
+[2026-11-23 10:25:47.650] RX   internal_free: 54620 bytes
+[2026-11-23 10:25:47.650] RX   internal_min_free: 40492 bytes
+[2026-11-23 10:25:47.650] RX   internal_largest_block: 32768 bytes
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:25:47.650] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:25:47.650] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:25:47.650] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:25:47.650] RX   worker_hwm_available: false
+[2026-11-23 10:25:47.650] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [wifi] Wi-Fi (state=connected)
+[2026-11-23 10:25:47.650] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [bluetooth] Bluetooth (state=running)
+[2026-11-23 10:25:47.650] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:25:47.650] RX   cols: unknown (not exposed)
+[2026-11-23 10:25:47.650] RX   rows: unknown (not exposed)
+[2026-11-23 10:25:47.650] RX   font_size: unknown (not exposed)
+[2026-11-23 10:25:47.650] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:25:47.650] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:25:47.650] RX 
+[2026-11-23 10:25:47.650] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:25:47.650] RX COS/flash> 
+
+# end=2026-11-23 10:25:47.886 status=0

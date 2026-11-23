@@ -89,16 +89,19 @@ static CydDisplay &lcd()
     return display;
 }
 
+static bool initialized = false;
+static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
+static uint8_t s_text_size = 1;
+
+#if !defined(CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE)
 static lgfx::LGFX_Sprite &row_sprite()
 {
     static lgfx::LGFX_Sprite sprite(&lcd());
     return sprite;
 }
 
-static bool initialized = false;
 static bool row_sprite_ready = false;
-static uint8_t current_brightness = CYD_BL_DEFAULT_BRIGHTNESS;
-static uint8_t s_text_size = 1;
+#endif
 
 extern "C" esp_err_t display_init(void)
 {
@@ -128,11 +131,13 @@ extern "C" esp_err_t display_set_rotation(uint8_t rotation)
         return ESP_ERR_INVALID_ARG;
     }
     lcd().setRotation(rotation);
+#if !defined(CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE)
     if (row_sprite_ready)
     {
         row_sprite().deleteSprite();
         row_sprite_ready = false;
     }
+#endif
     return ESP_OK;
 }
 
@@ -276,11 +281,13 @@ extern "C" void display_set_text_size(uint8_t size)
     }
 
     s_text_size = size;
+#if !defined(CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE)
     if (row_sprite_ready)
     {
         row_sprite().deleteSprite();
         row_sprite_ready = false;
     }
+#endif
 }
 
 extern "C" void display_get_text_cell_size(int *width, int *height)
@@ -307,12 +314,44 @@ extern "C" void display_end_write(void)
 
 extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg)
 {
+    if (chars == NULL || fg == NULL || count <= 0)
+    {
+        return false;
+    }
+
+    const int font_w = 6 * static_cast<int>(s_text_size);
+    const int font_h = 8 * static_cast<int>(s_text_size);
+
+#if defined(CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE)
+    const auto *prev_font = lcd().getFont();
+    const float prev_size_x = lcd().getTextSizeX();
+    const float prev_size_y = lcd().getTextSizeY();
+
+    lcd().startWrite();
+    lcd().setFont(&lgfx::fonts::Font0);
+    lcd().setTextSize(s_text_size);
+    lcd().setTextDatum(textdatum_t::top_left);
+    lcd().fillRect(0, y, lcd().width(), font_h, bg);
+    for (int i = 0; i < count; i++)
+    {
+        if (chars[i] == ' ' && fg[i] == bg)
+        {
+            continue;
+        }
+        lcd().setCursor(i * font_w, y);
+        lcd().setTextColor(fg[i]);
+        lcd().write(static_cast<uint8_t>(chars[i]));
+    }
+    lcd().setFont(prev_font);
+    lcd().setTextSize(prev_size_x, prev_size_y);
+    lcd().endWrite();
+    return true;
+#else
     if (!row_sprite_ready)
     {
         row_sprite().setColorDepth(16);
         row_sprite().setFont(&lgfx::fonts::Font0);
         row_sprite().setTextSize(s_text_size);
-        const int font_h = 8 * static_cast<int>(s_text_size);
         if (row_sprite().createSprite(lcd().width(), font_h) == nullptr)
         {
             row_sprite_ready = false;
@@ -322,12 +361,6 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
         row_sprite_ready = true;
     }
 
-    if (chars == NULL || fg == NULL || count <= 0)
-    {
-        return false;
-    }
-
-    const int font_w = 6 * static_cast<int>(s_text_size);
     row_sprite().fillSprite(bg);
     for (int i = 0; i < count; i++)
     {
@@ -337,6 +370,7 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
     }
     row_sprite().pushSprite(0, y);
     return true;
+#endif
 }
 
 extern "C" void display_wait(void)

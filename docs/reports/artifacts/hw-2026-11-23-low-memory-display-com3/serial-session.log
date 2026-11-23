@@ -1,0 +1,282 @@
+# hw_console_session log
+# time=2026-11-23 10:13:31.836
+# port=COM3 baud=115200
+# commands=7
+
+[2026-11-23 10:13:32.608] TX svc_mem
+[2026-11-23 10:13:34.371] RX I (731) cpu_start: Multicore app
+[2026-11-23 10:13:34.371] RX I (740) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+[2026-11-23 10:13:34.371] RX I (740) cpu_start: Pro cpu start user code
+[2026-11-23 10:13:34.371] RX I (740) cpu_start: cpu freq: 160000000 Hz
+[2026-11-23 10:13:34.371] RX I (742) app_init: Application information:
+[2026-11-23 10:13:34.371] RX I (746) app_init: Project name:     cos
+[2026-11-23 10:13:34.371] RX I (749) app_init: App version:      3a20c89-dirty
+[2026-11-23 10:13:34.371] RX I (754) app_init: Compile time:     Nov 23 2026 10:00:14
+[2026-11-23 10:13:34.371] RX I (759) app_init: ELF file SHA256:  147207949...
+[2026-11-23 10:13:34.371] RX I (763) app_init: ESP-IDF:          v6.1
+[2026-11-23 10:13:34.371] RX I (767) efuse_init: Min chip rev:     v0.0
+[2026-11-23 10:13:34.371] RX I (770) efuse_init: Max chip rev:     v3.99 
+[2026-11-23 10:13:34.371] RX I (774) efuse_init: Chip rev:         v3.1
+[2026-11-23 10:13:34.371] RX I (778) heap_init: Initializing. RAM available for dynamic allocation:
+[2026-11-23 10:13:34.371] RX I (785) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+[2026-11-23 10:13:34.371] RX I (790) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+[2026-11-23 10:13:34.371] RX I (795) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+[2026-11-23 10:13:34.371] RX I (800) heap_init: At 3FFD4A48 len 0000B5B8 (45 KiB): DRAM
+[2026-11-23 10:13:34.371] RX I (805) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+[2026-11-23 10:13:34.371] RX I (810) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+[2026-11-23 10:13:34.371] RX I (816) heap_init: At 40097ADC len 00008524 (33 KiB): IRAM
+[2026-11-23 10:13:34.371] RX I (823) spi_flash: detected chip: boya
+[2026-11-23 10:13:34.371] RX I (825) spi_flash: flash io: dio
+[2026-11-23 10:13:34.371] RX I (830) coexist: coex firmware version: a830d28
+[2026-11-23 10:13:34.371] RX I (833) main_task: Started on CPU0
+[2026-11-23 10:13:34.371] RX I (833) main_task: Calling app_main()
+[2026-11-23 10:13:34.371] RX I (883) boot_profile: Stored boot profile: default (effective: default)
+[2026-11-23 10:13:34.371] RX I (883) main: COS starting up (boot profile: effective=default, next=default)
+[2026-11-23 10:13:34.371] RX I (1193) display: Display initialized (240x320)
+[2026-11-23 10:13:34.371] RX I (1193) cal_cmd: Registered 'calibrate' command
+[2026-11-23 10:13:34.371] RX I (1193) cal_storage: Loaded calibration for rotation 0
+[2026-11-23 10:13:34.371] RX I (1193) calibration: Calibration applied for rotation 0
+[2026-11-23 10:13:34.371] RX I (1203) light_sensor: Light sensor initialized
+[2026-11-23 10:13:34.371] RX I (1203) rgb_led: No saved color, defaulting to off
+[2026-11-23 10:13:34.371] RX I (1203) rgb_led_cmd: Registered 'led' command
+[2026-11-23 10:13:34.371] RX I (1213) rgb_led: RGB LED initialized (color 0,0,0)
+[2026-11-23 10:13:34.371] RX I (1213) cal_storage: Loaded calibration for rotation 3
+[2026-11-23 10:13:34.371] RX I (1223) calibration: Calibration applied for rotation 3
+[2026-11-23 10:13:34.371] RX I (1223) brightness_cmd: Registered 'screen' command
+[2026-11-23 10:13:34.371] RX I (1233) brightness: Brightness initialized (level=128, mode=manual, rotation=3)
+[2026-11-23 10:13:34.371] RX COS/flash> svc_mem
+[2026-11-23 10:13:34.371] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:13:34.371] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [system_heap] System heap
+[2026-11-23 10:13:34.371] RX   default_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   default_min_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   default_largest_block: 59392 bytes
+[2026-11-23 10:13:34.371] RX   internal_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   internal_min_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   internal_largest_block: 59392 bytes
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [berry_runtime] Berry runtime (state=uninitialized)
+[2026-11-23 10:13:34.371] RX   initialized: false
+[2026-11-23 10:13:34.371] RX   gc_managed: 0 bytes
+[2026-11-23 10:13:34.371] RX   gc_step_rate: 200
+[2026-11-23 10:13:34.371] RX   heap_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   heap_min_free: 59876 bytes
+[2026-11-23 10:13:34.371] RX   heap_largest_block: 59392 bytes
+[2026-11-23 10:13:34.371] RX   internal_free: 93132 bytes
+[2026-11-23 10:13:34.371] RX   internal_min_free: 93100 bytes
+[2026-11-23 10:13:34.371] RX   internal_largest_block: 59392 bytes
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:13:34.371] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:13:34.371] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:13:34.371] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:13:34.371] RX   worker_hwm_available: false
+[2026-11-23 10:13:34.371] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [wifi] Wi-Fi (state=running)
+[2026-11-23 10:13:34.371] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [bluetooth] Bluetooth (state=unknown)
+[2026-11-23 10:13:34.371] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:13:34.371] RX   cols: unknown (not exposed)
+[2026-11-23 10:13:34.371] RX   rows: unknown (not exposed)
+[2026-11-23 10:13:34.371] RX   font_size: unknown (not exposed)
+[2026-11-23 10:13:34.371] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:13:34.371] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:13:34.371] RX 
+[2026-11-23 10:13:34.371] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:13:34.371] RX COS/flash> 
+[2026-11-23 10:13:34.384] TX services
+[2026-11-23 10:13:34.975] RX services
+[2026-11-23 10:13:34.975] RX [http_server] HTTP server: state=running
+[2026-11-23 10:13:34.976] RX [websocket] WebSocket: state=running clients=0 http_server=yes
+[2026-11-23 10:13:34.976] RX [wifi] Wi-Fi: state=running connected=no stored_credentials=yes
+[2026-11-23 10:13:34.976] RX [bluetooth] Bluetooth: state=running enabled=yes enabling=no connected=no
+[2026-11-23 10:13:34.976] RX [network] Network: state=idle diagnostics_worker=no
+[2026-11-23 10:13:34.976] RX [time_sync] Time sync: state=running synced=no
+[2026-11-23 10:13:34.976] RX COS/flash> 
+[2026-11-23 10:13:34.976] TX help
+[2026-11-23 10:13:35.764] RX help
+[2026-11-23 10:13:35.764] RX calibrate 
+[2026-11-23 10:13:35.764] RX   Run interactive touch screen calibration
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX led  [<r> <g> <b> | off]
+[2026-11-23 10:13:35.764] RX   Get/set RGB LED color (0-255 each) or turn off
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX screen  [brightness [<0-255>|auto] | rotation [<0-7>]]
+[2026-11-23 10:13:35.764] RX   Screen brightness and rotation settings
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX clear 
+[2026-11-23 10:13:35.764] RX   Clear the text console
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX display_mode  [text|clear]
+[2026-11-23 10:13:35.764] RX   Display mode control
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX logging  [error|warn|info|debug]
+[2026-11-23 10:13:35.764] RX   Set the persistent global ESP log threshold
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX i2c  <scan|read|write>
+[2026-11-23 10:13:35.764] RX   I2C bus operations (scan, read, write)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX wifi  [status | start | stop | connect <ssid> [pw] | disconnect | scan | restart]
+[2026-11-23 10:13:35.764] RX   WiFi management (status, start, stop, connect, disconnect, scan, restart)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX bt  [on | off | scan | connect <addr> | disconnect | forget]
+[2026-11-23 10:13:35.764] RX   Bluetooth management (on, off, scan, connect, disconnect, forget)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX server  [status|start|stop|static|auth]
+[2026-11-23 10:13:35.764] RX   HTTP server management (status, start, stop, static, auth)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX ws  [status|start|stop]
+[2026-11-23 10:13:35.764] RX   WebSocket service control (status, start, stop)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX sysinfo 
+[2026-11-23 10:13:35.764] RX   Show system and filesystem information
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX restart 
+[2026-11-23 10:13:35.764] RX   Restart the device
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX help  [<string>] [-v <0|1>]
+[2026-11-23 10:13:35.764] RX   Print the summary of all registered commands if no arguments are given,
+[2026-11-23 10:13:35.764] RX   otherwise print summary of given command.
+[2026-11-23 10:13:35.764] RX       <string>  Name of command
+[2026-11-23 10:13:35.764] RX   -v, --verbose=<0|1>  If specified, list console commands with given verbose level
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX cd  <path>
+[2026-11-23 10:13:35.764] RX   Change working directory
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX pwd 
+[2026-11-23 10:13:35.764] RX   Print working directory
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX mkdir  <path>
+[2026-11-23 10:13:35.764] RX   Create a directory
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX md  <path>
+[2026-11-23 10:13:35.764] RX   Create a directory (alias for mkdir)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX rm  <path>
+[2026-11-23 10:13:35.764] RX   Remove a file or empty directory
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX del  <path>
+[2026-11-23 10:13:35.764] RX   Remove a file or empty directory (alias for rm)
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX cp  <source> <destination>
+[2026-11-23 10:13:35.764] RX   Copy a file without overwriting
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX mv  <source> <destination>
+[2026-11-23 10:13:35.764] RX   Move a file without overwriting
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX rmdir  <directory>
+[2026-11-23 10:13:35.764] RX   Remove an empty directory
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX cat  <path>
+[2026-11-23 10:13:35.764] RX   Display file contents
+[2026-11-23 10:13:35.764] RX 
+[2026-11-23 10:13:35.764] RX type  <path>
+[2026-11-23 10:13:35.764] RX   Display file contents (alias for cat)
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX touch  <path>
+[2026-11-23 10:13:35.765] RX   Create an empty file
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX hexdump  <path>
+[2026-11-23 10:13:35.765] RX   Hex dump of a file
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX sd  <mount|unmount|info>
+[2026-11-23 10:13:35.765] RX   SD card management (mount, unmount, info)
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX format 
+[2026-11-23 10:13:35.765] RX   Format flash (LittleFS) filesystem
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX svc_mem 
+[2026-11-23 10:13:35.765] RX   Show on-demand service memory/diagnostics snapshot
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX berry 
+[2026-11-23 10:13:35.765] RX   Run/eval Berry scripts; app/profile/http-stack/gc tools
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX services 
+[2026-11-23 10:13:35.765] RX   Show one-shot status for core services
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX alias  [<name> <command>]
+[2026-11-23 10:13:35.765] RX   List or define a shell alias
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX unalias  <name>
+[2026-11-23 10:13:35.765] RX   Remove a shell alias
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX path  [list|add <directory>|remove <directory>|clear]
+[2026-11-23 10:13:35.765] RX   List or configure script search directories
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX which  <name-or-path>
+[2026-11-23 10:13:35.765] RX   Resolve a script name or path without executing it
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX boot_profile 
+[2026-11-23 10:13:35.765] RX   Get/set boot profile (default, low-memory-offline). Changes apply on next
+[2026-11-23 10:13:35.765] RX   boot.
+[2026-11-23 10:13:35.765] RX 
+[2026-11-23 10:13:35.765] RX COS/flash> 
+[2026-11-23 10:13:35.765] TX ls /flash
+[2026-11-23 10:13:36.462] RX ls /flash
+[2026-11-23 10:13:36.462] RX E (3933) berry: /sdcard/scripts/ls.be: run(args) failed: 'string' value has no method 'charAt'
+[2026-11-23 10:13:36.462] RX ls: ESP_FAIL
+[2026-11-23 10:13:36.462] RX COS/flash> 
+[2026-11-23 10:13:36.462] TX display_mode text
+[2026-11-23 10:13:37.018] RX display_mode text
+[2026-11-23 10:13:37.018] RX Display mode: text (already active)
+[2026-11-23 10:13:37.018] RX COS/flash> 
+[2026-11-23 10:13:37.018] TX clear
+[2026-11-23 10:13:37.606] RX clear
+[2026-11-23 10:13:37.606] RX COS/flash> 
+[2026-11-23 10:13:37.606] TX svc_mem
+[2026-11-23 10:13:38.302] RX svc_mem
+[2026-11-23 10:13:38.302] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:13:38.302] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [system_heap] System heap
+[2026-11-23 10:13:38.302] RX   default_free: 14820 bytes
+[2026-11-23 10:13:38.302] RX   default_min_free: 7268 bytes
+[2026-11-23 10:13:38.302] RX   default_largest_block: 7168 bytes
+[2026-11-23 10:13:38.302] RX   internal_free: 14820 bytes
+[2026-11-23 10:13:38.302] RX   internal_min_free: 7268 bytes
+[2026-11-23 10:13:38.302] RX   internal_largest_block: 7168 bytes
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-23 10:13:38.302] RX   initialized: true
+[2026-11-23 10:13:38.302] RX   gc_managed: 15693 bytes
+[2026-11-23 10:13:38.302] RX   gc_step_rate: 200
+[2026-11-23 10:13:38.302] RX   heap_free: 14820 bytes
+[2026-11-23 10:13:38.302] RX   heap_min_free: 7268 bytes
+[2026-11-23 10:13:38.302] RX   heap_largest_block: 7168 bytes
+[2026-11-23 10:13:38.302] RX   internal_free: 48076 bytes
+[2026-11-23 10:13:38.302] RX   internal_min_free: 40492 bytes
+[2026-11-23 10:13:38.302] RX   internal_largest_block: 32768 bytes
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:13:38.302] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:13:38.302] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:13:38.302] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:13:38.302] RX   worker_hwm_available: false
+[2026-11-23 10:13:38.302] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [wifi] Wi-Fi (state=connected)
+[2026-11-23 10:13:38.302] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [bluetooth] Bluetooth (state=running)
+[2026-11-23 10:13:38.302] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:13:38.302] RX   cols: unknown (not exposed)
+[2026-11-23 10:13:38.302] RX   rows: unknown (not exposed)
+[2026-11-23 10:13:38.302] RX   font_size: unknown (not exposed)
+[2026-11-23 10:13:38.302] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:13:38.302] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:13:38.302] RX 
+[2026-11-23 10:13:38.302] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:13:38.302] RX COS/flash> 
+
+# end=2026-11-23 10:13:38.538 status=0
