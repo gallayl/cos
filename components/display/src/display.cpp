@@ -330,11 +330,16 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
     lcd().startWrite();
     lcd().setFont(&lgfx::fonts::Font0);
     lcd().setTextSize(s_text_size);
+    lcd().setTextDatum(textdatum_t::top_left);
     lcd().fillRect(0, y, lcd().width(), font_h, bg);
     for (int i = 0; i < count; i++)
     {
+        if (chars[i] == ' ' && fg[i] == bg)
+        {
+            continue;
+        }
         lcd().setCursor(i * font_w, y);
-        lcd().setTextColor(fg[i], bg);
+        lcd().setTextColor(fg[i]);
         lcd().write(static_cast<uint8_t>(chars[i]));
     }
     lcd().setFont(prev_font);
