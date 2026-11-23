@@ -182,8 +182,13 @@ static void render_task(void *arg)
         {
             stdout = s_tee;
             stderr = s_tee;
+#if defined(_GLOBAL_REENT)
             _GLOBAL_REENT->_stdout = s_tee;
             _GLOBAL_REENT->_stderr = s_tee;
+#else
+            _global_impure_ptr->_stdout = s_tee;
+            _global_impure_ptr->_stderr = s_tee;
+#endif
         }
 
         if (s_mutex != NULL && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -427,8 +432,13 @@ extern "C" esp_err_t text_console_init(void)
         s_tee = tee;
         stdout = tee;
         stderr = tee;
+#if defined(_GLOBAL_REENT)
         _GLOBAL_REENT->_stdout = tee;
         _GLOBAL_REENT->_stderr = tee;
+#else
+        _global_impure_ptr->_stdout = tee;
+        _global_impure_ptr->_stderr = tee;
+#endif
     }
     else
     {
@@ -523,6 +533,7 @@ extern "C" void text_console_deinit(void)
         {
             stderr = s_original_stdout;
         }
+#if defined(_GLOBAL_REENT)
         if (_GLOBAL_REENT->_stdout == tee)
         {
             _GLOBAL_REENT->_stdout = s_original_stdout;
@@ -531,6 +542,16 @@ extern "C" void text_console_deinit(void)
         {
             _GLOBAL_REENT->_stderr = s_original_stdout;
         }
+#else
+        if (_global_impure_ptr->_stdout == tee)
+        {
+            _global_impure_ptr->_stdout = s_original_stdout;
+        }
+        if (_global_impure_ptr->_stderr == tee)
+        {
+            _global_impure_ptr->_stderr = s_original_stdout;
+        }
+#endif
         fclose(tee);
     }
     s_tee = NULL;
