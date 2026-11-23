@@ -1,0 +1,125 @@
+# hw_console_session log
+# time=2026-11-23 10:24:41.872
+# port=COM3 baud=115200
+# commands=7
+
+[2026-11-23 10:24:42.621] TX svc_mem
+[2026-11-23 10:24:43.395] RX svc_mem
+[2026-11-23 10:24:43.395] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:24:43.395] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [system_heap] System heap
+[2026-11-23 10:24:43.395] RX   default_free: 25124 bytes
+[2026-11-23 10:24:43.395] RX   default_min_free: 7268 bytes
+[2026-11-23 10:24:43.395] RX   default_largest_block: 8192 bytes
+[2026-11-23 10:24:43.395] RX   internal_free: 25124 bytes
+[2026-11-23 10:24:43.395] RX   internal_min_free: 7268 bytes
+[2026-11-23 10:24:43.395] RX   internal_largest_block: 8192 bytes
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-23 10:24:43.395] RX   initialized: true
+[2026-11-23 10:24:43.395] RX   gc_managed: 15693 bytes
+[2026-11-23 10:24:43.395] RX   gc_step_rate: 200
+[2026-11-23 10:24:43.395] RX   heap_free: 25124 bytes
+[2026-11-23 10:24:43.395] RX   heap_min_free: 7268 bytes
+[2026-11-23 10:24:43.395] RX   heap_largest_block: 8192 bytes
+[2026-11-23 10:24:43.395] RX   internal_free: 58380 bytes
+[2026-11-23 10:24:43.395] RX   internal_min_free: 40492 bytes
+[2026-11-23 10:24:43.395] RX   internal_largest_block: 32768 bytes
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:24:43.395] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:24:43.395] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:24:43.395] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:24:43.395] RX   worker_hwm_available: false
+[2026-11-23 10:24:43.395] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [wifi] Wi-Fi (state=connected)
+[2026-11-23 10:24:43.395] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [bluetooth] Bluetooth (state=running)
+[2026-11-23 10:24:43.395] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:24:43.395] RX   cols: unknown (not exposed)
+[2026-11-23 10:24:43.395] RX   rows: unknown (not exposed)
+[2026-11-23 10:24:43.395] RX   font_size: unknown (not exposed)
+[2026-11-23 10:24:43.395] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:24:43.395] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:24:43.395] RX 
+[2026-11-23 10:24:43.395] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:24:43.395] RX COS/flash> 
+[2026-11-23 10:24:43.408] TX screen
+[2026-11-23 10:24:44.043] RX screen
+[2026-11-23 10:24:44.043] RX Brightness: 128 (manual)
+[2026-11-23 10:24:44.043] RX Rotation:   3
+[2026-11-23 10:24:44.043] RX COS/flash> 
+[2026-11-23 10:24:44.043] TX berry -e "print('\033[31mRED\033[32mGREEN\033[34mBLUE\033[0m normal')"
+[2026-11-23 10:24:44.692] RX berry -e "print('\033[31mRED\033[32mGREEN\033[34mBLUE\033[0m normal')"
+[2026-11-23 10:24:44.692] RX berry: unknown operation '-e'
+[2026-11-23 10:24:44.692] RX Usage: berry run <path> [args...] | berry eval <source> | berry close | berry app | berry profile | berry http-stack | berry gc | berry gc-step <rate>
+[2026-11-23 10:24:44.692] RX COS/flash> 
+[2026-11-23 10:24:44.692] TX berry -e "for i:0..45 print('scroll-'+str(i)) end"
+[2026-11-23 10:24:45.342] RX berry -e "for i:0..45 print('scroll-'+str(i)) end"
+[2026-11-23 10:24:45.342] RX berry: unknown operation '-e'
+[2026-11-23 10:24:45.342] RX Usage: berry run <path> [args...] | berry eval <source> | berry close | berry app | berry profile | berry http-stack | berry gc | berry gc-step <rate>
+[2026-11-23 10:24:45.342] RX COS/flash> 
+[2026-11-23 10:24:45.342] TX clear
+[2026-11-23 10:24:46.009] RX clear
+[2026-11-23 10:24:46.009] RX COS/flash> 
+[2026-11-23 10:24:46.009] TX display_mode text
+[2026-11-23 10:24:46.645] RX display_mode text
+[2026-11-23 10:24:46.645] RX Display mode: text (already active)
+[2026-11-23 10:24:46.645] RX COS/flash> 
+[2026-11-23 10:24:46.645] TX svc_mem
+[2026-11-23 10:24:47.419] RX svc_mem
+[2026-11-23 10:24:47.419] RX svc_mem (service memory/budget snapshot, on-demand)
+[2026-11-23 10:24:47.419] RX Units: bytes unless noted. n/a/unknown/unsupported values are reported explicitly.
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [system_heap] System heap
+[2026-11-23 10:24:47.419] RX   default_free: 25124 bytes
+[2026-11-23 10:24:47.419] RX   default_min_free: 7268 bytes
+[2026-11-23 10:24:47.419] RX   default_largest_block: 8192 bytes
+[2026-11-23 10:24:47.419] RX   internal_free: 25124 bytes
+[2026-11-23 10:24:47.419] RX   internal_min_free: 7268 bytes
+[2026-11-23 10:24:47.419] RX   internal_largest_block: 8192 bytes
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [berry_runtime] Berry runtime (state=running)
+[2026-11-23 10:24:47.419] RX   initialized: true
+[2026-11-23 10:24:47.419] RX   gc_managed: 15693 bytes
+[2026-11-23 10:24:47.419] RX   gc_step_rate: 200
+[2026-11-23 10:24:47.419] RX   heap_free: 25124 bytes
+[2026-11-23 10:24:47.419] RX   heap_min_free: 7268 bytes
+[2026-11-23 10:24:47.419] RX   heap_largest_block: 8192 bytes
+[2026-11-23 10:24:47.419] RX   internal_free: 58380 bytes
+[2026-11-23 10:24:47.419] RX   internal_min_free: 40492 bytes
+[2026-11-23 10:24:47.419] RX   internal_largest_block: 32768 bytes
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [network_http] Network/HTTP worker (state=idle)
+[2026-11-23 10:24:47.419] RX   worker_stack_cfg: 6144 bytes
+[2026-11-23 10:24:47.419] RX   worker_stack_hwm: n/a (no sample yet)
+[2026-11-23 10:24:47.419] RX   worker_stack_unit: 1 bytes/unit
+[2026-11-23 10:24:47.419] RX   worker_hwm_available: false
+[2026-11-23 10:24:47.419] RX   notes: bounded body/buffer limits per network.h (e.g. NETWORK_HTTP_BODY_MAX=2048)
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [wifi] Wi-Fi (state=connected)
+[2026-11-23 10:24:47.419] RX   metrics: n/a (no cheap per-subsystem heap counters exposed; ESP-IDF reclaimability limited)
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [bluetooth] Bluetooth (state=running)
+[2026-11-23 10:24:47.419] RX   metrics: n/a (no cheap scan/buffer/task counters exposed)
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [text_console] Text console (state=unknown)
+[2026-11-23 10:24:47.419] RX   cols: unknown (not exposed)
+[2026-11-23 10:24:47.419] RX   rows: unknown (not exposed)
+[2026-11-23 10:24:47.419] RX   font_size: unknown (not exposed)
+[2026-11-23 10:24:47.419] RX   notes: task stack/HWM and buffer capacities not exposed as cheap accessors; semantics follow text_console lifecycle plan
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX [shell_input] Shell input (state=ready)
+[2026-11-23 10:24:47.419] RX   metrics: n/a (stack/HWM and input buffer/queue sizes not exposed as cheap accessors)
+[2026-11-23 10:24:47.419] RX 
+[2026-11-23 10:24:47.419] RX Limitations: on-demand snapshot only; point-in-time values; ESP-IDF resources may be non-reclaimable.
+[2026-11-23 10:24:47.419] RX COS/flash> 
+
+# end=2026-11-23 10:24:47.655 status=0
