@@ -110,7 +110,7 @@ extern "C"
      * @param fg     Array of per-character foreground colors (RGB565, count elements).
      * @param count  Number of characters in the row.
      * @param bg     Background color (RGB565).
-     * @return true on success, false if input is invalid or rendering failed.
+     * @return true on success, false if input is invalid or row rendering could not be started.
      */
     bool display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
 

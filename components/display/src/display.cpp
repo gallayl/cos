@@ -323,10 +323,13 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
     const int font_h = 8 * static_cast<int>(s_text_size);
 
 #if defined(CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE)
+    const auto *prev_font = lcd().getFont();
+    const float prev_size_x = lcd().getTextSizeX();
+    const float prev_size_y = lcd().getTextSizeY();
+
     lcd().startWrite();
     lcd().setFont(&lgfx::fonts::Font0);
     lcd().setTextSize(s_text_size);
-    lcd().setTextWrap(false);
     lcd().fillRect(0, y, lcd().width(), font_h, bg);
     for (int i = 0; i < count; i++)
     {
@@ -334,6 +337,8 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
         lcd().setTextColor(fg[i], bg);
         lcd().write(static_cast<uint8_t>(chars[i]));
     }
+    lcd().setFont(prev_font);
+    lcd().setTextSize(prev_size_x, prev_size_y);
     lcd().endWrite();
     return true;
 #else
