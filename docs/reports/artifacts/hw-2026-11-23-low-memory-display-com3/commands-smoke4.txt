@@ -1,0 +1,4 @@
+# Smoke4 - scroll and ANSI with correct Berry syntax
+berry eval "print('\x1b[31mRED\x1b[32mGREEN\x1b[0m NORM')"
+berry eval "for i:0..35 print('scroll-'+str(i)) end"
+svc_mem

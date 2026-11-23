@@ -1,0 +1,8 @@
+# Follow-up console smoke - ANSI/scroll/screen status (no reset)
+svc_mem
+screen
+berry -e "print('\033[31mRED\033[32mGREEN\033[34mBLUE\033[0m normal')"
+berry -e "for i:0..45 print('scroll-'+str(i)) end"
+clear
+display_mode text
+svc_mem

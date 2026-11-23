@@ -1,0 +1,9 @@
+# Low-memory display v1 on-device console smoke (COM3, reset OK)
+# Read-only/status commands only.
+svc_mem
+services
+help
+ls /flash
+display_mode text
+clear
+svc_mem
