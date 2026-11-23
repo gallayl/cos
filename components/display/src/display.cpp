@@ -326,6 +326,7 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
     const auto *prev_font = lcd().getFont();
     const float prev_size_x = lcd().getTextSizeX();
     const float prev_size_y = lcd().getTextSizeY();
+    const auto prev_datum = lcd().getTextDatum();
 
     lcd().startWrite();
     lcd().setFont(&lgfx::fonts::Font0);
@@ -344,6 +345,7 @@ extern "C" bool display_draw_text_row(int y, const char *chars, const uint16_t *
     }
     lcd().setFont(prev_font);
     lcd().setTextSize(prev_size_x, prev_size_y);
+    lcd().setTextDatum(prev_datum);
     lcd().endWrite();
     return true;
 #else
