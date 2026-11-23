@@ -79,7 +79,7 @@ extern "C"
      * @brief Set the integer scale of the fixed 6x8 console font.
      *
      * Size 1 is 6x8 pixels, size 2 is 12x16, and size 3 is 18x24.
-     * Values outside 1..3 are clamped. The row sprite is rebuilt on the next draw.
+     * Values outside 1..3 are clamped.
      */
     void display_set_text_size(uint8_t size);
 
@@ -98,18 +98,19 @@ extern "C"
     void display_end_write(void);
 
     /**
-     * @brief Render a row of characters and push to the display in one DMA transfer.
+     * @brief Render a row of characters to the display.
      *
-     * Uses an internal row-sized sprite to batch all characters, avoiding
-     * per-character SPI overhead. Much faster than individual display_draw_char()
-     * calls for full-row updates.
+     * Draws count characters starting at x=0 on a row with top edge y. The full
+     * display width is filled with bg before characters are drawn. With
+     * CONFIG_COS_DISPLAY_LOW_MEMORY_CONSOLE enabled (default), characters are
+     * drawn directly to the LCD without allocating a row sprite.
      *
      * @param y      Pixel y-coordinate of the row's top edge.
      * @param chars  Array of characters to draw (count elements).
      * @param fg     Array of per-character foreground colors (RGB565, count elements).
      * @param count  Number of characters in the row.
      * @param bg     Background color (RGB565).
-     * @return true on success, false if the sprite could not be created or input is invalid.
+     * @return true on success, false if input is invalid or rendering failed.
      */
     bool display_draw_text_row(int y, const char *chars, const uint16_t *fg, int count, uint16_t bg);
 

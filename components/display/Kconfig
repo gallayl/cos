@@ -1,0 +1,12 @@
+menu "COS Display Configuration"
+
+config COS_DISPLAY_LOW_MEMORY_CONSOLE
+    bool "Low-memory console render path (no row sprite)"
+    default y
+    help
+        Render console text rows directly to the LCD instead of allocating a
+        16bpp row sprite. Saves 3.75-11.25 KB of RAM depending on text size at
+        the cost of higher per-row SPI overhead. Disable to restore the legacy
+        row-sprite path.
+
+endmenu
