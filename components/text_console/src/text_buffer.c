@@ -250,9 +250,17 @@ static void apply_sgr(text_buffer_t *buf)
         {
             buf->current_fg = S_ANSI_COLOR_TABLE[p - 30];
         }
+        else if (p == 39)
+        {
+            buf->current_fg = TEXT_BUF_DEFAULT_FG;
+        }
         else if (p == 1)
         {
             /* Bold -- ignored for now, color already set */
+        }
+        else if (p == 22)
+        {
+            /* Normal intensity -- ignored (bold not supported) */
         }
         else if (p == 49)
         {

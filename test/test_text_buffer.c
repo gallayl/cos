@@ -495,6 +495,13 @@ static void test_sgr_all_basic_colors(void)
     }
 }
 
+static void test_sgr_default_fg_39_resets_after_black(void)
+{
+    text_buffer_write(&buf, "\033[30mB\033[39mD", 12);
+    TEST_ASSERT_EQUAL(TEXT_BUF_COLOR_BLACK, buf.cells[0][0].fg);
+    TEST_ASSERT_EQUAL(TEXT_BUF_DEFAULT_FG, buf.cells[0][1].fg);
+}
+
 static void test_sgr_bold_color_hint(void)
 {
     text_buffer_write(&buf, "\033[1;32;49mH", 11);
@@ -753,6 +760,7 @@ int main(void)
     RUN_TEST(test_sgr_reset);
     RUN_TEST(test_sgr_reset_bare_m);
     RUN_TEST(test_sgr_all_basic_colors);
+    RUN_TEST(test_sgr_default_fg_39_resets_after_black);
     RUN_TEST(test_sgr_bold_color_hint);
     RUN_TEST(test_sgr_unknown_param_ignored);
 
