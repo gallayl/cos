@@ -115,6 +115,7 @@ static void render_dirty(void)
         return;
     }
 
+    static int s_fg_debug_count = 0;
     uint64_t dirty = s_buf.dirty_rows;
     while (dirty)
     {
@@ -123,6 +124,17 @@ static void render_dirty(void)
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
+            if (s_fg_debug_count < 30 && s_buf.cols > 2 && (chars[0] == 'I' || chars[0] == 'W' || chars[0] == 'E') &&
+                chars[1] == ' ')
+            {
+                if (s_original_stdout != NULL)
+                {
+                    fprintf(s_original_stdout, "[tcfg] row=%d ch=%c fg0=%04x fg1=%04x\n", r, chars[0],
+                            static_cast<unsigned>(fg[0]), static_cast<unsigned>(fg[1]));
+                    fflush(s_original_stdout);
+                }
+                s_fg_debug_count++;
+            }
             if (display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR))
             {
                 text_buffer_clear_row_dirty(&s_buf, r);
