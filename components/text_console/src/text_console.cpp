@@ -116,12 +116,6 @@ static void render_dirty(void)
     }
 
     uint64_t dirty = s_buf.dirty_rows;
-    if (s_original_stdout != NULL)
-    {
-        fprintf(s_original_stdout, "[tc] dirty=%llx\n", static_cast<unsigned long long>(dirty));
-        fflush(s_original_stdout);
-    }
-
     while (dirty)
     {
         const int r = __builtin_ctzll(dirty);
@@ -129,28 +123,6 @@ static void render_dirty(void)
         uint16_t fg[TEXT_BUF_MAX_COLS];
         if (text_buffer_get_visible_row(&s_buf, r, chars, fg))
         {
-            if (s_original_stdout != NULL)
-            {
-                int first = -1;
-                int last = -1;
-                for (int c = 0; c < s_buf.cols; c++)
-                {
-                    if (chars[c] != ' ')
-                    {
-                        if (first < 0)
-                        {
-                            first = c;
-                        }
-                        last = c;
-                    }
-                }
-                if (first >= 0)
-                {
-                    fprintf(s_original_stdout, "[tc] row=%d first=%d last=%d fg=%04x ch='%c'\n", r, first, last,
-                            static_cast<unsigned>(fg[first]), chars[first]);
-                    fflush(s_original_stdout);
-                }
-            }
             if (display_draw_text_row(r * s_cell_height, chars, fg, s_buf.cols, BG_COLOR))
             {
                 text_buffer_clear_row_dirty(&s_buf, r);
@@ -194,7 +166,6 @@ static void handle_console_touch(void)
 static void render_task(void *arg)
 {
     (void)arg;
-    uint32_t heartbeat = 0;
     for (;;)
     {
         const TickType_t wait_ticks = s_screen_visible ? pdMS_TO_TICKS(RENDER_PERIOD_MS) : portMAX_DELAY;
@@ -211,11 +182,6 @@ static void render_task(void *arg)
             stderr = s_tee;
             _GLOBAL_REENT->_stdout = s_tee;
             _GLOBAL_REENT->_stderr = s_tee;
-            if (s_original_stdout != NULL)
-            {
-                fprintf(s_original_stdout, "[tc] stdout hook restored\n");
-                fflush(s_original_stdout);
-            }
         }
 
         if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
@@ -229,20 +195,6 @@ static void render_task(void *arg)
             {
                 s_touch_active = false;
                 s_touch_remainder = 0;
-                if (s_original_stdout != NULL)
-                {
-                    fprintf(s_original_stdout, "[tc] render skipped: screen not visible\n");
-                    fflush(s_original_stdout);
-                }
-            }
-            heartbeat++;
-            if (s_original_stdout != NULL && (heartbeat % 100u) == 0u)
-            {
-                FILE *outp = stdout;
-                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx hook=%d out=%p tee=%p\n",
-                        s_screen_visible ? 1 : 0, static_cast<unsigned long long>(s_buf.dirty_rows),
-                        (outp == s_original_stdout) ? 0 : 1, static_cast<void *>(outp), static_cast<void *>(s_tee));
-                fflush(s_original_stdout);
             }
             xSemaphoreGive(s_mutex);
         }
@@ -292,22 +244,11 @@ static ssize_t stdout_write_hook(void *cookie, const char *buf, size_t size)
         text_buffer_write(&s_buf, buf, size);
         history_allocation_failed = text_buffer_take_scrollback_allocation_failure(&s_buf);
         should_notify_render = s_screen_visible;
-        if (s_original_stdout != NULL)
-        {
-            fprintf(s_original_stdout, "[tcw] dirty=%llx vis=%d\n", static_cast<unsigned long long>(s_buf.dirty_rows),
-                    s_screen_visible ? 1 : 0);
-            fflush(s_original_stdout);
-        }
         xSemaphoreGive(s_mutex);
         if (should_notify_render && s_render_task != NULL)
         {
             xTaskNotifyGive(s_render_task);
         }
-    }
-    else if (s_original_stdout != NULL)
-    {
-        fprintf(s_original_stdout, "[tcw] skip init=%d mtx=%d\n", s_initialized ? 1 : 0, s_mutex != NULL ? 1 : 0);
-        fflush(s_original_stdout);
     }
     if (history_allocation_failed)
     {
