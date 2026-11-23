@@ -38,6 +38,7 @@ static int s_touch_last_y = 0;
 static int s_touch_remainder = 0;
 
 static FILE *s_original_stdout;
+static FILE *s_tee;
 static text_console_log_level_t s_log_level = TEXT_CONSOLE_LOG_WARN;
 static text_console_output_listener_t s_output_listener = nullptr;
 static void *s_output_listener_context = nullptr;
@@ -203,6 +204,16 @@ static void render_task(void *arg)
             continue;
         }
 
+        if (s_tee != NULL && stdout == s_original_stdout)
+        {
+            stdout = s_tee;
+            if (s_original_stdout != NULL)
+            {
+                fprintf(s_original_stdout, "[tc] stdout hook restored\n");
+                fflush(s_original_stdout);
+            }
+        }
+
         if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE)
         {
             if (s_screen_visible)
@@ -224,8 +235,7 @@ static void render_task(void *arg)
             if (s_original_stdout != NULL && (heartbeat % 100u) == 0u)
             {
                 fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx hook=%d\n", s_screen_visible ? 1 : 0,
-                        static_cast<unsigned long long>(s_buf.dirty_rows),
-                        (stdout == s_original_stdout) ? 0 : 1);
+                        static_cast<unsigned long long>(s_buf.dirty_rows), (stdout == s_original_stdout) ? 0 : 1);
                 fflush(s_original_stdout);
             }
             xSemaphoreGive(s_mutex);
@@ -460,6 +470,7 @@ extern "C" esp_err_t text_console_init(void)
         /* Both must be updated: `stdout` is the C global, but newlib's
            per-task _reent struct caches its own _stdout pointer. Tasks
            created before this point still reference the original fd. */
+        s_tee = tee;
         stdout = tee;
     }
     else
@@ -536,6 +547,7 @@ extern "C" void text_console_deinit(void)
         stdout = s_original_stdout;
         fclose(tee);
     }
+    s_tee = NULL;
 
     if (s_render_task != NULL)
     {
