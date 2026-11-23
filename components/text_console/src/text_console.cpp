@@ -182,13 +182,9 @@ static void render_task(void *arg)
         {
             stdout = s_tee;
             stderr = s_tee;
-#if defined(_GLOBAL_REENT)
+#if defined(_GLOBAL_REENT) && !defined(_REENT_THREAD_LOCAL)
             _GLOBAL_REENT->_stdout = s_tee;
             _GLOBAL_REENT->_stderr = s_tee;
-#else
-            extern struct _reent *_global_impure_ptr;
-            _global_impure_ptr->_stdout = s_tee;
-            _global_impure_ptr->_stderr = s_tee;
 #endif
         }
 
@@ -433,13 +429,9 @@ extern "C" esp_err_t text_console_init(void)
         s_tee = tee;
         stdout = tee;
         stderr = tee;
-#if defined(_GLOBAL_REENT)
+#if defined(_GLOBAL_REENT) && !defined(_REENT_THREAD_LOCAL)
         _GLOBAL_REENT->_stdout = tee;
         _GLOBAL_REENT->_stderr = tee;
-#else
-        extern struct _reent *_global_impure_ptr;
-        _global_impure_ptr->_stdout = tee;
-        _global_impure_ptr->_stderr = tee;
 #endif
     }
     else
@@ -535,7 +527,7 @@ extern "C" void text_console_deinit(void)
         {
             stderr = s_original_stdout;
         }
-#if defined(_GLOBAL_REENT)
+#if defined(_GLOBAL_REENT) && !defined(_REENT_THREAD_LOCAL)
         if (_GLOBAL_REENT->_stdout == tee)
         {
             _GLOBAL_REENT->_stdout = s_original_stdout;
@@ -543,16 +535,6 @@ extern "C" void text_console_deinit(void)
         if (_GLOBAL_REENT->_stderr == tee)
         {
             _GLOBAL_REENT->_stderr = s_original_stdout;
-        }
-#else
-        extern struct _reent *_global_impure_ptr;
-        if (_global_impure_ptr->_stdout == tee)
-        {
-            _global_impure_ptr->_stdout = s_original_stdout;
-        }
-        if (_global_impure_ptr->_stderr == tee)
-        {
-            _global_impure_ptr->_stderr = s_original_stdout;
         }
 #endif
         fclose(tee);
