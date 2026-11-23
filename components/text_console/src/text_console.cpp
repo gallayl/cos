@@ -114,6 +114,11 @@ static void render_dirty(void)
     }
 
     uint64_t dirty = s_buf.dirty_rows;
+    if (s_original_stdout != NULL)
+    {
+        fprintf(s_original_stdout, "[tc] dirty=%llx\n", static_cast<unsigned long long>(dirty));
+        fflush(s_original_stdout);
+    }
 
     while (dirty)
     {
@@ -208,6 +213,11 @@ static void render_task(void *arg)
             {
                 s_touch_active = false;
                 s_touch_remainder = 0;
+                if (s_original_stdout != NULL)
+                {
+                    fprintf(s_original_stdout, "[tc] render skipped: screen not visible\n");
+                    fflush(s_original_stdout);
+                }
             }
             xSemaphoreGive(s_mutex);
         }
