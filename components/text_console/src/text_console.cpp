@@ -223,8 +223,9 @@ static void render_task(void *arg)
             heartbeat++;
             if (s_original_stdout != NULL && (heartbeat % 100u) == 0u)
             {
-                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx\n", s_screen_visible ? 1 : 0,
-                        static_cast<unsigned long long>(s_buf.dirty_rows));
+                fprintf(s_original_stdout, "[tc] hb vis=%d dirty=%llx hook=%d\n", s_screen_visible ? 1 : 0,
+                        static_cast<unsigned long long>(s_buf.dirty_rows),
+                        (stdout == s_original_stdout) ? 0 : 1);
                 fflush(s_original_stdout);
             }
             xSemaphoreGive(s_mutex);
