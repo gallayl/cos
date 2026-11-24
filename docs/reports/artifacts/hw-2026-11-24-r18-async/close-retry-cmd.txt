@@ -1,0 +1,4 @@
+berry close
+mem
+berry eval "import system; _cos_system_sleep(300).then(def(v) print('R18_SLEEP_OK') end)"
+mem

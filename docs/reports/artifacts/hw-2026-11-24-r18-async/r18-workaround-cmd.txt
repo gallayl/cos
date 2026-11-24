@@ -1,0 +1,7 @@
+# R18 workaround validation (system.sleep native wrapper returns int; use _cos_system_sleep)
+mem
+berry profile
+berry eval "import system; _cos_system_sleep(300).then(def(v) print('R18_SLEEP_OK') end)"
+berry eval "import system; _cos_system_sleep(600).then(def(v) print('R18_SLEEP_600_OK') end)"
+mem
+berry profile

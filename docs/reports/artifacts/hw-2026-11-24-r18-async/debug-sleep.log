@@ -1,0 +1,14 @@
+# hw_console_session log
+# time=2026-11-24 16:31:33.877
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 16:31:36.018] TX berry eval "var r = _cos_system_sleep(200); print(type(r)); print(r)"
+[2026-11-24 16:31:38.079] RX berry eval "var r = _cos_system_sleep(200); print(type(r)); print(r)"
+[2026-11-24 16:31:38.079] RX I (738032) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=18762 heap_free=6672 heap_min=1804 heap_largest=4096 internal_free=39928 internal_min=35028 internal_largest=32768
+[2026-11-24 16:31:38.079] RX I (738042) berry: Async timer scheduling failed: ASYNC_TIMER_LIMIT
+[2026-11-24 16:31:38.079] RX instance
+[2026-11-24 16:31:38.079] RX <instance: Promise()>
+[2026-11-24 16:31:38.079] RX COS/flash> 
+
+# end=2026-11-24 16:31:38.331 status=0

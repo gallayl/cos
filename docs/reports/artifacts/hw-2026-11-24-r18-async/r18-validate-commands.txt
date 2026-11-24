@@ -1,0 +1,10 @@
+# R18 on-device validation
+mem
+berry profile
+# basic system.sleep + scheduler pump
+berry eval "import system; system.sleep(200).then(def(v) print('R18_SLEEP_OK') end)"
+# allow async callback to fire
+berry eval "import system; system.sleep(500).then(def(v) print('R18_SLEEP_500_OK') end)"
+# check heap after async
+mem
+berry profile

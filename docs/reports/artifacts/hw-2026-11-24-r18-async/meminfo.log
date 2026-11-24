@@ -1,0 +1,12 @@
+# hw_console_session log
+# time=2026-11-24 16:34:01.307
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 16:34:03.447] TX berry eval "import system; print(system.meminfo())"
+[2026-11-24 16:34:05.521] RX berry eval "import system; print(system.meminfo())"
+[2026-11-24 16:34:05.521] RX I (885462) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=12361 heap_free=10480 heap_min=1804 heap_largest=3712 internal_free=43736 internal_min=35028 internal_largest=32768
+[2026-11-24 16:34:05.521] RX {'free_heap': 10480, 'internal_min_free_heap': 1804, 'internal_free_heap': 10480, 'total_heap': 215056, 'internal_max_alloc_block': 3712, 'ok': true, 'max_alloc_block': 3712, 'internal_total_heap': 215056, 'min_free_heap': 1804}
+[2026-11-24 16:34:05.521] RX COS/flash> 
+
+# end=2026-11-24 16:34:05.773 status=0

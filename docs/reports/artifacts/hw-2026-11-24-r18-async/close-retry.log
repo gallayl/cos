@@ -1,0 +1,41 @@
+# hw_console_session log
+# time=2026-11-24 16:36:46.715
+# port=COM3 baud=115200
+# commands=4
+
+[2026-11-24 16:36:49.397] TX berry close
+[2026-11-24 16:36:51.984] RX berry close
+[2026-11-24 16:36:51.984] RX I (1051412) berry: [R5] 7 GC complete | berry_gc=11294 reclaimed=6188 from=17482 heap_free=10416 heap_min=1060 heap_largest=2304 internal_free=43672 internal_min=34284 internal_largest=32768
+[2026-11-24 16:36:51.984] RX COS/flash> 
+[2026-11-24 16:36:51.984] TX mem
+[2026-11-24 16:36:54.677] RX mem
+[2026-11-24 16:36:54.677] RX I (1054022) berry: Loaded Berry file (1061 bytes)
+[2026-11-24 16:36:54.677] RX I (1054092) berry: [R5] 3 Berry compilation complete (source buffer released) | berry_gc=13187 heap_free=9076 heap_min=1060 heap_largest=2304 internal_free=42332 internal_min=34284 internal_largest=32768
+[2026-11-24 16:36:54.677] RX Free heap:      9076 bytes
+[2026-11-24 16:36:54.677] RX Min free heap:  1060 bytes
+[2026-11-24 16:36:54.677] RX Total heap:     215056 bytes
+[2026-11-24 16:36:54.677] RX Max alloc:      2304 bytes
+[2026-11-24 16:36:54.677] RX Internal free:  9076 bytes
+[2026-11-24 16:36:54.677] RX Internal min:   1060 bytes
+[2026-11-24 16:36:54.677] RX Internal total: 215056 bytes
+[2026-11-24 16:36:54.677] RX Internal max:   2304 bytes
+[2026-11-24 16:36:54.677] RX COS/flash> 
+[2026-11-24 16:36:54.691] TX berry eval "import system; _cos_system_sleep(300).then(def(v) print('R18_SLEEP_OK') end)"
+[2026-11-24 16:36:57.295] RX berry eval "import system; _cos_system_sleep(300).then(def(v) print('R18_SLEEP_OK') end)"
+[2026-11-24 16:36:57.295] RX I (1056712) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=14781 heap_free=8072 heap_min=1060 heap_largest=2304 internal_free=39596 internal_min=34284 internal_largest=32768
+[2026-11-24 16:36:57.295] RX I (1056732) berry: Async timer scheduling failed: ASYNC_TIMER_LIMIT
+[2026-11-24 16:36:57.295] RX COS/flash> 
+[2026-11-24 16:36:57.295] TX mem
+[2026-11-24 16:36:59.990] RX mem
+[2026-11-24 16:36:59.990] RX I (1059332) berry: Loaded Berry file (1061 bytes)
+[2026-11-24 16:36:59.990] RX Free heap:      6344 bytes
+[2026-11-24 16:36:59.990] RX Min free heap:  1060 bytes
+[2026-11-24 16:36:59.990] RX Total heap:     215056 bytes
+[2026-11-24 16:36:59.990] RX Max alloc:      1088 bytes
+[2026-11-24 16:36:59.990] RX Internal free:  6344 bytes
+[2026-11-24 16:36:59.990] RX Internal min:   1060 bytes
+[2026-11-24 16:36:59.990] RX Internal total: 215056 bytes
+[2026-11-24 16:36:59.990] RX Internal max:   1088 bytes
+[2026-11-24 16:36:59.990] RX COS/flash> 
+
+# end=2026-11-24 16:37:00.226 status=0

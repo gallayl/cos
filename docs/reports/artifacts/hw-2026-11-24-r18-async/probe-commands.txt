@@ -1,0 +1,11 @@
+# R18 on-device validation probe
+# Meta / baseline
+mem
+berry profile
+berry app
+services
+ls /flash/apps
+cat /etc/version
+# R18 runtime quick check
+berry eval "import system; print(type(system.sleep))"
+berry eval "print(type(Promise))"
