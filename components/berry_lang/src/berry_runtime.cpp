@@ -2724,6 +2724,12 @@ extern "C" esp_err_t berry_runtime_init(void)
         return ESP_ERR_NO_MEM;
     }
     s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
+    // Soft reboot preserves static C++ state; stale async entries/callback IDs would block new timers.
+    s_async_timers.clear();
+    s_async_microtasks.clear();
+    s_async_tearing_down = false;
+    s_async_settlement_in_progress = false;
+    s_async_next_callback = 0;
 
     be_regfunc(s_vm, "log", native_log);
     be_regfunc(s_vm, "action", native_action);
@@ -2775,6 +2781,9 @@ extern "C" void berry_runtime_deinit(void)
     }
     s_async_timers.clear();
     s_async_microtasks.clear();
+    s_async_tearing_down = false;
+    s_async_settlement_in_progress = false;
+    s_async_next_callback = 0;
 }
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)

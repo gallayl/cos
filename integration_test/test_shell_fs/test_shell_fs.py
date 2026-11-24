@@ -316,3 +316,10 @@ def test_alias_del(dut):
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)
     dut.write("ls /flash\n")
     dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT, not_matching=["delalias.txt"])
+
+
+def test_berry_system_sleep_returns_promise(dut):
+    _wait_ready(dut)
+    dut.write('berry eval "import system; print(type(system.sleep(50)))"\n')
+    dut.expect("instance", timeout=CMD_TIMEOUT)
+    dut.expect(PROMPT_RE, timeout=CMD_TIMEOUT)

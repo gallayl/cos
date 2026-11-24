@@ -149,8 +149,8 @@ static int native_system_sleep(bvm *vm)
         be_raise(vm, "runtime_error", error);
         be_return(vm);
     }
-    // Result (Promise) is on stack below return slot per Berry conventions; keep it as return value.
-    be_return(vm);
+    // be_pcall leaves the result in retreg; be_returnvalue(vm) would overwrite retreg with stale stack top.
+    return 0;
 }
 } // namespace
 
