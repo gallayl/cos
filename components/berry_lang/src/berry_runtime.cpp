@@ -2761,6 +2761,10 @@ extern "C" esp_err_t berry_runtime_init(void)
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_runtime_combined_tick);
     ui::set_exit_callback(close_app_from_ui);
+    if (!ui::ensure_task())
+    {
+        ESP_LOGW(TAG, "UI background task not started; async pump may not run without active app");
+    }
 
     log_lifecycle_checkpoint("1 Berry VM initialized");
 

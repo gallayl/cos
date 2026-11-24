@@ -44,6 +44,7 @@ void set_exit_callback(void (*callback)());
 void request_exit();
 Container &app_root();
 bool start();
+bool ensure_task();
 void stop();
 void set_execution_guard(void (*lock)(), void (*unlock)());
 void set_tick_callback(void (*tick)());

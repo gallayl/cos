@@ -1,0 +1,23 @@
+# hw_console_session log
+# time=2026-11-24 18:07:48.470
+# port=COM3 baud=115200
+# commands=2
+
+[2026-11-24 18:07:52.628] TX berry profile
+[2026-11-24 18:07:56.704] RX berry profile
+[2026-11-24 18:07:56.704] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 18:07:56.704] RX   Default heap:  free=14408 min=908 total=215056 largest=8192
+[2026-11-24 18:07:56.704] RX   Internal heap: free=14408 min=908 total=215056 largest=8192
+[2026-11-24 18:07:56.704] RX   Berry GC:      initialized=yes managed=11805 bytes step_rate=200
+[2026-11-24 18:07:56.704] RX   Heap snapshot: free=14408 min=908 largest=8192 internal_free=47664 internal_min=34132 internal_largest=32768
+[2026-11-24 18:07:56.704] RX   Async:         timers=1 microtasks=1
+[2026-11-24 18:07:56.704] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 18:07:56.704] RX COS/flash> 
+[2026-11-24 18:07:56.704] TX berry eval "var r=cos_async_sleep(1000,def() end,def(e) end); print(r['ok']); print(r.find('tag'))"
+[2026-11-24 18:08:00.853] RX berry eval "var r=cos_async_sleep(1000,def() end,def(e) end); print(r['ok']); print(r.find('tag'))"
+[2026-11-24 18:08:00.853] RX I (127943) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=12639 heap_free=13868 heap_min=908 heap_largest=8192 internal_free=47124 internal_min=34132 internal_largest=32768
+[2026-11-24 18:08:00.853] RX true
+[2026-11-24 18:08:00.853] RX nil
+[2026-11-24 18:08:00.853] RX COS/flash> 
+
+# end=2026-11-24 18:08:01.087 status=0

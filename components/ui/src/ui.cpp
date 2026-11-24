@@ -167,23 +167,17 @@ Container &app_root()
     return root;
 }
 
-bool start()
+bool ensure_task()
 {
-    root.set_bounds({0, 0, display_get_width(), display_get_height()});
-    root.mount();
-    clear_background_requested.store(!preserve_display_requested.exchange(false));
-    redraw_requested.store(true);
-    exit_requested.store(false);
 #ifdef ESP_PLATFORM
     if (ui_task_handle != nullptr)
     {
-        ui_active.store(true);
         return true;
     }
 
     const size_t free_heap = esp_get_free_heap_size();
     const size_t largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
-    ESP_LOGI(TAG, "Starting UI task (free heap: %u, largest block: %u)", static_cast<unsigned>(free_heap),
+    ESP_LOGI(TAG, "Starting UI task (background, free heap: %u, largest block: %u)", static_cast<unsigned>(free_heap),
              static_cast<unsigned>(largest_block));
     const BaseType_t result = xTaskCreate(ui_task, "ui", 4096, nullptr, 5, &ui_task_handle);
     if (result != pdPASS)
@@ -192,6 +186,22 @@ bool start()
         ESP_LOGE(TAG, "Failed to create UI task (free heap: %u, largest block: %u)",
                  static_cast<unsigned>(esp_get_free_heap_size()),
                  static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        return false;
+    }
+#endif
+    return true;
+}
+
+bool start()
+{
+    root.set_bounds({0, 0, display_get_width(), display_get_height()});
+    root.mount();
+    clear_background_requested.store(!preserve_display_requested.exchange(false));
+    redraw_requested.store(true);
+    exit_requested.store(false);
+#ifdef ESP_PLATFORM
+    if (!ensure_task())
+    {
         return false;
     }
     ui_active.store(true);
