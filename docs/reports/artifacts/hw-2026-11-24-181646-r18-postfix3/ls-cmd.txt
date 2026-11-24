@@ -1,0 +1,2 @@
+ls /flash/berry
+berry profile
