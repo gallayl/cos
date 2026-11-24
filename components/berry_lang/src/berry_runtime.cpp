@@ -2936,6 +2936,8 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
     info->internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     info->internal_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     info->internal_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
+    info->async_timers = s_async_timers.size();
+    info->async_microtasks = s_async_microtasks.size();
 
     return ESP_OK;
 }

@@ -1,0 +1,1 @@
+berry eval "cos_async_enqueue(def() print('MQ_OK') end)"

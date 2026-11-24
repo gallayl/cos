@@ -78,6 +78,22 @@ void ui_task(void *)
                 exit_callback();
             }
         }
+        else if (tick_callback != nullptr)
+        {
+            // R18: pump async scheduler even when no Berry UI app is active (shell/eval).
+            if (execution_lock != nullptr)
+            {
+                execution_lock();
+            }
+            if (tick_callback != nullptr)
+            {
+                tick_callback();
+            }
+            if (execution_unlock != nullptr)
+            {
+                execution_unlock();
+            }
+        }
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

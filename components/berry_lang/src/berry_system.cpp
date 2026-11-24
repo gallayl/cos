@@ -149,8 +149,8 @@ static int native_system_sleep(bvm *vm)
         be_raise(vm, "runtime_error", error);
         be_return(vm);
     }
-    // be_pcall leaves the result in retreg; be_returnvalue(vm) would overwrite retreg with stale stack top.
-    return 0;
+    // be_pcall leaves result at vm->top-1; copy it to retreg for native return.
+    be_return(vm);
 }
 } // namespace
 

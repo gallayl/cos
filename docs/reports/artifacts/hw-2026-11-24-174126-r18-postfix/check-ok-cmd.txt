@@ -1,0 +1,1 @@
+berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(r['ok'])"

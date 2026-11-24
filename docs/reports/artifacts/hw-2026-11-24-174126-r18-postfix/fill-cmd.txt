@@ -1,0 +1,1 @@
+berry eval "for i:0..14 var r=cos_async_sleep(10000,def() end,def(e) end) print(str(i)+':'+str(r['ok'])) end"

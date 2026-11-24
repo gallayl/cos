@@ -88,6 +88,10 @@ extern "C"
         size_t internal_largest_block;
         /** Minimum free internal heap watermark since boot. */
         size_t internal_min_free;
+        /** R18 async scheduler: pending timers (debug/validation). */
+        size_t async_timers;
+        /** R18 async scheduler: queued microtasks (debug/validation). */
+        size_t async_microtasks;
     } berry_runtime_memory_info_t;
 
     esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *info);

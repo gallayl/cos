@@ -1,0 +1,12 @@
+# hw_console_session log
+# time=2026-11-24 17:48:13.759
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 17:48:16.909] TX berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(r['ok'])"
+[2026-11-24 17:48:19.979] RX berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(r['ok'])"
+[2026-11-24 17:48:19.979] RX I (382172) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=12400 heap_free=12536 heap_min=1096 heap_largest=8192 internal_free=45792 internal_min=34320 internal_largest=32768
+[2026-11-24 17:48:19.979] RX true
+[2026-11-24 17:48:19.979] RX COS/flash> 
+
+# end=2026-11-24 17:48:20.216 status=0
