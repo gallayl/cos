@@ -1008,7 +1008,7 @@ var __cos_entry = Hello()
     expect(result.code).toContain('end)')
     expect(result.code).toContain('after')
     // Continuation must be reachable after the Berry `end` of the if (round-4 fix).
-    const code = result.code
+    const { code } = result
     expect(code.indexOf('def(_cos_if_cont)')).toBeGreaterThanOrEqual(0)
     expect(code.indexOf('log("after")')).toBeGreaterThan(code.indexOf('def(_cos_if_cont)'))
   })
