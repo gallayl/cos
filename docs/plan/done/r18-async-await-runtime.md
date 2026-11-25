@@ -1,7 +1,7 @@
 # R18 — `async`/`await` runtime design + implementation
 
 - **ID:** r18-async-await-runtime
-- **Status:** ready (approved) — foundation delivered in main (PR #69 / cc0b151); on-device sleep proof validated 2026-11-25 (PR #115); continuation required for remaining spec gaps and evidence
+- **Status:** **done** — R18 v1 async lowering continuation delivered in PR [#116](https://github.com/gallayl/cos/pull/116) (CI green 2026-11-25); items that remain (full Promise spec, R5 heap evidence, hardware timing) are tracked as future gaps in this doc's Progress log.
 - **Created:** 2026-11-15
 - **Ready:** 2026-11-15
 - **Updated:** 2026-11-25
