@@ -989,6 +989,46 @@ var __cos_entry = Hello()
     expect(result.ok).toBe(false)
     expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('not supported yet')
   })
+
+  it('lowers async function with if/else containing awaits (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(flag: boolean): Promise<void> {
+        if (flag) {
+          await system.sleep(10)
+          log('a')
+        } else {
+          log('b')
+        }
+        log('after')
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('if _cos_if_v')
+    expect(result.code).toContain('end)')
+    expect(result.code).toContain('after')
+    // Continuation must be reachable after the Berry `end` of the if (round-4 fix).
+    const code = result.code
+    expect(code.indexOf('def(_cos_if_cont)')).toBeGreaterThanOrEqual(0)
+    expect(code.indexOf('log("after")')).toBeGreaterThan(code.indexOf('def(_cos_if_cont)'))
+  })
+
+  it('lowers async function with while loop containing awaits (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(n: number): Promise<void> {
+        while (n < 3) {
+          await system.sleep(10)
+          n = n + 1
+        }
+        log('done')
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('var _cos_async_w')
+    expect(result.code).toContain('_cos_w_body')
+    expect(result.code).toContain('done')
+  })
 })
 
 describe('astToBerry R14 profiles and debug metadata', () => {

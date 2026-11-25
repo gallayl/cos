@@ -178,8 +178,9 @@ function emitAsyncFunctionDeclaration(ctx: GenerationContext, node: ts.FunctionD
   else ctx.declareName(name, node)
   ctx.noteMapping(node)
   // Minimal v1 lowering: support straight-line async bodies with await expressions in
-  // expression statements and return statements only (sequential). Unsupported awaits/control flow
-  // are diagnosed (no silent miscompile).
+  // expression statements and return statements, plus if/else and while statements
+  // containing awaits (sequential). Unsupported awaits/control flow are diagnosed
+  // (no silent miscompile).
   if (!tryEmitSequentialAsyncFunction(ctx, `def ${name}`, node.parameters, node.body)) {
     ctx.report(node, 'This async function form is not supported yet (R18 v1 subset).')
     // Emit a stub that returns rejected Promise to avoid silent success.
@@ -620,6 +621,25 @@ function isSimpleAsyncTryStatement(st: ts.Statement): st is ts.TryStatement {
   return true
 }
 
+function asAsyncBlockStatements(st: ts.Statement): readonly ts.Statement[] {
+  return ts.isBlock(st) ? st.statements : [st]
+}
+
+function containsBreakOrContinue(node: ts.Node): boolean {
+  let found = false
+  const visit = (n: ts.Node): void => {
+    if (found) return
+    if (ts.isBreakStatement(n) || ts.isContinueStatement(n)) {
+      found = true
+      return
+    }
+    if (ts.isFunctionLike(n)) return // nested function boundary
+    ts.forEachChild(n, visit)
+  }
+  ts.forEachChild(node, visit)
+  return found
+}
+
 function isAwaitAssignmentExpression(
   st: ts.Statement,
 ): st is ts.ExpressionStatement & { expression: ts.BinaryExpression } {
@@ -647,6 +667,21 @@ function isSupportedAsyncSequence(statements: readonly ts.Statement[]): boolean 
       continue
     if (ts.isReturnStatement(st) && (!st.expression || ts.isAwaitExpression(st.expression) || !containsAwait(st)))
       continue
+    if (ts.isIfStatement(st)) {
+      // An await inside the condition is dropped by the generic expression diagnostic path.
+      if (containsAwait(st.expression)) return false
+      if (!isSupportedAsyncSequence(asAsyncBlockStatements(st.thenStatement))) return false
+      if (st.elseStatement && !isSupportedAsyncSequence(asAsyncBlockStatements(st.elseStatement))) return false
+      continue
+    }
+    if (ts.isWhileStatement(st)) {
+      if (containsAwait(st.expression)) return false
+      if (containsReturn(st.statement)) return false
+      // Break/continue exit the Berry loop, which the emulated while recursion cannot target.
+      if (containsBreakOrContinue(st.statement)) return false
+      if (!isSupportedAsyncSequence(asAsyncBlockStatements(st.statement))) return false
+      continue
+    }
     if (isSimpleAsyncTryStatement(st)) {
       const catchClause = st.catchClause!
       if (isSupportedAsyncSequence(st.tryBlock.statements) && isSupportedAsyncSequence(catchClause.block.statements))
@@ -673,9 +708,9 @@ function tryEmitSequentialAsyncFunction(
   body: ts.Block,
 ): boolean {
   // Minimal v1 lowering: sequential bodies with await in expression statements, var x = await ...,
-  // return [await] expr / return, and try/catch blocks containing awaits (no finally, no return/
-  // variable declarations inside try/catch). Unsupported awaits/control flow are diagnosed
-  // (no silent miscompile).
+  // return [await] expr / return, if/else and while statements containing awaits, and try/catch
+  // blocks containing awaits (no finally, no return/variable declarations inside try/catch).
+  // Unsupported awaits/control flow are diagnosed (no silent miscompile).
   if (!isSupportedAsyncSequence(body.statements)) return false
   if (!beginFunction(ctx, header, parameters)) return false
   emitAsyncBodyAsPromise(ctx, body.statements)
@@ -684,15 +719,15 @@ function tryEmitSequentialAsyncFunction(
 }
 
 function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.Statement[]): void {
-  const emitAsyncSequence = (sequence: readonly ts.Statement[], index: number): void => {
+  const emitAsyncSequence = (sequence: readonly ts.Statement[], index: number, tailLine = 'return nil'): void => {
     if (index >= sequence.length) {
-      ctx.writeLine('return nil')
+      ctx.writeLine(tailLine)
       return
     }
     const st = sequence[index]
     if (!containsAwait(st)) {
       ctx.emitStatement(st)
-      emitAsyncSequence(sequence, index + 1)
+      emitAsyncSequence(sequence, index + 1, tailLine)
       return
     }
     if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) {
@@ -701,7 +736,7 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       const e = emitExpressionMapped(ctx, expr, prefix.length)
       ctx.writeLine(`${prefix}${e}).then(def(_cos_await_v)`)
       ctx.indent()
-      emitAsyncSequence(sequence, index + 1)
+      emitAsyncSequence(sequence, index + 1, tailLine)
       ctx.dedent()
       ctx.writeLine('end)')
       return
@@ -714,7 +749,7 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       ctx.writeLine(`${prefix}${e}).then(def(_cos_await_v)`)
       ctx.indent()
       ctx.writeLine(`${name} = _cos_await_v`)
-      emitAsyncSequence(sequence, index + 1)
+      emitAsyncSequence(sequence, index + 1, tailLine)
       ctx.dedent()
       ctx.writeLine('end)')
       return
@@ -728,7 +763,7 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       ctx.writeLine(`${prefix}${e}).then(def(${name})`)
       ctx.indent()
       ctx.declareName(name, decl.name)
-      emitAsyncSequence(sequence, index + 1)
+      emitAsyncSequence(sequence, index + 1, tailLine)
       ctx.dedent()
       ctx.writeLine('end)')
       return
@@ -776,7 +811,61 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       ctx.dedent()
       ctx.writeLine('end).then(def(_cos_after)')
       ctx.indent()
-      emitAsyncSequence(sequence, index + 1)
+      emitAsyncSequence(sequence, index + 1, tailLine)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
+    if (ts.isIfStatement(st)) {
+      if (!isStructurallyBoolean(st.expression)) ctx.report(st.expression, BOOLEAN_CONDITION_MESSAGE)
+      const prefix = 'return ('
+      const cond = emitExpressionMapped(ctx, st.expression, prefix.length)
+      ctx.writeLine(`${prefix}${cond}).then(def(_cos_if_v)`)
+      ctx.indent()
+      ctx.pushScope()
+      ctx.writeLine('if _cos_if_v')
+      ctx.indent()
+      emitAsyncSequence(asAsyncBlockStatements(st.thenStatement), 0, 'nil')
+      ctx.popScope()
+      ctx.dedent()
+      if (st.elseStatement) {
+        ctx.writeLine('else')
+        ctx.indent()
+        emitAsyncSequence(asAsyncBlockStatements(st.elseStatement), 0, 'nil')
+        ctx.dedent()
+      }
+      ctx.writeLine('end')
+      ctx.dedent()
+      ctx.writeLine('end).then(def(_cos_if_cont)')
+      ctx.indent()
+      emitAsyncSequence(sequence, index + 1, tailLine)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
+    if (ts.isWhileStatement(st)) {
+      if (!isStructurallyBoolean(st.expression)) ctx.report(st.expression, BOOLEAN_CONDITION_MESSAGE)
+      ctx.writeLine('var _cos_async_w = def()')
+      ctx.indent()
+      ctx.pushScope()
+      const condPrefix = 'if '
+      const cond = emitExpressionMapped(ctx, st.expression, condPrefix.length)
+      ctx.writeLine(`${condPrefix}${cond}`)
+      ctx.indent()
+      ctx.writeLine('return Promise.resolve(nil).then(def(_cos_w_body)')
+      ctx.indent()
+      emitAsyncSequence(asAsyncBlockStatements(st.statement), 0, 'return _cos_async_w()')
+      ctx.dedent()
+      ctx.writeLine('end)')
+      ctx.dedent()
+      ctx.writeLine('end')
+      ctx.writeLine('return Promise.resolve(nil)')
+      ctx.writeLine('end')
+      ctx.popScope()
+      ctx.dedent()
+      ctx.writeLine('return _cos_async_w().then(def(_cos_w_done)')
+      ctx.indent()
+      emitAsyncSequence(sequence, index + 1, tailLine)
       ctx.dedent()
       ctx.writeLine('end)')
       return
