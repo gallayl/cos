@@ -2685,12 +2685,13 @@ end
 def _cos_system_sleep(ms)
   return Promise(def(resolve, reject)
     var r = cos_async_sleep(ms, def() resolve(nil) end, def(reason) reject(reason) end)
-    if type(r) != 'map' || r.find('ok') != true
+    var is_map = type(r) == 'map' || (type(r) == 'instance' && classname(r) == 'map')
+    if !is_map || r.find('ok') != true
       var tag = "ASYNC_TIMER_LIMIT"
-      if type(r) == 'map' && r.contains('tag')
+      if is_map && r.contains('tag')
         tag = r['tag']
       end
-      log("Async timer scheduling failed: " + str(tag))
+      log("Async timer scheduling failed: " + str(tag) + " rtype=" + str(type(r)) + " cls=" + (type(r) == 'instance' ? str(classname(r)) : '-'))
       reject(tag)
     end
   end)

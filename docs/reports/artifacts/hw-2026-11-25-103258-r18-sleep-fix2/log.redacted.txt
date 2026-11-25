@@ -1,0 +1,219 @@
+# hw_console_session log
+# time=2026-11-25 10:33:12.728
+# port=COM3 baud=115200
+# commands=12
+
+[2026-11-25 10:33:23.622] RX I (732) cpu_start: Multicore app
+[2026-11-25 10:33:23.622] RX I (740) cpu_start: GPIO 3 and 1 are used as console UART I/O pins
+[2026-11-25 10:33:23.622] RX I (740) cpu_start: Pro cpu start user code
+[2026-11-25 10:33:23.622] RX I (740) cpu_start: cpu freq: 160000000 Hz
+[2026-11-25 10:33:23.622] RX I (742) app_init: Application information:
+[2026-11-25 10:33:23.622] RX I (746) app_init: Project name:     cos
+[2026-11-25 10:33:23.622] RX I (749) app_init: App version:      4b63bbb-dirty
+[2026-11-25 10:33:23.622] RX I (754) app_init: Compile time:     Nov 25 2026 10:12:38
+[2026-11-25 10:33:23.622] RX I (759) app_init: ELF file SHA256:  45fd40a75...
+[2026-11-25 10:33:23.622] RX I (763) app_init: ESP-IDF:          v6.1
+[2026-11-25 10:33:23.622] RX I (767) efuse_init: Min chip rev:     v0.0
+[2026-11-25 10:33:23.622] RX I (771) efuse_init: Max chip rev:     v3.99 
+[2026-11-25 10:33:23.622] RX I (775) efuse_init: Chip rev:         v3.1
+[2026-11-25 10:33:23.622] RX I (779) heap_init: Initializing. RAM available for dynamic allocation:
+[2026-11-25 10:33:23.622] RX I (785) heap_init: At 3FFAFF10 len 000000F0 (0 KiB): DRAM
+[2026-11-25 10:33:23.622] RX I (790) heap_init: At 3FFB6388 len 00001C78 (7 KiB): DRAM
+[2026-11-25 10:33:23.622] RX I (795) heap_init: At 3FFB9A20 len 00004108 (16 KiB): DRAM
+[2026-11-25 10:33:23.622] RX I (800) heap_init: At 3FFD4A48 len 0000B5B8 (45 KiB): DRAM
+[2026-11-25 10:33:23.622] RX I (805) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+[2026-11-25 10:33:23.622] RX I (811) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+[2026-11-25 10:33:23.622] RX I (816) heap_init: At 40097ADC len 00008524 (33 KiB): IRAM
+[2026-11-25 10:33:23.622] RX I (823) spi_flash: detected chip: boya
+[2026-11-25 10:33:23.622] RX I (825) spi_flash: flash io: dio
+[2026-11-25 10:33:23.622] RX I (830) coexist: coex firmware version: a830d28
+[2026-11-25 10:33:23.622] RX I (833) main_task: Started on CPU0
+[2026-11-25 10:33:23.622] RX I (833) main_task: Calling app_main()
+[2026-11-25 10:33:23.622] RX I (883) boot_profile: Stored boot profile: default (effective: default)
+[2026-11-25 10:33:23.622] RX I (883) main: COS starting up (boot profile: effective=default, next=default)
+[2026-11-25 10:33:23.622] RX I (1193) display: Display initialized (240x320)
+[2026-11-25 10:33:23.622] RX I (1193) cal_cmd: Registered 'calibrate' command
+[2026-11-25 10:33:23.622] RX I (1193) cal_storage: Loaded calibration for rotation 0
+[2026-11-25 10:33:23.622] RX I (1193) calibration: Calibration applied for rotation 0
+[2026-11-25 10:33:23.622] RX I (1203) light_sensor: Light sensor initialized
+[2026-11-25 10:33:23.622] RX I (1203) rgb_led: No saved color, defaulting to off
+[2026-11-25 10:33:23.622] RX I (1203) rgb_led_cmd: Registered 'led' command
+[2026-11-25 10:33:23.622] RX I (1213) rgb_led: RGB LED initialized (color 0,0,0)
+[2026-11-25 10:33:23.622] RX I (1213) cal_storage: Loaded calibration for rotation 3
+[2026-11-25 10:33:23.622] RX I (1223) calibration: Calibration applied for rotation 3
+[2026-11-25 10:33:23.622] RX I (1223) brightness_cmd: Registered 'screen' command
+[2026-11-25 10:33:23.622] RX I (1233) brightness: Brightness initialized (level=128, mode=manual, rotation=3)
+[2026-11-25 10:33:23.622] RX I (1273) text_console_cmd: Registered 'clear' command
+[2026-11-25 10:33:23.622] RX I (1273) text_console_cmd: Registered 'display_mode' command
+[2026-11-25 10:33:23.622] RX I (1313) text_console_cmd: Registered 'logging' command
+[2026-11-25 10:33:23.622] RX I (1323) text_console: Text console ready (53x30 chars)
+[2026-11-25 10:33:23.622] RX I (1333) i2c_cmd: Registered 'i2c' command
+[2026-11-25 10:33:23.622] RX I (1333) i2c_bus: I2C bus initialized (SDA=27, SCL=22, 100000 Hz)
+[2026-11-25 10:33:23.622] RX I (1343) flash: Partition 'littlefs': addr=0x00210000 size=0x001f0000 type=1 subtype=0x82
+[2026-11-25 10:33:23.622] RX I (1353) flash: LittleFS mounted: total=2031616, used=8192
+[2026-11-25 10:33:23.622] RX I (1363) sdspi_transaction: cmd=52, R1 response: command not supported
+[2026-11-25 10:33:23.622] RX I (1403) sdspi_transaction: cmd=5, R1 response: command not supported
+[2026-11-25 10:33:23.622] RX I (1433) sdcard: SD card mounted (SD)
+[2026-11-25 10:33:23.622] RX I (1443) wifi:wifi driver task: 3ffdd0dc, prio:23, stack:6656, core=0
+[2026-11-25 10:33:23.622] RX I (1463) wifi:wifi firmware version: e12a754
+[2026-11-25 10:33:23.622] RX I (1463) wifi:wifi certification version: v7.0
+[2026-11-25 10:33:23.622] RX I (1463) wifi:config NVS flash: enabled
+[2026-11-25 10:33:23.622] RX I (1463) wifi:config nano formatting: disabled
+[2026-11-25 10:33:23.622] RX I (1473) wifi:Init data frame dynamic rx buffer num: 32
+[2026-11-25 10:33:23.622] RX I (1473) wifi:Init static rx mgmt buffer num: 5
+[2026-11-25 10:33:23.622] RX I (1483) wifi:Init management short buffer num: 32
+[2026-11-25 10:33:23.622] RX I (1483) wifi:Init dynamic tx buffer num: 32
+[2026-11-25 10:33:23.622] RX I (1483) wifi:Init static rx buffer size: 1600
+[2026-11-25 10:33:23.622] RX I (1573) wifi:Init static rx buffer num: 10
+[2026-11-25 10:33:23.622] RX I (1653) wifi:Init dynamic rx buffer num: 32
+[2026-11-25 10:33:23.622] RX I (1733) wifi_init: rx ba win: 6
+[2026-11-25 10:33:23.622] RX I (1823) wifi_init: accept mbox: 6
+[2026-11-25 10:33:23.622] RX I (1903) wifi_init: tcpip mbox: 32
+[2026-11-25 10:33:23.622] RX I (1983) wifi_init: udp mbox: 6
+[2026-11-25 10:33:23.622] RX I (2073) wifi_init: tcp mbox: 6
+[2026-11-25 10:33:23.622] RX I (2153) wifi_init: tcp tx win: 5760
+[2026-11-25 10:33:23.622] RX I (2233) wifi_init: tcp rx win: 5760
+[2026-11-25 10:33:23.622] RX I (2313) wifi_init: tcp mss: 1440
+[2026-11-25 10:33:23.622] RX I (2403) wifi_cmd: Registered 'wifi' command
+[2026-11-25 10:33:23.622] RX I (2483) wifi: Stored credentials found, starting AP+STA mode
+[2026-11-25 10:33:23.622] RX I (2573) phy_init: phy_version 4863,a3a4459,Oct 28 2025,14:30:06
+[2026-11-25 10:33:23.622] RX I (2733) wifi:mode : sta (REDACTED_MAC) + softAP (REDACTED_MAC)
+[2026-11-25 10:33:23.622] RX I (2733) wifi:enable tsf
+[2026-11-25 10:33:23.622] RX I (2823) wifi:Total power save buffer number: 16
+[2026-11-25 10:33:23.622] RX I (2893) wifi:Init max length of beacon: 752/752
+[2026-11-25 10:33:23.622] RX I (2973) wifi:Init max length of beacon: 752/752
+[2026-11-25 10:33:23.622] RX I (3063) wifi: WiFi service started, connecting STA...
+[2026-11-25 10:33:23.622] RX I (3073) wifi:I (3063) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: REDACTED_IP
+[2026-11-25 10:33:23.622] RX ap channel adjust o:1,1 n:8,2
+[2026-11-25 10:33:23.622] RX I (3313) wifi:new:<8,0>, old:<1,1>, ap:<8,2>, sta:<8,0>, prof:1, snd_ch_cfg:0x0
+[2026-11-25 10:33:23.622] RX I (3393) wifi:state: init -> auth (0xb0)
+[2026-11-25 10:33:23.622] RX I (3143) bt_cmd: Registered 'bt' command
+[2026-11-25 10:33:23.622] RX I (3513) wifi:state: auth -> assoc (0x0)
+[2026-11-25 10:33:23.622] RX I (3563) bluetooth: NVS: Bluetooth was enabled, auto-starting...
+[2026-11-25 10:33:23.622] RX I (3653) wifi:state: assoc -> run (0x10)
+[2026-11-25 10:33:23.622] RX I (3723) bluetooth: Bluetooth enable started
+[2026-11-25 10:33:23.622] RX I (3833) wifi:connected with REDACTED_SSID, aid = 27, channel 8, BW20, bssid = REDACTED_MAC
+[2026-11-25 10:33:23.622] RX I (3973) wifi:security: WPA2-PSK, phy: bgn, rssi: -59, cipher(pairwise:0x3, group:0x3), pmf:0
+[2026-11-25 10:33:23.622] RX I (4063) wifi:pm start, type: 1
+[2026-11-25 10:33:23.622] RX 
+[2026-11-25 10:33:23.622] RX I (4223) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us
+[2026-11-25 10:33:23.622] RX I (4313) wifi:AP's beacon interval = 102400 us, DTIM period = 1
+[2026-11-25 10:33:23.622] RX I (3983) bluetooth: Free heap: 73260, min ever: 71640
+[2026-11-25 10:33:23.622] RX I (4423) wifi:<ba-add>idx:0 (ifx:0, REDACTED_MAC), tid:6, ssn:1, winSize:64
+[2026-11-25 10:33:23.622] RX I (4403) wifi: STA connected to AP
+[2026-11-25 10:33:23.622] RX I (3723) time_sync: SNTP initialized (server=pool.ntp.org, TZ=CET-1CEST,M3.5.0,M10.5.0/3)
+[2026-11-25 10:33:23.622] RX I (4483) BTDM_INIT: BT controller compile version [4a0f94d]
+[2026-11-25 10:33:23.622] RX I (4823) BTDM_INIT: Using main XTAL as clock source
+[2026-11-25 10:33:23.622] RX I (4913) BTDM_INIT: Bluetooth MAC: REDACTED_MAC
+[2026-11-25 10:33:23.622] RX I (4743) http_auth: Auth initialized (user=cos)
+[2026-11-25 10:33:23.622] RX I (5083) http_static: Static: off, root=/flash/public, spa=off
+[2026-11-25 10:33:23.622] RX I (5003) bluetooth: Controller init OK, enabling BLE...
+[2026-11-25 10:33:23.622] RX I (5273) bluetooth: Controller enabled, starting Bluedroid...
+[2026-11-25 10:33:23.622] RX I (5173) http_api: API endpoints registered
+[2026-11-25 10:33:23.622] RX I (5543) http_upload: Upload endpoint registered
+[2026-11-25 10:33:23.622] RX I (5573) esp_netif_handlers: sta ip: REDACTED_IP, mask: REDACTED_IP, gw: REDACTED_IP
+[2026-11-25 10:33:23.622] RX I (5703) wifi: Got IP: REDACTED_IP
+[2026-11-25 10:33:23.622] RX I (5623) http_cmd: Registered 'server' command
+[2026-11-25 10:33:23.622] RX I (5873) http_server: HTTP server started on port 80
+[2026-11-25 10:33:23.622] RX I (5963) websocket: Registered 'ws' command
+[2026-11-25 10:33:23.622] RX I (6043) websocket: WebSocket endpoint registered at /ws
+[2026-11-25 10:33:23.622] RX I (6133) system_cmd: System commands registered (uptime provided by Berry script)
+[2026-11-25 10:33:23.622] RX I (6223) system: System component initialized
+[2026-11-25 10:33:23.622] RX I (6313) shell: Initializing shell...
+[2026-11-25 10:33:23.622] RX I (6403) shell_fs: Filesystem commands registered
+[2026-11-25 10:33:23.622] RX I (6483) shell_sd: SD card commands registered
+[2026-11-25 10:33:23.622] RX I (6573) shell_info: Filesystem/diagnostics commands registered (info provided by Berry script)
+[2026-11-25 10:33:23.622] RX I (5593) bluetooth: Bluedroid enabled
+[2026-11-25 10:33:23.622] RX I (6673) shell_script: Script path ready (1 configured directory)
+[2026-11-25 10:33:23.622] RX COS/flash> I (6893) wifi:<ba-del>idx:1, tid:0
+[2026-11-25 10:33:23.622] RX I (6763) bluetooth: BLE GAP OK, initializing HID host...
+[2026-11-25 10:33:23.622] RX I (6943) wifi:<ba-add>idx:1 (ifx:0, REDACTED_MAC), tid:0, ssn:1, winSize:64
+[2026-11-25 10:33:23.622] RX I (6843) shell_input: Shell input ready
+[2026-11-25 10:33:23.622] RX I (7043) bluetooth: BLE HID host ready
+[2026-11-25 10:33:23.622] RX I (7213) bluetooth: Bluetooth enabled (BLE)
+[2026-11-25 10:33:23.622] RX I (7303) bluetooth: Auto-connecting to REDACTED_MAC (type=0)
+[2026-11-25 10:33:23.622] RX I (7383) bluetooth: Opening BLE HID connection to REDACTED_MAC (type=0)
+[2026-11-25 10:33:23.622] RX I (7123) shell: Shell ready
+[2026-11-25 10:33:23.622] RX I (7563) boot_profile: Boot profile command ready (effective=default, next=default)
+[2026-11-25 10:33:23.622] RX I (7653) main: COS ready (filesystem available, profile=default)
+[2026-11-25 10:33:23.622] RX I (7743) main_task: Returned from app_main()
+[2026-11-25 10:33:23.622] TX berry eval "print('PROMISE_TYPE='+type(Promise))"
+[2026-11-25 10:33:26.692] RX berry eval "print('PROMISE_TYPE='+type(Promise))"
+[2026-11-25 10:33:26.692] RX I (10803) ui: Starting UI task (background, free heap: 7096, largest block: 5632)
+[2026-11-25 10:33:26.692] RX PROMISE_TYPE=class
+[2026-11-25 10:33:26.692] RX COS/flash> 
+[2026-11-25 10:33:26.692] TX berry eval "import system;print('SLEEP_TYPE='+type(system.sleep))"
+[2026-11-25 10:33:29.720] RX berry eval "import system;print('SLEEP_TYPE='+type(system.sleep))"
+[2026-11-25 10:33:29.720] RX SLEEP_TYPE=function
+[2026-11-25 10:33:29.720] RX COS/flash> 
+[2026-11-25 10:33:29.720] TX berry profile
+[2026-11-25 10:33:32.793] RX berry profile
+[2026-11-25 10:33:32.793] RX Berry memory profile (R2/R5/R8)
+[2026-11-25 10:33:32.793] RX   Default heap:  free=2204 min=1492 total=215056 largest=1024
+[2026-11-25 10:33:32.793] RX   Internal heap: free=2204 min=1492 total=215056 largest=1024
+[2026-11-25 10:33:32.793] RX   Berry GC:      initialized=yes managed=10727 bytes step_rate=200
+[2026-11-25 10:33:32.793] RX   Heap snapshot: free=2204 min=1492 largest=1024 internal_free=35460 internal_min=34716 internal_largest=32768
+[2026-11-25 10:33:32.793] RX   Async:         timers=0 microtasks=0
+[2026-11-25 10:33:32.793] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-25 10:33:32.793] RX COS/flash> 
+[2026-11-25 10:33:32.793] TX berry eval "import system;sp=system.sleep(500);print('SP_TYPE='+type(sp))"
+[2026-11-25 10:33:35.856] RX berry eval "import system;sp=system.sleep(500);print('SP_TYPE='+type(sp))"
+[2026-11-25 10:33:35.856] RX I (19943) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=7352 heap_free=2828 heap_min=308 heap_largest=1536 internal_free=36084 internal_min=33532 internal_largest=32768
+[2026-11-25 10:33:35.856] RX SP_TYPE=instance
+[2026-11-25 10:33:35.856] RX COS/flash> 
+[2026-11-25 10:33:35.856] TX berry eval "sp.then(def(v)print('SLEEP_OK:'+str(v))end,def(e)print('SLEEP_ERR:'+str(e))end)"
+[2026-11-25 10:33:38.903] RX berry eval "sp.then(def(v)print('SLEEP_OK:'+str(v))end,def(e)print('SLEEP_ERR:'+str(e))end)"
+[2026-11-25 10:33:38.903] RX COS/flash> SLEEP_OK:nil
+[2026-11-25 10:33:38.903] TX berry eval "import system;sp2=system.sleep(200);print('SP2_TYPE='+type(sp2))"
+[2026-11-25 10:33:41.935] RX berry eval "import system;sp2=system.sleep(200);print('SP2_TYPE='+type(sp2))"
+[2026-11-25 10:33:41.935] RX SP2_TYPE=instance
+[2026-11-25 10:33:41.935] RX COS/flash> 
+[2026-11-25 10:33:41.935] TX berry eval "sp2.then(def(v)print('SLEEP2_OK:'+str(v))end,def(e)print('SLEEP2_ERR:'+str(e))end)"
+[2026-11-25 10:33:44.976] RX berry eval "sp2.then(def(v)print('SLEEP2_OK:'+str(v))end,def(e)print('SLEEP2_ERR:'+str(e))end)"
+[2026-11-25 10:33:44.976] RX COS/flash> SLEEP2_OK:nil
+[2026-11-25 10:33:44.976] TX berry profile
+[2026-11-25 10:33:48.035] RX berry profile
+[2026-11-25 10:33:48.035] RX Berry memory profile (R2/R5/R8)
+[2026-11-25 10:33:48.035] RX   Default heap:  free=1408 min=308 total=215056 largest=352
+[2026-11-25 10:33:48.035] RX   Internal heap: free=1408 min=308 total=215056 largest=352
+[2026-11-25 10:33:48.035] RX   Berry GC:      initialized=yes managed=10492 bytes step_rate=200
+[2026-11-25 10:33:48.035] RX   Heap snapshot: free=1408 min=308 largest=352 internal_free=34664 internal_min=33532 internal_largest=32768
+[2026-11-25 10:33:48.035] RX   Async:         timers=0 microtasks=0
+[2026-11-25 10:33:48.035] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-25 10:33:48.035] RX COS/flash> 
+[2026-11-25 10:33:48.035] TX berry eval "print('IDLE_CHECK=ok')"
+[2026-11-25 10:33:53.788] RX berry eval "print('IDLE_CHECK=ok')"
+[2026-11-25 10:33:53.788] RX E (35183) berry: shell: (unknown value)
+[2026-11-25 10:33:53.788] RX berry: execution failed (ESP_FAIL)
+[2026-11-25 10:33:53.788] RX COS/flash> W (37483) BT_APPL: gattc_conn_cb: if=3 st=0 id=3 rsn=0x100
+[2026-11-25 10:33:53.788] RX E (37493) BT_OSI: malloc failed (caller=0x40106895 size=536)
+[2026-11-25 10:33:53.788] RX E (37573) BT_OSI: heap info: free=3284, largest_block=544
+[2026-11-25 10:33:53.788] RX W (37663) BT_BTC: btc_transfer_context No memory
+[2026-11-25 10:33:53.788] RX 
+[2026-11-25 10:33:53.788] RX E (37823) BT_BTC: btc_gattc_cback transfer failed
+[2026-11-25 10:33:53.788] RX 
+[2026-11-25 10:33:53.788] TX berry profile
+[2026-11-25 10:33:56.849] RX berry profile
+[2026-11-25 10:33:56.849] RX Berry memory profile (R2/R5/R8)
+[2026-11-25 10:33:56.849] RX   Default heap:  free=3244 min=308 total=215056 largest=544
+[2026-11-25 10:33:56.849] RX   Internal heap: free=3244 min=308 total=215056 largest=544
+[2026-11-25 10:33:56.849] RX   Berry GC:      initialized=yes managed=8672 bytes step_rate=200
+[2026-11-25 10:33:56.849] RX   Heap snapshot: free=3244 min=308 largest=544 internal_free=36500 internal_min=33532 internal_largest=32768
+[2026-11-25 10:33:56.849] RX   Async:         timers=0 microtasks=0
+[2026-11-25 10:33:56.849] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-25 10:33:56.849] RX COS/flash> 
+[2026-11-25 10:33:56.850] TX berry close
+[2026-11-25 10:33:59.873] RX berry close
+[2026-11-25 10:33:59.873] RX COS/flash> 
+[2026-11-25 10:33:59.873] TX berry profile
+[2026-11-25 10:34:02.929] RX berry profile
+[2026-11-25 10:34:02.929] RX Berry memory profile (R2/R5/R8)
+[2026-11-25 10:34:02.929] RX   Default heap:  free=3240 min=308 total=215056 largest=992
+[2026-11-25 10:34:02.929] RX   Internal heap: free=3240 min=308 total=215056 largest=992
+[2026-11-25 10:34:02.929] RX   Berry GC:      initialized=yes managed=8601 bytes step_rate=200
+[2026-11-25 10:34:02.929] RX   Heap snapshot: free=3240 min=308 largest=992 internal_free=36496 internal_min=33532 internal_largest=32768
+[2026-11-25 10:34:02.929] RX   Async:         timers=0 microtasks=0
+[2026-11-25 10:34:02.929] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-25 10:34:02.929] RX COS/flash> 
+
+# end=2026-11-25 10:34:03.165 status=0

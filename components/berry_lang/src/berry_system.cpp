@@ -149,7 +149,8 @@ static int native_system_sleep(bvm *vm)
         be_raise(vm, "runtime_error", error);
         be_return(vm);
     }
-    // be_pcall leaves result at vm->top-1; copy it to retreg for native return.
+    // be_pcall leaves [result, arg1..argN] with top restored; pop args, then return result.
+    be_pop(vm, 1);
     be_return(vm);
 }
 } // namespace
