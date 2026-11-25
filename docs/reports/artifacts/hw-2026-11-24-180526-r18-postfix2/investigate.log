@@ -1,0 +1,29 @@
+# hw_console_session log
+# time=2026-11-24 18:09:03.183
+# port=COM3 baud=115200
+# commands=3
+
+[2026-11-24 18:09:07.340] TX berry profile
+[2026-11-24 18:09:11.417] RX berry profile
+[2026-11-24 18:09:11.417] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 18:09:11.417] RX   Default heap:  free=11092 min=908 total=215056 largest=8192
+[2026-11-24 18:09:11.417] RX   Internal heap: free=11092 min=908 total=215056 largest=8192
+[2026-11-24 18:09:11.417] RX   Berry GC:      initialized=yes managed=14789 bytes step_rate=200
+[2026-11-24 18:09:11.417] RX   Heap snapshot: free=11092 min=908 largest=8192 internal_free=44348 internal_min=34132 internal_largest=32768
+[2026-11-24 18:09:11.417] RX   Async:         timers=3 microtasks=2
+[2026-11-24 18:09:11.417] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 18:09:11.417] RX COS/flash> 
+[2026-11-24 18:09:11.431] TX ls /flash/berry
+[2026-11-24 18:09:15.597] RX ls /flash/berry
+[2026-11-24 18:09:15.597] RX I (202703) berry: Loaded Berry file (6769 bytes)
+[2026-11-24 18:09:15.597] RX I (202753) berry: [R5] 2 Berry source loaded | berry_gc=14789 heap_free=4276 heap_min=908 heap_largest=1600 internal_free=37532 internal_min=34132 internal_largest=32768
+[2026-11-24 18:09:15.597] RX I (202763) berry: [R5] 3 Berry compilation complete (source buffer released) | berry_gc=13102 heap_free=10276 heap_min=908 heap_largest=6912 internal_free=43532 internal_min=34132 internal_largest=32768
+[2026-11-24 18:09:15.597] RX E (202773) berry: /sdcard/scripts/ls.be: attribute_error
+[2026-11-24 18:09:15.597] RX ls: ESP_FAIL
+[2026-11-24 18:09:15.597] RX COS/flash> 
+[2026-11-24 18:09:15.598] TX berry app
+[2026-11-24 18:09:19.637] RX berry app
+[2026-11-24 18:09:19.637] RX none
+[2026-11-24 18:09:19.637] RX COS/flash> 
+
+# end=2026-11-24 18:09:19.873 status=0

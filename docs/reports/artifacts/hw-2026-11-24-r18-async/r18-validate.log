@@ -1,0 +1,67 @@
+# hw_console_session log
+# time=2026-11-24 16:22:17.199
+# port=COM3 baud=115200
+# commands=6
+
+[2026-11-24 16:22:18.869] TX mem
+[2026-11-24 16:22:20.645] RX mem
+[2026-11-24 16:22:20.645] RX I (180902) berry: Loaded Berry file (1061 bytes)
+[2026-11-24 16:22:20.645] RX I (180962) berry: [R5] 2 Berry source loaded | berry_gc=13587 heap_free=12220 heap_min=8708 heap_largest=10240 internal_free=45476 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:20.645] RX I (180972) berry: [R5] 3 Berry compilation complete (source buffer released) | berry_gc=10302 heap_free=14316 heap_min=8708 heap_largest=8192 internal_free=47572 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:20.645] RX Free heap:      14316 bytes
+[2026-11-24 16:22:20.645] RX Min free heap:  8708 bytes
+[2026-11-24 16:22:20.645] RX Total heap:     215056 bytes
+[2026-11-24 16:22:20.645] RX Max alloc:      8192 bytes
+[2026-11-24 16:22:20.645] RX Internal free:  14316 bytes
+[2026-11-24 16:22:20.645] RX Internal min:   8708 bytes
+[2026-11-24 16:22:20.645] RX Internal total: 215056 bytes
+[2026-11-24 16:22:20.645] RX Internal max:   8192 bytes
+[2026-11-24 16:22:20.645] RX COS/flash> 
+[2026-11-24 16:22:20.659] TX berry profile
+[2026-11-24 16:22:22.255] RX berry profile
+[2026-11-24 16:22:22.255] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 16:22:22.255] RX   Default heap:  free=13692 min=8708 total=215056 largest=8192
+[2026-11-24 16:22:22.255] RX   Internal heap: free=13692 min=8708 total=215056 largest=8192
+[2026-11-24 16:22:22.255] RX   Berry GC:      initialized=yes managed=11211 bytes step_rate=200
+[2026-11-24 16:22:22.255] RX   Heap snapshot: free=13692 min=8708 largest=8192 internal_free=46948 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:22.255] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 16:22:22.255] RX COS/flash> 
+[2026-11-24 16:22:22.255] TX berry eval "import system; system.sleep(200).then(def(v) print('R18_SLEEP_OK') end)"
+[2026-11-24 16:22:23.865] RX berry eval "import system; system.sleep(200).then(def(v) print('R18_SLEEP_OK') end)"
+[2026-11-24 16:22:23.865] RX I (184262) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=11842 heap_free=11572 heap_min=8708 heap_largest=6656 internal_free=44828 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:23.865] RX I (184272) berry: Async timer scheduling failed: ASYNC_TIMER_LIMIT
+[2026-11-24 16:22:23.865] RX E (184282) berry: shell: 'int' value has no method 'then'
+[2026-11-24 16:22:23.865] RX berry: execution failed (ESP_FAIL)
+[2026-11-24 16:22:23.865] RX COS/flash> 
+[2026-11-24 16:22:23.865] TX berry eval "import system; system.sleep(500).then(def(v) print('R18_SLEEP_500_OK') end)"
+[2026-11-24 16:22:25.476] RX berry eval "import system; system.sleep(500).then(def(v) print('R18_SLEEP_500_OK') end)"
+[2026-11-24 16:22:25.476] RX I (185872) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=13708 heap_free=12304 heap_min=8708 heap_largest=8192 internal_free=45560 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:25.476] RX I (185882) berry: Async timer scheduling failed: ASYNC_TIMER_LIMIT
+[2026-11-24 16:22:25.476] RX E (185892) berry: shell: 'int' value has no method 'then'
+[2026-11-24 16:22:25.476] RX berry: execution failed (ESP_FAIL)
+[2026-11-24 16:22:25.476] RX COS/flash> 
+[2026-11-24 16:22:25.476] TX mem
+[2026-11-24 16:22:27.190] RX mem
+[2026-11-24 16:22:27.191] RX I (187512) berry: Loaded Berry file (1061 bytes)
+[2026-11-24 16:22:27.191] RX I (187572) berry: [R5] 2 Berry source loaded | berry_gc=14624 heap_free=10988 heap_min=8708 heap_largest=8192 internal_free=44244 internal_min=41932 internal_largest=32768
+[2026-11-24 16:22:27.191] RX I (187592) berry: [R5] 3 Berry compilation complete (source buffer released) | berry_gc=16456 heap_free=10100 heap_min=8072 heap_largest=6656 internal_free=43356 internal_min=41296 internal_largest=32768
+[2026-11-24 16:22:27.191] RX Free heap:      10100 bytes
+[2026-11-24 16:22:27.191] RX Min free heap:  8072 bytes
+[2026-11-24 16:22:27.191] RX Total heap:     215056 bytes
+[2026-11-24 16:22:27.191] RX Max alloc:      6656 bytes
+[2026-11-24 16:22:27.191] RX Internal free:  10100 bytes
+[2026-11-24 16:22:27.191] RX Internal min:   8072 bytes
+[2026-11-24 16:22:27.191] RX Internal total: 215056 bytes
+[2026-11-24 16:22:27.191] RX Internal max:   6656 bytes
+[2026-11-24 16:22:27.191] RX COS/flash> 
+[2026-11-24 16:22:27.191] TX berry profile
+[2026-11-24 16:22:28.785] RX berry profile
+[2026-11-24 16:22:28.785] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 16:22:28.785] RX   Default heap:  free=8960 min=6916 total=215056 largest=6656
+[2026-11-24 16:22:28.785] RX   Internal heap: free=8960 min=6916 total=215056 largest=6656
+[2026-11-24 16:22:28.785] RX   Berry GC:      initialized=yes managed=17328 bytes step_rate=200
+[2026-11-24 16:22:28.785] RX   Heap snapshot: free=8960 min=6916 largest=6656 internal_free=42216 internal_min=40140 internal_largest=32768
+[2026-11-24 16:22:28.785] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 16:22:28.785] RX COS/flash> 
+
+# end=2026-11-24 16:22:29.022 status=0

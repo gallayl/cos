@@ -1,0 +1,12 @@
+# hw_console_session log
+# time=2026-11-24 17:47:32.070
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 17:47:35.210] TX berry eval "print('PING')"
+[2026-11-24 17:47:38.352] RX berry eval "print('PING')"
+[2026-11-24 17:47:38.352] RX I (340472) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=11672 heap_free=12964 heap_min=1096 heap_largest=8192 internal_free=46220 internal_min=34320 internal_largest=32768
+[2026-11-24 17:47:38.352] RX PING
+[2026-11-24 17:47:38.352] RX COS/flash> 
+
+# end=2026-11-24 17:47:38.588 status=0

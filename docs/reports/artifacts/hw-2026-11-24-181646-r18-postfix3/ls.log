@@ -1,0 +1,23 @@
+# hw_console_session log
+# time=2026-11-24 18:19:07.097
+# port=COM3 baud=115200
+# commands=2
+
+[2026-11-24 18:19:11.255] TX ls /flash/berry
+[2026-11-24 18:19:15.401] RX ls /flash/berry
+[2026-11-24 18:19:15.401] RX W (132503) berry: Source buffer alloc failed (6770 bytes): def_free=7164 def_largest=5376 int_largest=32768 after stat
+[2026-11-24 18:19:15.401] RX W (132573) berry: Could not allocate Berry source buffer (6770 bytes); free=7164, largest=5376, internal_largest=32768
+[2026-11-24 18:19:15.401] RX ls: ESP_ERR_NO_MEM
+[2026-11-24 18:19:15.401] RX COS/flash> 
+[2026-11-24 18:19:15.401] TX berry profile
+[2026-11-24 18:19:19.471] RX berry profile
+[2026-11-24 18:19:19.471] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 18:19:19.471] RX   Default heap:  free=7048 min=788 total=215056 largest=5376
+[2026-11-24 18:19:19.471] RX   Internal heap: free=7048 min=788 total=215056 largest=5376
+[2026-11-24 18:19:19.471] RX   Berry GC:      initialized=yes managed=14295 bytes step_rate=200
+[2026-11-24 18:19:19.471] RX   Heap snapshot: free=7048 min=788 largest=5376 internal_free=40304 internal_min=34012 internal_largest=32768
+[2026-11-24 18:19:19.471] RX   Async:         timers=0 microtasks=0
+[2026-11-24 18:19:19.471] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 18:19:19.471] RX COS/flash> 
+
+# end=2026-11-24 18:19:19.723 status=0

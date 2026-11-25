@@ -865,6 +865,130 @@ var __cos_entry = Hello()
     expect(result.code).toContain('Promise.resolve(nil).then')
     expect(result.code).toContain('system.sleep(10)')
   })
+
+  it('lowers async try/catch with await in try (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          await system.sleep(10)
+          log("ok")
+        } catch (e) {
+          log(e)
+        }
+        log("after")
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('Promise.resolve(nil).then(def(_cos_try)')
+    expect(result.code).toContain('end).then(nil, def(_cos_catch_e)')
+    expect(result.code).toContain('var e = _cos_catch_e')
+    expect(result.code).toContain('end).then(def(_cos_after)')
+    expect(result.code).toContain('after')
+  })
+
+  it('diagnoses return inside async try/catch containing await (R18 v1 subset)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          await system.sleep(10)
+          return
+        } catch (e) {
+          log(e)
+        }
+      }
+    `)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('not supported yet')
+  })
+
+  it('lowers sequential async try/catch blocks with same catch name (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          await system.sleep(10)
+        } catch (e) {
+          log(e)
+        }
+        try {
+          await system.sleep(20)
+        } catch (e) {
+          log(e)
+        }
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('Promise.resolve(nil).then(def(_cos_try)')
+  })
+
+  it('lowers async try/catch with await in catch and no binding (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          await system.sleep(10)
+        } catch {
+          await system.sleep(20)
+        }
+        log("after")
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('end).then(nil, def(_cos_catch_e)')
+    expect(result.code).toContain('end).then(def(_cos_after)')
+    expect(result.code).toContain('after')
+  })
+
+  it('supports predeclared var assigned in async try/catch and read after (R18 v1 continuation)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        var x = 0
+        try {
+          x = await system.sleep(10)
+        } catch (e) {
+          x = 1
+        }
+        log(x)
+      }
+    `)
+    expect(result.ok).toBe(true)
+    expect(result.diagnostics).toEqual([])
+    expect(result.code).toContain('var x = 0')
+    expect(result.code).toContain('x = ')
+  })
+
+  it('diagnoses variable declaration inside async try/catch containing await (R18 v1 subset)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          var x = await system.sleep(10)
+          log(x)
+        } catch (e) {
+          log(e)
+        }
+      }
+    `)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('not supported yet')
+  })
+
+  it('diagnoses for-loop variable declaration in async try/catch containing await (R18 v1 subset)', () => {
+    const result = compile(`
+      async function demo(): Promise<void> {
+        try {
+          await system.sleep(10)
+          for (var i = 0; i < 1; i++) {
+            log(i)
+          }
+        } catch (e) {
+          log(e)
+        }
+      }
+    `)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map((d) => d.message).join('\n')).toContain('not supported yet')
+  })
 })
 
 describe('astToBerry R14 profiles and debug metadata', () => {

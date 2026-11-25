@@ -1,0 +1,2 @@
+berry eval "import system; var p=system.sleep(200); print(type(p))"
+berry eval "p.then(def(v) print('SLEEP_OK') end, def(e) print('SLEEP_ERR') end)"

@@ -1,0 +1,19 @@
+# hw_console_session log
+# time=2026-11-24 18:07:04.954
+# port=COM3 baud=115200
+# commands=2
+
+[2026-11-24 18:07:10.125] TX berry eval "import system; sleep_p=system.sleep(400); print(type(sleep_p))"
+[2026-11-24 18:07:15.209] RX berry eval "import system; sleep_p=system.sleep(400); print(type(sleep_p))"
+[2026-11-24 18:07:15.209] RX I (81363) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=9561 heap_free=15568 heap_min=908 heap_largest=8192 internal_free=48824 internal_min=34132 internal_largest=32768
+[2026-11-24 18:07:15.209] RX I (81373) berry: Async timer scheduling failed: ASYNC_TIMER_LIMIT
+[2026-11-24 18:07:15.209] RX int
+[2026-11-24 18:07:15.209] RX COS/flash> 
+[2026-11-24 18:07:15.209] TX berry eval "sleep_p.then(def(v) print('SLEEP_OK:'+str(v)) end, def(e) print('SLEEP_ERR:'+str(e)) end)"
+[2026-11-24 18:07:20.303] RX berry eval "sleep_p.then(def(v) print('SLEEP_OK:'+str(v)) end, def(e) print('SLEEP_ERR:'+str(e)) end)"
+[2026-11-24 18:07:20.303] RX I (86463) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=11539 heap_free=14488 heap_min=908 heap_largest=8192 internal_free=47744 internal_min=34132 internal_largest=32768
+[2026-11-24 18:07:20.303] RX E (86473) berry: shell: 'int' value has no method 'then'
+[2026-11-24 18:07:20.303] RX berry: execution failed (ESP_FAIL)
+[2026-11-24 18:07:20.303] RX COS/flash> 
+
+# end=2026-11-24 18:07:20.539 status=0

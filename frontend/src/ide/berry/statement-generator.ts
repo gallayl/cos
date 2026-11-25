@@ -568,6 +568,95 @@ function containsAwait(node: ts.Node): boolean {
   return found
 }
 
+function containsReturn(node: ts.Node): boolean {
+  let found = false
+  const visit = (n: ts.Node): void => {
+    if (found) return
+    if (ts.isReturnStatement(n)) {
+      found = true
+      return
+    }
+    if (ts.isFunctionLike(n)) return // nested function boundary
+    ts.forEachChild(n, visit)
+  }
+  ts.forEachChild(node, visit)
+  return found
+}
+
+function containsVariableDeclaration(node: ts.Node): boolean {
+  let found = false
+  const visit = (n: ts.Node): void => {
+    if (found) return
+    if (
+      ts.isVariableStatement(n) ||
+      ts.isVariableDeclarationList(n) ||
+      ts.isFunctionDeclaration(n) ||
+      ts.isClassDeclaration(n)
+    ) {
+      found = true
+      return
+    }
+    if (ts.isFunctionLike(n)) return // nested function boundary
+    ts.forEachChild(n, visit)
+  }
+  ts.forEachChild(node, visit)
+  return found
+}
+
+function isSimpleAsyncTryStatement(st: ts.Statement): st is ts.TryStatement {
+  if (!ts.isTryStatement(st) || !containsAwait(st)) return false
+  if (st.finallyBlock) return false
+  const { catchClause } = st
+  if (!catchClause) return false
+  if (catchClause.variableDeclaration && !ts.isIdentifier(catchClause.variableDeclaration.name)) return false
+  // Return inside try/catch is not supported in this chain lowering because it would need
+  // to bypass the shared continuation. Diagnose/unsupported instead of miscompiling.
+  if (containsReturn(st.tryBlock)) return false
+  if (containsReturn(catchClause.block)) return false
+  // Variable declarations inside try/catch handlers become locals of handler defs; they are not
+  // visible in sibling catch/continuation handlers. Reject to avoid silent miscompile (R18 v1).
+  if (containsVariableDeclaration(st.tryBlock)) return false
+  if (containsVariableDeclaration(catchClause.block)) return false
+  return true
+}
+
+function isAwaitAssignmentExpression(
+  st: ts.Statement,
+): st is ts.ExpressionStatement & { expression: ts.BinaryExpression } {
+  return (
+    ts.isExpressionStatement(st) &&
+    ts.isBinaryExpression(st.expression) &&
+    st.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+    ts.isIdentifier(st.expression.left) &&
+    ts.isAwaitExpression(st.expression.right)
+  )
+}
+
+function isSupportedAsyncSequence(statements: readonly ts.Statement[]): boolean {
+  for (const st of statements) {
+    if (!containsAwait(st)) continue
+    if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) continue
+    if (isAwaitAssignmentExpression(st)) continue
+    if (
+      ts.isVariableStatement(st) &&
+      st.declarationList.declarations.length === 1 &&
+      ts.isIdentifier(st.declarationList.declarations[0].name) &&
+      st.declarationList.declarations[0].initializer &&
+      ts.isAwaitExpression(st.declarationList.declarations[0].initializer)
+    )
+      continue
+    if (ts.isReturnStatement(st) && (!st.expression || ts.isAwaitExpression(st.expression) || !containsAwait(st)))
+      continue
+    if (isSimpleAsyncTryStatement(st)) {
+      const catchClause = st.catchClause!
+      if (isSupportedAsyncSequence(st.tryBlock.statements) && isSupportedAsyncSequence(catchClause.block.statements))
+        continue
+    }
+    return false
+  }
+  return true
+}
+
 export function tryEmitSequentialAsyncMethod(
   ctx: GenerationContext,
   header: string,
@@ -583,26 +672,11 @@ function tryEmitSequentialAsyncFunction(
   parameters: readonly ts.ParameterDeclaration[],
   body: ts.Block,
 ): boolean {
-  // Only support simple sequential bodies: statements may be await-expression statements,
-  // variable declarations with single identifier initialized by await expression,
-  // return [await] expr / return, or statements with no await. No control flow across awaits.
-  // try-catch containing awaits, if/while/for/switch containing awaits are not supported in v1 lowering.
-  for (const st of body.statements) {
-    if (!containsAwait(st)) continue
-    // allow only specific forms with await
-    if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) continue
-    if (
-      ts.isVariableStatement(st) &&
-      st.declarationList.declarations.length === 1 &&
-      ts.isIdentifier(st.declarationList.declarations[0].name) &&
-      st.declarationList.declarations[0].initializer &&
-      ts.isAwaitExpression(st.declarationList.declarations[0].initializer)
-    )
-      continue
-    if (ts.isReturnStatement(st) && (!st.expression || ts.isAwaitExpression(st.expression) || !containsAwait(st)))
-      continue
-    return false
-  }
+  // Minimal v1 lowering: sequential bodies with await in expression statements, var x = await ...,
+  // return [await] expr / return, and try/catch blocks containing awaits (no finally, no return/
+  // variable declarations inside try/catch). Unsupported awaits/control flow are diagnosed
+  // (no silent miscompile).
+  if (!isSupportedAsyncSequence(body.statements)) return false
   if (!beginFunction(ctx, header, parameters)) return false
   emitAsyncBodyAsPromise(ctx, body.statements)
   endFunction(ctx)
@@ -610,18 +684,15 @@ function tryEmitSequentialAsyncFunction(
 }
 
 function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.Statement[]): void {
-  // Build a chain: Promise.resolve(nil).then(...).then(...)
-  // but easier recursive emission from index 0.
-  const emitFrom = (index: number): void => {
-    if (index >= statements.length) {
+  const emitAsyncSequence = (sequence: readonly ts.Statement[], index: number): void => {
+    if (index >= sequence.length) {
       ctx.writeLine('return nil')
       return
     }
-    const st = statements[index]
+    const st = sequence[index]
     if (!containsAwait(st)) {
-      // Emit statement and continue chain as next then? For simplicity emit statement then recurse.
       ctx.emitStatement(st)
-      emitFrom(index + 1)
+      emitAsyncSequence(sequence, index + 1)
       return
     }
     if (ts.isExpressionStatement(st) && ts.isAwaitExpression(st.expression)) {
@@ -630,7 +701,20 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       const e = emitExpressionMapped(ctx, expr, prefix.length)
       ctx.writeLine(`${prefix}${e}).then(def(_cos_await_v)`)
       ctx.indent()
-      emitFrom(index + 1)
+      emitAsyncSequence(sequence, index + 1)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
+    if (isAwaitAssignmentExpression(st)) {
+      const name = (st.expression.left as ts.Identifier).text
+      const expr = (st.expression.right as ts.AwaitExpression).expression
+      const prefix = 'return ('
+      const e = emitExpressionMapped(ctx, expr, prefix.length)
+      ctx.writeLine(`${prefix}${e}).then(def(_cos_await_v)`)
+      ctx.indent()
+      ctx.writeLine(`${name} = _cos_await_v`)
+      emitAsyncSequence(sequence, index + 1)
       ctx.dedent()
       ctx.writeLine('end)')
       return
@@ -644,7 +728,7 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       ctx.writeLine(`${prefix}${e}).then(def(${name})`)
       ctx.indent()
       ctx.declareName(name, decl.name)
-      emitFrom(index + 1)
+      emitAsyncSequence(sequence, index + 1)
       ctx.dedent()
       ctx.writeLine('end)')
       return
@@ -663,7 +747,40 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
       ctx.writeLine(`${prefix}${emitExpressionMapped(ctx, st.expression, prefix.length)}`)
       return
     }
-    // Should have been rejected earlier
+    if (ts.isTryStatement(st) && containsAwait(st)) {
+      if (!isSimpleAsyncTryStatement(st)) {
+        ctx.report(
+          st,
+          'Unsupported async try/catch form (R18 v1 subset): requires catch, no finally, no async-function return/variable declarations inside try/catch, and supported await forms only.',
+        )
+        ctx.writeLine('return Promise.reject("ASYNC_UNSUPPORTED_FORM")')
+        return
+      }
+      const catchClause = st.catchClause!
+      ctx.writeLine('return Promise.resolve(nil).then(def(_cos_try)')
+      ctx.indent()
+      ctx.pushScope()
+      emitAsyncSequence(st.tryBlock.statements, 0)
+      ctx.popScope()
+      ctx.dedent()
+      ctx.writeLine('end).then(nil, def(_cos_catch_e)')
+      ctx.indent()
+      ctx.pushScope()
+      const binding = catchClause.variableDeclaration
+      if (binding && ts.isIdentifier(binding.name)) {
+        ctx.declareName(binding.name.text, binding.name)
+        ctx.writeLine(`var ${binding.name.text} = _cos_catch_e`)
+      }
+      emitAsyncSequence(catchClause.block.statements, 0)
+      ctx.popScope()
+      ctx.dedent()
+      ctx.writeLine('end).then(def(_cos_after)')
+      ctx.indent()
+      emitAsyncSequence(sequence, index + 1)
+      ctx.dedent()
+      ctx.writeLine('end)')
+      return
+    }
     ctx.report(st, 'Unsupported await form in async function.')
     ctx.writeLine('return Promise.reject("ASYNC_UNSUPPORTED_FORM")')
   }
@@ -671,7 +788,7 @@ function emitAsyncBodyAsPromise(ctx: GenerationContext, statements: readonly ts.
   // Wrap whole chain in Promise.resolve().then to create async context; ensure exceptions reject.
   ctx.writeLine('return Promise.resolve(nil).then(def(_cos_async_init)')
   ctx.indent()
-  emitFrom(0)
+  emitAsyncSequence(statements, 0)
   ctx.dedent()
   ctx.writeLine('end)')
 }

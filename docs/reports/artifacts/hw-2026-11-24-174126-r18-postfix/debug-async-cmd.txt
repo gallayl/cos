@@ -1,0 +1,2 @@
+berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(type(r))"
+berry eval "if type(r)=='map' print(r.find('ok')) print(r.find('tag')) end"

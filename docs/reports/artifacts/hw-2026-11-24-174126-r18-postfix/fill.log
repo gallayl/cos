@@ -1,0 +1,31 @@
+# hw_console_session log
+# time=2026-11-24 17:51:32.677
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 17:51:36.834] TX berry eval "for i:0..14 var r=cos_async_sleep(10000,def() end,def(e) end) print(str(i)+':'+str(r['ok'])) end"
+[2026-11-24 17:51:40.956] RX berry eval "for i:0..14 var r=cos_async_sleep(10000,def() end,def(e) end) print(str(i)+':'+str(r['ok'])) end"
+[2026-11-24 17:51:40.956] RX I (582102) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=14146 heap_free=11664 heap_min=1096 heap_largest=8192 internal_free=44920 internal_min=34320 internal_largest=32768
+[2026-11-24 17:51:40.956] RX 0:true
+[2026-11-24 17:51:40.956] RX 1:true
+[2026-11-24 17:51:40.956] RX 2:true
+[2026-11-24 17:51:40.956] RX 3:true
+[2026-11-24 17:51:40.956] RX 4:true
+[2026-11-24 17:51:40.956] RX 5:true
+[2026-11-24 17:51:40.956] RX 6:true
+[2026-11-24 17:51:40.956] RX 7:true
+[2026-11-24 17:51:40.956] RX 8:true
+[2026-11-24 17:51:40.956] RX 9:true
+[2026-11-24 17:51:40.956] RX E (582142) berry: Async timer overflow: sleep rejected at timer cap
+[2026-11-24 17:51:40.956] RX 10:false
+[2026-11-24 17:51:40.956] RX E (582142) berry: Async timer overflow: sleep rejected at timer cap
+[2026-11-24 17:51:40.956] RX 11:false
+[2026-11-24 17:51:40.956] RX E (582142) berry: Async timer overflow: sleep rejected at timer cap
+[2026-11-24 17:51:40.956] RX 12:false
+[2026-11-24 17:51:40.956] RX E (582152) berry: Async timer overflow: sleep rejected at timer cap
+[2026-11-24 17:51:40.956] RX 13:false
+[2026-11-24 17:51:40.956] RX E (582162) berry: Async timer overflow: sleep rejected at timer cap
+[2026-11-24 17:51:40.956] RX 14:false
+[2026-11-24 17:51:40.956] RX COS/flash> 
+
+# end=2026-11-24 17:51:41.208 status=0

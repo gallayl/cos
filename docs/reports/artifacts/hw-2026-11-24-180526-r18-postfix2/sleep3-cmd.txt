@@ -1,0 +1,2 @@
+berry eval "import system; sp=system.sleep(500); print(type(sp))"
+berry eval "sp.then(def(v) print('SLEEP_OK2:'+str(v)) end, def(e) print('SLEEP_ERR2:'+str(e)) end)"

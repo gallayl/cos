@@ -1,0 +1,1 @@
+berry eval "cos_async_sleep(200,def() print('CB_OK') end,def(e) print('CB_ERR') end)"

@@ -1,0 +1,12 @@
+berry eval "print('PROMISE_TYPE='+type(Promise))"
+berry eval "import system;print('SLEEP_TYPE='+type(system.sleep))"
+berry profile
+berry eval "import system;sp=system.sleep(500);print('SP_TYPE='+type(sp))"
+berry eval "sp.then(def(v)print('SLEEP_OK:'+str(v))end,def(e)print('SLEEP_ERR:'+str(e))end)"
+berry eval "import system;sp2=system.sleep(200);print('SP2_TYPE='+type(sp2))"
+berry eval "sp2.then(def(v)print('SLEEP2_OK:'+str(v))end,def(e)print('SLEEP2_ERR:'+str(e))end)"
+berry profile
+berry eval "print('IDLE_CHECK=ok')"
+berry profile
+berry close
+berry profile

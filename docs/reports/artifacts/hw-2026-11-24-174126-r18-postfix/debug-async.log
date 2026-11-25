@@ -1,0 +1,16 @@
+# hw_console_session log
+# time=2026-11-24 17:46:04.271
+# port=COM3 baud=115200
+# commands=2
+
+[2026-11-24 17:46:07.420] TX berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(type(r))"
+[2026-11-24 17:46:10.485] RX berry eval "var r=cos_async_sleep(100,def() end,def(e) end); print(type(r))"
+[2026-11-24 17:46:10.485] RX I (252682) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=15878 heap_free=9880 heap_min=1096 heap_largest=7936 internal_free=43136 internal_min=34320 internal_largest=32768
+[2026-11-24 17:46:10.485] RX instance
+[2026-11-24 17:46:10.485] RX COS/flash> 
+[2026-11-24 17:46:10.485] TX berry eval "if type(r)=='map' print(r.find('ok')) print(r.find('tag')) end"
+[2026-11-24 17:46:13.631] RX berry eval "if type(r)=='map' print(r.find('ok')) print(r.find('tag')) end"
+[2026-11-24 17:46:13.631] RX I (255832) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=10440 heap_free=13360 heap_min=1096 heap_largest=8192 internal_free=46616 internal_min=34320 internal_largest=32768
+[2026-11-24 17:46:13.631] RX COS/flash> 
+
+# end=2026-11-24 17:46:13.883 status=0

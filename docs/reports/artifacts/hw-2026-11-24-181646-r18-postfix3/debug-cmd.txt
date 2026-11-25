@@ -1,0 +1,2 @@
+berry profile
+berry eval "var r=cos_async_sleep(1000,def() end,def(e) end); print(r['ok']); print(r.find('tag'))"

@@ -2685,12 +2685,13 @@ end
 def _cos_system_sleep(ms)
   return Promise(def(resolve, reject)
     var r = cos_async_sleep(ms, def() resolve(nil) end, def(reason) reject(reason) end)
-    if type(r) != 'map' || r.find('ok') != true
+    var is_map = type(r) == 'map' || (type(r) == 'instance' && classname(r) == 'map')
+    if !is_map || r.find('ok') != true
       var tag = "ASYNC_TIMER_LIMIT"
-      if type(r) == 'map' && r.contains('tag')
+      if is_map && r.contains('tag')
         tag = r['tag']
       end
-      log("Async timer scheduling failed: " + str(tag))
+      log("Async timer scheduling failed: " + str(tag) + " rtype=" + str(type(r)) + " cls=" + (type(r) == 'instance' ? str(classname(r)) : '-'))
       reject(tag)
     end
   end)
@@ -2724,6 +2725,12 @@ extern "C" esp_err_t berry_runtime_init(void)
         return ESP_ERR_NO_MEM;
     }
     s_gc_step_rate = BERRY_GC_STEP_RATE_DEFAULT;
+    // Soft reboot preserves static C++ state; stale async entries/callback IDs would block new timers.
+    s_async_timers.clear();
+    s_async_microtasks.clear();
+    s_async_tearing_down = false;
+    s_async_settlement_in_progress = false;
+    s_async_next_callback = 0;
 
     be_regfunc(s_vm, "log", native_log);
     be_regfunc(s_vm, "action", native_action);
@@ -2755,6 +2762,10 @@ extern "C" esp_err_t berry_runtime_init(void)
     ui::set_execution_guard(berry_runtime_lock, berry_runtime_unlock);
     ui::set_tick_callback(berry_runtime_combined_tick);
     ui::set_exit_callback(close_app_from_ui);
+    if (!ui::ensure_task())
+    {
+        ESP_LOGW(TAG, "UI background task not started; async pump may not run without active app");
+    }
 
     log_lifecycle_checkpoint("1 Berry VM initialized");
 
@@ -2775,6 +2786,9 @@ extern "C" void berry_runtime_deinit(void)
     }
     s_async_timers.clear();
     s_async_microtasks.clear();
+    s_async_tearing_down = false;
+    s_async_settlement_in_progress = false;
+    s_async_next_callback = 0;
 }
 
 extern "C" esp_err_t berry_runtime_eval(const char *source, const char *source_name)
@@ -2927,6 +2941,8 @@ extern "C" esp_err_t berry_runtime_get_memory_info(berry_runtime_memory_info_t *
     info->internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     info->internal_largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     info->internal_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
+    info->async_timers = s_async_timers.size();
+    info->async_microtasks = s_async_microtasks.size();
 
     return ESP_OK;
 }

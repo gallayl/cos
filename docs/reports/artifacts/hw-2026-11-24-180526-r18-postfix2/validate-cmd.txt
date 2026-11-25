@@ -1,0 +1,7 @@
+mem
+berry profile
+berry eval "print(type(system.sleep))"
+berry eval "print(type(Promise))"
+berry eval "import system; global p=system.sleep(300); print(type(p))"
+berry eval "p.then(def(v) print('SLEEP_OK:'+str(v)) end, def(e) print('SLEEP_ERR:'+str(e)) end)"
+berry profile

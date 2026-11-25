@@ -154,6 +154,8 @@ static void print_profile(void)
                (unsigned)berry_info.heap_free, (unsigned)berry_info.heap_min_free,
                (unsigned)berry_info.heap_largest_block, (unsigned)berry_info.internal_free,
                (unsigned)berry_info.internal_min_free, (unsigned)berry_info.internal_largest_block);
+        printf("  Async:         timers=%u microtasks=%u\n", (unsigned)berry_info.async_timers,
+               (unsigned)berry_info.async_microtasks);
     }
     else
     {

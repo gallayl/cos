@@ -1,0 +1,35 @@
+# hw_console_session log
+# time=2026-11-24 16:20:23.441
+# port=COM3 baud=115200
+# commands=3
+
+[2026-11-24 16:20:24.035] TX mem
+[2026-11-24 16:20:24.748] RX mem
+[2026-11-24 16:20:24.748] RX I (66082) berry: [R5] 1 Berry VM initialized | berry_gc=9409 heap_free=17720 heap_min=8708 heap_largest=10240 internal_free=50976 internal_min=41932 internal_largest=32768
+[2026-11-24 16:20:24.748] RX I (66132) berry: Loaded Berry file (1061 bytes)
+[2026-11-24 16:20:24.748] RX I (66212) berry: [R5] 2 Berry source loaded | berry_gc=9409 heap_free=16628 heap_min=8708 heap_largest=10240 internal_free=49884 internal_min=41932 internal_largest=32768
+[2026-11-24 16:20:24.748] RX I (66222) berry: [R5] 3 Berry compilation complete (source buffer released) | berry_gc=12115 heap_free=15464 heap_min=8708 heap_largest=10240 internal_free=48720 internal_min=41932 internal_largest=32768
+[2026-11-24 16:20:24.748] RX Free heap:      14808 bytes
+[2026-11-24 16:20:24.748] RX Min free heap:  8708 bytes
+[2026-11-24 16:20:24.748] RX Total heap:     215056 bytes
+[2026-11-24 16:20:24.748] RX Max alloc:      10240 bytes
+[2026-11-24 16:20:24.748] RX Internal free:  14808 bytes
+[2026-11-24 16:20:24.748] RX Internal min:   8708 bytes
+[2026-11-24 16:20:24.748] RX Internal total: 215056 bytes
+[2026-11-24 16:20:24.748] RX Internal max:   10240 bytes
+[2026-11-24 16:20:24.748] RX COS/flash> 
+[2026-11-24 16:20:24.761] TX berry profile
+[2026-11-24 16:20:25.274] RX berry profile
+[2026-11-24 16:20:25.274] RX Berry memory profile (R2/R5/R8)
+[2026-11-24 16:20:25.274] RX   Default heap:  free=13180 min=8708 total=215056 largest=10240
+[2026-11-24 16:20:25.274] RX   Internal heap: free=13180 min=8708 total=215056 largest=10240
+[2026-11-24 16:20:25.274] RX   Berry GC:      initialized=yes managed=13564 bytes step_rate=200
+[2026-11-24 16:20:25.274] RX   Heap snapshot: free=13164 min=8708 largest=10240 internal_free=46420 internal_min=41932 internal_largest=32768
+[2026-11-24 16:20:25.274] RX   HTTP worker:   not started (cfg=6144 unit=1)
+[2026-11-24 16:20:25.274] RX COS/flash> 
+[2026-11-24 16:20:25.274] TX berry app
+[2026-11-24 16:20:25.753] RX berry app
+[2026-11-24 16:20:25.753] RX none
+[2026-11-24 16:20:25.753] RX COS/flash> 
+
+# end=2026-11-24 16:20:25.989 status=0

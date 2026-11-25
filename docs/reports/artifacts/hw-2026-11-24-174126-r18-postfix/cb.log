@@ -1,0 +1,11 @@
+# hw_console_session log
+# time=2026-11-24 17:46:55.061
+# port=COM3 baud=115200
+# commands=1
+
+[2026-11-24 17:46:59.205] TX berry eval "cos_async_sleep(200,def() print('CB_OK') end,def(e) print('CB_ERR') end)"
+[2026-11-24 17:47:03.356] RX berry eval "cos_async_sleep(200,def() print('CB_OK') end,def(e) print('CB_ERR') end)"
+[2026-11-24 17:47:03.356] RX I (304562) berry: [R5] 3 Berry compilation complete (non-owning source) | berry_gc=11187 heap_free=13060 heap_min=1096 heap_largest=8192 internal_free=46316 internal_min=34320 internal_largest=32768
+[2026-11-24 17:47:03.356] RX COS/flash> 
+
+# end=2026-11-24 17:47:03.592 status=0
