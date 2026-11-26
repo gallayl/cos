@@ -1060,7 +1060,6 @@ esp_err_t generic_handler(httpd_req_t *req)
         berry_runtime_unlock();
         std::lock_guard<std::mutex> lock(s->mu);
         s->dispatch_running = false;
-        got = true;
         status = s->resp_status;
         rh = s->resp_headers;
         rb = s->resp_body;
