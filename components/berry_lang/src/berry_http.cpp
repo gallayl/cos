@@ -1053,25 +1053,17 @@ esp_err_t generic_handler(httpd_req_t *req)
     }
     else
     {
-        // Fallback when no task can be created: run the chain inline (no timeout, as before).
+        // Fallback when no task can be created: fail safely instead of running inline without timeout.
         ESP_LOGE(TAG, "dispatch task create failed");
-        berry_runtime_lock();
-        bool ok = is_alive(s) ? execute_chain_berry(s) : false;
-        berry_runtime_unlock();
-        std::lock_guard<std::mutex> lock(s->mu);
-        s->dispatch_running = false;
-        status = s->resp_status;
-        rh = s->resp_headers;
-        rb = s->resp_body;
-        sent = s->resp_sent;
-        s->in_flight = false;
-        s->matched_chain.clear();
-        if (!ok || !sent)
         {
-            return send_resp(req, 500, {{"Content-Type", "application/json"}}, "{\"error\":\"Internal Server Error\"}",
-                             method == "HEAD");
+            std::lock_guard<std::mutex> lock(s->mu);
+            s->exchange_epoch++; // invalidate any unexpected stale dispatch signal
+            s->dispatch_running = false;
+            s->in_flight = false;
+            s->matched_chain.clear();
         }
-        return send_resp(req, status, rh, rb, method == "HEAD");
+        return send_resp(req, 503, {{"Content-Type", "application/json"}}, "{\"error\":\"Service Unavailable\"}",
+                         method == "HEAD");
     }
 
     const bool timed_out = !got;
