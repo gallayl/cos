@@ -4,7 +4,8 @@
  * Separate from the core device HTTP server (different instance/port, no core route/auth coupling).
  *
  * v1 limits: single in-flight request per server, max URL 512 B, max 16 headers / 4 KB total,
- * max body 4 KB (text/raw and application/json), max 16 routes+middleware, handler timeout expected <= 5000 ms.
+ * max body 4 KB (text/raw and application/json), max 16 routes+middleware, handler timeout enforced
+ * at 5000 ms default (504 returned if the handler does not complete in time).
  * No built-in auth, no TLS/HTTPS, buffered bodies only. LAN-reachable by default (0.0.0.0).
  */
 

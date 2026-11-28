@@ -8,6 +8,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #include <algorithm>
 #include <cctype>
@@ -33,6 +34,7 @@ constexpr char TAG[] = "berry_http";
 constexpr int DEFAULT_TIMEOUT_MS = 5000;
 constexpr int MIN_TIMEOUT_MS = 1;
 constexpr int MAX_TIMEOUT_MS = 30000;
+constexpr size_t R24_DISPATCH_STACK_SIZE = 6144;
 constexpr size_t MAX_URL_LEN = 512;
 constexpr size_t MAX_HEADER_COUNT = 16;
 constexpr size_t MAX_TOTAL_HEADER_BYTES = 4096;
@@ -66,6 +68,8 @@ struct HttpUserServer
     bool has_exchange = false;
     bool exchange_done = false;
     bool exchange_timed_out = false;
+    uint32_t exchange_epoch = 0;   // guarded by mu; invalidates late dispatch completions
+    bool dispatch_running = false; // guarded by mu
     std::string req_method;
     std::string req_uri_path;
     std::string req_query_raw;
@@ -457,25 +461,6 @@ void stop_and_clear_server(HttpUserServer *s)
     s->listening = false;
 }
 
-void destroy_server(HttpUserServer *s, bvm *vm)
-{
-    if (s == nullptr)
-        return;
-    stop_and_clear_server(s);
-    if (vm != nullptr)
-    {
-        for (const auto &r : s->routes)
-            remove_callback_vm(vm, r.cb);
-    }
-    if (s->done_sem != nullptr)
-    {
-        vSemaphoreDelete(s->done_sem);
-        s->done_sem = nullptr;
-    }
-    s->magic = 0;
-    delete s;
-}
-
 bool match_use_prefix(const std::string &pattern, const std::string &path)
 {
     if (pattern == "/" || pattern.empty())
@@ -711,8 +696,9 @@ bool execute_chain_berry(HttpUserServer *s)
 
     bool handled = false;
     g_dispatch_server = s;
-    for (const auto &r : s->matched_chain)
+    for (size_t idx = 0; idx < s->matched_chain.size(); ++idx)
     {
+        const auto &r = s->matched_chain[idx];
         if (r.cb < 0)
             continue;
         s->next_requested = false;
@@ -759,11 +745,10 @@ bool execute_chain_berry(HttpUserServer *s)
             handled = true;
             break;
         }
+        if (s->next_requested)
+            continue; // entry called next(): run the next chain entry
         if (r.kind == "USE")
-        {
-            // middleware continues unless it errored/sent; next() is supported but not required for v1
-            continue;
-        }
+            continue; // middleware without next() continues by default
         // endpoint handler returned without sending
         handled = true;
         break;
@@ -852,6 +837,50 @@ bool execute_chain_berry(HttpUserServer *s)
         s->resp_sent = true;
     }
     return true;
+}
+
+// Dispatch task: runs the handler chain under the VM lock. The httpd thread waits on done_sem
+// with a timeout; if the chain exceeds DEFAULT_TIMEOUT_MS it answers 504 and invalidates the
+// epoch so this task's late completion is ignored. shortcut: timeout is client-visible only;
+// a non-cooperative Berry handler can still hold the VM lock and leave the server busy/uncloseable.
+void http_dispatch_task(void *arg)
+{
+    auto *s = static_cast<HttpUserServer *>(arg);
+    uint32_t ep = 0;
+    bool executed = false;
+    {
+        std::lock_guard<std::mutex> lock(s->mu);
+        ep = s->exchange_epoch;
+    }
+    if (is_alive(s))
+    {
+        berry_runtime_lock();
+        if (is_alive(s))
+        {
+            execute_chain_berry(s);
+            executed = true;
+        }
+        berry_runtime_unlock();
+    }
+    {
+        std::lock_guard<std::mutex> lock(s->mu);
+        if (ep == s->exchange_epoch)
+        {
+            if (!executed)
+            {
+                s->resp_status = 503;
+                s->resp_headers.clear();
+                s->resp_headers["Content-Type"] = "application/json";
+                s->resp_body = "{\"error\":\"Service Unavailable\"}";
+                s->resp_sent = true;
+                s->handler_error = false;
+            }
+            xSemaphoreGive(s->done_sem);
+        }
+        s->matched_chain.clear();
+        s->dispatch_running = false;
+    }
+    vTaskDelete(NULL);
 }
 
 esp_err_t generic_handler(httpd_req_t *req)
@@ -966,7 +995,7 @@ esp_err_t generic_handler(httpd_req_t *req)
             return send_resp(req, 503, {{"Content-Type", "application/json"}}, "{\"error\":\"Service Unavailable\"}",
                              method == "HEAD");
         }
-        if (s->in_flight)
+        if (s->in_flight || s->dispatch_running)
         {
             return send_resp(req, 503, {{"Content-Type", "application/json"}}, "{\"error\":\"Busy\"}",
                              method == "HEAD");
@@ -1005,27 +1034,70 @@ esp_err_t generic_handler(httpd_req_t *req)
         return send_resp(req, 405, hdrs, "{\"error\":\"Method Not Allowed\"}", method == "HEAD");
     }
 
-    // Execute Berry handlers synchronously under runtime lock on this (httpd) thread.
-    // NOTE: cooperative timeout only - if handler never returns, VM remains locked (documented limitation).
-    berry_runtime_lock();
-    bool ok = false;
-    if (is_alive(s))
-    {
-        ok = execute_chain_berry(s);
-    }
-    int status = s->resp_status;
-    auto rh = s->resp_headers;
-    std::string rb = s->resp_body;
-    bool sent = s->resp_sent;
-    berry_runtime_unlock();
-
+    // Execute Berry handlers on a dedicated dispatch task under the runtime lock; the httpd
+    // thread waits on done_sem with the handler timeout and answers 504 when it expires.
     {
         std::lock_guard<std::mutex> lock(s->mu);
-        s->in_flight = false;
-        s->matched_chain.clear();
+        s->exchange_epoch++;
+        s->dispatch_running = true;
+    }
+    bool got = false;
+    int status = 0;
+    std::map<std::string, std::string> rh;
+    std::string rb;
+    bool sent = false;
+    if (xTaskCreate(http_dispatch_task, "cos_http", R24_DISPATCH_STACK_SIZE, s, tskIDLE_PRIORITY + 1, nullptr) ==
+        pdPASS)
+    {
+        got = xSemaphoreTake(s->done_sem, pdMS_TO_TICKS(DEFAULT_TIMEOUT_MS)) == pdPASS;
+    }
+    else
+    {
+        // Fallback when no task can be created: fail safely instead of running inline without timeout.
+        ESP_LOGE(TAG, "dispatch task create failed");
+        {
+            std::lock_guard<std::mutex> lock(s->mu);
+            s->exchange_epoch++; // invalidate any unexpected stale dispatch signal
+            s->dispatch_running = false;
+            s->in_flight = false;
+            s->matched_chain.clear();
+        }
+        return send_resp(req, 503, {{"Content-Type", "application/json"}}, "{\"error\":\"Service Unavailable\"}",
+                         method == "HEAD");
     }
 
-    if (!ok || !sent)
+    const bool timed_out = !got;
+    {
+        std::lock_guard<std::mutex> lock(s->mu);
+        if (timed_out)
+        {
+            s->exchange_epoch++; // invalidate the late dispatch completion
+            while (s->done_sem != nullptr && xSemaphoreTake(s->done_sem, 0) == pdPASS)
+            {
+            }
+        }
+        else
+        {
+            status = s->resp_status;
+            rh = s->resp_headers;
+            rb = s->resp_body;
+            sent = s->resp_sent;
+        }
+        s->in_flight = false;
+        if (!s->dispatch_running)
+        {
+            s->matched_chain.clear();
+        }
+    }
+
+    if (timed_out)
+    {
+        ESP_LOGW(TAG, "handler timed out after %d ms", DEFAULT_TIMEOUT_MS);
+        return send_resp(req, 504, {{"Content-Type", "application/json"}}, "{\"error\":\"Gateway Timeout\"}",
+                         method == "HEAD");
+    }
+
+    if (!sent)
     {
         return send_resp(req, 500, {{"Content-Type", "application/json"}}, "{\"error\":\"Internal Server Error\"}",
                          method == "HEAD");
@@ -1156,7 +1228,7 @@ int http_close(bvm *vm)
     }
     {
         std::lock_guard<std::mutex> lock(s->mu);
-        if (s->in_flight)
+        if (s->in_flight || s->dispatch_running)
             be_raise(vm, "runtime_error", "cannot close during request dispatch");
         s->closing = true;
         s->listening = false;
@@ -1175,20 +1247,20 @@ int http_close(bvm *vm)
         for (const auto &r : s->routes)
             remove_callback_vm(rvm, r.cb);
     }
-    if (s->done_sem)
-        vSemaphoreDelete(s->done_sem);
+    {
+        std::lock_guard<std::mutex> lock(s->mu);
+        if (!s->dispatch_running)
+        {
+            if (s->done_sem)
+                vSemaphoreDelete(s->done_sem);
+            s->done_sem = nullptr;
+        }
+    }
     s->magic = 0;
     delete s;
     berry_runtime_unlock();
     be_pushbool(vm, 1);
     be_return(vm);
-}
-
-bool valid_kind(const char *k)
-{
-    return std::strcmp(k, "GET") == 0 || std::strcmp(k, "POST") == 0 || std::strcmp(k, "PUT") == 0 ||
-           std::strcmp(k, "DELETE") == 0 || std::strcmp(k, "PATCH") == 0 || std::strcmp(k, "HEAD") == 0 ||
-           std::strcmp(k, "OPTIONS") == 0 || std::strcmp(k, "ALL") == 0 || std::strcmp(k, "USE") == 0;
 }
 
 int http_add_route(bvm *vm, const char *kind)
@@ -1206,7 +1278,7 @@ int http_add_route(bvm *vm, const char *kind)
         be_raise(vm, "value_error", "path must start with '/'");
 
     std::lock_guard<std::mutex> lock(s->mu);
-    if (s->in_flight)
+    if (s->in_flight || s->dispatch_running)
         be_raise(vm, "runtime_error", "cannot modify routes during request dispatch");
     // count non-removed routes (all in vector are active)
     if (s->routes.size() >= MAX_ROUTES)
@@ -1272,7 +1344,7 @@ int http_remove(bvm *vm)
         be_raise(vm, "value_error", "route_id must be integer");
     uint32_t rid = static_cast<uint32_t>(be_toint(vm, 2));
     std::lock_guard<std::mutex> lock(s->mu);
-    if (s->in_flight)
+    if (s->in_flight || s->dispatch_running)
         be_raise(vm, "runtime_error", "cannot modify routes during request dispatch");
     for (auto it = s->routes.begin(); it != s->routes.end(); ++it)
     {
@@ -1463,13 +1535,15 @@ extern "C" void berry_http_runtime_teardown(void)
     for (auto *s : servers)
     {
         bool inflight = false;
+        bool dispatch_running = false;
         {
             std::lock_guard<std::mutex> lock(s->mu);
             inflight = s->in_flight;
+            dispatch_running = s->dispatch_running;
             s->closing = true;
             s->listening = false;
         }
-        if (inflight)
+        if (inflight || dispatch_running)
         {
             // shortcut: skip destructive cleanup while handler may still reference state; may leak until reset.
             continue;
@@ -1480,8 +1554,21 @@ extern "C" void berry_http_runtime_teardown(void)
             for (const auto &r : s->routes)
                 remove_callback_vm(vm, r.cb);
         }
-        if (s->done_sem)
-            vSemaphoreDelete(s->done_sem);
+        {
+            std::lock_guard<std::mutex> lock(s->mu);
+            dispatch_running = s->dispatch_running;
+            if (!dispatch_running)
+            {
+                if (s->done_sem)
+                    vSemaphoreDelete(s->done_sem);
+                s->done_sem = nullptr;
+            }
+        }
+        if (dispatch_running)
+        {
+            // shortcut: leak server if dispatch task may still reference it; avoids UAF until reset.
+            continue;
+        }
         s->magic = 0;
         delete s;
     }
